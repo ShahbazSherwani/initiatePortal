@@ -3,13 +3,17 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "../ui/button";
 import { MenuIcon, XIcon } from "lucide-react";
 
-type NavbarProps = {
+interface NavbarProps {
   showAuthButtons?: boolean;
   activePage?: "login" | "register";
   onBack?: () => void;
-};
+}
 
-export const Navbar = ({ showAuthButtons = true, activePage, onBack }: NavbarProps) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  showAuthButtons = true,
+  activePage,
+  onBack,
+}) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
@@ -26,8 +30,8 @@ export const Navbar = ({ showAuthButtons = true, activePage, onBack }: NavbarPro
   ];
 
   return (
-    <nav className="w-full flex flex-col md:flex-row items-center justify-between px-6 py-4 relative z-50">
-      {/* Logo and back */}
+    <nav className="w-full flex flex-col md:flex-row items-center justify-between px-6 py-4 relative z-50 border-b border-gray-200 bg-white">
+      {/* Logo and Back */}
       <div className="flex items-center gap-4">
         {onBack && (
           <Button variant="ghost" onClick={onBack} className="p-0">
@@ -37,44 +41,82 @@ export const Navbar = ({ showAuthButtons = true, activePage, onBack }: NavbarPro
         <img src="/group.png" alt="Logo" className="w-[132px] h-auto" />
       </div>
 
-      {/* Mobile Hamburger */}
+      {/* Mobile Menu Button */}
       <div className="md:hidden absolute right-6 top-6">
         <Button variant="ghost" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <XIcon className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
         </Button>
       </div>
 
-      {/* Nav Items */}
-      <div
-        className={`${
-          mobileOpen ? "flex" : "hidden"
-        } md:flex flex-col md:flex-row gap-4 md:gap-6 absolute md:static top-20 right-6 md:right-0 bg-white md:bg-transparent shadow-md md:shadow-none rounded-lg p-6 md:p-0 z-40`}
-      >
+      {/* Mobile Drawer */}
+      {mobileOpen && (
+        <div className="fixed top-0 left-0 w-full h-full bg-white z-50 p-6 overflow-y-auto animate-slideIn">
+          <div className="flex justify-between items-center mb-6">
+            <img src="/group.png" alt="Logo" className="w-[132px] h-auto" />
+            <Button variant="ghost" onClick={() => setMobileOpen(false)}>
+              <XIcon className="w-6 h-6" />
+            </Button>
+          </div>
+          <div className="flex flex-col space-y-2">
+            {navItems.map((item, index) => (
+              <span
+                key={index}
+                className={`block w-full text-left text-lg py-2 px-3 border-b border-gray-100 font-['Poppins',Helvetica] ${item.color} hover:text-white hover:bg-[#203863] transition-all duration-200 shadow-sm hover:shadow-md`}
+              >
+                {item.name}
+              </span>
+            ))}
+
+            {showAuthButtons && (
+              <div className="mt-6">
+                {activePage === "register" ? (
+                  <Link to="/">
+                    <Button className="w-full bg-[#203863] text-white hover:bg-[#1a2f52] hover:shadow-md">Sign In</Button>
+                  </Link>
+                ) : (
+                  <Link to="/register">
+                    <Button className="w-full bg-[#203863] text-white hover:bg-[#1a2f52] hover:shadow-md">Sign Up</Button>
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Menu Items */}
+      <div className="hidden md:flex flex-wrap items-center gap-4">
         {navItems.map((item, index) => (
           <span
             key={index}
-            className={`cursor-pointer font-['Mont-Regular',Helvetica] text-base ${item.color}`}
+            className={`font-['Poppins',Helvetica] text-base ${item.color} break-words whitespace-normal px-3 py-1 rounded-md hover:bg-[#203863] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md`}
           >
             {item.name}
           </span>
         ))}
       </div>
 
-      {/* Auth Section */}
+      {/* Desktop Auth Buttons */}
       {showAuthButtons && (
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex flex-col md:flex-row items-center gap-4 mt-4 md:mt-0">
           {activePage === "register" ? (
-            <Link to="/">
-              <Button variant="ghost" className="text-black">
-                Login
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <span className="text-black text-sm">Already a member?</span>
+              <Link to="/">
+                <Button className="bg-[#203863] text-white text-sm px-4 py-2 rounded-md hover:bg-[#1a2f52] hover:shadow-md">
+                  Sign In
+                </Button>
+              </Link>
+            </div>
           ) : (
-            <Link to="/register">
-              <Button className="bg-[#203863] text-white px-6 py-2 rounded-lg">
-                Register
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <span className="text-black text-sm">Don't have an account?</span>
+              <Link to="/register">
+                <Button className="bg-[#203863] text-white text-sm px-4 py-2 rounded-md hover:bg-[#1a2f52] hover:shadow-md">
+                  Sign Up
+                </Button>
+              </Link>
+            </div>
           )}
 
           <div className="flex items-center gap-2">
@@ -83,6 +125,16 @@ export const Navbar = ({ showAuthButtons = true, activePage, onBack }: NavbarPro
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slideIn {
+          animation: slideIn 0.3s ease-out forwards;
+        }
+      `}</style>
     </nav>
   );
 };
