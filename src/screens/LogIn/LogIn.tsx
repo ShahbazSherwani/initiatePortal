@@ -1,113 +1,210 @@
+// import React from "react";
+// import {
+//   ArrowLeftIcon,
+//   EyeIcon,
+//   EyeOffIcon,
+//   LockIcon,
+//   MailIcon
+// } from "lucide-react";
+// import { Input } from "../../components/ui/input";
+// import { Button } from "../../components/ui/button";
+// import { Navbar } from "../../components/Navigation/navbar";
+// import { Link } from "react-router-dom";
+// import { Testimonials } from "../../screens/LogIn/Testimonials";
+
+// export const LogIn = (): JSX.Element => {
+//   const [showPassword, setShowPassword] = React.useState(false);
+
+//   return (
+//     <div className="bg-white min-h-screen w-full relative overflow-hidden">
+//       <Navbar activePage="login" showAuthButtons />
+
+//       {/* Background and images */}
+
+//       {/* Form Section */}
+//       <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-12 py-10">
+//         <div className="w-full max-w-2xl">
+//           <Button variant="ghost" className="mb-4">
+//             <ArrowLeftIcon className="h-6 w-6" />
+//           </Button>
+
+//           <h1 className="text-3xl font-bold mb-2 font-poppins">Log In</h1>
+//           <p className="text-sm text-[#505050] mb-6">Enter your details to log in your account</p>
+
+//           <div className="space-y-5">
+//             {[{
+//               label: "Email Address",
+//               icon: MailIcon,
+//               type: "text"
+//             }, {
+//               label: "Password",
+//               icon: LockIcon,
+//               type: showPassword ? "text" : "password"
+//             }].map((field, index) => (
+//               <div key={index}>
+//                 <label className="block mb-1 font-medium text-[17px]">{field.label}</label>
+//                 <div className="relative w-full md:max-w-[65%]">
+//                   <Input
+//                     placeholder="Enter here"
+//                     type={field.type}
+//                     className="h-[58px] rounded-2xl border border-black pl-12 pr-10 w-full transition-all duration-300"
+//                   />
+//                   <field.icon className="absolute top-1/2 left-5 transform -translate-y-1/2 w-5 h-5 text-black" />
+//                   {field.label === "Password" && (
+//                     <Button
+//                       variant="ghost"
+//                       size="icon"
+//                       className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
+//                       onClick={() => setShowPassword((prev) => !prev)}
+//                     >
+//                       {showPassword ? <EyeOffIcon className="h-6 w-6" /> : <EyeIcon className="h-6 w-6" />}
+//                     </Button>
+//                   )}
+//                 </div>
+//               </div>
+//             ))}
+
+//             <div className="text-right text-sm mt-2 mb-6 font-medium text-black w-full md:max-w-[65%] transition-all duration-300">
+//               Forgot Password?
+//             </div>
+
+//             {/* <div className="flex flex-col md:flex-row md:items-center md:gap-4 md:max-w-[65%]">
+//               <Button className="w-full md:w-[266px] h-[58px] bg-[#ffc00f] rounded-2xl hover:bg-[#e6af0e] text-black font-medium">
+//                 Log In
+//               </Button>
+//               <div className="flex items-center gap-4 mt-4 md:mt-0">
+//                 <Button className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl">
+//                   <img src="/image-3.png" alt="google" className="w-[33px] h-[34px] object-cover" />
+//                 </Button>
+//                 <Button className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl">
+//                   <img src="/image-6.png" alt="facebook" className="w-[33px] h-[34px] object-cover" />
+//                 </Button>
+//               </div>
+//             </div> */}
+
+//                     <div className="flex flex-col md:flex-row md:items-center md:gap-4 md:max-w-[65%]">
+//                       <Button className="w-full md:w-[266px] h-[58px] bg-[#ffc00f] rounded-2xl text-black hover:text-[#ffffff] font-medium">
+//                         Log In
+//                       </Button>
+//                       <span>or</span>
+//                       <div className="flex items-center gap-4 mt-4 md:mt-0">
+//                           <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none">
+//                             <img src="/image-3.png" alt="Google sign in" className="w-[33px] h-[34px] object-cover" />
+//                           </Button>
+//                           <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none">
+//                             <img src="/image-6.png" alt="Facebook sign in" className="w-[33px] h-[34px] object-cover" />
+//                           </Button>
+//                         </div>
+//                     </div>
+
+//             <p className="text-center text-sm mt-6">
+//               Don’t have an account?{' '}
+//               <Link to="/register" className="text-[#ffc628] font-semibold">
+//                 Sign Up
+//               </Link>
+//             </p>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Testimonials Section */}
+//       <Testimonials />
+
 import React from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { loginUser } from "../../server/auth/auth";
 import {
   ArrowLeftIcon,
   EyeIcon,
   EyeOffIcon,
   LockIcon,
-  MailIcon
+  MailIcon,
 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { Navbar } from "../../components/Navigation/navbar";
-import { Link } from "react-router-dom";
 import { Testimonials } from "../../screens/LogIn/Testimonials";
 
 export const LogIn = (): JSX.Element => {
+  const nav = useNavigate();
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      const token = await loginUser(email, password);
+      localStorage.setItem("fb_token", token);
+      nav("/borrower");
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
 
   return (
     <div className="bg-white min-h-screen w-full relative overflow-hidden">
       <Navbar activePage="login" showAuthButtons />
+      <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-4">
+        <Button variant="ghost" className="mb-4">
+          <ArrowLeftIcon className="h-6 w-6" />
+        </Button>
+        <h1 className="text-3xl font-bold mb-2">Log In</h1>
+        <p className="text-sm mb-6">Enter your details to log in to your account</p>
 
-      {/* Background and images */}
-
-      {/* Form Section */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-12 py-10">
-        <div className="w-full max-w-2xl">
-          <Button variant="ghost" className="mb-4">
-            <ArrowLeftIcon className="h-6 w-6" />
-          </Button>
-
-          <h1 className="text-3xl font-bold mb-2 font-poppins">Log In</h1>
-          <p className="text-sm text-[#505050] mb-6">Enter your details to log in your account</p>
-
-          <div className="space-y-5">
-            {[{
-              label: "Email Address",
-              icon: MailIcon,
-              type: "text"
-            }, {
-              label: "Password",
-              icon: LockIcon,
-              type: showPassword ? "text" : "password"
-            }].map((field, index) => (
-              <div key={index}>
-                <label className="block mb-1 font-medium text-[17px]">{field.label}</label>
-                <div className="relative w-full md:max-w-[65%]">
-                  <Input
-                    placeholder="Enter here"
-                    type={field.type}
-                    className="h-[58px] rounded-2xl border border-black pl-12 pr-10 w-full transition-all duration-300"
-                  />
-                  <field.icon className="absolute top-1/2 left-5 transform -translate-y-1/2 w-5 h-5 text-black" />
-                  {field.label === "Password" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                    >
-                      {showPassword ? <EyeOffIcon className="h-6 w-6" /> : <EyeIcon className="h-6 w-6" />}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            <div className="text-right text-sm mt-2 mb-6 font-medium text-black w-full md:max-w-[65%] transition-all duration-300">
-              Forgot Password?
+        <div className="space-y-5">
+          <div>
+            <label className="block mb-1">Email Address</label>
+            <div className="relative">
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="pl-12"
+              />
+              <MailIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" />
             </div>
-
-            {/* <div className="flex flex-col md:flex-row md:items-center md:gap-4 md:max-w-[65%]">
-              <Button className="w-full md:w-[266px] h-[58px] bg-[#ffc00f] rounded-2xl hover:bg-[#e6af0e] text-black font-medium">
-                Log In
-              </Button>
-              <div className="flex items-center gap-4 mt-4 md:mt-0">
-                <Button className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl">
-                  <img src="/image-3.png" alt="google" className="w-[33px] h-[34px] object-cover" />
-                </Button>
-                <Button className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl">
-                  <img src="/image-6.png" alt="facebook" className="w-[33px] h-[34px] object-cover" />
-                </Button>
-              </div>
-            </div> */}
-
-                    <div className="flex flex-col md:flex-row md:items-center md:gap-4 md:max-w-[65%]">
-                      <Button className="w-full md:w-[266px] h-[58px] bg-[#ffc00f] rounded-2xl text-black hover:text-[#ffffff] font-medium">
-                        Log In
-                      </Button>
-                      <span>or</span>
-                      <div className="flex items-center gap-4 mt-4 md:mt-0">
-                          <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none">
-                            <img src="/image-3.png" alt="Google sign in" className="w-[33px] h-[34px] object-cover" />
-                          </Button>
-                          <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none">
-                            <img src="/image-6.png" alt="Facebook sign in" className="w-[33px] h-[34px] object-cover" />
-                          </Button>
-                        </div>
-                    </div>
-
-            <p className="text-center text-sm mt-6">
-              Don’t have an account?{' '}
-              <Link to="/register" className="text-[#ffc628] font-semibold">
-                Sign Up
-              </Link>
-            </p>
           </div>
-        </div>
-      </div>
 
-      {/* Testimonials Section */}
+          <div>
+            <label className="block mb-1">Password</label>
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="pl-12"
+              />
+              <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                onClick={() => setShowPassword((p) => !p)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8"
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </Button>
+            </div>
+          </div>
+
+          {error && <p className="text-red-500">{error}</p>}
+          <Button type="submit" className="w-full bg-yellow-500">
+            Log In
+          </Button>
+        </div>
+
+        <p className="text-center text-sm mt-6">
+          Don’t have an account?{' '}
+          <Link to="/register" className="text-yellow-600">
+            Sign Up
+          </Link>
+        </p>
+      </form>
       <Testimonials />
 
       <style>{`
