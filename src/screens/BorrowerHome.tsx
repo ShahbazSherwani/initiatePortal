@@ -1,4 +1,9 @@
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
+import { Navigate } from 'react-router-dom';
+import { AuthContext } from '../contexts/AuthContext';
+import { getWalletBalance } from "..//lib/wallet"; // we’ll build this next
+
+
 import {
   BellIcon,
   CalendarIcon,
@@ -20,7 +25,24 @@ import { Sidebar } from "../../src/components/Sidebar/Sidebar";
 
 import "../../src/styles/animations.css";
 
-export const BorrowerHome = (): JSX.Element => {
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const authContext = useContext(AuthContext);
+  const token = authContext?.token || null;
+  return token ? children : <Navigate to="/login" />;
+}
+
+
+export const BorrowerHome: React.FC = () => {
+  const { profile, token, logout } = useContext(AuthContext)!;
+  const [balance, setBalance] = useState<number | null>(null);
+
+  // fetch wallet balance on mount
+  useEffect(() => {
+    if (token) {
+      getWalletBalance(token).then(b => setBalance(b)).catch(console.error);
+    }
+  }, [token]);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // account‑type toggle
@@ -83,28 +105,28 @@ export const BorrowerHome = (): JSX.Element => {
                 <div className="flex justify-between items-center w-full">
                   {/* Legal Name */}
                   <div>
-                    <div className="opacity-70 font-poppins font-medium text-black text-xl md:text-2xl">
-                      Legal Name:
-                    </div>
-                    <h2 className="font-poppins font-medium text-black text-[22px] md:text-[28px]">
-                      Alexa John
-                    </h2>
+                    <h2 className="text-xl opacity-70">Legal Name:</h2>
+                    <p className="text-2xl font-semibold">{profile?.name}</p>
+                    <p className="mt-1 text-sm opacity-60">
+                      Member since {profile ? new Date(profile.joined).toLocaleDateString() : "--"}
+                    </p>
                   </div>
 
                   {/* Wallet Balance & Actions */}
-                  <div className="text-right">
-                    <div className="font-poppins font-medium text-black text-xl md:text-2xl mb-2">
-                      Wallet Balance: 0.00
-                    </div>
-                    <div className="flex gap-4 flex-wrap justify-end">
-                      <Button variant="outline" className="rounded-xl px-6 py-3 text-sm md:text-xl">
-                        Top‑up
-                      </Button>
-                      <Button className="bg-[#ffc628] text-black hover:bg-[#e6b324] rounded-xl px-6 py-3 text-sm md:text-xl">
+                  <div className="ml-auto text-right">
+                    <h2 className="text-xl opacity-70">Wallet Balance:</h2>
+                    <p className="text-2xl font-semibold">
+                      {balance !== null ? balance.toFixed(2) : "—"}
+                    </p>
+                    <div className="mt-4 flex gap-4">
+                      <button className="px-6 py-3 rounded-xl border" onClick={() => { /* show top-up modal */ }}>
+                        Top-up
+                      </button>
+                      <button className="px-6 py-3 rounded-xl bg-yellow-400" onClick={() => {/* show withdraw modal */}}>
                         Withdraw
-                      </Button>
-                    </div>
+                    </button>
                   </div>
+                </div>
                 </div>
 
                 {/* Username & Profile Code */}

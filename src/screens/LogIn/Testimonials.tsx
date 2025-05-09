@@ -43,7 +43,7 @@ export const Testimonials = () => {
   {/* Right Content (Background + Testimonials) */}
   <div className="relative top-[20%] group perspective " >
   <img
-        className="fixed top-[22vh] right-[27vw] w-[7vw] max-w-[80px] h-auto animate-fadeIn delay-500"
+  className="absolute top-[-6%] left-[35%] w-[7vw] max-w-[80px] h-auto animate-fadeInOnly"
         src="/arrow-2.svg"
         alt="arrow"
         />

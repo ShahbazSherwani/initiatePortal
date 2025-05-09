@@ -1,13 +1,15 @@
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useContext  } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { MenuIcon, XIcon } from "lucide-react";
+import { AuthContext } from '../../contexts/AuthContext';
 
 interface NavbarProps {
+  activePage: string;
   showAuthButtons?: boolean;
-  activePage?: "login" | "register";
   onBack?: () => void;
 }
+
 
 export const Navbar: React.FC<NavbarProps> = ({
   showAuthButtons = true,
