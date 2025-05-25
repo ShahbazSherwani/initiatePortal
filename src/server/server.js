@@ -126,6 +126,37 @@ app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
 
 app.use('/api/profile', profileRouter);
 
+// at top, after profileRouter…
+const borrowRouter = express.Router();
+
+// Create a borrow request
+borrowRouter.post("/", verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const {
+    nationalId, passport, tin,
+    street, barangay, municipality,
+    province, country, postalCode
+  } = req.body;
+
+  try {
+    await db.query(
+      `INSERT INTO borrow_requests
+         (firebase_uid,national_id,passport_no,tin,
+          street,barangay,municipality,province,country,postal_code)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [uid,nationalId,passport,tin,
+       street,barangay,municipality,province,country,postalCode]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DB error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+app.use("/api/borrow-requests", borrowRouter);
+
+
 // Start server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API listening on port ${PORT}`));

@@ -1,5 +1,6 @@
-import React, { useState, ReactNode } from "react";
-import { Button } from "../../../src/components/ui/button";
+import React, { useState, ReactNode, useContext } from "react";
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from "../ui/button";
 import {
   HomeIcon,
   CalendarIcon,
@@ -11,17 +12,19 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react";
+import { AuthContext } from '../../contexts/AuthContext';
 
 interface NavItem {
   icon: ReactNode;
   label: string;
+  to?: string;
   subItems?: string[];
 }
 
 const navItems: NavItem[] = [
-  { icon: <HomeIcon className="w-5 h-5" />, label: "Home" },
-  { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar" },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "Wallet" },
+  { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrow' },
+  { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/calendar' },
+  { icon: <WalletIcon className="w-5 h-5" />, label: "Wallet", to: '/wallet' },
   {
     icon: <img src="/group-23.png" alt="Issuer" className="w-5 h-5" />,
     label: "My Issuer/Borrower",
@@ -30,18 +33,28 @@ const navItems: NavItem[] = [
   {
     icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
     label: "Initiate Request",
+    to: '/request'
   },
   {
     icon: <img src="/group-26.png" alt="Donation" className="w-3.5 h-5" />,
     label: "Donation",
+    to: '/donation'
   },
-  { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings" },
-  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support" },
+  { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings' },
+  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help' },
 ];
 
 export const Sidebar: React.FC = () => {
+  const authContext = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    authContext?.logout();
+    navigate('/');
+  };
+
   const [selectedIdx, setSelectedIdx] = useState(
-    navItems.findIndex((item) => item.label === "Home")
+    navItems.findIndex((item) => item.to === window.location.pathname) || 0
   );
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -55,6 +68,7 @@ export const Sidebar: React.FC = () => {
               variant={isSelected ? "default" : "ghost"}
               onClick={() => {
                 setSelectedIdx(idx);
+                if (item.to) navigate(item.to);
                 if (isMobile) setMobileOpen(false);
               }}
               className={
@@ -95,10 +109,7 @@ export const Sidebar: React.FC = () => {
         <Button
           variant="ghost"
           className="flex items-center justify-start w-full gap-3 text-left opacity-70 p-2"
-          onClick={() => {
-            setSelectedIdx(-1);
-            if (isMobile) setMobileOpen(false);
-          }}
+          onClick={handleLogout}
         >
           <LogOutIcon className="w-5 h-5" />
           <span className="font-poppins font-medium text-black text-[17.8px]">

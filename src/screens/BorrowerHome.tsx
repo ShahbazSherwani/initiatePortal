@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { getWalletBalance } from "..//lib/wallet"; // we’ll build this next
+import { useNavigate } from "react-router-dom";
 
 
 import {
@@ -25,6 +26,8 @@ import { Sidebar } from "../../src/components/Sidebar/Sidebar";
 
 import "../../src/styles/animations.css";
 
+
+
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const authContext = useContext(AuthContext);
   const token = authContext?.token || null;
@@ -35,6 +38,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 export const BorrowerHome: React.FC = () => {
   const { profile, token, logout } = useContext(AuthContext)!;
   const [balance, setBalance] = useState<number | null>(null);
+  const navigate = useNavigate();
+
 
   // fetch wallet balance on mount
   useEffect(() => {
@@ -58,6 +63,12 @@ export const BorrowerHome: React.FC = () => {
     { title: "Initiate Donation Campaign", image: "/donate-1.png" },
     { title: "Initiate Request",        image: "/leader-1.png" },
   ];
+// map each index to the route you want:
+const accountRoutes = [
+ "/investor",    // invest/lender page
+"/borrow/request",// issue/borrow page
+ "/guarantee",   // guarantee page
+];
 
   return (
     <div className="bg-[#f0f0f0] flex flex-col md:flex-row w-full min-h-screen animate-fadeIn overflow-x-hidden">
@@ -70,7 +81,7 @@ export const BorrowerHome: React.FC = () => {
 
           <main className="w-[90%] h-[90%] mx-auto my-4 bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:h-auto md:mx-0 md:my-0 animate-fadeIn delay-300 md:gap-x-6">
             {/* Header */}
-            <header className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 md:px-20 pt-6 md:pt-9 gap-4 md:gap-0">
+            {/* <header className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 md:px-20 pt-6 md:pt-9 gap-4 md:gap-0">
               <div className="flex items-center gap-4 ml-auto animate-fadeIn delay-300">
                 <div className="relative">
                   <BellIcon className="w-6 md:w-7 h-6 md:h-8" />
@@ -92,7 +103,7 @@ export const BorrowerHome: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </header>
+            </header> */}
 
             {/* Profile / Wallet Section */}
           <section className="flex flex-col md:flex-row items-start md:items-center mb-12 gap-6">
@@ -163,7 +174,11 @@ export const BorrowerHome: React.FC = () => {
                   return (
                     <button
                       key={idx}
-                      onClick={() => setSelectedAccountIdx(idx)}
+                      onClick={() => {
+                       setSelectedAccountIdx(idx);
+                       // navigate to the matching page
+                       navigate(accountRoutes[idx]);
+                        }}
                       className="w-full sm:w-[216px] flex flex-col items-center focus:outline-none"
                     >
                       <Card

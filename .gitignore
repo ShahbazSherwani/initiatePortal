@@ -33,5 +33,3 @@ dist-ssr
 *.pem
 *.key
 src/server/firebase-service-account.json
-src/server/firebase-service-account.json
-src/server/firebase-service-account.json

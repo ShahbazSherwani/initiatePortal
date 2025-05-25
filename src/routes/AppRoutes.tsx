@@ -4,6 +4,7 @@ import MainLayout from "../layouts/MainLayout";
 import { LogIn } from "../screens/LogIn/LogIn";
 import { RegisterStep } from "../screens/LogIn/RegisterStep";
 import { BorrowerHome } from "../screens/BorrowerHome";
+import { BorrowerReg } from "../screens/BorrowerReg";
 import { AuthContext } from "../contexts/AuthContext";
 
 // A wrapper for protected routes
@@ -24,7 +25,7 @@ export const AppRoutes: React.FC = () => {
         <Route index element={<LogIn />} />
         <Route path="register" element={<RegisterStep />} />
         {/* Protect the borrow route */}
-        {/* <Route
+        <Route
           path="borrow"
           element={
             <PrivateRoute>
@@ -32,9 +33,13 @@ export const AppRoutes: React.FC = () => {
             </PrivateRoute>
           }
           
-        /> */}
-        <Route path="borrow" element={<BorrowerHome />} />
+        />
+        
+        <Route path="borrowreg" element={<BorrowerReg />} />
       </Route>
+      <Route path="borrow/request" element={
+        <PrivateRoute><BorrowerReg /></PrivateRoute>
+      }/>
     </Routes>
   );
 };
