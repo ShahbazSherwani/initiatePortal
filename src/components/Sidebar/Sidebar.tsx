@@ -13,6 +13,8 @@ import {
   ChevronRightIcon,
 } from "lucide-react";
 import { AuthContext } from '../../contexts/AuthContext';
+import BorrowerCalender from "../../screens/BorrowCalendar";
+
 
 interface NavItem {
   icon: ReactNode;
@@ -23,7 +25,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrow' },
-  { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/calendar' },
+  { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/borrowCalendar' },
   { icon: <WalletIcon className="w-5 h-5" />, label: "Wallet", to: '/wallet' },
   {
     icon: <img src="/group-23.png" alt="Issuer" className="w-5 h-5" />,
