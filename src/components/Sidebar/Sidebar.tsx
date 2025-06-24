@@ -15,7 +15,9 @@ import {
 import { AuthContext } from '../../contexts/AuthContext';
 import BorrowerCalender from "../../screens/BorrowCalendar";
 
-
+interface SidebarProps {
+  activePage: string;
+}
 interface NavItem {
   icon: ReactNode;
   label: string;
@@ -46,7 +48,7 @@ const navItems: NavItem[] = [
   { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help' },
 ];
 
-export const Sidebar: React.FC = () => {
+export const Sidebar: React.FC<SidebarProps> = ({ activePage }) =>  {
   const authContext = useContext(AuthContext);
   const navigate = useNavigate();
 

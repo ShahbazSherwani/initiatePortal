@@ -8,7 +8,19 @@ import { BorrowerReg } from "../screens/BorrowerReg";
 import { BorrowerOccupation } from "../screens/BorrowOcu";
 import { AuthContext } from "../contexts/AuthContext";
 import { BorrowerWallet } from "../screens/BorrowerWallet";
-import BorrowerCalender from "../screens/BorrowCalendar";
+import {BorrowerCalender} from "../screens/BorrowCalendar";
+import { BorrowerEvent } from "../screens/BorrowEvents";
+import { BorrowerProject } from "../screens/BorrowProject";
+import { BorrowerBankDet } from "../screens/BorrowerBankDet";
+import { BorrowerMyProjects } from "../screens/BorwMyProjects";
+import { BorrowerCreateNew } from "../screens/BorwCreateNewProjLend";
+import { BorrowerCreateNewEq } from "../screens/BorwCreateNewProjEquity";
+import { BorrowerMilestones } from "../screens/BorrowerMilestones";
+import { AddMileStones } from "../screens/AddMilestones";
+
+
+
+
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -42,6 +54,22 @@ export const AppRoutes: React.FC = () => {
         <Route path="borrowocu" element={<BorrowerOccupation />} />
         <Route path="borrowWallet" element={<BorrowerWallet />} />
         <Route path="borrowCalendar" element={<BorrowerCalender />} />
+        <Route path="borrowEvents" element={<BorrowerEvent />} />
+        <Route path="borrowProj" element={<BorrowerProject />} />
+        <Route path="borrowBank" element={<BorrowerBankDet />} />
+        <Route path="borwMyProj"      element={<BorrowerMyProjects />} />
+        <Route path="borwNewProj"     element={<BorrowerCreateNew  />} />
+        <Route path="borwNewProjEq"   element={<BorrowerCreateNewEq />} />
+        <Route path="borwMilestones" element={<BorrowerMilestones />} />
+        <Route path="addMilestones" element={<AddMileStones />} />
+
+        
+
+
+
+
+
+
         
 
       </Route>
