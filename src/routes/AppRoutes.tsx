@@ -16,7 +16,12 @@ import { BorrowerMyProjects } from "../screens/BorwMyProjects";
 import { BorrowerCreateNew } from "../screens/BorwCreateNewProjLend";
 import { BorrowerCreateNewEq } from "../screens/BorwCreateNewProjEquity";
 import { BorrowerMilestones } from "../screens/BorrowerMilestones";
-import { AddMileStones } from "../screens/AddMilestones";
+import { Milestones } from "../screens/Milestones";
+import { AddMilestones } from "../screens/AddMilestones";
+import { BorrowerROI } from "../screens/BorrowerROI";
+import { BorrowerROISales } from "../screens/BorrowerROISales";
+
+import { BorrowerPayoutSchedule } from "../screens/BorrowerPayoutSchedule";
 
 
 
@@ -61,7 +66,15 @@ export const AppRoutes: React.FC = () => {
         <Route path="borwNewProj"     element={<BorrowerCreateNew  />} />
         <Route path="borwNewProjEq"   element={<BorrowerCreateNewEq />} />
         <Route path="borwMilestones" element={<BorrowerMilestones />} />
-        <Route path="addMilestones" element={<AddMileStones />} />
+        <Route path="milestones" element={<Milestones />} />
+        <Route path="addMilestones" element={<AddMilestones />} />
+        <Route path="borrowROI" element={<PrivateRoute><BorrowerROI/></PrivateRoute>} />
+        <Route path="borrowROISales" element={<PrivateRoute><BorrowerROISales/></PrivateRoute>} />
+        <Route path="borrowPayout" element={<PrivateRoute><BorrowerPayoutSchedule/></PrivateRoute>
+        
+  }
+/>
+        
 
         
 

@@ -1,5 +1,6 @@
 // src/screens/LogIn/BorrowReg.tsx
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Country, State, City } from "country-state-city";
 import { Navbar } from "../components/Navigation/navbar";
 import { Testimonials } from "../screens/LogIn/Testimonials";
@@ -16,6 +17,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 
 export const BorrowerReg = (): JSX.Element => {
+  const navigate = useNavigate();
   // Identification
   const [nationalId, setNationalId] = useState("");
   const [passport, setPassport]   = useState("");
@@ -268,7 +270,7 @@ export const BorrowerReg = (): JSX.Element => {
 
           {/* Next */}
           <div className="pt-4">
-            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#ffc00f] rounded-2xl font-medium">
+            <Button  type="submit" onClick={() => {navigate("/borrowocu");}} className="w-full md:w-1/3 h-14 bg-[#ffc00f] rounded-2xl font-medium">
               Next
             </Button>
           </div>

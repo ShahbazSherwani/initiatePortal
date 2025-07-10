@@ -146,7 +146,7 @@ export const BorrowerOccupation: React.FC = () => {
           <div className="pt-4 w-full md:w-1/3">
             <Button
               onClick={() => {
-                navigate("/borrower/details");
+                navigate("/borrowWallet");
               }}
               className="
                 w-full h-14 bg-[#ffc00f] rounded-2xl
