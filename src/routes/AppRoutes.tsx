@@ -20,6 +20,7 @@ import { Milestones } from "../screens/Milestones";
 import { AddMilestones } from "../screens/AddMilestones";
 import { BorrowerROI } from "../screens/BorrowerROI";
 import { BorrowerROISales } from "../screens/BorrowerROISales";
+import { RegistrationProvider } from "../contexts/RegistrationContext";
 
 import { BorrowerPayoutSchedule } from "../screens/BorrowerPayoutSchedule";
 
@@ -40,6 +41,7 @@ const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
 
 export const AppRoutes: React.FC = () => {
   return (
+  <RegistrationProvider>
     <Routes>
       <Route path="/" element={<MainLayout />}>        
         <Route index element={<LogIn />} />
@@ -90,6 +92,7 @@ export const AppRoutes: React.FC = () => {
         <PrivateRoute><BorrowerReg /></PrivateRoute>
       }/>
     </Routes>
+    </RegistrationProvider>
   );
 };
 

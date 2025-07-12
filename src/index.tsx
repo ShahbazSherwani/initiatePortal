@@ -5,6 +5,7 @@ import { AppRoutes } from "./routes/AppRoutes";
 import { AuthProvider } from './contexts/AuthContext';  // correct path
 
 
+
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {

@@ -1,6 +1,6 @@
-// src/screens/LogIn/BorrowReg.tsx
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useRegistration } from "../contexts/RegistrationContext";
 import { Country, State, City } from "country-state-city";
 import { Navbar } from "../components/Navigation/navbar";
 import { Testimonials } from "../screens/LogIn/Testimonials";
@@ -17,48 +17,55 @@ import {
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 
 export const BorrowerReg = (): JSX.Element => {
-  const navigate = useNavigate();
+  const location = useLocation();
+  const initialAccountType = location.state?.accountType || "individual";
+  const [accountType, setAccountType] = useState(initialAccountType);
+
   // Identification
   const [nationalId, setNationalId] = useState("");
-  const [passport, setPassport]   = useState("");
-  const [tin, setTin]             = useState("");
+  const [passport, setPassport] = useState("");
+  const [tin, setTin] = useState("");
 
   // Address
-  const [street, setStreet]     = useState("");
+  const [street, setStreet] = useState("");
   const [barangay, setBarangay] = useState("");
 
   // Location selects
   const [countryIso, setCountryIso] = useState("");
-  const [stateIso, setStateIso]     = useState("");
-  const [cityName, setCityName]     = useState("");
-
+  const [stateIso, setStateIso] = useState("");
+  const [cityName, setCityName] = useState("");
   const [postalCode, setPostalCode] = useState("");
 
   const countries = Country.getAllCountries();
-  const states    = countryIso ? State.getStatesOfCountry(countryIso) : [];
-  const cities    = stateIso   ? City.getCitiesOfState(countryIso, stateIso) : [];
+  const states = countryIso ? State.getStatesOfCountry(countryIso) : [];
+  const cities = stateIso ? City.getCitiesOfState(countryIso, stateIso) : [];
+
+  const { setRegistration } = useRegistration();
+  const navigate = useNavigate();
+
+  const handleAccountTypeSelect = (type: string) => {
+    setAccountType(type);
+    setRegistration(reg => ({ ...reg, accountType: type }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.currentTarget as HTMLFormElement;
-    if (!form.checkValidity()) {
-      // Let the browser show which fields are missing
-      form.reportValidity();
-      return;
-    }
-    // all required fields are non-empty — go to next step
-    // e.g. navigate("/borrower/details", { state: { ... } })
-    console.log({
-      nationalId,
-      passport,
-      tin,
-      street,
-      barangay,
-      countryIso,
-      stateIso,
-      cityName,
-      postalCode,
-    });
+    setRegistration(reg => ({
+      ...reg,
+      accountType,
+      details: {
+        nationalId,
+        passport,
+        tin,
+        street,
+        barangay,
+        countryIso,
+        stateIso,
+        cityName,
+        postalCode,
+      },
+    }));
+    navigate("/borrowocu");
   };
 
   return (
@@ -83,13 +90,17 @@ export const BorrowerReg = (): JSX.Element => {
           {/* Option */}
           <div>
             <p className="font-medium text-lg mb-2">Please select an option</p>
-            <RadioGroup defaultValue="individual" className="flex flex-col sm:flex-row gap-4">
+            <RadioGroup
+              value={accountType}
+              onValueChange={handleAccountTypeSelect}
+              className="flex flex-col sm:flex-row gap-4"
+            >
               {["individual", "msme"].map(val => (
                 <label
                   key={val}
                   className={`
                     flex items-center gap-2 px-4 py-2 rounded-lg border
-                    ${val === "individual"
+                    ${accountType === val
                       ? "bg-[url('/radio-btns.svg')] bg-cover"
                       : "bg-white"}
                   `}
@@ -120,11 +131,11 @@ export const BorrowerReg = (): JSX.Element => {
               </div>
               {/* Upload ID Copy */}
               <div className="space-y-2">
-                  <Label>Upload ID Copy</Label>
-                  <Button className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2">
-                    <span className="text-2xl">+</span> Upload
-                  </Button>
-                </div>
+                <Label>Upload ID Copy</Label>
+                <Button className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2">
+                  <span className="text-2xl">+</span> Upload
+                </Button>
+              </div>
               {/* Passport */}
               <div className="space-y-2">
                 <Label>Passport Number*</Label>
@@ -141,11 +152,11 @@ export const BorrowerReg = (): JSX.Element => {
               </div>
               {/* Upload Passport */}
               <div className="space-y-2">
-                  <Label>Upload Passport Copy</Label>
-                  <Button className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2">
-                    <span className="text-2xl">+</span> Upload
-                  </Button>
-                </div>
+                <Label>Upload Passport Copy</Label>
+                <Button className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2">
+                  <span className="text-2xl">+</span> Upload
+                </Button>
+              </div>
               {/* TIN */}
               <div className="sm:col-span-2 space-y-2">
                 <Label>TIN*</Label>
@@ -270,7 +281,7 @@ export const BorrowerReg = (): JSX.Element => {
 
           {/* Next */}
           <div className="pt-4">
-            <Button  type="submit" onClick={() => {navigate("/borrowocu");}} className="w-full md:w-1/3 h-14 bg-[#ffc00f] rounded-2xl font-medium">
+            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#ffc00f] rounded-2xl font-medium">
               Next
             </Button>
           </div>
@@ -284,3 +295,5 @@ export const BorrowerReg = (): JSX.Element => {
     </div>
   );
 };
+
+export default BorrowerReg;

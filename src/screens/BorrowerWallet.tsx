@@ -1,11 +1,13 @@
 // src/screens/LogLogIn/RegisterStep.tsx
 
-import React from "react";
+import React, { useState } from "react";
 import { Navbar } from "../components/Navigation/navbar";
 import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
+import { useNavigate } from "react-router-dom";
+
 import {
   Select,
   SelectContent,
@@ -16,6 +18,9 @@ import {
 import { Testimonials } from "../screens/LogIn/Testimonials";
 
 export const BorrowerWallet = (): JSX.Element => {
+  const navigate = useNavigate();
+  const [showThankYou, setShowThankYou] = useState(false);
+
   // --- 1) Define all dynamic form data arrays ---
   const bankFields = [
     { id: "accountName", label: "Account Name",   type: "input",  placeholder: "Enter here" },
@@ -49,8 +54,32 @@ export const BorrowerWallet = (): JSX.Element => {
     },
   ];
 
+  const handleNext = () => {
+    setShowThankYou(true);
+    setTimeout(() => {
+      navigate("/borrow"); // Go to home/dashboard
+    }, 2000); // Show modal for 2 seconds
+  };
+
   return (
     <div className="bg-white min-h-screen w-full relative overflow-hidden z-10">
+      {/* Thank You Modal */}
+      {showThankYou && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl p-10 flex flex-col items-center shadow-xl">
+            <div className="bg-[#ffc00f] rounded-full p-4 mb-4">
+              <svg width="48" height="48" fill="none" viewBox="0 0 24 24">
+                <path d="M5 13l4 4L19 7" stroke="#222" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold mb-2">Thank You!</h2>
+            <p className="text-center text-lg text-gray-700">
+              Your request has been submitted! We will review and get back to you.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ─── Site‐wide Navbar ─── */}
       <Navbar activePage="register" showAuthButtons={true} />
 
@@ -169,7 +198,10 @@ export const BorrowerWallet = (): JSX.Element => {
 
           {/* ── Next Button ── */}
           <div className="mb-12">
-            <Button className="w-full md:w-1/2 h-14 bg-[#ffc00f] rounded-2xl font-medium text-base">
+            <Button
+              className="w-full md:w-1/2 h-14 bg-[#ffc00f] rounded-2xl font-medium text-base"
+              onClick={handleNext}
+            >
               Next
             </Button>
           </div>

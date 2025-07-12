@@ -3,6 +3,8 @@ import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { getWalletBalance } from "..//lib/wallet"; // we’ll build this next
 import { useNavigate } from "react-router-dom";
+import { useRegistration } from "../contexts/RegistrationContext";
+
 
 
 import {
@@ -37,6 +39,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export const BorrowerHome: React.FC = () => {
   const { profile, token, logout } = useContext(AuthContext)!;
+    const { registration } = useRegistration();
   const [balance, setBalance] = useState<number | null>(null);
   const navigate = useNavigate();
 
@@ -52,9 +55,9 @@ export const BorrowerHome: React.FC = () => {
 
   // account‑type toggle
   const accountTypes = [
-    { title: "Invest/Lender", image: "/investor-1.png" },
-    { title: "Issue/Borrow", image: "/debt-1.png" },
-    { title: "Guarantee", image: "/cashback-1.png" },
+    { key: "individual", title: "Invest/Lender", image: "/investor-1.png" },
+    { key: "borrower", title: "Issue/Borrower", image: "/debt-1.png" },
+    { key: "guarantee", title: "Guarantee", image: "/cashback-1.png" },
   ];
   const [selectedAccountIdx, setSelectedAccountIdx] = useState(1);
 
@@ -77,7 +80,7 @@ const accountRoutes = [
 
         {/* Sidebar + Main */}
         <div className="flex flex-col md:flex-row w-full max-w-[90%] h-[auto] mt-10 md:gap-x-10">
-          <Sidebar />
+          <Sidebar activePage="/borrow" />
 
           <main className="w-[90%] h-[90%] mx-auto my-4 bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:h-auto md:mx-0 md:my-0 animate-fadeIn delay-300 md:gap-x-6">
             {/* Header */}
@@ -121,6 +124,11 @@ const accountRoutes = [
                     <p className="mt-1 text-sm opacity-60">
                       Member since {profile ? new Date(profile.joined).toLocaleDateString() : "--"}
                     </p>
+                      {/* Account Type Display */}
+                      <h2 className="text-xl opacity-70 mt-4">Account Type:</h2>
+                      <p className="text-2xl font-semibold">
+                        {registration.accountType ? registration.accountType.toUpperCase() : "Not selected"}
+                      </p>
                   </div>
 
                   {/* Wallet Balance & Actions */}
@@ -169,42 +177,36 @@ const accountRoutes = [
                 Choose account type
               </h3>
               <div className="flex flex-wrap gap-6">
-                {accountTypes.map((type, idx) => {
-                  const isSelected = idx === selectedAccountIdx;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                       setSelectedAccountIdx(idx);
-                       // navigate to the matching page
-                       navigate(accountRoutes[idx]);
-                        }}
-                      className="w-full sm:w-[216px] flex flex-col items-center focus:outline-none"
-                    >
-                      <Card
-                        className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition ${
-                          isSelected
-                            ? "bg-[#ffc628] border-none"
-                            : "bg-white border border-black"
-                        }`}
-                      >
-                        <CardContent className="p-0 flex items-center justify-center">
-                          <img
-                            className="w-[115px] h-[115px] object-cover"
-                            src={type.image}
-                            alt={type.title}
-                          />
-                        </CardContent>
-                      </Card>
-                      <span
-                        className={`mt-4 font-poppins font-medium text-black text-base md:text-xl transition ${
-                          isSelected ? "" : "opacity-70"
-                        }`}>
-                        {type.title}
-                      </span>
-                    </button>
-                  );
-                })}
+                {accountTypes
+  .filter(type => type.key !== registration.accountType) // Hide current account type
+  .map((type, idx) => {
+    return (
+      <button
+        key={type.key}
+        onClick={() => {
+          const originalIdx = accountTypes.findIndex(t => t.key === type.key);
+          setSelectedAccountIdx(originalIdx);
+          navigate("/borrowreg", { state: { accountType: type.key } }); // Pass account type
+        }}
+        className="w-full sm:w-[216px] flex flex-col items-center focus:outline-none"
+      >
+        <Card
+          className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition bg-white border border-black`}
+        >
+          <CardContent className="p-0 flex items-center justify-center">
+            <img
+              className="w-[115px] h-[115px] object-cover"
+              src={type.image}
+              alt={type.title}
+            />
+          </CardContent>
+        </Card>
+        <span className="mt-4 font-poppins font-medium text-black text-base md:text-xl opacity-70">
+          {type.title}
+        </span>
+      </button>
+    );
+  })}
               </div>
             </section>
 
