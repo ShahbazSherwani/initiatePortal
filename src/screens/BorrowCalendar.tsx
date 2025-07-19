@@ -85,7 +85,7 @@ export const BorrowerCalender: React.FC = () => {
       <Navbar activePage="login" showAuthButtons={true} />
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="hidden md:flex w-[325px]"><Sidebar /></aside>
+        <aside className="hidden md:flex w-[325px]"><Sidebar activePage="calendar" /></aside>
         {/* Mobile toggle */}
         <div className="md:hidden fixed top-4 left-4 z-50">
           <Button variant="outline" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
@@ -93,7 +93,7 @@ export const BorrowerCalender: React.FC = () => {
           </Button>
         </div>
         <div className={`md:hidden fixed inset-0 bg-white z-40 transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform`}>
-          <Sidebar />
+          <Sidebar activePage="calendar" />
         </div>
 
         {/* Main Content */}

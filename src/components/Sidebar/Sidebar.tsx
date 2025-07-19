@@ -1,5 +1,5 @@
 import React, { useState, ReactNode, useContext } from "react";
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "../ui/button";
 import {
   HomeIcon,
@@ -13,67 +13,76 @@ import {
   ChevronRightIcon,
 } from "lucide-react";
 import { AuthContext } from '../../contexts/AuthContext';
-import BorrowerCalender from "../../screens/BorrowCalendar";
 
-interface SidebarProps {
-  activePage: string;
-}
 interface NavItem {
   icon: ReactNode;
   label: string;
   to?: string;
   subItems?: string[];
+  key: string;
 }
 
 const navItems: NavItem[] = [
-  { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrow' },
-  { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/borrowCalendar' },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "Wallet", to: '/wallet' },
+  { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrow', key: 'home' },
+  { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/borrowCalendar', key: 'calendar' },
+  { icon: <WalletIcon className="w-5 h-5" />, label: "Wallet", to: '/borrowBank', key: 'wallet' },
   {
     icon: <img src="/group-23.png" alt="Issuer" className="w-5 h-5" />,
     label: "My Issuer/Borrower",
     subItems: ["My Investments/Lending", "My Guarantees"],
+    key: 'issuer-borrower',
   },
   {
     icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
     label: "Initiate Request",
-    to: '/request'
+    to: '/request',
+    key: 'initiate-request'
   },
   {
     icon: <img src="/group-26.png" alt="Donation" className="w-3.5 h-5" />,
     label: "Donation",
-    to: '/donation'
+    to: '/donation',
+    key: 'donation'
   },
-  { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings' },
-  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help' },
+  { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
+  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help', key: 'help' },
 ];
+
+interface SidebarProps {
+  activePage?: string;
+}
 
 export const Sidebar: React.FC<SidebarProps> = ({ activePage }) =>  {
   const authContext = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Highlight based on current route
+  const selectedIdx = navItems.findIndex((item) => {
+    if (!item.to) return false;
+    // Highlight if the current path matches or starts with the route
+    return location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+  });
 
   const handleLogout = () => {
     authContext?.logout();
     navigate('/');
   };
 
-  const [selectedIdx, setSelectedIdx] = useState(
-    navItems.findIndex((item) => item.to === window.location.pathname) || 0
-  );
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   const renderNav = (isMobile = false) => (
     <nav className={`flex flex-col ${isMobile ? "space-y-4 px-6 pt-20" : "space-y-4"}`}>
       {navItems.map((item, idx) => {
         const isSelected = idx === selectedIdx;
         return (
-          <div key={idx}>
+          <div key={item.key}>
             <Button
               variant={isSelected ? "default" : "ghost"}
               onClick={() => {
-                setSelectedIdx(idx);
-                if (item.to) navigate(item.to);
-                if (isMobile) setMobileOpen(false);
+                if (item.to) {
+                  navigate(item.to);
+                  if (isMobile) setMobileOpen(false);
+                }
               }}
               className={
                 `flex items-center justify-start w-full gap-3 text-left ` +

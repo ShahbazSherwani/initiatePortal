@@ -24,7 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../../src/components/ui/ava
 import { Button } from "../../src/components/ui/button";
 import { Card, CardContent } from "../../src/components/ui/card";
 import { Navbar } from "../../src/components/Navigation/navbar";
-import { Sidebar } from "../../src/components/Sidebar/Sidebar";
+import { Sidebar } from "../components/Sidebar/Sidebar";
 
 import "../../src/styles/animations.css";
 
@@ -73,6 +73,20 @@ const accountRoutes = [
  "/guarantee",   // guarantee page
 ];
 
+  // Map account type to sidebar index
+  const sidebarAccountMap = {
+    individual: 0, // Invest/Lender
+    borrower: 1,   // Issue/Borrower
+    guarantee: 2,  // Guarantee
+  };
+const validAccountTypes = ["individual", "borrower", "guarantee"] as const;
+type AccountTypeKey = typeof validAccountTypes[number];
+
+const selectedSidebarIdx =
+  validAccountTypes.includes(registration.accountType as AccountTypeKey)
+    ? sidebarAccountMap[registration.accountType as AccountTypeKey]
+    : 1;
+
   return (
     <div className="bg-[#f0f0f0] flex flex-col md:flex-row w-full min-h-screen animate-fadeIn overflow-x-hidden">
       <div className="bg-[#f0f0f0] w-full  relative overflow-x-hidden">
@@ -80,7 +94,7 @@ const accountRoutes = [
 
         {/* Sidebar + Main */}
         <div className="flex flex-col md:flex-row w-full max-w-[90%] h-[auto] mt-10 md:gap-x-10">
-          <Sidebar activePage="/borrow" />
+          <Sidebar activePage="home" />
 
           <main className="w-[90%] h-[90%] mx-auto my-4 bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:h-auto md:mx-0 md:my-0 animate-fadeIn delay-300 md:gap-x-6">
             {/* Header */}

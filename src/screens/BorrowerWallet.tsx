@@ -16,8 +16,11 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Testimonials } from "../screens/LogIn/Testimonials";
+import { useRegistration } from "../contexts/RegistrationContext";
+import { Sidebar } from "../components/Navigation/sidebar";
 
 export const BorrowerWallet = (): JSX.Element => {
+  const { setRegistration } = useRegistration();
   const navigate = useNavigate();
   const [showThankYou, setShowThankYou] = useState(false);
 
@@ -54,11 +57,36 @@ export const BorrowerWallet = (): JSX.Element => {
     },
   ];
 
+  // Add state for bank details
+  const [bankDetails, setBankDetails] = useState({
+    accountName: "",
+    bankAccount: "",
+    accountNumber: "",
+    iban: "",
+    swiftCode: "",
+  });
+
+  // Update state on input change
+  // Example for Account Name:
+  // <Input
+  //   id="accountName"
+  //   value={bankDetails.accountName}
+  //   onChange={e => setBankDetails({ ...bankDetails, accountName: e.target.value })}
+  //   ...
+  // />
+
   const handleNext = () => {
+    setRegistration(reg => ({
+      ...reg,
+      bankAccounts: [
+        ...(reg.bankAccounts || []),
+        { ...bankDetails, preferred: true }
+      ]
+    }));
     setShowThankYou(true);
     setTimeout(() => {
-      navigate("/borrow"); // Go to home/dashboard
-    }, 2000); // Show modal for 2 seconds
+      navigate("/borrow");
+    }, 2000);
   };
 
   return (
@@ -114,6 +142,8 @@ export const BorrowerWallet = (): JSX.Element => {
                     id={field.id}
                     className="w-full h-14 rounded-2xl border border-gray-300 px-4"
                     placeholder={field.placeholder}
+                    value={bankDetails[field.id]}
+                    onChange={e => setBankDetails({ ...bankDetails, [field.id]: e.target.value })}
                   />
                 ) : (
                   <Select>

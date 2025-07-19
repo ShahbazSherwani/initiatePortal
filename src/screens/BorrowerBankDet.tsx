@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
+import { useRegistration } from "../contexts/RegistrationContext";
 import {
   BellIcon,
   ChevronLeftIcon,
@@ -14,6 +15,14 @@ import { AddBankAccountModal } from '../components/AddBankAccountModal';
 import { ViewBankAccountModal } from "../components/ViewBankAccountModal";
 
 
+
+// Define the BankAccount type
+type BankAccount = {
+  accountName: string;
+  bank: string;
+  accountNumber: string;
+  preferred: boolean;
+};
 
 // Bank account data
 const bankAccounts: BankAccount[] = [
@@ -31,6 +40,8 @@ const paymentOptions = [
 
 export const BorrowerBankDet: React.FC = () => {
   const { token } = useContext(AuthContext)!;
+  const { registration, setRegistration } = useRegistration();
+  const bankAccounts = registration.bankAccounts || [];
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -50,7 +61,7 @@ export const BorrowerBankDet: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
         <div className="md:block">
-          <Sidebar activePage="Wallet"  />
+          <Sidebar activePage="wallet" />
         </div>
 
         {/* Mobile sidebar toggle */}
@@ -93,7 +104,14 @@ export const BorrowerBankDet: React.FC = () => {
                     isOpen={showModal}
                     onClose={() => setShowModal(false)}
                     onSubmit={data => {
-                    // handle saving new account
+                      setRegistration(reg => ({
+                        ...reg,
+                        bankAccounts: [
+                          ...(reg.bankAccounts || []),
+                          { ...data, preferred: false }
+                        ]
+                      }));
+                      setShowModal(false);
                     }}
                 />
           </div>
@@ -147,7 +165,16 @@ setViewModalOpen(false);
 }}
 />
 )}
-                      <Button variant="outline" className="flex-1 py-2 rounded-lg">
+                      <Button
+                        variant="outline"
+                        className="flex-1 py-2 rounded-lg"
+                        onClick={() => {
+                          setRegistration(reg => ({
+                            ...reg,
+                            bankAccounts: (reg.bankAccounts || []).filter((_, idx) => idx !== i)
+                          }));
+                        }}
+                      >
                         Remove
                       </Button>
                     </div>

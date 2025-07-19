@@ -1,8 +1,18 @@
 import React, { createContext, useState, useContext } from "react";
 
-interface RegistrationData {
+export interface BankAccount {
+  accountName: string;
+  bankAccount: string;
+  accountNumber: string;
+  iban: string;
+  swiftCode: string;
+  preferred: boolean;
+}
+
+export interface RegistrationData {
   accountType: string;
   details: Record<string, any>;
+  bankAccounts?: BankAccount[];
 }
 
 interface RegistrationContextType {
