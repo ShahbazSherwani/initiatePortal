@@ -71,179 +71,181 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          {/* Header with back button */}
-          <div className="flex items-center mb-6">
-            <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
-              <ArrowLeftIcon className="w-6 h-6" />
-            </Button>
-            <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
-              Create New Project
-            </h1>
-          </div>
+        <main className="flex-1 overflow-y-auto">
+          <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+            {/* Header with back button */}
+            <div className="flex items-center mb-6">
+              <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+                <ArrowLeftIcon className="w-6 h-6" />
+              </Button>
+              <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
+                Create New Project
+              </h1>
+            </div>
 
-          {/* Form container with horizontal scroll on narrow */}
-          <div className="overflow-x-auto">
-            <div className="min-w-[700px] grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Left column */}
-              <div className="space-y-6">
-                {/* Please Select */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Please Select
-                  </label>
-                  <ToggleGroup type="single" className="flex gap-3">
-                    <ToggleGroupItem
-                      value="100000"
-                      className="flex-1 py-3 rounded-2xl bg-[#ffc628] text-center font-medium"
-                    >
-                      100,000
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="100000above"
-                      className="flex-1 py-3 rounded-2xl bg-white border text-center font-medium"
-                    >
-                      100,000 above
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
+            {/* Form container with horizontal scroll on narrow */}
+            <div className="overflow-x-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+                {/* Left column */}
+                <div className="space-y-6">
+                  {/* Please Select */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Please Select
+                    </label>
+                    <ToggleGroup type="single" className="flex gap-3">
+                      <ToggleGroupItem
+                        value="100000"
+                        className="flex-1 py-3 rounded-2xl bg-[#ffc628] text-center font-medium"
+                      >
+                        100,000
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="100000above"
+                        className="flex-1 py-3 rounded-2xl bg-white border text-center font-medium"
+                      >
+                        100,000 above
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
 
-                {/* Project Requirements */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Project Requirements
-                  </label>
-                  <Input
-                    placeholder="Enter amount"
-                    className="w-full py-3 pl-3 rounded-2xl border"
-                  />
-                </div>
+                  {/* Project Requirements */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Project Requirements
+                    </label>
+                    <Input
+                      placeholder="Enter amount"
+                      className="w-full py-3 pl-3 rounded-2xl border"
+                    />
+                  </div>
 
-                {/* Investor Percentage */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Investor Percentage
-                  </label>
-                  <Input
-                    placeholder="Enter here %"
-                    className="w-full py-3 px-3 rounded-2xl border"
-                  />
-                </div>
+                  {/* Investor Percentage */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Investor Percentage
+                    </label>
+                    <Input
+                      placeholder="Enter here %"
+                      className="w-full py-3 px-3 rounded-2xl border"
+                    />
+                  </div>
 
-                {/* Dividend Frequency */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Dividend Frequency
-                  </label>
-                  <Select>
-                    <SelectTrigger className="w-full py-3 px-3 rounded-2xl border">
-                      <SelectValue placeholder="Select an option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="quarterly">Quarterly</SelectItem>
-                      <SelectItem value="annually">Annually</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  {/* Dividend Frequency */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Dividend Frequency
+                    </label>
+                    <Select>
+                      <SelectTrigger className="w-full py-3 px-3 rounded-2xl border">
+                        <SelectValue placeholder="Select an option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="annually">Annually</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* If Others, specify */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    If Others, specify
-                  </label>
-                  <Input
-                    placeholder="Enter here"
-                    className="w-full py-3 px-3 rounded-2xl border"
-                  />
-                </div>
-
-                {/* Product */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Product
-                  </label>
-                  <Input
-                    placeholder="Enter here"
-                    className="w-full py-3 px-3 rounded-2xl border"
-                  />
-                </div>
-
-                {/* Select Time Duration */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Select Time Duration
-                  </label>
-                  <div className="relative">
+                  {/* If Others, specify */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      If Others, specify
+                    </label>
                     <Input
                       placeholder="Enter here"
                       className="w-full py-3 px-3 rounded-2xl border"
                     />
-                    <ChevronRightIcon className="absolute right-3 top-1/2 transform -translate-y-1/2" />
                   </div>
-                </div>
 
-                {/* Location */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Location
-                  </label>
-                  <Input
-                    placeholder="Enter here"
-                    className="w-full py-3 px-3 rounded-2xl border"
-                  />
-                </div>
-
-                {/* Project Overview */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Project Overview
-                  </label>
-                  <Textarea
-                    placeholder="Enter details"
-                    className="w-full py-3 px-3 rounded-2xl border resize-none h-36"
-                  />
-                </div>
-
-                  <Button
-                    className="w-full bg-[#ffc628] text-black py-3 rounded-lg font-medium"
-                    onClick={() => {
-                      // TODO: actually submit/save the project data…
-                      // then:
-                      navigate("/borwMilestones");
-                    }}
-                  >
-                    Continue
-                  </Button>
-              </div>
-
-              {/* Right column */}
-              <div className="space-y-6">
-                {/* Upload Picture */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Upload Picture*
-                  </label>
-                  <div className="w-full h-40 border-2 border-dashed rounded-2xl flex items-center justify-center">
-                    <div className="flex flex-col items-center">
-                      <UploadIcon className="w-8 h-8 mb-2" />
-                      <span className="font-medium">Upload</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Video Attestation */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Video Attestation
-                  </label>
-                  <div className="relative">
+                  {/* Product */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Product
+                    </label>
                     <Input
-                      placeholder="Video Link"
+                      placeholder="Enter here"
                       className="w-full py-3 px-3 rounded-2xl border"
                     />
-                    <ChevronRightIcon className="absolute right-3 top-1/2 transform -translate-y-1/2" />
+                  </div>
+
+                  {/* Select Time Duration */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Select Time Duration
+                    </label>
+                    <div className="relative">
+                      <Input
+                        placeholder="Enter here"
+                        className="w-full py-3 px-3 rounded-2xl border"
+                      />
+                      <ChevronRightIcon className="absolute right-3 top-1/2 transform -translate-y-1/2" />
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Location
+                    </label>
+                    <Input
+                      placeholder="Enter here"
+                      className="w-full py-3 px-3 rounded-2xl border"
+                    />
+                  </div>
+
+                  {/* Project Overview */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Project Overview
+                    </label>
+                    <Textarea
+                      placeholder="Enter details"
+                      className="w-full py-3 px-3 rounded-2xl border resize-none h-36"
+                    />
+                  </div>
+
+                    <Button
+                      className="w-full bg-[#ffc628] text-black py-3 rounded-lg font-medium"
+                      onClick={() => {
+                        // TODO: actually submit/save the project data…
+                        // then:
+                        navigate("/borwMilestones");
+                      }}
+                    >
+                      Continue
+                    </Button>
+                </div>
+
+                {/* Right column */}
+                <div className="space-y-6">
+                  {/* Upload Picture */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Upload Picture*
+                    </label>
+                    <div className="w-full h-40 border-2 border-dashed rounded-2xl flex items-center justify-center">
+                      <div className="flex flex-col items-center">
+                        <UploadIcon className="w-8 h-8 mb-2" />
+                        <span className="font-medium">Upload</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Video Attestation */}
+                  <div>
+                    <label className="font-medium text-black text-base block mb-2">
+                      Video Attestation
+                    </label>
+                    <div className="relative">
+                      <Input
+                        placeholder="Video Link"
+                        className="w-full py-3 px-3 rounded-2xl border"
+                      />
+                      <ChevronRightIcon className="absolute right-3 top-1/2 transform -translate-y-1/2" />
+                    </div>
                   </div>
                 </div>
               </div>

@@ -9,6 +9,8 @@ import { Checkbox } from "../components/ui/checkbox";
 import { BorrowerPayoutScheduleModal } from "../components/BorrowerPayoutScheduleModal";
 import { ArrowLeftIcon, ChevronLeftIcon, Menu as MenuIcon } from "lucide-react";
 import { AuthContext } from "../contexts/AuthContext";
+import { useProjects } from "../contexts/ProjectsContext";
+import { v4 as uuidv4 } from "uuid";
 
 
 export const BorrowerPayoutSchedule: React.FC = () => {
@@ -35,6 +37,18 @@ export const BorrowerPayoutSchedule: React.FC = () => {
   const [penaltyAgree, setPenaltyAgree] = useState(false);
   const [legalAgree, setLegalAgree] = useState(false);
 
+  const { addProject } = useProjects();
+
+  const {
+    selectedType,
+    projectDetails,
+    milestones,
+    roi,
+    sales,
+    payoutSchedule, // this step's data
+    setPayoutSchedule,
+  } = useProjectForm();
+
   if (!token) return <Navigate to="/login" />;
 
   const handleGeneratePayout = () => {
@@ -48,6 +62,19 @@ export const BorrowerPayoutSchedule: React.FC = () => {
   const handleContinue = () => {
     // TODO: save schedule data…
     navigate("/borrowROI"); // replace with your ROI route
+  };
+
+  const handleFinalSubmit = () => {
+    addProject({
+      id: uuidv4(), // use a unique id generator
+      type: selectedType,
+      details: projectDetails,
+      milestones,
+      roi,
+      sales,
+      payoutSchedule,
+    });
+    navigate("/borwMyProj");
   };
 
   return (
@@ -83,125 +110,131 @@ export const BorrowerPayoutSchedule: React.FC = () => {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              <ArrowLeftIcon
-                className="w-6 h-6 cursor-pointer"
-                onClick={() => navigate(-1)}
-              />
-              <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
-                Payout Schedule
-              </h1>
+        <main className="flex-1 overflow-y-auto">
+          <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <ArrowLeftIcon
+                  className="w-6 h-6 cursor-pointer"
+                  onClick={() => navigate(-1)}
+                />
+                <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
+                  Payout Schedule
+                </h1>
+              </div>
+              <Button className="bg-[#ffc628]">Add Payout Schedule</Button>
             </div>
-            <Button className="bg-[#ffc628]">Add Payout Schedule</Button>
-          </div>
 
-          {/* Generate Total Payout */}
-          <div className="mb-6">
-            <label className="block mb-1 font-medium">
-              Generate Total Payout Required
-            </label>
-            <div className="flex gap-4">
-              <Input
-                placeholder="Total Payout Required"
-                value={totalPayoutReq}
-                onChange={e => setTotalPayoutReq(e.target.value)}
-                className="flex-1 rounded-2xl border"
-              />
-              <Button onClick={handleGeneratePayout} className="whitespace-nowrap">
+            {/* Generate Total Payout */}
+            <div className="mb-6">
+              <label className="block mb-1 font-medium">
                 Generate Total Payout Required
-              </Button>
+              </label>
+              <div className="flex gap-4">
+                <Input
+                  placeholder="Total Payout Required"
+                  value={totalPayoutReq}
+                  onChange={e => setTotalPayoutReq(e.target.value)}
+                  className="flex-1 rounded-2xl border"
+                />
+                <Button onClick={handleGeneratePayout} className="whitespace-nowrap">
+                  Generate Total Payout Required
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {/* Enter Details for Payout Schedule */}
-          <div className="mb-6 space-y-4">
-            <h2 className="text-lg font-semibold">Enter Details for Payout Schedule</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block mb-1 font-medium">Payout Date(s)</label>
-                <Input
-                  type="date"
-                  placeholder="Select Date"
-                  value={scheduleDate}
-                  onChange={e => setScheduleDate(e.target.value)}
-                  className="rounded-2xl border"
-                />
+            {/* Enter Details for Payout Schedule */}
+            <div className="mb-6 space-y-4">
+              <h2 className="text-lg font-semibold">Enter Details for Payout Schedule</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block mb-1 font-medium">Payout Date(s)</label>
+                  <Input
+                    type="date"
+                    placeholder="Select Date"
+                    value={scheduleDate}
+                    onChange={e => setScheduleDate(e.target.value)}
+                    className="rounded-2xl border"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium">Amount</label>
+                  <Input
+                    placeholder="Amount"
+                    value={scheduleAmount}
+                    onChange={e => setScheduleAmount(e.target.value)}
+                    className="rounded-2xl border"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block mb-1 font-medium">Amount</label>
+                <label className="block mb-1 font-medium">% of Total Payout (Capital + Interest)</label>
                 <Input
-                  placeholder="Amount"
-                  value={scheduleAmount}
-                  onChange={e => setScheduleAmount(e.target.value)}
-                  className="rounded-2xl border"
+                  placeholder="%"
+                  value={payoutPercent}
+                  onChange={e => setPayoutPercent(e.target.value)}
+                  className="w-full rounded-2xl border"
                 />
               </div>
             </div>
+
+            {/* Generate Net Income */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold">Generate Net Income Calculation</h2>
+              <label className="block mb-1 font-medium">
+                Total Amount in Payout Schedule
+              </label>
+              <div className="flex gap-4 items-center">
+                <Input
+                  placeholder="Enter Amount"
+                  value={netIncome}
+                  onChange={e => setNetIncome(e.target.value)}
+                  className="flex-1 rounded-2xl border"
+                />
+                <Button onClick={handleMatchMismatch} className="whitespace-nowrap">
+                  Match/Mismatch
+                </Button>
+              </div>
+            </div>
+
+            {/* Agreements */}
+            <div className="space-y-2 mb-6">
+              <div className="flex items-center">
+                <Checkbox
+                  checked={penaltyAgree}
+                  onCheckedChange={val => setPenaltyAgree(!!val)}
+                />
+                <label className="ml-2 text-sm">
+                  I confirm and agree that I will be charged with penalty for delay of payments.
+                </label>
+              </div>
+              <div className="flex items-center">
+                <Checkbox
+                  checked={legalAgree}
+                  onCheckedChange={val => setLegalAgree(!!val)}
+                />
+                <label className="ml-2 text-sm">
+                  I confirm and agree that I will be subject to legal obligations for non-payments.
+                </label>
+              </div>
+            </div>
+
+            {/* Continue */}
             <div>
-              <label className="block mb-1 font-medium">% of Total Payout (Capital + Interest)</label>
-              <Input
-                placeholder="%"
-                value={payoutPercent}
-                onChange={e => setPayoutPercent(e.target.value)}
-                className="w-full rounded-2xl border"
-              />
-            </div>
-          </div>
-
-          {/* Generate Net Income */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold">Generate Net Income Calculation</h2>
-            <label className="block mb-1 font-medium">
-              Total Amount in Payout Schedule
-            </label>
-            <div className="flex gap-4 items-center">
-              <Input
-                placeholder="Enter Amount"
-                value={netIncome}
-                onChange={e => setNetIncome(e.target.value)}
-                className="flex-1 rounded-2xl border"
-              />
-              <Button onClick={handleMatchMismatch} className="whitespace-nowrap">
-                Match/Mismatch
+              <Button
+                className="bg-[#ffc628] text-black w-full"
+                onClick={() => setShowGuarantorModal(true)}
+              >
+                Add Payout Schedule
               </Button>
-            </div>
-          </div>
 
-          {/* Agreements */}
-          <div className="space-y-2 mb-6">
-            <div className="flex items-center">
-              <Checkbox
-                checked={penaltyAgree}
-                onCheckedChange={val => setPenaltyAgree(!!val)}
+              <BorrowerPayoutScheduleModal
+                open={showGuarantorModal}
+                onOpenChange={setShowGuarantorModal}
+                onContinue={handleModalContinue}
               />
-              <label className="ml-2 text-sm">
-                I confirm and agree that I will be charged with penalty for delay of payments.
-              </label>
             </div>
-            <div className="flex items-center">
-              <Checkbox
-                checked={legalAgree}
-                onCheckedChange={val => setLegalAgree(!!val)}
-              />
-              <label className="ml-2 text-sm">
-                I confirm and agree that I will be subject to legal obligations for non-payments.
-              </label>
-            </div>
-          </div>
-
-          {/* Continue */}
-          <div>
-      <Button
-                          className="bg-[#ffc628] text-black w-full" onClick={() => setShowGuarantorModal(true)}>Add Payout Schedule</Button>
-
-      <BorrowerPayoutScheduleModal
-        open={showGuarantorModal}
-        onOpenChange={setShowGuarantorModal}
-        onContinue={handleModalContinue}
-      />
           </div>
         </main>
       </div>

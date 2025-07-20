@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
   {
     icon: <img src="/group-23.png" alt="Issuer" className="w-5 h-5" />,
     label: "My Issuer/Borrower",
+    to: '/borwMyProj', // <-- Add this line to enable routing
     subItems: ["My Investments/Lending", "My Guarantees"],
     key: 'issuer-borrower',
   },
@@ -60,9 +61,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage }) =>  {
 
   // Highlight based on current route
   const selectedIdx = navItems.findIndex((item) => {
-    if (!item.to) return false;
-    // Highlight if the current path matches or starts with the route
-    return location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+    if (item.to && (location.pathname === item.to || location.pathname.startsWith(item.to + "/"))) {
+      return true;
+    }
+    // Highlight parent if on any sub-page
+    if (
+      item.subItems &&
+      (location.pathname.startsWith("/borwMyProj") ||
+       location.pathname.startsWith("/borwMyProjects") ||
+       location.pathname.startsWith("/borwNewProj") ||
+       location.pathname.startsWith("/borwNewProjEq"))
+    ) {
+      return true;
+    }
+    return false;
   });
 
   const handleLogout = () => {
@@ -105,7 +117,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage }) =>  {
                     key={subIdx}
                     variant="ghost"
                     className="opacity-70 p-0 h-auto flex justify-start"
-                    onClick={() => isMobile && setMobileOpen(false)}
+                    onClick={() => {
+                      // Add navigation for sub-items if needed
+                      if (subItem === "My Investments/Lending") navigate("/borwMyProj");
+                      if (subItem === "My Guarantees") navigate("/borwMyProjects");
+                      if (isMobile) setMobileOpen(false);
+                    }}
                   >
                     <span className="font-poppins font-medium text-black text-[14.8px]">
                       {subItem}

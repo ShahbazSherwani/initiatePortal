@@ -98,133 +98,135 @@ export const AddMilestones: React.FC = () => {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          {/* Header */}
-          <div className="flex items-center mb-6">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => window.history.back()}
-            >
-              <ArrowLeftIcon className="w-6 h-6" />
-            </Button>
-            <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
-              Milestones
-            </h1>
-          </div>
-
-          {/* Add button */}
-          <div className="mb-6 text-right">
-            <Button
-              onClick={addMilestone}
-              disabled={milestones.length >= 4}
-              className="bg-[#ffc628] text-black"
-            >
-              Add Milestone
-            </Button>
-          </div>
-
-          {/* Milestone forms */}
-          <div className="space-y-8">
-            {milestones.map((m, idx) => (
-              <div
-                key={idx}
-                className="border border-gray-200 rounded-2xl p-6 relative"
+        <main className="flex-1 overflow-y-auto">
+          <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+            {/* Header */}
+            <div className="flex items-center mb-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => window.history.back()}
               >
-                {milestones.length > 1 && (
-                  <button
-                    onClick={() => removeMilestone(idx)}
-                    className="absolute top-3 right-3 text-gray-500 hover:text-black"
-                  >
-                    Delete
-                  </button>
-                )}
-                <h2 className="text-lg font-medium mb-4">
-                  Milestone Condition {idx + 1}
-                </h2>
+                <ArrowLeftIcon className="w-6 h-6" />
+              </Button>
+              <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
+                Milestones
+              </h1>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Left column */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block mb-1 font-medium">Amount</label>
-                      <Input
-                        placeholder="Enter amount"
-                        value={m.amount}
-                        onChange={(e) =>
-                          handleFieldChange(idx, "amount", e.target.value)
-                        }
-                      />
-                    </div>
+            {/* Add button */}
+            <div className="mb-6 text-right">
+              <Button
+                onClick={addMilestone}
+                disabled={milestones.length >= 4}
+                className="bg-[#ffc628] text-black"
+              >
+                Add Milestone
+              </Button>
+            </div>
 
-                    <div>
-                      <label className="block mb-1 font-medium">
-                        Percentage %
-                      </label>
-                      <Input
-                        placeholder="Enter percentage"
-                        type="number"
-                        value={m.percentage}
-                        onChange={(e) =>
-                          handleFieldChange(idx, "percentage", e.target.value)
-                        }
-                      />
-                    </div>
+            {/* Milestone forms */}
+            <div className="space-y-8">
+              {milestones.map((m, idx) => (
+                <div
+                  key={idx}
+                  className="border border-gray-200 rounded-2xl p-6 relative"
+                >
+                  {milestones.length > 1 && (
+                    <button
+                      onClick={() => removeMilestone(idx)}
+                      className="absolute top-3 right-3 text-gray-500 hover:text-black"
+                    >
+                      Delete
+                    </button>
+                  )}
+                  <h2 className="text-lg font-medium mb-4">
+                    Milestone Condition {idx + 1}
+                  </h2>
 
-                    <div>
-                      <label className="block mb-1 font-medium">
-                        Milestone Release Date
-                      </label>
-                      <DatePicker
-                        selected={m.date}
-                        onChange={(d) => handleFieldChange(idx, "date", d)}
-                        placeholderText="Select date"
-                        className="w-full py-3 px-3 rounded-2xl border"
-                        dateFormat="dd MMM yyyy"
-                        popperClassName="z-50"
-                      />
-                    </div>
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left column */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block mb-1 font-medium">Amount</label>
+                        <Input
+                          placeholder="Enter amount"
+                          value={m.amount}
+                          onChange={(e) =>
+                            handleFieldChange(idx, "amount", e.target.value)
+                          }
+                        />
+                      </div>
 
-                  {/* Right column */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block mb-1 font-medium">
-                        Picture of the Project*
-                      </label>
-                      <div className="w-full h-40 border-2 border-dashed rounded-2xl flex items-center justify-center">
-                        <label className="cursor-pointer">
-                          <UploadIcon className="w-8 h-8 mb-2 mx-auto" />
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) =>
-                              handleFieldChange(
-                                idx,
-                                "file",
-                                e.target.files?.[0] || null
-                              )
-                            }
-                          />
-                          <div>Upload</div>
+                      <div>
+                        <label className="block mb-1 font-medium">
+                          Percentage %
                         </label>
+                        <Input
+                          placeholder="Enter percentage"
+                          type="number"
+                          value={m.percentage}
+                          onChange={(e) =>
+                            handleFieldChange(idx, "percentage", e.target.value)
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-1 font-medium">
+                          Milestone Release Date
+                        </label>
+                        <DatePicker
+                          selected={m.date}
+                          onChange={(d) => handleFieldChange(idx, "date", d)}
+                          placeholderText="Select date"
+                          className="w-full py-3 px-3 rounded-2xl border"
+                          dateFormat="dd MMM yyyy"
+                          popperClassName="z-50"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Right column */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block mb-1 font-medium">
+                          Picture of the Project*
+                        </label>
+                        <div className="w-full h-40 border-2 border-dashed rounded-2xl flex items-center justify-center">
+                          <label className="cursor-pointer">
+                            <UploadIcon className="w-8 h-8 mb-2 mx-auto" />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) =>
+                                handleFieldChange(
+                                  idx,
+                                  "file",
+                                  e.target.files?.[0] || null
+                                )
+                              }
+                            />
+                            <div>Upload</div>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {/* Continue */}
-          <div className="mt-8">
-            <Button
-              className="bg-[#ffc628] text-black w-full"
-              onClick={() => {navigate("/borrowROI");}}
-            >
-              Continue
-            </Button>
+            {/* Continue */}
+            <div className="mt-8">
+              <Button
+                className="bg-[#ffc628] text-black w-full"
+                onClick={() => {navigate("/borrowROI");}}
+              >
+                Continue
+              </Button>
+            </div>
           </div>
         </main>
       </div>

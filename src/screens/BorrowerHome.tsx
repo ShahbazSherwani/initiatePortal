@@ -96,7 +96,18 @@ const selectedSidebarIdx =
         <div className="flex flex-col md:flex-row w-full max-w-[90%] h-[auto] mt-10 md:gap-x-10">
           <Sidebar activePage="home" />
 
-          <main className="w-[90%] h-[90%] mx-auto my-4 bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:h-auto md:mx-0 md:my-0 animate-fadeIn delay-300 md:gap-x-6">
+          <main
+  className="
+    w-[90%] mx-auto
+    bg-white
+    rounded-t-[30px]
+    p-4 md:p-8
+    md:w-full md:mx-0
+    min-h-screen
+    flex flex-col
+    animate-fadeIn delay-300
+  "
+>
             {/* Header */}
             {/* <header className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 md:px-20 pt-6 md:pt-9 gap-4 md:gap-0">
               <div className="flex items-center gap-4 ml-auto animate-fadeIn delay-300">

@@ -66,60 +66,61 @@ const handleContinue = () => {
               mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <Sidebar activePage="My Issuer/Borrower" />
+            <Sidebar activePage="issuer-borrower" />
           </div>
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-            <div className="flex items-center mb-4 md:mb-0">
-              <ChevronLeftIcon
-                className="w-6 h-6 cursor-pointer"
-                onClick={() => navigate(-1)}
-              />
-              <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
-                My Projects
-              </h1>
+        <main className="flex-1 overflow-y-auto">
+          <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+              <div className="flex items-center mb-4 md:mb-0">
+                <ChevronLeftIcon
+                  className="w-6 h-6 cursor-pointer"
+                  onClick={() => navigate(-1)}
+                />
+                <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
+                  My Projects
+                </h1>
+              </div>
+              <Button
+                className="bg-[#ffc628] text-black px-4 py-2 rounded-lg"
+                onClick={() => setShowModal(true)}
+              >
+                Create New Project
+              </Button>
             </div>
-            <Button
-              className="bg-[#ffc628] text-black px-4 py-2 rounded-lg"
-              onClick={() => setShowModal(true)}
-            >
-              Create New Project
-            </Button>
-          </div>
 
-          {/* Tabs */}
-          <Tabs defaultValue="pending" className="mb-8">
-            <TabsList className="flex flex-wrap gap-4">
-              {projectTabs.map(tab => (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  className="flex-1 py-2 rounded-lg bg-transparent border border-gray-500 data-[state=active]:bg-[#ffc628] data-[state=active]:border-none"
-                >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+            {/* Tabs */}
+            <Tabs defaultValue="pending" className="mb-8">
+              <TabsList className="flex flex-wrap gap-4">
+                {projectTabs.map(tab => (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    className="flex-1 py-2 rounded-lg bg-transparent border border-gray-500 data-[state=active]:bg-[#ffc628] data-[state=active]:border-none"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
 
-          {/* Empty state */}
-          <div className="flex flex-col items-center justify-center mt-16">
-            <img
-              src="/2.png"
-              alt="No projects"
-              className="w-full max-w-xs md:max-w-md lg:max-w-lg"
-            />
-            <h2 className="mt-6 text-lg md:text-2xl font-semibold text-center">
-              Looks like you don’t have any projects yet!
-            </h2>
-          </div>
+            {/* Empty state */}
+            <div className="flex flex-col items-center justify-center mt-16">
+              <img
+                src="/2.png"
+                alt="No projects"
+                className="w-full max-w-xs md:max-w-md lg:max-w-lg"
+              />
+              <h2 className="mt-6 text-lg md:text-2xl font-semibold text-center">
+                Looks like you don’t have any projects yet!
+              </h2>
+            </div>
 
-          {/* Select Type Modal */}
-          <Transition appear show={showModal} as={Fragment}>
+            {/* Select Type Modal */}
+            <Transition appear show={showModal} as={Fragment}>
   <Dialog
     as="div"
     className="fixed inset-0 z-50 overflow-y-auto"
@@ -201,7 +202,8 @@ const handleContinue = () => {
   </Dialog>
 </Transition>
 
-        <Outlet />
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
