@@ -8,6 +8,7 @@ import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { ArrowLeftIcon, ChevronLeftIcon, MenuIcon, UploadIcon } from "lucide-react";
+import { useProjectForm } from "../contexts/ProjectFormContext";
 
 interface Milestone {
   amount: string;
@@ -20,6 +21,7 @@ export const AddMilestones: React.FC = () => {
   const { token } = useContext(AuthContext)!;
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { form, setForm } = useProjectForm();
 
   // start with one empty milestone
   const [milestones, setMilestones] = useState<Milestone[]>([
@@ -37,23 +39,27 @@ export const AddMilestones: React.FC = () => {
     // @ts-ignore
     updated[idx][field] = value;
     setMilestones(updated);
+    setForm(f => ({ ...f, milestones: updated }));
   };
 
   const addMilestone = () => {
     if (milestones.length >= 4) return;
-    setMilestones([
+    const updated = [
       ...milestones,
       { amount: "", percentage: "", date: null, file: null },
-    ]);
+    ];
+    setMilestones(updated);
+    setForm(f => ({ ...f, milestones: updated }));
   };
 
   const removeMilestone = (idx: number) => {
     if (milestones.length <= 1) return;
-    setMilestones(milestones.filter((_, i) => i !== idx));
+    const updated = milestones.filter((_, i) => i !== idx);
+    setMilestones(updated);
+    setForm(f => ({ ...f, milestones: updated }));
   };
 
   const handleContinue = async () => {
-    // validate percentages sum
     const totalPct = milestones.reduce(
       (sum, m) => sum + parseFloat(m.percentage || "0"),
       0
@@ -62,9 +68,8 @@ export const AddMilestones: React.FC = () => {
       alert("Total percentage cannot exceed 100%");
       return;
     }
-    // TODO: send `milestones` to your backend here
-    // e.g. await api.post("/milestones", { milestones });
-    navigate("/borwMilestones");
+    // milestones already saved in context
+    navigate("/borrowROI");
   };
 
   return (
@@ -222,7 +227,7 @@ export const AddMilestones: React.FC = () => {
             <div className="mt-8">
               <Button
                 className="bg-[#ffc628] text-black w-full"
-                onClick={() => {navigate("/borrowROI");}}
+                onClick={handleContinue}
               >
                 Continue
               </Button>

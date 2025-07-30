@@ -13,22 +13,31 @@ import { Card, CardContent } from "../components/ui/card";
 import { Checkbox } from "../components/ui/checkbox";
 import { AddBankAccountModal } from '../components/AddBankAccountModal';
 import { ViewBankAccountModal } from "../components/ViewBankAccountModal";
+import type { BankAccount } from "../types/BankAccount";
 
 
-
-// Define the BankAccount type
-type BankAccount = {
-  accountName: string;
-  bank: string;
-  accountNumber: string;
-  preferred: boolean;
-};
 
 // Bank account data
-const bankAccounts: BankAccount[] = [
-  { accountName: "Alexa John", bank: "...", accountNumber: "084008124", preferred: true },
-  { accountName: "Alexa John", bank: "...", accountNumber: "084008124", preferred: false },
-];
+// const bankAccounts: BankAccount[] = [
+//   {
+//     accountName: "Alexa John",
+//     bank: "...",
+//     bankAccount: "...",
+//     accountNumber: "084008124",
+//     iban: "...",
+//     swiftCode: "...",
+//     preferred: true
+//   },
+//   {
+//     accountName: "Alexa John",
+//     bank: "...",
+//     bankAccount: "...",
+//     accountNumber: "084008124",
+//     iban: "...",
+//     swiftCode: "...",
+//     preferred: false
+//   }
+// ];
 
 
 // Payment options data
@@ -136,7 +145,7 @@ export const BorrowerBankDet: React.FC = () => {
                       </div>
                       <div>
                         <span className="font-medium text-gray-600">Bank:</span>{" "}
-                        <span>{acct.bank}</span>
+                        <span className="font-medium text-black">{acct.bank || acct.bankAccount}</span>
                       </div>
                       <div>
                         <span className="font-medium text-gray-600">Account #:</span>{" "}

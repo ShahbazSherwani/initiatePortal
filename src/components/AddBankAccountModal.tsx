@@ -4,16 +4,12 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { Checkbox } from './ui/checkbox';
+import type { BankAccount } from '../types/BankAccount';
 
 interface AddBankAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: {
-    accountName: string;
-    bankAccount: string;
-    accountNumber: string;
-    iban: string;
-    swiftCode: string;
+  onSubmit: (data: BankAccount & {
     agreePenalty: boolean;
     agreeRisk: boolean;
   }) => void;
@@ -29,7 +25,16 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
   const [agreeRisk, setAgreeRisk] = useState(false);
 
   const handleContinue = () => {
-    onSubmit({ accountName, bankAccount, accountNumber, iban, swiftCode, agreePenalty, agreeRisk });
+    onSubmit({
+      accountName,
+      bankAccount,
+      accountNumber,
+      iban,
+      swiftCode,
+      preferred: false,
+      agreePenalty,
+      agreeRisk,
+    });
     // reset fields
     setAccountName(''); setBankAccount(''); setAccountNumber(''); setIban(''); setSwiftCode('');
     setAgreePenalty(false); setAgreeRisk(false);
@@ -105,14 +110,22 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
           </div>
 
           <div className="flex items-center">
-            <Checkbox checked={agreePenalty} onCheckedChange={setAgreePenalty} id="penalty" />
+            <Checkbox
+              checked={agreePenalty}
+              onCheckedChange={val => setAgreePenalty(val === true)}
+              id="penalty"
+            />
             <label htmlFor="penalty" className="ml-2 text-sm">
               I confirm and agree that I will be charged with penalty for delay of payments.
             </label>
           </div>
 
           <div className="flex items-center">
-            <Checkbox checked={agreeRisk} onCheckedChange={setAgreeRisk} id="risk" />
+            <Checkbox
+              checked={agreeRisk}
+              onCheckedChange={val => setAgreeRisk(val === true)}
+              id="risk"
+            />
             <label htmlFor="risk" className="ml-2 text-sm">
               I confirm and agree to risks associated and consequences.
             </label>

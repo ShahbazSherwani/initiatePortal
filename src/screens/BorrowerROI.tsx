@@ -7,6 +7,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { ArrowLeftIcon, ChevronLeftIcon, Menu as MenuIcon } from "lucide-react";
 import { AuthContext } from "../contexts/AuthContext";
+import { useProjectForm } from "../contexts/ProjectFormContext";
 
 export const BorrowerROI: React.FC = (): JSX.Element => {
   const { token } = useContext(AuthContext)!;
@@ -14,6 +15,7 @@ export const BorrowerROI: React.FC = (): JSX.Element => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // form state
+  const { form, setForm } = useProjectForm();
   const [expenseDetail, setExpenseDetail] = useState("");
   const [pricePerUnit, setPricePerUnit] = useState("");
   const [unitOfMeasure, setUnitOfMeasure] = useState("");
@@ -24,8 +26,16 @@ export const BorrowerROI: React.FC = (): JSX.Element => {
   }
 
   const handleContinue = () => {
-    // TODO: validate & submit ROI info to backend
-    navigate("/borrowNextStep"); // replace with your next route
+    setForm((f) => ({
+      ...f,
+      roi: {
+        expenseDetail,
+        pricePerUnit,
+        unitOfMeasure,
+        totalAmount,
+      },
+    }));
+    navigate("/borrowROISales");
   };
 
   return (
@@ -150,7 +160,7 @@ export const BorrowerROI: React.FC = (): JSX.Element => {
               <div className="pt-4">
                 <Button
                   className="w-full bg-[#ffc628] text-black py-3 rounded-lg"
-                  onClick={() => {navigate("/borrowROISales");}}
+                  onClick={handleContinue}
                 >
                   Continue
                 </Button>

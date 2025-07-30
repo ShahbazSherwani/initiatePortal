@@ -14,6 +14,7 @@ import {
   Info as InfoIcon,
 } from "lucide-react";
 import { AuthContext } from "../contexts/AuthContext";
+import { useProjectForm } from "../contexts/ProjectFormContext";
 
 export const BorrowerROISales: React.FC = () => {
   const { token } = useContext(AuthContext)!;
@@ -27,6 +28,8 @@ export const BorrowerROISales: React.FC = () => {
   const [netIncomeCalc, setNetIncomeCalc] = useState("");
   const [unitsSold, setUnitsSold] = useState("");
 
+  const { form, setForm } = useProjectForm();
+
   if (!token) return <Navigate to="/login" />;
 
   const handleGenerateNetIncome = () => {
@@ -36,9 +39,20 @@ export const BorrowerROISales: React.FC = () => {
     const netIncome = (price * units) - expense;
     setNetIncomeCalc(netIncome.toFixed(2));
   };
+
   const handleContinue = () => {
-    // TODO: persist ROI data
-    navigate("/borrowNextStep"); // adjust to your next route
+    setForm(f => ({
+      ...f,
+      sales: {
+        incomeDetail,
+        pricePerUnit,
+        unitMeasure,
+        totalSales,
+        unitsSold,
+        netIncomeCalc,
+      },
+    }));
+    navigate("/borrowPayout");
   };
 
   return (
@@ -195,7 +209,7 @@ export const BorrowerROISales: React.FC = () => {
             {/* Continue */}
             <Button
               className="w-full bg-[#ffc628] py-3 rounded-lg font-medium"
-              onClick={() => {navigate("/borrowPayout");}}
+              onClick={handleContinue}
             >
               Continue
             </Button>

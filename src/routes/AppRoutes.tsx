@@ -21,6 +21,10 @@ import { AddMilestones } from "../screens/AddMilestones";
 import { BorrowerROI } from "../screens/BorrowerROI";
 import { BorrowerROISales } from "../screens/BorrowerROISales";
 import { RegistrationProvider } from "../contexts/RegistrationContext";
+import { ProjectsProvider } from "../contexts/ProjectsContext"; // <-- import your provider
+import { ProjectFormProvider } from "../contexts/ProjectFormContext";
+import BorwEditProjectLend from "../screens/BorwEditProjectLend";
+import ProjectDetailsView from "../screens/ProjectDetailsView";
 
 import { BorrowerPayoutSchedule } from "../screens/BorrowerPayoutSchedule";
 
@@ -41,57 +45,54 @@ const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
 
 export const AppRoutes: React.FC = () => {
   return (
-  <RegistrationProvider>
-    <Routes>
-      <Route path="/" element={<MainLayout />}>        
-        <Route index element={<LogIn />} />
-        <Route path="register" element={<RegisterStep />} />
-        {/* Protect the borrow route */}
-        <Route
-          path="borrow"
-          element={
-            <PrivateRoute>
-              <BorrowerHome />
-            </PrivateRoute>
-          }
-          
-        />
-        
-        <Route path="borrowreg" element={<BorrowerReg />} />
-        <Route path="borrowocu" element={<BorrowerOccupation />} />
-        <Route path="borrowWallet" element={<BorrowerWallet />} />
-        <Route path="borrowCalendar" element={<BorrowerCalender />} />
-        <Route path="borrowEvents" element={<BorrowerEvent />} />
-        <Route path="borrowProj" element={<BorrowerProject />} />
-        <Route path="borrowBank" element={<BorrowerBankDet />} />
-        <Route path="borwMyProj"      element={<BorrowerMyProjects />} />
-        <Route path="borwNewProj"     element={<BorrowerCreateNew  />} />
-        <Route path="borwNewProjEq"   element={<BorrowerCreateNewEq />} />
-        <Route path="borwMilestones" element={<BorrowerMilestones />} />
-        <Route path="milestones" element={<Milestones />} />
-        <Route path="addMilestones" element={<AddMilestones />} />
-        <Route path="borrowROI" element={<PrivateRoute><BorrowerROI/></PrivateRoute>} />
-        <Route path="borrowROISales" element={<PrivateRoute><BorrowerROISales/></PrivateRoute>} />
-        <Route path="borrowPayout" element={<PrivateRoute><BorrowerPayoutSchedule/></PrivateRoute>
-        
-  }
-/>
-        
+    <RegistrationProvider>
+      <ProjectsProvider>
+        <ProjectFormProvider>
+          <Routes>
+            <Route path="/" element={<MainLayout />}>        
+              <Route index element={<LogIn />} />
+              <Route path="register" element={<RegisterStep />} />
+              {/* Protect the borrow route */}
+              <Route
+                path="borrow"
+                element={
+                  <PrivateRoute>
+                    <BorrowerHome />
+                  </PrivateRoute>
+                }
+                
+              />
+              
+              <Route path="borrowreg" element={<BorrowerReg />} />
+              <Route path="borrowocu" element={<BorrowerOccupation />} />
+              <Route path="borrowWallet" element={<BorrowerWallet />} />
+              <Route path="borrowCalendar" element={<BorrowerCalender />} />
+              <Route path="borrowEvents" element={<BorrowerEvent />} />
+              <Route path="borrowProj" element={<BorrowerProject />} />
+              <Route path="borrowBank" element={<BorrowerBankDet />} />
+              <Route path="borwMyProj"      element={<BorrowerMyProjects />} />
+              <Route path="borwNewProj"     element={<BorrowerCreateNew  />} />
+              <Route path="borwNewProjEq"   element={<BorrowerCreateNewEq />} />
+              <Route path="borwMilestones" element={<BorrowerMilestones />} />
+              <Route path="milestones" element={<Milestones />} />
+              <Route path="/borrower/project/:projectId/details" element={<ProjectDetailsView />} />
+              <Route path="addMilestones" element={<AddMilestones />} />
+              <Route path="borrowROI" element={<PrivateRoute><BorrowerROI/></PrivateRoute>} />
+              <Route path="borrowROISales" element={<PrivateRoute><BorrowerROISales/></PrivateRoute>} />
+              <Route path="borrowPayout" element={<PrivateRoute><BorrowerPayoutSchedule/></PrivateRoute>
+              
+              
+        }
+      />
 
-        
-
-
-
-
-
-
-        
-
-      </Route>
-      <Route path="borrow/request" element={
-        <PrivateRoute><BorrowerReg /></PrivateRoute>
-      }/>
-    </Routes>
+            </Route>
+            <Route path="borrow/request" element={
+              <PrivateRoute><BorrowerReg /></PrivateRoute>
+            }/>
+            <Route path="/borwCreateNewProjLend" element={<BorwEditProjectLend />} />
+          </Routes>
+        </ProjectFormProvider>
+      </ProjectsProvider>
     </RegistrationProvider>
   );
 };

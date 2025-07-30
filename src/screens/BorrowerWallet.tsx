@@ -17,7 +17,7 @@ import {
 } from "../components/ui/select";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { useRegistration } from "../contexts/RegistrationContext";
-import { Sidebar } from "../components/Navigation/sidebar";
+import type { BankAccount } from "../types/BankAccount";
 
 export const BorrowerWallet = (): JSX.Element => {
   const { setRegistration } = useRegistration();
@@ -58,7 +58,7 @@ export const BorrowerWallet = (): JSX.Element => {
   ];
 
   // Add state for bank details
-  const [bankDetails, setBankDetails] = useState({
+  const [bankDetails, setBankDetails] = useState<{ [key: string]: string }>({
     accountName: "",
     bankAccount: "",
     accountNumber: "",
@@ -80,7 +80,14 @@ export const BorrowerWallet = (): JSX.Element => {
       ...reg,
       bankAccounts: [
         ...(reg.bankAccounts || []),
-        { ...bankDetails, preferred: true }
+        {
+          accountName: bankDetails.accountName,
+          bankAccount: bankDetails.bankAccount,
+          accountNumber: bankDetails.accountNumber,
+          iban: bankDetails.iban,
+          swiftCode: bankDetails.swiftCode,
+          preferred: true,
+        }
       ]
     }));
     setShowThankYou(true);
@@ -142,7 +149,7 @@ export const BorrowerWallet = (): JSX.Element => {
                     id={field.id}
                     className="w-full h-14 rounded-2xl border border-gray-300 px-4"
                     placeholder={field.placeholder}
-                    value={bankDetails[field.id]}
+                    value={bankDetails[field.id] || ""}
                     onChange={e => setBankDetails({ ...bankDetails, [field.id]: e.target.value })}
                   />
                 ) : (

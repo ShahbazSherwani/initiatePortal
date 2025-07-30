@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import { getWalletBalance } from "../lib/wallet";
+import { useProjects } from "../contexts/ProjectsContext";
 
 // UI and Icons
 import { Navbar } from "../components/Navigation/navbar";
@@ -29,22 +30,6 @@ import {
   parseISO,
 } from "date-fns";
 
-// Sample events data
-const events = [
-  {
-    id: 1,
-    title: "Passa Sustainable Agriculture",
-    date: "2025-07-10T10:00:00",
-    image: "/rectangle-8.png",
-  },
-  {
-    id: 2,
-    title: "Securing Farming Funding for Growth and Sustainability",
-    date: "2025-07-15T14:00:00",
-    image: "/rectangle-13.png",
-  },
-];
-
 // Generates weeks array for calendar grid
 function generateCalendar(date: Date) {
   const startMonth = startOfMonth(date);
@@ -61,6 +46,7 @@ function generateCalendar(date: Date) {
 
 export const BorrowerCalender: React.FC = () => {
   const { profile, token } = useContext(AuthContext)!;
+  const { projects } = useProjects();
   const [balance, setBalance] = useState<number | null>(null);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -71,6 +57,45 @@ export const BorrowerCalender: React.FC = () => {
   useEffect(() => {
     getWalletBalance(token).then(setBalance).catch(console.error);
   }, [token]);
+
+  // Generate events from projects
+  const events = React.useMemo(() => {
+    const allEvents = [];
+    
+    // Add milestone events
+    projects.forEach(project => {
+      // Add project milestones as events
+      if (project.milestones && project.milestones.length > 0) {
+        project.milestones.forEach((milestone, index) => {
+          if (milestone.date) {
+            allEvents.push({
+              id: `milestone-${project.id}-${index}`,
+              title: `${project.details.product || 'Project'} - Milestone ${index + 1}`,
+              date: new Date(milestone.date).toISOString(),
+              image: milestone.image || project.details.image || "/rectangle-8.png",
+              type: 'milestone',
+              projectId: project.id
+            });
+          }
+        });
+      }
+      
+      // Add payout schedule as events
+      if (project.payoutSchedule && project.payoutSchedule.scheduleDate) {
+        allEvents.push({
+          id: `payout-${project.id}`,
+          title: `${project.details.product || 'Project'} - Payout`,
+          date: new Date(project.payoutSchedule.scheduleDate).toISOString(),
+          image: project.details.image || "/rectangle-13.png",
+          type: 'payout',
+          projectId: project.id,
+          amount: project.payoutSchedule.scheduleAmount
+        });
+      }
+    });
+    
+    return allEvents;
+  }, [projects]);
 
   const weeks = generateCalendar(currentMonth);
 

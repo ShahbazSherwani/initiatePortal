@@ -9,8 +9,10 @@ import { Checkbox } from "../components/ui/checkbox";
 import { BorrowerPayoutScheduleModal } from "../components/BorrowerPayoutScheduleModal";
 import { ArrowLeftIcon, ChevronLeftIcon, Menu as MenuIcon } from "lucide-react";
 import { AuthContext } from "../contexts/AuthContext";
+import { useProjectForm } from "../contexts/ProjectFormContext";
 import { useProjects } from "../contexts/ProjectsContext";
 import { v4 as uuidv4 } from "uuid";
+import type { Milestone } from "../types/Milestone";
 
 
 export const BorrowerPayoutSchedule: React.FC = () => {
@@ -19,10 +21,10 @@ export const BorrowerPayoutSchedule: React.FC = () => {
     const [showGuarantorModal, setShowGuarantorModal] = useState(false);
 
       const handleModalContinue = (data) => {
-    // send `data` up to your backend…
-    setShowGuarantorModal(false);
-    // then navigate or close, etc.
-  };
+  setShowGuarantorModal(false);
+  // Optionally store data if needed
+  handleFinalSubmit(); // <-- This will add the project and navigate
+};
 
   const { token } = useContext(AuthContext)!;
   const navigate = useNavigate();
@@ -37,17 +39,8 @@ export const BorrowerPayoutSchedule: React.FC = () => {
   const [penaltyAgree, setPenaltyAgree] = useState(false);
   const [legalAgree, setLegalAgree] = useState(false);
 
+  const { form, setForm } = useProjectForm();
   const { addProject } = useProjects();
-
-  const {
-    selectedType,
-    projectDetails,
-    milestones,
-    roi,
-    sales,
-    payoutSchedule, // this step's data
-    setPayoutSchedule,
-  } = useProjectForm();
 
   if (!token) return <Navigate to="/login" />;
 
@@ -60,21 +53,44 @@ export const BorrowerPayoutSchedule: React.FC = () => {
   };
 
   const handleContinue = () => {
-    // TODO: save schedule data…
-    navigate("/borrowROI"); // replace with your ROI route
+    setForm(f => ({
+      ...f,
+      payoutSchedule: {
+        totalPayoutReq,
+        scheduleDate,
+        scheduleAmount,
+        payoutPercent,
+        netIncome,
+        penaltyAgree,
+        legalAgree,
+      },
+    }));
+    // Optionally navigate to next step
   };
 
   const handleFinalSubmit = () => {
+    console.log("Form details before addProject:", form.projectDetails);
     addProject({
-      id: uuidv4(), // use a unique id generator
-      type: selectedType,
-      details: projectDetails,
-      milestones,
-      roi,
-      sales,
-      payoutSchedule,
+      id: uuidv4(),
+      type: (form.selectedType === "equity" || form.selectedType === "lending")
+        ? form.selectedType
+        : "lending",
+      details: form.projectDetails, // includes image
+      milestones: form.milestones,
+      roi: form.roi,
+      sales: form.sales,
+      payoutSchedule: form.payoutSchedule,
+      status: "pending", // <-- Add this for pending approval
     });
-    navigate("/borwMyProj");
+    setForm({
+      selectedType: null,
+      projectDetails: {},
+      milestones: [],
+      roi: {},
+      sales: {},
+      payoutSchedule: {},
+    });
+    navigate("/borwMyProj"); // Make sure this route matches your "My Projects" page
   };
 
   return (
@@ -243,3 +259,6 @@ export const BorrowerPayoutSchedule: React.FC = () => {
 };
 
 export default BorrowerPayoutSchedule;
+
+
+

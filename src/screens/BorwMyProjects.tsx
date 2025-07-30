@@ -6,10 +6,8 @@ import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
 import { Dialog, Transition } from "@headlessui/react";
 import { Menu as MenuIcon, ChevronLeft as ChevronLeftIcon, X as XIcon } from "lucide-react";
-
-
-
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { useProjects } from "../contexts/ProjectsContext";
+import { useProjectForm } from "../contexts/ProjectFormContext";
 
 // Tabs configuration
 const projectTabs = [
@@ -21,6 +19,8 @@ const projectTabs = [
 
 export const BorrowerMyProjects: React.FC = (): JSX.Element => {
   const { token } = useContext(AuthContext)!;
+  const { projects, updateProject } = useProjects();
+  const { setForm } = useProjectForm();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -37,6 +37,46 @@ const handleContinue = () => {
     navigate("/borwNewProj");
   }
 };
+
+  const handleEdit = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setForm({
+        projectId: project.id, // Add this line
+        selectedType: project.type,
+        projectDetails: project.details,
+        milestones: project.milestones,
+        roi: project.roi,
+        sales: project.sales,
+        payoutSchedule: project.payoutSchedule,
+      });
+      navigate("/borwCreateNewProjLend");
+    }
+  };
+
+  const handleClose = (projectId: string) => {
+    updateProject(projectId, { status: "closed" });
+  };
+
+  // Add this function to your component
+  const handleViewDetails = (projectId: string) => {
+    // Set the project in context if needed
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setForm({
+        projectId: project.id,
+        selectedType: project.type,
+        projectDetails: project.details,
+        milestones: project.milestones,
+        roi: project.roi,
+        sales: project.sales,
+        payoutSchedule: project.payoutSchedule,
+      });
+      
+      // Navigate to the project details/calendar view
+      navigate(`/borrower/project/${projectId}/details`);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
@@ -93,22 +133,21 @@ const handleContinue = () => {
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="pending" className="mb-8">
-              <TabsList className="flex flex-wrap gap-4">
-                {projectTabs.map(tab => (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    className="flex-1 py-2 rounded-lg bg-transparent border border-gray-500 data-[state=active]:bg-[#ffc628] data-[state=active]:border-none"
-                  >
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+            <div className="grid grid-cols-4 gap-2 mb-8">
+              {projectTabs.map(tab => (
+                <button
+                  key={tab.value}
+                  className={`py-3 rounded-lg font-medium text-center ${
+                    tab.value === "pending" ? "bg-[#ffc628] text-black" : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
             {/* Empty state */}
-            <div className="flex flex-col items-center justify-center mt-16">
+            {/* <div className="flex flex-col items-center justify-center mt-16">
               <img
                 src="/2.png"
                 alt="No projects"
@@ -117,7 +156,7 @@ const handleContinue = () => {
               <h2 className="mt-6 text-lg md:text-2xl font-semibold text-center">
                 Looks like you don’t have any projects yet!
               </h2>
-            </div>
+            </div> */}
 
             {/* Select Type Modal */}
             <Transition appear show={showModal} as={Fragment}>
@@ -201,6 +240,94 @@ const handleContinue = () => {
     </div>
   </Dialog>
 </Transition>
+
+            {/* Projects List - to be mapped from actual data */}
+            {projects.filter(p => p.status !== "closed").length > 0 ? (
+  <div>
+    {projects.filter(p => p.status !== "closed").map(project => (
+      <div key={project.id} className="bg-white rounded-lg border border-gray-100 shadow-sm mb-4 p-0 flex">
+        {/* Project Image */}
+        <div className="flex-shrink-0">
+          <img
+            src={project.details.image || "/default-project.jpg"}
+            alt="Project"
+            className="w-[150px] h-[110px] object-cover rounded-l-lg"
+          />
+        </div>
+        
+        {/* Project Content */}
+        <div className="flex-1 p-4 flex flex-col">
+          {/* Status */}
+          <div className="mb-2">
+            <div className="flex items-center">
+              <span className="inline-block w-2 h-2 rounded-full bg-[#ffc628] mr-2"></span>
+              <span className="text-sm font-medium">
+                Status: {project.status === "pending" ? "Pending Verification" : "Approved"}
+              </span>
+            </div>
+          </div>
+          
+          {/* Project Details */}
+          <div className="grid grid-cols-2 gap-y-2 gap-x-8">
+            <div>
+              <p className="text-xs text-gray-500">Project ID:</p>
+              <p className="font-medium text-sm">{project.id}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Funding Requirements:</p>
+              <p className="font-medium text-sm">PHP {project.details.loanAmount || project.details.investmentAmount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Project Location:</p>
+              <p className="font-medium text-sm">{project.details.location || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Guarantor:</p>
+              <p className="font-medium text-sm">John Doe</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">45% Funding Progress:</p>
+              <p className="font-medium text-sm">{project.id}</p>
+            </div>
+          </div>
+          
+          {/* Buttons */}
+          <div className="flex gap-3 mt-4 justify-end">
+            <button 
+              onClick={() => handleViewDetails(project.id)}
+              className="px-4 py-1.5 bg-[#ffc628] hover:bg-[#e9b725] text-black rounded-md text-sm font-medium"
+            >
+              View Project Details
+            </button>
+            <button 
+              onClick={() => handleEdit(project.id)} 
+              className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-md text-sm font-medium"
+            >
+              Edit
+            </button>
+            <button 
+              onClick={() => handleClose(project.id)} 
+              className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-md text-sm font-medium"
+            >
+              Close Project
+            </button>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+) : (
+  <div className="flex flex-col items-center justify-center mt-16">
+    <img
+      src="/2.png"
+      alt="No projects"
+      className="w-full max-w-xs md:max-w-md lg:max-w-lg"
+    />
+    <h2 className="mt-6 text-lg md:text-2xl font-semibold text-center">
+      Looks like you don't have any projects yet!
+    </h2>
+  </div>
+)}
 
             <Outlet />
           </div>

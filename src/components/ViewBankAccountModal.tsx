@@ -2,14 +2,7 @@ import React, { Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { X as XIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
-
-export interface BankAccount {
-  accountName: string;
-  bank: string;
-  accountNumber: string;
-  iban: string;
-  swiftCode: string;
-}
+import type { BankAccount } from "../types/BankAccount";
 
 interface ViewBankAccountModalProps {
   isOpen: boolean;
@@ -86,7 +79,9 @@ export const ViewBankAccountModal: React.FC<ViewBankAccountModalProps> = ({
                 </div>
                 <div>
                   <p className="text-gray-600">Bank Account</p>
-                  <p className="font-medium text-black">{account.bank}</p>
+                  <p className="font-medium text-black">
+                    {account.bank || account.bankAccount}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-600">IBAN</p>

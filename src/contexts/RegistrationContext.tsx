@@ -1,13 +1,5 @@
 import React, { createContext, useState, useContext } from "react";
-
-export interface BankAccount {
-  accountName: string;
-  bankAccount: string;
-  accountNumber: string;
-  iban: string;
-  swiftCode: string;
-  preferred: boolean;
-}
+import type { BankAccount } from "../types/BankAccount";
 
 export interface RegistrationData {
   accountType: string;

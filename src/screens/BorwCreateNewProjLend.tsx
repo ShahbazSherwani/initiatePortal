@@ -21,17 +21,63 @@ import {
   UploadIcon,
   ChevronRightIcon,
 } from "lucide-react";
+import { useProjectForm } from "../contexts/ProjectFormContext";
 
 export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   const { token } = useContext(AuthContext)!;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { form, setForm } = useProjectForm();
 
+  // Local state for form fields (or use controlled components directly)
+  const [loanAmount, setLoanAmount] = useState("");
+  const [projectRequirements, setProjectRequirements] = useState("");
+  const [investorPercentage, setInvestorPercentage] = useState("");
+  const [timeDuration, setTimeDuration] = useState("");
+  const [product, setProduct] = useState("");
+  const [location, setLocation] = useState("");
+  const [overview, setOverview] = useState("");
+  const [videoLink, setVideoLink] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null); // State for image preview
 
   const onSubmit = () => {
-  // ... save project …
-  navigate("/borwMilestones");
-};
+    setForm((f) => ({
+      ...f,
+      selectedType: "lending",
+      projectDetails: {
+        ...f.projectDetails, // <-- This keeps the image and any other previous fields!
+        loanAmount,
+        projectRequirements,
+        investorPercentage,
+        timeDuration,
+        product,
+        location,
+        overview,
+        videoLink,
+        // Add picture if you implement upload
+      },
+    }));
+    navigate("/borwMilestones");
+  };
+
+  // When user selects a file:
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+        setForm(f => ({
+          ...f,
+          projectDetails: {
+            ...f.projectDetails,
+            image: reader.result, // <-- This is critical!
+          },
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   if (!token) {
     return <Navigate to="/login" />;
@@ -92,7 +138,12 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   <label className="font-medium text-black text-base block mb-2">
                     Please Select
                   </label>
-                  <ToggleGroup type="single" className="flex gap-3">
+                  <ToggleGroup
+                    type="single"
+                    className="flex gap-3"
+                    value={loanAmount}
+                    onValueChange={setLoanAmount}
+                  >
                     <ToggleGroupItem
                       value="100000"
                       className="flex-1 py-3 rounded-2xl bg-[#ffc628] text-center font-medium"
@@ -116,6 +167,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   <Input
                     placeholder="Enter amount"
                     className="w-full py-3 pl-3 rounded-2xl border"
+                    value={projectRequirements}
+                    onChange={(e) => setProjectRequirements(e.target.value)}
                   />
                 </div>
 
@@ -127,6 +180,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   <Input
                     placeholder="Enter here %"
                     className="w-full py-3 px-3 rounded-2xl border"
+                    value={investorPercentage}
+                    onChange={(e) => setInvestorPercentage(e.target.value)}
                   />
                 </div>
 
@@ -139,6 +194,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                     <Input
                       placeholder="Enter here"
                       className="w-full py-3 px-3 rounded-2xl border"
+                      value={timeDuration}
+                      onChange={(e) => setTimeDuration(e.target.value)}
                     />
                     <ChevronRightIcon className="absolute right-3 top-1/2 transform -translate-y-1/2" />
                   </div>
@@ -152,6 +209,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   <Input
                     placeholder="Enter here"
                     className="w-full py-3 px-3 rounded-2xl border"
+                    value={product}
+                    onChange={(e) => setProduct(e.target.value)}
                   />
                 </div>
 
@@ -163,6 +222,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   <Input
                     placeholder="Enter here"
                     className="w-full py-3 px-3 rounded-2xl border"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
                   />
                 </div>
 
@@ -174,19 +235,17 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   <Textarea
                     placeholder="Enter details"
                     className="w-full py-3 px-3 rounded-2xl border resize-none h-36"
+                    value={overview}
+                    onChange={(e) => setOverview(e.target.value)}
                   />
                 </div>
 
-                  <Button
-                    className="w-full bg-[#ffc628] text-black py-3 rounded-lg font-medium"
-                    onClick={() => {
-                      // TODO: actually submit/save the project data…
-                      // then:
-                      navigate("/borwMilestones");
-                    }}
-                  >
-                    Continue
-                  </Button>
+                <Button
+                  className="w-full bg-[#ffc628] text-black py-3 rounded-lg font-medium"
+                  onClick={onSubmit}
+                >
+                  Continue
+                </Button>
               </div>
 
               {/* Right column */}
@@ -202,6 +261,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                       <span className="font-medium">Upload</span>
                     </div>
                   </div>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} />
+                  {imagePreview && <img src={imagePreview} alt="Preview" />}
                 </div>
 
                 {/* Video Attestation */}
@@ -213,6 +274,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                     <Input
                       placeholder="Video Link"
                       className="w-full py-3 px-3 rounded-2xl border"
+                      value={videoLink}
+                      onChange={(e) => setVideoLink(e.target.value)}
                     />
                     <ChevronRightIcon className="absolute right-3 top-1/2 transform -translate-y-1/2" />
                   </div>

@@ -1,13 +1,16 @@
 import React, { createContext, useState, useContext } from "react";
+import type { Milestone } from "../types/Milestone";
+
 
 export interface Project {
   id: string;
-  type: "equity" | "lending";
-  details: any; // Replace with your actual details type
-  milestones: any[];
+  type: string;
+  details: any;
+  milestones: Milestone[];
   roi: any;
   sales: any;
   payoutSchedule: any;
+  status: string; // <-- Add this line
 }
 
 const ProjectsContext = createContext<{
@@ -19,7 +22,10 @@ const ProjectsContext = createContext<{
 export const ProjectsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [projects, setProjects] = useState<Project[]>([]);
 
-  const addProject = (project: Project) => setProjects(prev => [...prev, project]);
+  const addProject = (project: Project) => {
+    console.log("Adding project:", project);
+    setProjects(prev => [...prev, project]);
+  };
   const updateProject = (id: string, data: Partial<Project>) =>
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
 
