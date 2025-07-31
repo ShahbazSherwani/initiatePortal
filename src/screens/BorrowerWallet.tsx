@@ -161,8 +161,8 @@ export const BorrowerWallet = (): JSX.Element => {
                       <SelectValue placeholder={field.placeholder} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="option1">Option 1</SelectItem>
-                      <SelectItem value="option2">Option 2</SelectItem>
+                      <SelectItem value="option1">Current</SelectItem>
+                      <SelectItem value="option2">Savings</SelectItem>
                     </SelectContent>
                   </Select>
                 )}

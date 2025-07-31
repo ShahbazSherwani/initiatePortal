@@ -58,24 +58,9 @@ const handleContinue = () => {
     updateProject(projectId, { status: "closed" });
   };
 
-  // Add this function to your component
+  // Add/update this function in your BorwMyProjects component
   const handleViewDetails = (projectId: string) => {
-    // Set the project in context if needed
-    const project = projects.find(p => p.id === projectId);
-    if (project) {
-      setForm({
-        projectId: project.id,
-        selectedType: project.type,
-        projectDetails: project.details,
-        milestones: project.milestones,
-        roi: project.roi,
-        sales: project.sales,
-        payoutSchedule: project.payoutSchedule,
-      });
-      
-      // Navigate to the project details/calendar view
-      navigate(`/borrower/project/${projectId}/details`);
-    }
+    navigate(`/borrower/project/${projectId}/details`);
   };
 
   return (

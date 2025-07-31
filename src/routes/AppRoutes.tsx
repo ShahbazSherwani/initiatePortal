@@ -76,6 +76,7 @@ export const AppRoutes: React.FC = () => {
               <Route path="borwMilestones" element={<BorrowerMilestones />} />
               <Route path="milestones" element={<Milestones />} />
               <Route path="/borrower/project/:projectId/details" element={<ProjectDetailsView />} />
+              
               <Route path="addMilestones" element={<AddMilestones />} />
               <Route path="borrowROI" element={<PrivateRoute><BorrowerROI/></PrivateRoute>} />
               <Route path="borrowROISales" element={<PrivateRoute><BorrowerROISales/></PrivateRoute>} />
@@ -90,6 +91,7 @@ export const AppRoutes: React.FC = () => {
               <PrivateRoute><BorrowerReg /></PrivateRoute>
             }/>
             <Route path="/borwCreateNewProjLend" element={<BorwEditProjectLend />} />
+            <Route path="/project/:projectId" element={<ProjectDetailsView />} />
           </Routes>
         </ProjectFormProvider>
       </ProjectsProvider>

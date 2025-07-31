@@ -64,19 +64,31 @@ export const BorrowerCalender: React.FC = () => {
     
     // Add milestone events
     projects.forEach(project => {
-      // Add project milestones as events
-      if (project.milestones && project.milestones.length > 0) {
-        project.milestones.forEach((milestone, index) => {
-          if (milestone.date) {
-            allEvents.push({
-              id: `milestone-${project.id}-${index}`,
-              title: `${project.details.product || 'Project'} - Milestone ${index + 1}`,
-              date: new Date(milestone.date).toISOString(),
-              image: milestone.image || project.details.image || "/rectangle-8.png",
-              type: 'milestone',
-              projectId: project.id
-            });
-          }
+      // Always add the project creation date as an event
+      const creationDate = project.createdAt 
+        ? new Date(project.createdAt) 
+        : new Date();
+      
+      allEvents.push({
+        id: `project-${project.id}`,
+        title: `${project.details.product || 'Project'} Created`,
+        date: creationDate.toISOString(),
+        image: project.details.image || "/rectangle-8.png",
+        type: 'project',
+        projectId: project.id
+      });
+      
+      // If there's a time duration, add project end date
+      if (project.timeDuration || project.details?.timeDuration) {
+        const endDate = new Date(project.timeDuration || project.details?.timeDuration || creationDate);
+        
+        allEvents.push({
+          id: `project-end-${project.id}`,
+          title: `${project.details.product || 'Project'} End Date`,
+          date: endDate.toISOString(),
+          image: project.details.image || "/rectangle-13.png",
+          type: 'deadline',
+          projectId: project.id
         });
       }
       
@@ -140,30 +152,61 @@ export const BorrowerCalender: React.FC = () => {
                   <div className="flex-1">
                     <h3 className="text-xl font-medium mb-4">Upcoming Event</h3>
                     <div className="space-y-8">
-                      {monthEvents.map((ev, idx) => (
-                        <div key={ev.id} className="space-y-4">
-                          <p className="font-medium text-lg">
-                            {format(ev.dateObj, 'd MMM, h:mm a')}
-                          </p>
-                          <img
-                            src={ev.image}
-                            alt={ev.title}
-                            className="w-full max-w-[426px] h-[216px] object-cover rounded-md"
-                          />
-                          <h4 className="text-[22px] font-medium">
-                            {ev.title}
-                          </h4>
-                          <div className="flex gap-4 flex-wrap">
-                            <Button className="bg-[#ffc628] text-black hover:bg-[#e6b324] px-[70px] py-[18px] rounded-[10px] font-medium">
-                              Interested
-                            </Button>
-                            <Button variant="outline" className="bg-[#d9d9d9] hover:bg-[#c5c5c5] border-none text-black px-[30px] py-[18px] rounded-[10px] font-medium">
-                              View Details
-                            </Button>
+                      {monthEvents.length > 0 ? (
+                        monthEvents.map((ev, idx) => (
+                          <div key={ev.id} className="space-y-4">
+                            <p className="font-medium text-lg">
+                              {format(ev.dateObj, 'd MMM, h:mm a')}
+                            </p>
+                            <img
+                              src={ev.image}
+                              alt={ev.title}
+                              className="w-full max-w-[426px] h-[216px] object-cover rounded-md"
+                            />
+                            <h4 className="text-[22px] font-medium">
+                              {ev.title}
+                            </h4>
+                            
+                            {/* Add event type specific details */}
+                            {ev.type === 'milestone' && (
+                              <p className="text-gray-600">Project milestone due date</p>
+                            )}
+                            
+                            {ev.type === 'payout' && (
+                              <p className="text-gray-600">
+                                Scheduled payout: {ev.amount || "Amount not specified"}
+                              </p>
+                            )}
+                            
+                            <div className="flex gap-4 flex-wrap">
+                              <Button 
+                                className="bg-[#ffc628] text-black hover:bg-[#e6b324] px-[70px] py-[18px] rounded-[10px] font-medium"
+                                onClick={() => navigate(`/borrower/project/${ev.projectId}/details`)}
+                              >
+                                View Project
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                className="bg-[#d9d9d9] hover:bg-[#c5c5c5] border-none text-black px-[30px] py-[18px] rounded-[10px] font-medium"
+                                onClick={() => navigate(`/borwMyProj`)}
+                              >
+                                My Projects
+                              </Button>
+                            </div>
+                            {idx !== monthEvents.length - 1 && <Separator className="my-4 max-w-[426px]" />}
                           </div>
-                          {idx !== monthEvents.length - 1 && <Separator className="my-4 max-w-[426px]" />}
+                        ))
+                      ) : (
+                        <div className="text-center py-10">
+                          <p className="text-gray-500 mb-4">No events in this month.</p>
+                          <Button 
+                            className="bg-[#ffc628] text-black hover:bg-[#e6b324]"
+                            onClick={() => navigate('/borwMyProj')}
+                          >
+                            Manage Projects
+                          </Button>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
 
@@ -192,18 +235,30 @@ export const BorrowerCalender: React.FC = () => {
                       {weeks.map((week, wi) => (
                         <div key={wi} className="grid grid-cols-7 gap-1">
                           {week.map((day, di) => {
-                            const hasEvent = events.some(e =>
+                            const dayEvents = events.filter(e => 
                               isSameDay(parseISO(e.date), day)
                             );
+                            const hasEvent = dayEvents.length > 0;
                             const isCurrent = isSameMonth(day, currentMonth);
                             return (
                               <div
                                 key={di}
-                                className={`h-[42px] flex items-center justify-center rounded-full transition-colors
+                                className={`h-[42px] flex items-center justify-center rounded-full cursor-pointer
                                   ${!isCurrent ? 'text-[#00000066]' : 'text-black'}
-                                  ${hasEvent ? 'bg-[#ffc628]' : ''}`}
+                                  ${hasEvent ? 'bg-[#ffc628] hover:bg-[#e6b324]' : 'hover:bg-gray-100'}`}
+                                onClick={() => {
+                                  if (hasEvent && dayEvents[0].projectId) {
+                                    navigate(`/borrower/project/${dayEvents[0].projectId}/details`);
+                                  }
+                                }}
+                                title={hasEvent ? `${dayEvents.length} event(s)` : ''}
                               >
                                 {format(day, 'd')}
+                                {hasEvent && dayEvents.length > 1 && (
+                                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                                    {dayEvents.length}
+                                  </span>
+                                )}
                               </div>
                             );
                           })}

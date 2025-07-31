@@ -22,6 +22,10 @@ import {
   ChevronRightIcon,
 } from "lucide-react";
 import { useProjectForm } from "../contexts/ProjectFormContext";
+import { Calendar } from "../components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
+import { format, addMonths } from "date-fns";
+import { Clock } from "lucide-react";
 
 export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
   const { token } = useContext(AuthContext)!;
@@ -248,15 +252,57 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                     <label className="font-medium text-black text-base block mb-2">
                       Select Time Duration
                     </label>
-                    <div className="relative">
-                      <Input
-                        placeholder="Enter here"
-                        className="w-full py-3 px-3 rounded-2xl border"
-                        value={timeDuration}
-                        onChange={e => setTimeDuration(e.target.value)}
-                      />
-                      <ChevronRightIcon className="absolute right-3 top-1/2 transform -translate-y-1/2" />
-                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full py-3 px-3 rounded-2xl border flex justify-between items-center"
+                        >
+                          {timeDuration ? format(new Date(timeDuration), "PPP p") : "Select date and time"}
+                          <ChevronRightIcon className="w-4 h-4 ml-2" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="p-4">
+                          <Calendar
+                            mode="single"
+                            selected={timeDuration ? new Date(timeDuration) : undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                // Default to end of project (3 months later)
+                                const endDate = addMonths(date, 3);
+                                setTimeDuration(endDate.toISOString());
+                              }
+                            }}
+                            initialFocus
+                          />
+                          <div className="p-3 border-t border-gray-200">
+                            <div className="flex items-center">
+                              <Clock className="mr-2 h-4 w-4" />
+                              <select 
+                                className="w-full p-2 border rounded"
+                                onChange={(e) => {
+                                  if (timeDuration) {
+                                    const date = new Date(timeDuration);
+                                    const [hours, minutes] = e.target.value.split(':');
+                                    date.setHours(parseInt(hours), parseInt(minutes));
+                                    setTimeDuration(date.toISOString());
+                                  }
+                                }}
+                              >
+                                <option value="09:00">9:00 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="15:00">3:00 PM</option>
+                                <option value="18:00">6:00 PM</option>
+                              </select>
+                            </div>
+                            <div className="mt-4">
+                              <p className="text-sm text-gray-500">Project duration: 3 months</p>
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {/* Location */}

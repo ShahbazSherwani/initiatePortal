@@ -15,6 +15,7 @@ interface Milestone {
   percentage: string;
   date: Date | null;
   file: File | null;
+  image?: string; // Add this property
 }
 
 export const AddMilestones: React.FC = () => {
@@ -36,10 +37,31 @@ export const AddMilestones: React.FC = () => {
     value: string | Date | File | null
   ) => {
     const updated = [...milestones];
-    // @ts-ignore
-    updated[idx][field] = value;
-    setMilestones(updated);
-    setForm(f => ({ ...f, milestones: updated }));
+    
+    // Special handling for file uploads
+    if (field === 'file' && value instanceof File) {
+      const file = value as File;
+      updated[idx][field] = file;
+      
+      // Convert the file to a data URL that can be displayed
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Store the data URL in the image property
+        updated[idx].image = reader.result as string;
+        setMilestones([...updated]);
+        
+        // Update the form context with the new milestones including image
+        setForm(f => ({ ...f, milestones: [...updated] }));
+        
+        console.log("Image saved for milestone", idx, reader.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // @ts-ignore
+      updated[idx][field] = value;
+      setMilestones(updated);
+      setForm(f => ({ ...f, milestones: updated }));
+    }
   };
 
   const addMilestone = () => {
