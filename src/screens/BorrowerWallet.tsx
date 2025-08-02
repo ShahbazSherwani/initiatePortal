@@ -17,10 +17,14 @@ import {
 } from "../components/ui/select";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { useRegistration } from "../contexts/RegistrationContext";
+import { useAuth } from '../contexts/AuthContext';
+import { authFetch } from '../lib/api';
+
 import type { BankAccount } from "../types/BankAccount";
 
 export const BorrowerWallet = (): JSX.Element => {
-  const { setRegistration } = useRegistration();
+  const { profile, setProfile } = useAuth();
+  const { registration, setRegistration } = useRegistration();
   const navigate = useNavigate();
   const [showThankYou, setShowThankYou] = useState(false);
 
@@ -76,6 +80,13 @@ export const BorrowerWallet = (): JSX.Element => {
   // />
 
   const handleNext = () => {
+    // Validate bank details
+    if (!bankDetails.accountName || !bankDetails.accountNumber) {
+      alert("Please fill in the required bank details");
+      return;
+    }
+    
+    // Save bank account data
     setRegistration(reg => ({
       ...reg,
       bankAccounts: [
@@ -90,10 +101,42 @@ export const BorrowerWallet = (): JSX.Element => {
         }
       ]
     }));
-    setShowThankYou(true);
-    setTimeout(() => {
-      navigate("/borrow");
-    }, 2000);
+    
+    // Mark registration as complete in profile
+    setProfile(prev => ({
+      ...prev,
+      hasCompletedRegistration: true
+    }));
+    
+    // Update the database that registration is complete
+    authFetch('http://localhost:4000/api/profile/complete-registration', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(() => {
+      // Show thank you message
+      setShowThankYou(true);
+      
+      // Redirect after delay
+      setTimeout(() => {
+        const role = profile?.role || 'borrower';
+        if (role === 'investor') {
+          navigate("/investor/discover");
+        } else if (role === 'borrower') {
+          navigate("/borrow");
+        } else if (role === 'guarantor') {
+          navigate("/guarantee");
+        } else {
+          navigate("/borrow");
+        }
+      }, 2000);
+    })
+    .catch(error => {
+      console.error("Error completing registration:", error);
+      alert("Failed to complete registration. Please try again.");
+    });
   };
 
   return (

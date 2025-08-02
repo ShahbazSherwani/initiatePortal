@@ -7,12 +7,14 @@ export const MainLayout = () => {
   const { profile } = useAuth();
   
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* ONLY render the navbar once here */}
-      <Navbar activePage="home" showAuthButtons={false} />
+    <div className="flex flex-col min-h-screen w-full">
+      {/* Role indicator banner */}
+
+      {/* ONLY navbar */}
+      <Navbar activePage="" showAuthButtons={!profile} />
       
-      {/* Everything else is rendered via Outlet */}
-      <div className="flex-1 overflow-hidden">
+      {/* Content */}
+      <div className="flex-1 w-full overflow-hidden">
         <Outlet />
       </div>
     </div>

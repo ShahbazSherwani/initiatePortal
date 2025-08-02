@@ -8,6 +8,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import { Menu as MenuIcon, ChevronLeft as ChevronLeftIcon, X as XIcon } from "lucide-react";
 import { useProjects } from "../contexts/ProjectsContext";
 import { useProjectForm } from "../contexts/ProjectFormContext";
+import { toast } from "react-toastify";
 
 // Tabs configuration
 const projectTabs = [
@@ -61,6 +62,18 @@ const handleContinue = () => {
   // Add/update this function in your BorwMyProjects component
   const handleViewDetails = (projectId: string) => {
     navigate(`/borrower/project/${projectId}/details`);
+  };
+
+  // Add this function to your BorrowerMyProjects component:
+  const handlePublishProject = (projectId: string) => {
+    updateProject(projectId, { status: "published" })
+      .then(() => {
+        toast.success("Project published successfully! Investors can now see it.");
+      })
+      .catch((error) => {
+        console.error("Error publishing project:", error);
+        toast.error("Failed to publish project");
+      });
   };
 
   return (
@@ -296,8 +309,28 @@ const handleContinue = () => {
             >
               Close Project
             </button>
+            {/* Add this button for draft projects */}
+            {(project.status === "draft" || project.status === "pending") && (
+  <Button 
+    onClick={() => handlePublishProject(project.id)}
+    className="bg-[#ffc628] text-black ml-4"
+  >
+    Publish Project
+  </Button>
+)}
           </div>
         </div>
+        <div className="flex items-center gap-2 ml-auto">
+  <span className={`text-xs px-2 py-1 rounded-full ${
+    project.status === 'published' 
+      ? 'bg-green-100 text-green-800' 
+      : project.status === 'draft'
+      ? 'bg-yellow-100 text-yellow-800'
+      : 'bg-gray-100 text-gray-800'
+  }`}>
+    {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+  </span>
+</div>
       </div>
     ))}
   </div>

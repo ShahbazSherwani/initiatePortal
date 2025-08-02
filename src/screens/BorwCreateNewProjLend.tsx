@@ -40,11 +40,11 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   const [videoLink, setVideoLink] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null); // State for image preview
 
-  const onSubmit = () => {
+  const onSubmit = (publishImmediately = false) => {
     // Create a complete project object
     const newProject = {
       type: "lending",
-      status: "draft", // Always set status
+      status: publishImmediately ? "published" : "draft", // Allow immediate publishing
       details: {
         loanAmount,
         projectRequirements,
@@ -268,12 +268,20 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   />
                 </div>
 
-                <Button
-                  className="w-full bg-[#ffc628] text-black py-3 rounded-lg font-medium"
-                  onClick={onSubmit}
-                >
-                  Continue
-                </Button>
+                <div className="flex gap-4 mt-8">
+                  <Button
+                    onClick={() => onSubmit(false)}
+                    className="px-6 py-2 bg-gray-200 text-black"
+                  >
+                    Save as Draft
+                  </Button>
+                  <Button
+                    onClick={() => onSubmit(true)}
+                    className="px-6 py-2 bg-[#ffc628] text-black"
+                  >
+                    Save & Publish
+                  </Button>
+                </div>
               </div>
 
               {/* Right column */}

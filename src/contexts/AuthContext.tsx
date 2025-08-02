@@ -12,6 +12,7 @@ interface AuthContextType {
     name: string | null;
     role: string | null;
     joined: string;
+    hasCompletedRegistration?: boolean; // Add this field
   } | null;
   setProfile: React.Dispatch<React.SetStateAction<any>>;
   loading: boolean;
@@ -85,7 +86,8 @@ export const AuthProvider = ({ children }) => {
                 email: user.email,
                 name: profileData.full_name,
                 role: profileData.role || null,
-                joined: profileData.created_at || new Date().toISOString()
+                joined: profileData.created_at || new Date().toISOString(),
+                hasCompletedRegistration: profileData.has_completed_registration || false
               });
             }
           } catch (error) {

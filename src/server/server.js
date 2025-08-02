@@ -527,3 +527,51 @@ function deepMerge(target, source) {
   
   return output;
 }
+
+// Add this with your other API endpoints
+
+// Mark registration as complete
+app.post('/api/profile/complete-registration', verifyToken, async (req, res) => {
+  try {
+    const uid = req.uid;
+    
+    // Update the user profile in the database
+    await db.query(
+      `UPDATE users 
+       SET has_completed_registration = true, updated_at = NOW()
+       WHERE firebase_uid = $1`,
+      [uid]
+    );
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error completing registration:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// In your GET /api/projects endpoint:
+
+app.get('/api/projects', verifyToken, async (req, res) => {
+  try {
+    const { status } = req.query;
+    
+    // Log to debug
+    console.log("Fetching projects with status:", status);
+    
+    let query = `SELECT * FROM projects`;
+    if (status) {
+      query += ` WHERE status = $1`;
+    }
+    
+    const result = status 
+      ? await db.query(query, [status])
+      : await db.query(query);
+      
+    console.log(`Found ${result.rows.length} projects`);
+    res.json({ success: true, projects: result.rows });
+  } catch (err) {
+    console.error("Error fetching projects:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});

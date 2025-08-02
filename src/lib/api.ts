@@ -93,26 +93,15 @@ export async function updateProject(id, projectData) {
 }
 
 // Get all published projects
-export async function getAllProjects(status) {
-  let url = `${API_URL}/projects`;
-  if (status) {
-    url += `?status=${status}`;
-  }
-  
+export const getAllProjects = async (status = 'published') => {
   try {
-    const data = await fetch(url).then(res => res.json());
-    return data.map((item) => ({
-      id: item.id.toString(),
-      creatorId: item.firebase_uid,
-      creatorName: item.full_name,
-      ...item.project_data,
-      createdAt: item.created_at
-    }));
+    const result = await authFetch(`http://localhost:4000/api/projects?status=${status}`);
+    return result.projects || [];
   } catch (error) {
-    console.error("Failed to fetch all projects:", error);
+    console.error("Error fetching projects:", error);
     return [];
   }
-}
+};
 
 // Invest in a project
 export async function investInProject(id, amount) {

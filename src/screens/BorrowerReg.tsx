@@ -50,6 +50,8 @@ export const BorrowerReg = (): JSX.Element => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Save registration data
     setRegistration(reg => ({
       ...reg,
       accountType,
@@ -65,6 +67,8 @@ export const BorrowerReg = (): JSX.Element => {
         postalCode,
       },
     }));
+    
+    // Continue to next step
     navigate("/borrowocu");
   };
 

@@ -1,7 +1,7 @@
 // src/screens/InvestorDiscovery.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllProjects } from '../lib/api';
+import { authFetch } from '../lib/api'; // Adjust the import based on your project structure
 import { Navbar } from "../components/Navigation/navbar";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 
@@ -11,19 +11,12 @@ export const InvestorDiscovery: React.FC = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    async function loadProjects() {
-      try {
-        setLoading(true);
-        const projects = await getAllProjects('published');
-        setAvailableProjects(projects);
-      } catch (error) {
-        console.error('Failed to load projects:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
+    const fetchProjects = async () => {
+      const result = await authFetch('http://localhost:4000/api/projects?status=published');
+      setAvailableProjects(result.projects || []);
+    };
     
-    loadProjects();
+    fetchProjects();
   }, []);
 
   return (
