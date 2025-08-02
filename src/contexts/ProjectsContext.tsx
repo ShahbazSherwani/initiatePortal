@@ -1,4 +1,6 @@
-import React, { createContext, useState, useContext } from "react";
+import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import { getMyProjects, createProject as apiCreateProject, updateProject as apiUpdateProject } from '../lib/api';
+import { AuthContext } from './AuthContext';
 import type { Milestone } from "../types/Milestone";
 
 
@@ -42,27 +44,129 @@ export interface Project {
     expectedYield?: number;
     // other sales properties
   };
-  status: string;
+  status: "draft" | "published" | "funded" | "in-progress" | "completed" | "closed";
+  investorRequests?: {
+    investorId: string;
+    name: string;
+    amount: number;
+    date: string;
+    status: "pending" | "accepted" | "rejected";
+  }[];
 }
 
 const ProjectsContext = createContext<{
   projects: Project[];
   addProject: (project: Project) => void;
   updateProject: (id: string, data: Partial<Project>) => void;
+  loading: boolean;
 } | undefined>(undefined);
 
-export const ProjectsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [projects, setProjects] = useState<Project[]>([]);
-
-  const addProject = (project: Project) => {
-    console.log("Adding project:", project);
-    setProjects(prev => [...prev, project]);
+  const [loading, setLoading] = useState(false);
+  const { token, user } = useContext(AuthContext)!;
+  
+  // Load projects whenever user or token changes
+  useEffect(() => {
+    if (user && token) {
+      loadProjects();
+    } else {
+      // Clear projects when user logs out
+      setProjects([]);
+    }
+  }, [user, token]);
+  
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      console.log("Loading projects...");
+      const data = await getMyProjects();
+      console.log(`Loaded ${data.length} projects`);
+      setProjects(data);
+    } catch (error) {
+      console.error("Failed to load projects:", error);
+    } finally {
+      setLoading(false);
+    }
   };
-  const updateProject = (id: string, data: Partial<Project>) =>
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-
+  
+  const addProject = async (project: Project) => {
+    try {
+      setLoading(true);
+      
+      // Add status if not present
+      if (!project.status) {
+        project.status = "draft";
+      }
+      
+      // Add creation date if not present
+      if (!project.createdAt) {
+        project.createdAt = new Date().toISOString();
+      }
+      
+      console.log("Creating project:", project);
+      const result = await apiCreateProject(project);
+      
+      if (result.success) {
+        console.log("Project created successfully:", result);
+        // Reload to get fresh data
+        await loadProjects();
+        return result;
+      } else {
+        throw new Error("Failed to create project");
+      }
+    } catch (error) {
+      console.error("Project creation failed:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const updateProject = async (id: string, updates: Partial<Project>) => {
+    try {
+      setLoading(true);
+      
+      console.log("Updating project:", id, updates);
+      
+      // Find current project - compare as strings
+      const currentProject = projects.find(p => p.id.toString() === id.toString());
+      if (!currentProject) {
+        console.error(`Project with ID ${id} not found in local state`);
+        throw new Error(`Project with ID ${id} not found`);
+      }
+      
+      // Merge updates with current project
+      const updatedProject = { ...currentProject, ...updates };
+      
+      const result = await apiUpdateProject(id, updatedProject);
+      
+      if (result.success) {
+        console.log("Project updated successfully");
+        // Update local state - keep ID as string
+        setProjects(projects.map(p => 
+          p.id.toString() === id.toString() ? { ...updatedProject, id: id.toString() } : p
+        ));
+        return result;
+      } else {
+        throw new Error("Failed to update project");
+      }
+    } catch (error) {
+      console.error("Project update failed:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   return (
-    <ProjectsContext.Provider value={{ projects, addProject, updateProject }}>
+    <ProjectsContext.Provider value={{ 
+      projects, 
+      addProject, 
+      updateProject, 
+      loadProjects,
+      loading
+    }}>
       {children}
     </ProjectsContext.Provider>
   );

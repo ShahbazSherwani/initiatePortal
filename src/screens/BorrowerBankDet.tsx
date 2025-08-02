@@ -65,7 +65,7 @@ export const BorrowerBankDet: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <Navbar activePage="wallet" showAuthButtons={false} />
+      {/* <Navbar activePage="wallet" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}

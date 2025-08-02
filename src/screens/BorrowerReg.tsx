@@ -70,7 +70,7 @@ export const BorrowerReg = (): JSX.Element => {
 
   return (
     <div className="bg-white min-h-screen w-full relative overflow-hidden z-10">
-      <Navbar activePage="register" showAuthButtons />
+      {/* <Navbar activePage="register" showAuthButtons /> */}
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] px-4 md:px-20 py-10">
         {/* ─── FORM ─── */}

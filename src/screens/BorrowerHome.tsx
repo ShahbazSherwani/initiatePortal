@@ -4,6 +4,7 @@ import { AuthContext } from '../contexts/AuthContext';
 import { getWalletBalance } from "..//lib/wallet"; // we’ll build this next
 import { useNavigate } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
+import { authFetch } from '../lib/api';
 
 
 
@@ -16,6 +17,7 @@ import {
   HelpCircleIcon,
   HomeIcon,
   LogOutIcon,
+  MenuIcon, // Add this
   SettingsIcon,
   WalletIcon,
 } from "lucide-react";
@@ -25,6 +27,8 @@ import { Button } from "../../src/components/ui/button";
 import { Card, CardContent } from "../../src/components/ui/card";
 import { Navbar } from "../../src/components/Navigation/navbar";
 import { Sidebar } from "../components/Sidebar/Sidebar";
+import { useAuth } from '../contexts/AuthContext';
+
 
 import "../../src/styles/animations.css";
 
@@ -38,8 +42,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 
 export const BorrowerHome: React.FC = () => {
-  const { profile, token, logout } = useContext(AuthContext)!;
-    const { registration } = useRegistration();
+  const { profile, setProfile, token, logout } = useAuth(); // Add setProfile here
+    const { registration, setRegistration } = useRegistration();
   const [balance, setBalance] = useState<number | null>(null);
   const navigate = useNavigate();
 
@@ -87,27 +91,88 @@ const selectedSidebarIdx =
     ? sidebarAccountMap[registration.accountType as AccountTypeKey]
     : 1;
 
+    // Role switching function
+    const handleRoleSwitch = async (roleKey) => {
+      try {
+        console.log(`Attempting to switch to role: ${roleKey}`);
+        
+        // Convert roleKey to proper API format
+        let apiRoleValue;
+        switch(roleKey) {
+          case "individual": 
+            apiRoleValue = "investor"; 
+            break;
+          case "borrower": 
+            apiRoleValue = "borrower"; 
+            break;
+          case "guarantee": 
+            apiRoleValue = "guarantor"; 
+            break;
+          default:
+            apiRoleValue = roleKey;
+        }
+        
+        const result = await authFetch('http://localhost:4000/api/profile/set-role', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ role: apiRoleValue })
+        });
+        
+        if (result.success) {
+          console.log(`Role set to ${apiRoleValue} in database`);
+          
+          // Update the profile in context
+          setProfile(prev => ({
+            ...prev,
+            role: apiRoleValue
+          }));
+          
+          // Update registration context
+          setRegistration(prev => ({
+            ...prev,
+            accountType: roleKey
+          }));
+          
+          // Navigate based on role
+          switch(roleKey) {
+            case "individual":
+              navigate("/investor/discover");
+              break;
+            case "borrower":
+              navigate("/borrow");
+              break;
+            case "guarantee":
+              navigate("/guarantee");
+              break;
+            default:
+              navigate("/");
+          }
+        } else {
+          console.error("Failed to set role:", result);
+          alert("Failed to switch role. Please try again.");
+        }
+      } catch (error) {
+        console.error("Role switch error:", error);
+        alert("An error occurred. Please try again.");
+      }
+    };
+  
   return (
-    <div className="bg-[#f0f0f0] flex flex-col md:flex-row w-full min-h-screen animate-fadeIn overflow-x-hidden">
-      <div className="bg-[#f0f0f0] w-full  relative overflow-x-hidden">
-        <Navbar activePage="login" showAuthButtons />
-
-        {/* Sidebar + Main */}
-        <div className="flex flex-col md:flex-row w-full max-w-[90%] h-[auto] mt-10 md:gap-x-10">
+  <>
+    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <div className="hidden md:block w-[280px] flex-shrink-0">
           <Sidebar activePage="home" />
+        </div>
 
-          <main
-  className="
-    w-[90%] mx-auto
-    bg-white
-    rounded-t-[30px]
-    p-4 md:p-8
-    md:w-full md:mx-0
-    min-h-screen
-    flex flex-col
-    animate-fadeIn delay-300
-  "
->
+        {/* Main content - use full width */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 w-full">
+          {/* Content goes here */}
+          <div className="w-full max-w-none">
+            {/* Your cards and content */}
             {/* Header */}
             {/* <header className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 md:px-20 pt-6 md:pt-9 gap-4 md:gap-0">
               <div className="flex items-center gap-4 ml-auto animate-fadeIn delay-300">
@@ -208,10 +273,8 @@ const selectedSidebarIdx =
     return (
       <button
         key={type.key}
-        onClick={() => {
-          const originalIdx = accountTypes.findIndex(t => t.key === type.key);
-          setSelectedAccountIdx(originalIdx);
-          navigate("/borrowreg", { state: { accountType: type.key } }); // Pass account type
+        onClick={async () => {
+          handleRoleSwitch(type.key)
         }}
         className="w-full sm:w-[216px] flex flex-col items-center focus:outline-none"
       >
@@ -260,10 +323,12 @@ const selectedSidebarIdx =
                 ))}
               </div>
             </section>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </div>
+
+  </>
   );
 };
 

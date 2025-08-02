@@ -1,5 +1,5 @@
 // src/screens/BorrowerMilestones.tsx
-import React, { Fragment, useState } from "react";
+import React, { Fragment, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, Transition } from "@headlessui/react";
 import { X as XIcon, Plus as PlusIcon, ChevronLeft as ChevronLeftIcon } from "lucide-react";
@@ -9,6 +9,8 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { AddMilestones } from "../screens/AddMilestones";
+import { useProjectForm } from '../contexts/ProjectFormContext';
+import { useProjects } from '../contexts/ProjectsContext';
 
 export const BorrowerMilestones: React.FC = () => {
   const navigate = useNavigate();
@@ -18,9 +20,39 @@ export const BorrowerMilestones: React.FC = () => {
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
 
+  const { form, setForm } = useProjectForm();
+  const { updateProject } = useProjects();
+  
+  // When saving milestones
+  const handleSaveMilestones = async () => {
+    try {
+      console.log("Saving milestones:", form.milestones);
+      
+      // Create an update with just the milestones section
+      const update = {
+        milestones: form.milestones
+      };
+      
+      console.log("Sending update:", update);
+      
+      // Update the project with just the milestones
+      const result = await updateProject(form.projectId, update);
+      
+      console.log("Update result:", result);
+      
+      if (result.success) {
+        // Show success message
+        alert("Milestones saved successfully");
+      }
+    } catch (error) {
+      console.error("Failed to save milestones:", error);
+      alert("Failed to save milestones");
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <Navbar activePage="my-projects" showAuthButtons={false} />
+      {/* <Navbar activePage="my-projects" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* desktop sidebar */}

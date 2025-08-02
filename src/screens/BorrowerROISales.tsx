@@ -57,7 +57,7 @@ export const BorrowerROISales: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <Navbar activePage="roi" showAuthButtons={false} />
+      {/* <Navbar activePage="roi" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         <div className="hidden md:block w-[325px]">

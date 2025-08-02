@@ -73,7 +73,7 @@ export const BorrowerEvent: React.FC = (): JSX.Element => {
   return (
     <div className=" flex flex-col min-h-screen bg-[#f0f0f0]">
       {/* Navbar */}
-      <Navbar activePage="borrow" showAuthButtons={false} />
+      {/* <Navbar activePage="borrow" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Unified Sidebar handles desktop & mobile internally */}

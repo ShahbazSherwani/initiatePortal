@@ -65,7 +65,7 @@ const handleContinue = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <Navbar activePage="my-projects" showAuthButtons={false} />
+      {/* <Navbar activePage="my-projects" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar desktop */}

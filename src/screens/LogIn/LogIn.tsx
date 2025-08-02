@@ -12,6 +12,8 @@ import { Navbar } from "../../components/Navigation/navbar";
 import { Link, useNavigate } from "react-router-dom";
 import { Testimonials } from "../../screens/LogIn/Testimonials";
 import { AuthContext } from "../../contexts/AuthContext";
+import { useAuth } from '../../contexts/AuthContext'; // Ensure this is the correct path to your AuthContext
+
 import { upsertProfile, fetchProfile } from '../../lib/profile';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase"; // your client init
@@ -23,7 +25,7 @@ export const LogIn = (): JSX.Element => {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-  const { setProfile } = useContext(AuthContext)!;
+  const { setProfile } = useAuth();
 
 
   const handleSubmit = async (e: React.FormEvent) => {

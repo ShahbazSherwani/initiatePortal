@@ -106,8 +106,42 @@ export const BorrowerCalender: React.FC = () => {
       }
     });
     
+    // Add investment request events
+    projects.forEach(project => {
+      if (project.investorRequests && project.investorRequests.length > 0) {
+        project.investorRequests.forEach(request => {
+          // For borrowers - show pending investment requests
+          if (profile.role === 'borrower' && request.status === 'pending') {
+            allEvents.push({
+              id: `investment-${project.id}-${request.investorId}`,
+              title: `New Investment Request for ${project.details.product}`,
+              date: request.date,
+              image: project.details.image || "/investment-request.png",
+              type: 'investment-request',
+              projectId: project.id,
+              amount: request.amount
+            });
+          }
+          
+          // For investors - show their own investment requests
+          if (profile.role === 'investor' && request.investorId === profile.id) {
+            allEvents.push({
+              id: `investment-${project.id}-${request.investorId}`,
+              title: `Your Investment in ${project.details.product}`,
+              date: request.date,
+              image: project.details.image || "/investment.png",
+              type: 'investment',
+              projectId: project.id,
+              amount: request.amount,
+              status: request.status
+            });
+          }
+        });
+      }
+    });
+    
     return allEvents;
-  }, [projects]);
+  }, [projects, profile]);
 
   const weeks = generateCalendar(currentMonth);
 
@@ -119,7 +153,7 @@ export const BorrowerCalender: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <Navbar activePage="login" showAuthButtons={true} />
+      {/* <Navbar activePage="login" showAuthButtons={true} /> */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside className="hidden md:flex w-[325px]"><Sidebar activePage="calendar" /></aside>

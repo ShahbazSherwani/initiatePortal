@@ -1,18 +1,19 @@
 import React, { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { useProjects } from "../contexts/ProjectsContext";
-import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Navbar } from "../components/Navigation/navbar";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import type { Milestone } from "../types/Milestone";
 import { toast, Toaster } from "react-hot-toast";
+import { useAuth } from "../contexts/AuthContext";
 
 const TABS = ["Details", "Milestones", "ROI (Expense)", "ROI (Sales)", "Payout Schedule"];
 
 const BorwEditProjectLend: React.FC = () => {
-  const { form, setForm } = useProjectForm();
-  const { updateProject } = useProjects(); // Add this
+  const { form, setForm, loadProject } = useProjectForm();
+  const { updateProject } = useProjects();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Details");
 
@@ -137,86 +138,140 @@ const BorwEditProjectLend: React.FC = () => {
 
   // Save Milestone
   const handleSaveMilestone = () => {
-    const newMilestone: Milestone = {
+    // First update the form state with current state variables
+    const updatedMilestones = [{
       amount: milestoneAmount,
-      percent: milestonePercentage,
       percentage: milestonePercentage,
       date: milestoneDate,
-      image: milestoneImage,
-      file: milestoneFile, // <-- Use the File object here
-    };
-
+      image: milestoneImage
+    }];
+    
     setForm(f => ({
       ...f,
-      milestones: [newMilestone, ...(f.milestones?.slice(1) || [])],
+      milestones: updatedMilestones
     }));
-
-    // Show success feedback
-    toast.success("Milestone saved successfully!");
-    navigate("/borwMyProj");
+    
+    // Then update the project directly with just milestones data
+    updateProject(form.projectId, {
+      milestones: updatedMilestones
+    })
+    .then(() => {
+      toast.success("Milestone saved successfully!");
+    })
+    .catch(error => {
+      console.error("Failed to save milestone:", error);
+      toast.error("Failed to save milestone");
+    });
   };
 
   // Save ROI (Expense)
   const handleSaveExpense = () => {
+    // First create the ROI data object
+    const roiData = {
+      expenseDetail,
+      pricePerUnit: expensePricePerUnit,
+      unitOfMeasure: expenseUnitOfMeasure,
+      totalAmount: expenseTotalAmount
+    };
+    
+    // Update the form state
     setForm(f => ({
       ...f,
-      roi: {
-        ...f.roi,
-        expenseDetail,
-        pricePerUnit: expensePricePerUnit,
-        unitOfMeasure: expenseUnitOfMeasure,
-        totalAmount: expenseTotalAmount,
-      },
+      roi: roiData
     }));
-
-    // Show success feedback
-    toast.success("ROI expenses saved successfully!");
-    navigate("/borwMyProj");
+    
+    // IMPORTANT: Send the data to the server before navigating
+    updateProject(form.projectId, { roi: roiData })
+      .then(() => {
+        toast.success("ROI expenses saved successfully!");
+        // Only navigate after successful update
+        navigate("/borwMyProj");
+      })
+      .catch(error => {
+        console.error("Failed to save ROI expenses:", error);
+        toast.error("Failed to save ROI expenses");
+      });
   };
 
   // Save ROI (Sales)
   const handleSaveSales = () => {
+    const salesData = {
+      incomeDetail: incomeDetail,
+      pricePerUnit: salesPricePerUnit,
+      unitMeasure: salesUnitMeasure,
+      totalSales: totalSales,
+      unitsSold: unitsSold
+    };
+    
     setForm(f => ({
       ...f,
-      sales: {
-        ...f.sales,
-        incomeDetail,
-        pricePerUnit: salesPricePerUnit,
-        unitMeasure: salesUnitMeasure,
-        totalSales,
-        unitsSold,
-      },
+      sales: salesData
     }));
-
-    // Show success feedback
-    toast.success("ROI sales saved successfully!");
-    navigate("/borwMyProj");
+    
+    // Send only sales data to API
+    updateProject(form.projectId, { sales: salesData })
+    .then(() => {
+      toast.success("ROI sales saved successfully!");
+    })
+    .catch(error => {
+      console.error("Failed to save ROI sales:", error);
+      toast.error("Failed to save ROI sales");
+    });
   };
 
   // Save Payout Schedule
   const handleSavePayoutSchedule = () => {
+    const payoutData = {
+      totalPayoutReq: totalPayoutReq,
+      scheduleDate: scheduleDate ? scheduleDate.toISOString() : null,
+      scheduleAmount: scheduleAmount,
+      payoutPercent: payoutPercent,
+      netIncome: netIncome,
+      penaltyAgree: penaltyAgree,
+      legalAgree: legalAgree
+    };
+    
     setForm(f => ({
       ...f,
-      payoutSchedule: {
-        ...f.payoutSchedule,
-        totalPayoutReq,
-        scheduleDate,
-        scheduleAmount,
-        payoutPercent,
-        netIncome,
-        penaltyAgree,
-        legalAgree,
-      },
+      payoutSchedule: payoutData
     }));
+    
+    // Send only payout data to API
+    updateProject(form.projectId, { payoutSchedule: payoutData })
+    .then(() => {
+      toast.success("Payout schedule saved successfully!");
+    })
+    .catch(error => {
+      console.error("Failed to save payout schedule:", error);
+      toast.error("Failed to save payout schedule");
+    });
+  };
 
-    // Show success feedback
-    toast.success("Payout schedule saved successfully!");
-    navigate("/borwMyProj");
+  // Example of updating milestones in the form
+  const handleMilestoneChange = (index, field, value) => {
+    const updatedMilestones = [...form.milestones];
+    updatedMilestones[index][field] = value;
+    
+    setForm({
+      ...form,
+      milestones: updatedMilestones
+    });
+  };
+
+  // Example of updating ROI in the form
+  const handleROIChange = (field, value) => {
+    setForm({
+      ...form,
+      roi: {
+        ...form.roi,
+        [field]: value
+      }
+    });
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <Navbar activePage="my-projects" showAuthButtons={false} />
+      {/* <Navbar activePage="my-projects" showAuthButtons={false} /> */}
       <div className="flex flex-1 overflow-hidden">
         <div className="hidden md:block w-[325px]">
           <Sidebar activePage="My Issuer/Borrower" />

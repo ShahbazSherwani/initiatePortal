@@ -20,9 +20,10 @@ export interface ProjectForm {
 interface ProjectFormContextType {
   form: ProjectForm;
   setForm: React.Dispatch<React.SetStateAction<ProjectForm>>;
+  loadProject: (project: any) => void; // Add this
 }
 
-const ProjectFormContext = createContext<ProjectFormContextType | undefined>(undefined);
+export const ProjectFormContext = createContext<ProjectFormContextType | undefined>(undefined);
 
 export const ProjectFormProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [form, setForm] = useState<ProjectForm>({
@@ -35,15 +36,30 @@ export const ProjectFormProvider: React.FC<{ children: React.ReactNode }> = ({ c
     payoutSchedule: {},
   });
 
+  const loadProject = (project: any) => {
+    console.log("Loading project into form:", project);
+    setForm({
+      projectId: project.id,
+      selectedType: project.type || '',
+      projectDetails: project.details || {},
+      milestones: project.milestones || [],
+      roi: project.roi || { expenses: [], income: [] },
+      sales: project.sales || { projections: [] },
+      payoutSchedule: project.payoutSchedule || []
+    });
+  };
+
   return (
-    <ProjectFormContext.Provider value={{ form, setForm }}>
+    <ProjectFormContext.Provider value={{ form, setForm, loadProject }}>
       {children}
     </ProjectFormContext.Provider>
   );
 };
 
 export const useProjectForm = () => {
-  const ctx = useContext(ProjectFormContext);
-  if (!ctx) throw new Error("useProjectForm must be used within ProjectFormProvider");
-  return ctx;
+  const context = useContext(ProjectFormContext);
+  if (!context) {
+    throw new Error("useProjectForm must be used within a ProjectFormProvider");
+  }
+  return context;
 };

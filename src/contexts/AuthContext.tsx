@@ -1,67 +1,130 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { fetchProfile } from '../lib/profile';
-import { auth } from '../lib/firebase';
-import { onAuthStateChanged, getIdToken, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { auth } from "../lib/firebase";
+import { User } from 'firebase/auth';
 
-interface Profile { name: string; joined: string; }
-interface AuthContextValue {
+// Define the interface for your context
+interface AuthContextType {
+  user: User | null;
   token: string | null;
-  profile: Profile | null;
-  setProfile: React.Dispatch<React.SetStateAction<Profile | null>>;
-  logout: () => void;
+  profile: {
+    id: string;
+    email: string | null;
+    name: string | null;
+    role: string | null;
+    joined: string;
+  } | null;
+  setProfile: React.Dispatch<React.SetStateAction<any>>;
+  loading: boolean;
+  logout: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+// Create context with proper typing
+export const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
-  // Initialize persistence and read from storage
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('fb_token');
-  });
-  const [profile, setProfile] = useState<Profile | null>(null);
+// Custom hook to use the auth context with type safety
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+
+  // Refresh token periodically (every 30 minutes)
   useEffect(() => {
-    // Ensure Firebase uses local persistence
-    setPersistence(auth, browserLocalPersistence).catch(console.error);
+    if (!user) return;
 
-    // If we already have a stored token, fetch profile immediately
-    if (token) {
-      fetchProfile(token)
-        .then(prof => setProfile({ name: prof.full_name, joined: prof.created_at }))
-        .catch(console.error);
-    }
+    const refreshToken = async () => {
+      try {
+        // Force token refresh
+        const newToken = await user.getIdToken(true);
+        setToken(newToken);
+        console.log("Token refreshed successfully");
+      } catch (error) {
+        console.error("Failed to refresh token:", error);
+      }
+    };
 
-    // Listen for auth state changes
-    const unsubscribe = onAuthStateChanged(auth, async user => {
+    // Set up token refresh interval (every 30 minutes)
+    const interval = setInterval(refreshToken, 30 * 60 * 1000);
+    
+    // Initial token fetch
+    refreshToken();
+    
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        const idToken = await getIdToken(user);
-        localStorage.setItem('fb_token', idToken);
-        setToken(idToken);
         try {
-          const prof = await fetchProfile(idToken);
-          setProfile({ name: prof.full_name, joined: prof.created_at });
-        } catch {
-          // leave existing profile if fetch fails
+          // Get token
+          const token = await user.getIdToken();
+          setToken(token);
+          setUser(user);
+          
+          // Fetch profile with role
+          try {
+            const response = await fetch('http://localhost:4000/api/profile', {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (response.ok) {
+              const profileData = await response.json();
+              setProfile({
+                id: user.uid,
+                email: user.email,
+                name: profileData.full_name,
+                role: profileData.role || null,
+                joined: profileData.created_at || new Date().toISOString()
+              });
+            }
+          } catch (error) {
+            console.error("Error fetching profile:", error);
+          }
+        } catch (error) {
+          console.error("Error setting up user:", error);
         }
       } else {
-        localStorage.removeItem('fb_token');
+        setUser(null);
         setToken(null);
         setProfile(null);
       }
+      setLoading(false);
     });
-
+    
     return () => unsubscribe();
   }, []);
 
-  const logout = () => {
-    auth.signOut();
-    localStorage.removeItem('fb_token');
-    setToken(null);
-    setProfile(null);
+  const logout = async () => {
+    try {
+      await auth.signOut();
+      setUser(null);
+      setToken(null);
+      setProfile(null);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ token, profile, setProfile, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      token, 
+      profile, 
+      setProfile,
+      loading,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );

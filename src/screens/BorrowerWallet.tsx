@@ -116,7 +116,7 @@ export const BorrowerWallet = (): JSX.Element => {
       )}
 
       {/* ─── Site‐wide Navbar ─── */}
-      <Navbar activePage="register" showAuthButtons={true} />
+      {/* <Navbar activePage="register" showAuthButtons={true} /> */}
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] px-4 md:px-20 py-10">
         {/* ─── LEFT COLUMN: scrollable form ─── */}

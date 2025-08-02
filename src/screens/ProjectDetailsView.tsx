@@ -18,12 +18,8 @@ const ProjectDetailsView: React.FC = () => {
   const project = projects.find(p => p.id === projectId);
   if (!project) return <div>Project not found</div>;
   
-  // Mock investor requests (in a real app, this would come from an API)
-  const investorRequests = [
-    { name: 'John Doe', username: 'John_123', avatar: '/avatar1.png' },
-    { name: 'Adam Knight', username: 'knight_342', avatar: '/avatar2.png' },
-    { name: 'Chris Evan', username: 'Chris_522', avatar: '/avatar3.png' }
-  ];
+  // Investor requests now come from the project data
+  const investorRequests = project.investorRequests || [];
 
   // Calculate funding percentage from project data
   const calculateFundingPercentage = () => {
@@ -206,35 +202,35 @@ const ProjectDetailsView: React.FC = () => {
   // Get the calculated payout schedule
   const payoutSchedule = calculatePayoutSchedule();
 
-  // Example of properly saving milestone image in your milestone creation form
-  const handleMilestoneSubmit = () => {
-    // Make sure image data is in the right format (URL or Data URL)
-    const milestoneImageURL = milestoneImageFile 
-      ? URL.createObjectURL(milestoneImageFile) 
-      : null;
+  // // Example of properly saving milestone image in your milestone creation form
+  // const handleMilestoneSubmit = () => {
+  //   // Make sure image data is in the right format (URL or Data URL)
+  //   const milestoneImageURL = milestoneImageFile 
+  //     ? URL.createObjectURL(milestoneImageFile) 
+  //     : null;
       
-    // Create new milestone
-    const newMilestone = {
-      id: Date.now().toString(),
-      name: milestoneName,
-      amount: milestoneAmount,
-      percentage: milestonePercentage,
-      image: milestoneImageURL
-    };
+  //   // Create new milestone
+  //   const newMilestone = {
+  //     id: Date.now().toString(),
+  //     name: milestoneName,
+  //     amount: milestoneAmount,
+  //     percentage: milestonePercentage,
+  //     image: milestoneImageURL
+  //   };
     
-    // Log to verify data
-    console.log("Adding new milestone:", newMilestone);
+  //   // Log to verify data
+  //   console.log("Adding new milestone:", newMilestone);
     
-    // Update project with the new milestone
-    updateProject({
-      ...project,
-      milestones: [...(project.milestones || []), newMilestone]
-    });
-  };
+  //   // Update project with the new milestone
+  //   updateProject({
+  //     ...project,
+  //     milestones: [...(project.milestones || []), newMilestone]
+  //   });
+  // };
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <Navbar activePage="my-projects" showAuthButtons={false} />
+      {/* <Navbar activePage="my-projects" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
@@ -254,6 +250,29 @@ const ProjectDetailsView: React.FC = () => {
               <span className="font-medium ml-2">Project Details</span>
             </div>
             
+            {/* Header section - Title, Publish button, Status badge */}
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold">{project.details.product || "Project Details"}</h1>
+              
+              {project.status === "draft" && (
+                <Button 
+                  onClick={() => {
+                    updateProject(project.id, { status: "published" });
+                    toast.success("Project published! It's now visible to investors.");
+                  }}
+                  className="bg-[#ffc628] text-black hover:bg-[#e6b324]"
+                >
+                  Publish Project
+                </Button>
+              )}
+              
+              {project.status === "published" && (
+                <Badge className="bg-green-100 text-green-800">
+                  Published
+                </Badge>
+              )}
+            </div>
+
             {/* Tabs */}
             <div className="grid grid-cols-3 mb-6">
               {['Details', 'My Guarantor', 'Milestones'].map(tab => (
@@ -364,36 +383,94 @@ const ProjectDetailsView: React.FC = () => {
                   <p className="text-sm mb-4">You have {investorRequests.length} offers:</p>
                   
                   {/* Investor list */}
-                  <div className="space-y-4">
-                    {investorRequests.map((investor, index) => (
-                      <div key={index} className="mb-4">
-                        <div className="flex items-center mb-3">
-                          <img 
-                            src={investor.avatar} 
-                            alt={investor.name} 
-                            className="w-10 h-10 rounded-full mr-3"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = `https://ui-avatars.com/api/?name=${investor.name}&background=random`;
-                            }}
-                          />
-                          <div>
-                            <p className="font-medium">{investor.name}</p>
-                            <p className="text-xs text-gray-500">{investor.username}</p>
+                  {investorRequests.length > 0 ? (
+                    <div className="space-y-4">
+                      {investorRequests.map((investor, index) => (
+                        <div key={index} className="mb-4">
+                          <div className="flex items-center mb-3">
+                            <img 
+                              src={investor.avatar || `https://ui-avatars.com/api/?name=${investor.name}&background=random`}
+                              alt={investor.name} 
+                              className="w-10 h-10 rounded-full mr-3"
+                            />
+                            <div>
+                              <p className="font-medium">{investor.name}</p>
+                              <p className="text-xs text-gray-500">Amount: {investor.amount.toLocaleString()} PHP</p>
+                            </div>
                           </div>
+                          
+                          {investor.status === "pending" && (
+                            <div className="flex gap-2">
+                              <Button 
+                                className="flex-1 bg-[#ffc628] hover:bg-[#e6b324] text-black"
+                                onClick={() => {
+                                  // Update the investor status
+                                  const updatedRequests = investorRequests.map(req => 
+                                    req.investorId === investor.investorId 
+                                      ? {...req, status: "accepted"} 
+                                      : req
+                                  );
+                                  
+                                  // Update funding progress
+                                  const totalRequired = parseFloat(project.details.loanAmount || 
+                                                                 project.details.investmentAmount || "0");
+                                  const totalFunded = updatedRequests
+                                    .filter(req => req.status === "accepted")
+                                    .reduce((sum, req) => sum + req.amount, 0);
+                                  
+                                  const progress = Math.round((totalFunded / totalRequired) * 100);
+                                  
+                                  // Update project
+                                  updateProject(project.id, {
+                                    investorRequests: updatedRequests,
+                                    fundingProgress: progress,
+                                    details: {
+                                      ...project.details,
+                                      fundedAmount: totalFunded.toString()
+                                    }
+                                  });
+                                  
+                                  toast.success(`Investment from ${investor.name} accepted!`);
+                                }}
+                              >
+                                Accept
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                className="flex-1 bg-gray-100 hover:bg-gray-200"
+                                onClick={() => {
+                                  // Update just this investor's status
+                                  const updatedRequests = investorRequests.map(req => 
+                                    req.investorId === investor.investorId 
+                                      ? {...req, status: "rejected"} 
+                                      : req
+                                  );
+                                  
+                                  updateProject(project.id, {
+                                    investorRequests: updatedRequests
+                                  });
+                                  
+                                  toast.success(`Investment request rejected`);
+                                }}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {investor.status === "accepted" && (
+                            <Badge className="bg-green-100 text-green-800">Accepted</Badge>
+                          )}
+                          
+                          {investor.status === "rejected" && (
+                            <Badge className="bg-red-100 text-red-800">Rejected</Badge>
+                          )}
                         </div>
-                        
-                        <div className="flex gap-2">
-                          <Button className="flex-1 bg-[#ffc628] hover:bg-[#e6b324] text-black">
-                            Accept
-                          </Button>
-                          <Button variant="outline" className="flex-1 bg-gray-100 hover:bg-gray-200">
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No investment requests yet.</p>
+                  )}
                 </div>
               </div>
             )}

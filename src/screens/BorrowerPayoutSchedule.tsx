@@ -96,7 +96,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
       {/* Top navbar */}
-      <Navbar activePage="payout-schedule" showAuthButtons={false} />
+      {/* <Navbar activePage="payout-schedule" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}

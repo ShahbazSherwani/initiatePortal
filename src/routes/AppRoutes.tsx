@@ -1,5 +1,5 @@
-import React, { useContext } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import React, { useContext, useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import { LogIn } from "../screens/LogIn/LogIn";
 import { RegisterStep } from "../screens/LogIn/RegisterStep";
@@ -8,7 +8,7 @@ import { BorrowerReg } from "../screens/BorrowerReg";
 import { BorrowerOccupation } from "../screens/BorrowOcu";
 import { AuthContext } from "../contexts/AuthContext";
 import { BorrowerWallet } from "../screens/BorrowerWallet";
-import {BorrowerCalender} from "../screens/BorrowCalendar";
+import { BorrowerCalender } from "../screens/BorrowCalendar";
 import { BorrowerEvent } from "../screens/BorrowEvents";
 import { BorrowerProject } from "../screens/BorrowProject";
 import { BorrowerBankDet } from "../screens/BorrowerBankDet";
@@ -25,12 +25,13 @@ import { ProjectsProvider } from "../contexts/ProjectsContext"; // <-- import yo
 import { ProjectFormProvider } from "../contexts/ProjectFormContext";
 import BorwEditProjectLend from "../screens/BorwEditProjectLend";
 import ProjectDetailsView from "../screens/ProjectDetailsView";
+import { InvestorDiscovery } from "../screens/InvestorDiscovery";
+import { InvestorProjectView } from "../screens/InvestorProjectView";
+import { InvestorCalendar } from "../screens/InvestorCalendar";
+import { useAuth } from '../contexts/AuthContext';
+
 
 import { BorrowerPayoutSchedule } from "../screens/BorrowerPayoutSchedule";
-
-
-
-
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -44,12 +45,29 @@ const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
 };
 
 export const AppRoutes: React.FC = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect based on auth state
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        // User not logged in, redirect to home
+        navigate("/", { replace: true });
+      }
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <RegistrationProvider>
       <ProjectsProvider>
         <ProjectFormProvider>
           <Routes>
-            <Route path="/" element={<MainLayout />}>        
+            <Route element={<MainLayout />}>
               <Route index element={<LogIn />} />
               <Route path="register" element={<RegisterStep />} />
               {/* Protect the borrow route */}
@@ -60,9 +78,7 @@ export const AppRoutes: React.FC = () => {
                     <BorrowerHome />
                   </PrivateRoute>
                 }
-                
               />
-              
               <Route path="borrowreg" element={<BorrowerReg />} />
               <Route path="borrowocu" element={<BorrowerOccupation />} />
               <Route path="borrowWallet" element={<BorrowerWallet />} />
@@ -70,26 +86,54 @@ export const AppRoutes: React.FC = () => {
               <Route path="borrowEvents" element={<BorrowerEvent />} />
               <Route path="borrowProj" element={<BorrowerProject />} />
               <Route path="borrowBank" element={<BorrowerBankDet />} />
-              <Route path="borwMyProj"      element={<BorrowerMyProjects />} />
-              <Route path="borwNewProj"     element={<BorrowerCreateNew  />} />
-              <Route path="borwNewProjEq"   element={<BorrowerCreateNewEq />} />
+              <Route path="borwMyProj" element={<BorrowerMyProjects />} />
+              <Route path="borwNewProj" element={<BorrowerCreateNew />} />
+              <Route path="borwNewProjEq" element={<BorrowerCreateNewEq />} />
               <Route path="borwMilestones" element={<BorrowerMilestones />} />
               <Route path="milestones" element={<Milestones />} />
-              <Route path="/borrower/project/:projectId/details" element={<ProjectDetailsView />} />
-              
+              <Route
+                path="/borrower/project/:projectId/details"
+                element={<ProjectDetailsView />}
+              />
               <Route path="addMilestones" element={<AddMilestones />} />
-              <Route path="borrowROI" element={<PrivateRoute><BorrowerROI/></PrivateRoute>} />
-              <Route path="borrowROISales" element={<PrivateRoute><BorrowerROISales/></PrivateRoute>} />
-              <Route path="borrowPayout" element={<PrivateRoute><BorrowerPayoutSchedule/></PrivateRoute>
-              
-              
-        }
-      />
+              <Route
+                path="borrowROI"
+                element={
+                  <PrivateRoute>
+                    <BorrowerROI />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="borrowROISales"
+                element={
+                  <PrivateRoute>
+                    <BorrowerROISales />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="borrowPayout"
+                element={
+                  <PrivateRoute>
+                    <BorrowerPayoutSchedule />
+                  </PrivateRoute>
+                }
+              />
 
+              {/* Investor routes - move these inside MainLayout */}
+              <Route path="/investor/discover" element={<InvestorDiscovery />} />
+              <Route path="/investor/project/:projectId" element={<InvestorProjectView />} />
+              <Route path="/investor/calendar" element={<InvestorCalendar />} />
             </Route>
-            <Route path="borrow/request" element={
-              <PrivateRoute><BorrowerReg /></PrivateRoute>
-            }/>
+            <Route
+              path="borrow/request"
+              element={
+                <PrivateRoute>
+                  <BorrowerReg />
+                </PrivateRoute>
+              }
+            />
             <Route path="/borwCreateNewProjLend" element={<BorwEditProjectLend />} />
             <Route path="/project/:projectId" element={<ProjectDetailsView />} />
           </Routes>

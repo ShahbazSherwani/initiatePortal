@@ -40,7 +40,7 @@ export const Milestones: React.FC = (): JSX.Element => {
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
       {/* Top navbar */}
-      <Navbar activePage="create-project" showAuthButtons={false} />
+      {/* <Navbar activePage="create-project" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}

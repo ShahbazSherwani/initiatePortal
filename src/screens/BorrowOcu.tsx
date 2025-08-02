@@ -44,7 +44,7 @@ export const BorrowerOccupation: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* ─── 1) Navbar ─── */}
-      <Navbar activePage="register" showAuthButtons={true} />
+      {/* <Navbar activePage="register" showAuthButtons={true} /> */}
 
       {/* ─── 2) Back Arrow ─── */}
       <div className="px-4 md:px-20 py-6">

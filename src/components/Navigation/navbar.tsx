@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { MenuIcon, XIcon, BellIcon, ChevronDownIcon } from "lucide-react";
 import { AuthContext } from "../../contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { useAuth } from '../../contexts/AuthContext';
 
 export interface NavbarProps {
   activePage: string;
@@ -17,7 +18,7 @@ export interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { token, profile, logout } = useContext(AuthContext)!;
+  const { token, profile, logout } = useAuth();
   const location = useLocation();
 
   const navItems = [
@@ -32,8 +33,31 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
     { name: "Unity", to: "/unity", color: "text-black" },
   ];
 
+  const AccountDisplay = () => {
+    const { profile } = useAuth();
+    
+    return (
+      <div className="flex items-center">
+        <span className="text-gray-600 mr-1">Account:</span>
+        <span className="font-medium">
+          {profile?.name} 
+          {profile?.role && `(${profile.role === 'investor' ? 'Investor' : 'Borrower'})`}
+        </span>
+      </div>
+    );
+  };
+
   return (
-    <nav className=" relative z-50 w-full bg-white border-b border-gray-200 px-6 py-4" style={{ position: 'sticky', top: 0 }}>
+    <nav className="relative z-50 w-full bg-white border-b border-gray-200 px-6 py-4" style={{ position: 'sticky', top: 0 }}>
+      {/* Role indicator banner - will only appear once */}
+      {profile?.role && (
+        <div className={`absolute top-0 left-0 w-full text-center py-1 text-xs font-medium ${
+          profile.role === 'investor' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+        }`}>
+          Currently in {profile.role === 'investor' ? 'Investor' : 'Borrower'} mode
+        </div>
+      )}
+      
       {/* Mobile: logo + hamburger */}
       <div className="flex items-center justify-between md:hidden">
         <div className="flex items-center gap-4">
@@ -127,12 +151,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
               <AvatarFallback>U</AvatarFallback>
             </Avatar>
 
-            <div className="flex flex-col">
-              <span className="text-sm opacity-70">Account:</span>
-              <button className="flex items-center gap-1">
-                Issue/Borrow <ChevronDownIcon className="w-4 h-4" />
-              </button>
-            </div>
+            <AccountDisplay />
 
             <Button
               variant="outline"

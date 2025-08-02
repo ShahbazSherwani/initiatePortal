@@ -41,11 +41,11 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   const [imagePreview, setImagePreview] = useState<string | null>(null); // State for image preview
 
   const onSubmit = () => {
-    setForm((f) => ({
-      ...f,
-      selectedType: "lending",
-      projectDetails: {
-        ...f.projectDetails, // <-- This keeps the image and any other previous fields!
+    // Create a complete project object
+    const newProject = {
+      type: "lending",
+      status: "draft", // Always set status
+      details: {
         loanAmount,
         projectRequirements,
         investorPercentage,
@@ -54,10 +54,34 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
         location,
         overview,
         videoLink,
-        // Add picture if you implement upload
+        image: imagePreview,
       },
-    }));
-    navigate("/borwMilestones");
+      milestones: [],
+      createdAt: new Date().toISOString(), // Always include creation date
+      fundingProgress: 0,
+    };
+
+    console.log("Submitting project:", newProject);
+
+    // Use the addProject function from context
+    addProject(newProject)
+      .then((result) => {
+        console.log("Project creation result:", result);
+        if (result.success) {
+          setForm((f) => ({
+            ...f,
+            projectId: result.projectId,
+            selectedType: "lending",
+            projectDetails: newProject.details,
+          }));
+          navigate("/borwMilestones");
+        } else {
+          console.error("Failed to create project");
+        }
+      })
+      .catch((error) => {
+        console.error("Error creating project:", error);
+      });
   };
 
   // When user selects a file:
@@ -67,7 +91,7 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
-        setForm(f => ({
+        setForm((f) => ({
           ...f,
           projectDetails: {
             ...f.projectDetails,
@@ -86,7 +110,7 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
       {/* Top navbar */}
-      <Navbar activePage="create-project" showAuthButtons={false} />
+      {/* <Navbar activePage="create-project" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
@@ -120,7 +144,11 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           {/* Header with back button */}
           <div className="flex items-center mb-6">
-            <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.history.back()}
+            >
               <ArrowLeftIcon className="w-6 h-6" />
             </Button>
             <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
@@ -261,7 +289,11 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                       <span className="font-medium">Upload</span>
                     </div>
                   </div>
-                  <input type="file" accept="image/*" onChange={handleImageUpload} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                  />
                   {imagePreview && <img src={imagePreview} alt="Preview" />}
                 </div>
 

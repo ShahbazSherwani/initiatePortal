@@ -8,6 +8,8 @@ import { Textarea } from "../components/ui/textarea";
 import { ArrowLeftIcon, ChevronLeftIcon, Menu as MenuIcon } from "lucide-react";
 import { AuthContext } from "../contexts/AuthContext";
 import { useProjectForm } from "../contexts/ProjectFormContext";
+import { useProjects } from "../contexts/ProjectsContext";
+import { toast } from "react-hot-toast"; // If you use toast
 
 export const BorrowerROI: React.FC = (): JSX.Element => {
   const { token } = useContext(AuthContext)!;
@@ -16,6 +18,7 @@ export const BorrowerROI: React.FC = (): JSX.Element => {
 
   // form state
   const { form, setForm } = useProjectForm();
+  const { updateProject } = useProjects();
   const [expenseDetail, setExpenseDetail] = useState("");
   const [pricePerUnit, setPricePerUnit] = useState("");
   const [unitOfMeasure, setUnitOfMeasure] = useState("");
@@ -38,10 +41,60 @@ export const BorrowerROI: React.FC = (): JSX.Element => {
     navigate("/borrowROISales");
   };
 
+  // Example for updating ROI expenses
+  const handleSaveROI = async () => {
+    try {
+      console.log("Current ROI data:", form.roi);
+      
+      // Create a proper expenses array - this is the key part!
+      const expensesData = {
+        // Preserve any existing roi data
+        ...form.roi,
+        // Update the expenses array
+        expenses: [
+          {
+            detail: expenseDetail,
+            pricePerUnit: pricePerUnit,
+            unitOfMeasure: unitOfMeasure,
+            totalAmount: totalAmount
+          }
+          // Add more expense items if you have multiple
+        ]
+      };
+      
+      console.log("Saving ROI expenses:", expensesData);
+      
+      // Update form state first
+      setForm({
+        ...form,
+        roi: expensesData
+      });
+      
+      // Then send to API with just the roi section
+      const result = await updateProject(form.projectId, {
+        roi: expensesData
+      });
+      
+      // Add this to your handleSaveExpenses function
+      console.log("Form before update:", JSON.stringify(form, null, 2));
+      console.log("ROI data to save:", JSON.stringify(expensesData, null, 2));
+
+      // After the API call, log the result
+      console.log("Update result:", result);
+      
+      if (result.success) {
+        toast.success("ROI expenses saved successfully!");
+      }
+    } catch (error) {
+      console.error("Failed to save ROI expenses:", error);
+      toast.error("Failed to save ROI expenses");
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
       {/* Top navbar */}
-      <Navbar activePage="roi" showAuthButtons={false} />
+      {/* <Navbar activePage="roi" showAuthButtons={false} /> */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
