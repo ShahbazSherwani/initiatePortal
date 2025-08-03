@@ -2,12 +2,9 @@ import React, { useContext, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import { useRegistration } from "../contexts/RegistrationContext";
-import {
-  BellIcon,
-  ChevronLeftIcon,
-} from "lucide-react";
+import { ChevronLeftIcon } from "lucide-react";
 import { Navbar } from "../components/Navigation/navbar";
-import { Sidebar } from "../components/Sidebar/Sidebar";
+import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Checkbox } from "../components/ui/checkbox";
@@ -52,7 +49,6 @@ export const BorrowerBankDet: React.FC = () => {
   const { registration, setRegistration } = useRegistration();
   const bankAccounts = registration.bankAccounts || [];
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
@@ -64,40 +60,10 @@ export const BorrowerBankDet: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      {/* <Navbar activePage="wallet" showAuthButtons={false} /> */}
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Desktop sidebar */}
-        <div className="md:block">
-          <Sidebar activePage="wallet" />
-        </div>
-
-        {/* Mobile sidebar toggle */}
-        <div className="hidden md:hidden">
-          <button
-            className="fixed top-4 left-4 z-50 p-2 rounded-full bg-white shadow"
-            onClick={() => setMobileMenuOpen((o) => !o)}
-          >
-            {mobileMenuOpen ? (
-              <ChevronLeftIcon className="w-6 h-6 text-black" />
-            ) : (
-              <BellIcon className="w-6 h-6 text-black" />
-            )}
-          </button>
-          <div
-            className={`fixed inset-y-0 left-0 w-3/4 max-w-xs bg-white shadow transform transition-transform ${
-              mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-            }`}
-          >
-            <Sidebar activePage="wallet"  />
-          </div>
-        </div>
-
-        {/* Main content area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          {/* Header */}
-          <div className="flex items-center mb-6">
+    <DashboardLayout activePage="wallet">
+      <div className="p-4 md:p-8">
+        {/* Header */}
+        <div className="flex items-center mb-6">
             <button
               onClick={() => navigate(-1)}
               className="p-2 rounded-full hover:bg-gray-200"
@@ -235,9 +201,32 @@ setViewModalOpen(false);
               </div>
             )}
           </section>
-        </main>
-      </div>
-    </div>
+        </div>
+
+        {/* Modals */}
+        <AddBankAccountModal 
+          isOpen={showModal} 
+          onClose={() => setShowModal(false)}
+          onSubmit={(data) => {
+            // Handle bank account submission
+            console.log('Bank account added:', data);
+            setShowModal(false);
+          }}
+        />
+        
+        {selectedAccount && (
+          <ViewBankAccountModal 
+            isOpen={viewModalOpen} 
+            onClose={() => setViewModalOpen(false)} 
+            account={selectedAccount}
+            onRemove={() => {
+              // Handle account removal
+              console.log('Remove account:', selectedAccount);
+              setViewModalOpen(false);
+            }}
+          />
+        )}
+    </DashboardLayout>
   );
 };
 

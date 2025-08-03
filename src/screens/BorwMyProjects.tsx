@@ -1,14 +1,11 @@
 import React, { Fragment, useContext, useState } from "react";
 import { Navigate, useNavigate, Outlet } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
-import { Navbar } from "../components/Navigation/navbar";
-import { Sidebar } from "../components/Sidebar/Sidebar";
+import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/button";
 import { Dialog, Transition } from "@headlessui/react";
-import { Menu as MenuIcon, ChevronLeft as ChevronLeftIcon, X as XIcon } from "lucide-react";
+import { ChevronLeft as ChevronLeftIcon, X as XIcon } from "lucide-react";
 import { useProjects } from "../contexts/ProjectsContext";
-import { useProjectForm } from "../contexts/ProjectFormContext";
-import { toast } from "react-toastify";
 
 // Tabs configuration
 const projectTabs = [
@@ -21,9 +18,7 @@ const projectTabs = [
 export const BorrowerMyProjects: React.FC = (): JSX.Element => {
   const { token } = useContext(AuthContext)!;
   const { projects, updateProject } = useProjects();
-  const { setForm } = useProjectForm();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedType, setSelectedType] = useState<"equity" | "lending" | null>(null);
 
@@ -55,51 +50,19 @@ const handleContinue = () => {
 
   // Add this function to your BorrowerMyProjects component:
   const handlePublishProject = (projectId: string) => {
-    updateProject(projectId, { status: "published" })
-      .then(() => {
-        toast.success("Project published successfully! Investors can now see it.");
-      })
-      .catch((error) => {
-        console.error("Error publishing project:", error);
-        toast.error("Failed to publish project");
-      });
+    try {
+      updateProject(projectId, { status: "published" });
+      // toast.success("Project published successfully! Investors can now see it.");
+    } catch (error: any) {
+      console.error("Error publishing project:", error);
+      // toast.error("Failed to publish project");
+    }
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      {/* <Navbar activePage="my-projects" showAuthButtons={false} /> */}
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar desktop */}
-        <div className="hidden md:block w-[325px]">
-          <Sidebar activePage="My Issuer/Borrower" />
-        </div>
-
-        {/* Mobile sidebar toggle */}
-        <div className="md:hidden">
-          <button
-            className="fixed top-4 left-4 z-50 p-2 rounded-full bg-white shadow"
-            onClick={() => setMobileMenuOpen(o => !o)}
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? (
-              <ChevronLeftIcon className="w-6 h-6" />
-            ) : (
-              <MenuIcon className="w-6 h-6" />
-            )}
-          </button>
-          <div
-            className={`fixed inset-y-0 left-0 w-3/4 max-w-xs bg-white shadow transform transition-transform ease-in-out duration-200 ${
-              mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-            }`}
-          >
-            <Sidebar activePage="issuer-borrower" />
-          </div>
-        </div>
-
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+    <DashboardLayout activePage="issuer-borrower">
+      <div className="p-4 md:p-8">
+        <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
               <div className="flex items-center mb-4 md:mb-0">
@@ -273,13 +236,13 @@ const handleContinue = () => {
           
           {/* Project details */}
           <div className="text-sm text-gray-600 mb-2">Project ID: {project.id}</div>
-          <div className="text-sm text-gray-600 mb-2">Location: {project.details.location || "Not specified"}</div>
+          <div className="text-sm text-gray-600 mb-2">Location: {(project.details as any)?.location || "Not specified"}</div>
           
           {/* Approval feedback if rejected */}
-          {project.approvalStatus === 'rejected' && project.approvalFeedback && (
+          {(project as any).approvalStatus === 'rejected' && (project as any).approvalFeedback && (
             <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded">
               <p className="text-sm font-medium text-red-800">Rejection reason:</p>
-              <p className="text-sm text-red-700">{project.approvalFeedback}</p>
+              <p className="text-sm text-red-700">{(project as any).approvalFeedback}</p>
             </div>
           )}
         </div>
@@ -336,9 +299,8 @@ const handleContinue = () => {
 
             <Outlet />
           </div>
-        </main>
-      </div>
-    </div>
+        </div>
+    </DashboardLayout>
   );
 };
 

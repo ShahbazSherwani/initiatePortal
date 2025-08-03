@@ -3,10 +3,10 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import { getWalletBalance } from "../lib/wallet";
 import { useProjects } from "../contexts/ProjectsContext";
+import { DashboardLayout } from "../layouts/DashboardLayout";
 
 // UI and Icons
 import { Navbar } from "../components/Navigation/navbar";
-import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
@@ -49,7 +49,6 @@ export const BorrowerCalender: React.FC = () => {
   const { projects } = useProjects();
   const [balance, setBalance] = useState<number | null>(null);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
 
   if (!token) return <Navigate to="/login" />;
@@ -152,26 +151,11 @@ export const BorrowerCalender: React.FC = () => {
     .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      {/* <Navbar activePage="login" showAuthButtons={true} /> */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="hidden md:flex w-[325px]"><Sidebar activePage="calendar" /></aside>
-        {/* Mobile toggle */}
-        <div className="md:hidden fixed top-4 left-4 z-50">
-          <Button variant="outline" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-          </Button>
-        </div>
-        <div className={`md:hidden fixed inset-0 bg-white z-40 transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform`}>
-          <Sidebar activePage="calendar" />
-        </div>
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-8">
-          <Card className="shadow-none border-none rounded-none bg-white">
-            <CardContent className="p-0">
-              <div className="p-6">
+    <DashboardLayout activePage="calendar">
+      <div className="p-4 md:p-8">
+        <Card className="shadow-none border-none rounded-none bg-white">
+          <CardContent className="p-0">
+            <div className="p-6">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-semibold">Calendar</h2>
@@ -304,9 +288,8 @@ export const BorrowerCalender: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </main>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

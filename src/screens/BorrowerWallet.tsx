@@ -20,8 +20,6 @@ import { useRegistration } from "../contexts/RegistrationContext";
 import { useAuth } from '../contexts/AuthContext';
 import { authFetch } from '../lib/api';
 
-import type { BankAccount } from "../types/BankAccount";
-
 export const BorrowerWallet = (): JSX.Element => {
   const { profile, setProfile } = useAuth();
   const { registration, setRegistration } = useRegistration();

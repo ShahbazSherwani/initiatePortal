@@ -1,7 +1,9 @@
 import { auth } from "./firebase";
+import { API_BASE_URL } from '../config/environment';
 
 // Use environment variable for API URL, fallback to localhost for development
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+// API base URL - will be set by environment variables
+const API_URL = API_BASE_URL;
 
 // Function to get a fresh token
 export async function getAuthToken() {

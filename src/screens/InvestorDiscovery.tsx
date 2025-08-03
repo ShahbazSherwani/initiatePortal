@@ -2,8 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authFetch } from '../lib/api'; // Adjust the import based on your project structure
-import { Navbar } from "../components/Navigation/navbar";
-import { Sidebar } from "../components/Sidebar/Sidebar";
+import { DashboardLayout } from "../layouts/DashboardLayout";
 
 export const InvestorDiscovery: React.FC = () => {
   const [availableProjects, setAvailableProjects] = useState<any[]>([]);
@@ -32,16 +31,9 @@ export const InvestorDiscovery: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      {/* <Navbar activePage="invest" showAuthButtons={false} /> */}
-      
-      <div className="flex flex-1 overflow-hidden">
-        <div className="hidden md:block w-[325px]">
-          <Sidebar activePage="Investment Opportunities" />
-        </div>
-        
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="flex justify-between items-center mb-6">
+    <DashboardLayout activePage="investment-opportunities">
+      <div className="p-4 md:p-8">
+        <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold">Investment Opportunities</h1>
             <div className="text-sm text-gray-500">
               Showing {availableProjects.length} published projects
@@ -121,8 +113,7 @@ export const InvestorDiscovery: React.FC = () => {
               })}
             </div>
           )}
-        </main>
-      </div>
-    </div>
+        </div>
+    </DashboardLayout>
   );
 };

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from '../components/Navigation/navbar';
-import { Sidebar } from '../components/Sidebar/Sidebar';
+import { DashboardLayout } from '../layouts/DashboardLayout';
 import { Button } from '../components/ui/button';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
@@ -104,25 +103,18 @@ export const AdminTopUpRequests: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen">
-        <Sidebar />
-        <div className="flex-1 flex flex-col">
-          <Navbar activePage="Admin" />
-          <div className="flex-1 flex items-center justify-center">
-            <div>Loading...</div>
-          </div>
+      <DashboardLayout activePage="admin-topup">
+        <div className="flex-1 flex items-center justify-center">
+          <div>Loading...</div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Navbar activePage="Admin" />
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
+    <DashboardLayout activePage="admin-topup">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             <h1 className="text-2xl font-bold text-gray-900 mb-6">Top-Up Requests</h1>
             
             {requests.length === 0 ? (
@@ -206,8 +198,6 @@ export const AdminTopUpRequests: React.FC = () => {
               </div>
             )}
           </div>
-        </main>
-      </div>
 
       {/* Review Modal */}
       {selectedRequest && (
@@ -230,11 +220,11 @@ export const AdminTopUpRequests: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">User</label>
-                  <div className="text-sm text-gray-900">{selectedRequest.full_name || 'Unknown User'}</div>
+                  <div className="text-sm text-gray-900">{selectedRequest?.full_name || 'Unknown User'}</div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Amount</label>
-                  <div className="text-sm text-gray-900">{selectedRequest.currency} {selectedRequest.amount.toLocaleString()}</div>
+                  <div className="text-sm text-gray-900">{selectedRequest?.currency} {selectedRequest?.amount.toLocaleString()}</div>
                 </div>
               </div>
 
@@ -321,6 +311,7 @@ export const AdminTopUpRequests: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
