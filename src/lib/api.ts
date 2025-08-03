@@ -1,6 +1,7 @@
 import { auth } from "./firebase";
 
-const API_URL = 'http://localhost:4000/api';
+// Use environment variable for API URL, fallback to localhost for development
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 // Function to get a fresh token
 export async function getAuthToken() {
@@ -180,4 +181,37 @@ export async function getAdminProjects() {
     console.error("Failed to fetch admin projects:", error);
     return [];
   }
+}
+
+// Top-up related functions
+export async function getTopUpAccounts() {
+  return await authFetch(`${API_URL}/topup/accounts`);
+}
+
+export async function submitTopUpRequest(data) {
+  return await authFetch(`${API_URL}/topup/request`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+}
+
+export async function getMyTopUpRequests() {
+  return await authFetch(`${API_URL}/topup/my-requests`);
+}
+
+export async function getAdminTopUpRequests() {
+  return await authFetch(`${API_URL}/admin/topup-requests`);
+}
+
+export async function reviewTopUpRequest(requestId, action, adminNotes) {
+  return await authFetch(`${API_URL}/admin/topup-requests/${requestId}/review`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ action, adminNotes })
+  });
 }

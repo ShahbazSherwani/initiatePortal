@@ -5,6 +5,7 @@ import { getWalletBalance } from "../lib/wallet";
 import { useNavigate } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { authFetch } from '../lib/api';
+import { TopUpModal } from '../components/TopUpModal';
 
 import {
   BellIcon,
@@ -39,6 +40,22 @@ export const BorrowerHome: React.FC = () => {
   // NEW: Track if this is a new user (no role selected yet)
   const [isNewUser, setIsNewUser] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  
+  // Top-up modal state
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  
+  // Handle successful top-up submission
+  const handleTopUpSuccess = async () => {
+    // Refresh wallet balance
+    if (token) {
+      try {
+        const newBalance = await getWalletBalance(token);
+        setBalance(newBalance);
+      } catch (error) {
+        console.error('Error refreshing wallet balance:', error);
+      }
+    }
+  };
 
   useEffect(() => {
     // Wait for profile to be loaded
@@ -227,10 +244,13 @@ export const BorrowerHome: React.FC = () => {
                           {balance !== null ? balance.toFixed(2) : "—"}
                         </p>
                         <div className="mt-4 flex gap-4">
-                          <button className="px-6 py-3 rounded-xl border">
+                          <button 
+                            onClick={() => setShowTopUpModal(true)}
+                            className="px-6 py-3 rounded-xl border hover:bg-gray-50 transition-colors"
+                          >
                             Top-up
                           </button>
-                          <button className="px-6 py-3 rounded-xl bg-yellow-400">
+                          <button className="px-6 py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 transition-colors">
                             Withdraw
                           </button>
                         </div>
@@ -351,6 +371,13 @@ export const BorrowerHome: React.FC = () => {
         </div>
       </div>
       )}
+      
+      {/* Top-up Modal */}
+      <TopUpModal
+        isOpen={showTopUpModal}
+        onClose={() => setShowTopUpModal(false)}
+        onSuccess={handleTopUpSuccess}
+      />
     </>
   );
 };

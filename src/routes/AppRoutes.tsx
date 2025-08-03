@@ -34,6 +34,7 @@ import { AdminProjectsList } from "../screens/AdminProjectsList";
 import { AdminProjectApproval } from "../screens/AdminProjectApproval";
 import { UnifiedCalendarView } from "../screens/UnifiedCalendarView";
 import { AdminProjectView } from "../screens/AdminProjectView";
+import { AdminTopUpRequests } from "../screens/AdminTopUpRequests";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -343,6 +344,14 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <PrivateRoute>
                     <AdminProjectView />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/admin/topup-requests" 
+                element={
+                  <PrivateRoute>
+                    <AdminTopUpRequests />
                   </PrivateRoute>
                 } 
               />

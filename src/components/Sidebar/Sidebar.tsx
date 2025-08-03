@@ -65,8 +65,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage }) =>  {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Get navigation items based on user role
+  const getNavItems = () => {
+    const baseItems = [...navItems];
+    
+    // Add admin-specific items if user is admin
+    if (authContext?.profile?.isAdmin) {
+      baseItems.push(
+        {
+          icon: <SettingsIcon className="w-5 h-5" />,
+          label: "Admin Projects",
+          to: '/admin/projects',
+          key: 'admin-projects'
+        },
+        {
+          icon: <WalletIcon className="w-5 h-5" />,
+          label: "Top-up Requests",
+          to: '/admin/topup-requests',
+          key: 'admin-topup'
+        }
+      );
+    }
+    
+    return baseItems;
+  };
+
+  const currentNavItems = getNavItems();
+
   // Highlight based on current route
-  const selectedIdx = navItems.findIndex((item) => {
+  const selectedIdx = currentNavItems.findIndex((item) => {
     if (item.to && (location.pathname === item.to || location.pathname.startsWith(item.to + "/"))) {
       return true;
     }
@@ -90,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage }) =>  {
 
   const renderNav = (isMobile = false) => (
     <nav className={`flex flex-col ${isMobile ? "space-y-4 px-6 pt-20" : "space-y-4"}`}>
-      {navItems.map((item, idx) => {
+      {currentNavItems.map((item, idx) => {
         const isSelected = idx === selectedIdx;
         return (
           <div key={item.key}>

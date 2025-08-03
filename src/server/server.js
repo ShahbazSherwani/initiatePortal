@@ -7,14 +7,16 @@ import cors from 'cors';
 import admin from 'firebase-admin';
 import { Pool } from 'pg';
 import { readFileSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Read the service account JSON file
 const serviceAccount = JSON.parse(
   readFileSync(new URL('./firebase-service-account.json', import.meta.url))
 );
-
 
 // Initialize Firebase Admin SDK
 admin.initializeApp({
@@ -40,12 +42,37 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-app.get('/', (req, res) => {
-    res.send('Hello World!');
-});
+// CORS configuration for production
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL, 'https://your-app.vercel.app'] // Add your actual deployed URL
+    : true,
+  credentials: true
+};
 
-app.use(cors({ origin: true }));
-app.use(express.json());
+app.use(cors(corsOptions));
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from the dist directory
+  app.use(express.static(path.join(__dirname, '../../dist')));
+  
+  // Handle client-side routing
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next(); // Skip static file serving for API routes
+    }
+    res.sendFile(path.join(__dirname, '../../dist/index.html'));
+  });
+}
+
+app.get('/', (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+      res.sendFile(path.join(__dirname, '../../dist/index.html'));
+    } else {
+      res.send('API Server is running! Visit the frontend at http://localhost:5173');
+    }
+});
 
 // Middleware: Verify Firebase ID Token
 async function verifyToken(req, res, next) {
@@ -235,6 +262,98 @@ borrowRouter.post("/", verifyToken, async (req, res) => {
 });
 
 app.use("/api/borrow-requests", borrowRouter);
+
+// Top-up routes
+const topupRouter = express.Router();
+
+// Get predefined account details
+topupRouter.get("/accounts", async (req, res) => {
+  try {
+    // Return predefined account options
+    const accounts = [
+      {
+        id: 1,
+        accountName: "Alexa John",
+        bank: "VEN USD PAR A IC/FOREIGN",
+        accountNumber: "084008124",
+        isDefault: true
+      },
+      {
+        id: 2,
+        accountName: "Alexa John",
+        bank: "VEN USD PAR A IC/FOREIGN", 
+        accountNumber: "084008124",
+        isDefault: false
+      }
+    ];
+    
+    res.json(accounts);
+  } catch (err) {
+    console.error("Error fetching accounts:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Submit top-up request
+topupRouter.post("/request", verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const {
+    amount,
+    currency = 'PHP',
+    transferDate,
+    accountName,
+    accountNumber,
+    bankName,
+    reference,
+    proofOfTransfer
+  } = req.body;
+  
+  try {
+    console.log("Creating top-up request for user:", uid);
+    console.log("Amount:", amount, currency);
+    
+    const result = await db.query(
+      `INSERT INTO topup_requests 
+       (firebase_uid, amount, currency, transfer_date, account_name, 
+        account_number, bank_name, reference, proof_of_transfer)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id`,
+      [uid, amount, currency, transferDate, accountName, accountNumber, bankName, reference, proofOfTransfer]
+    );
+    
+    console.log("Top-up request created with ID:", result.rows[0].id);
+    
+    res.json({ 
+      success: true, 
+      requestId: result.rows[0].id,
+      message: "Top-up request submitted successfully. Admin will review and process your request."
+    });
+  } catch (err) {
+    console.error("DB error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Get user's top-up requests
+topupRouter.get("/my-requests", verifyToken, async (req, res) => {
+  const uid = req.uid;
+  
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM topup_requests 
+       WHERE firebase_uid = $1 
+       ORDER BY created_at DESC`,
+      [uid]
+    );
+    
+    res.json(rows);
+  } catch (err) {
+    console.error("DB error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+app.use("/api/topup", topupRouter);
 
 // Project routes
 const projectsRouter = express.Router();
@@ -756,6 +875,37 @@ app.get('/api/debug/calendar', verifyToken, async (req, res) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API listening on port ${PORT}`));
 
+// Create top-up requests table on startup
+async function createTopUpTable() {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS topup_requests (
+        id SERIAL PRIMARY KEY,
+        firebase_uid VARCHAR(255) NOT NULL,
+        amount DECIMAL(15,2) NOT NULL,
+        currency VARCHAR(10) DEFAULT 'PHP',
+        transfer_date DATE NOT NULL,
+        account_name VARCHAR(255) NOT NULL,
+        account_number VARCHAR(50) NOT NULL,
+        bank_name VARCHAR(255) NOT NULL,
+        reference VARCHAR(255) NOT NULL,
+        proof_of_transfer TEXT,
+        status VARCHAR(20) DEFAULT 'pending',
+        admin_notes TEXT,
+        reviewed_by VARCHAR(255),
+        reviewed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    console.log("Top-up requests table ready");
+  } catch (err) {
+    console.error("Error creating top-up table:", err);
+  }
+}
+
+createTopUpTable();
+
 // Add this helper function
 function deepMerge(target, source) {
   if (source === null || typeof source !== 'object') {
@@ -1155,5 +1305,98 @@ app.post('/api/admin/migrate-approval-status', async (req, res) => {
   } catch (err) {
     console.error("Migration error:", err);
     res.status(500).json({ error: "Migration failed", details: err.message });
+  }
+});
+
+// Admin endpoints for top-up management
+app.get('/api/admin/topup-requests', verifyToken, async (req, res) => {
+  try {
+    // Verify admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Admin access required" });
+    }
+    
+    // Get all top-up requests with user information
+    const { rows } = await db.query(`
+      SELECT t.*, u.full_name 
+      FROM topup_requests t
+      LEFT JOIN users u ON t.firebase_uid = u.firebase_uid
+      ORDER BY t.created_at DESC
+    `);
+    
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching admin top-up requests:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Admin review top-up request
+app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { action, adminNotes } = req.body;
+  
+  try {
+    // Verify admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin, full_name FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Admin access required" });
+    }
+    
+    const adminName = adminCheck.rows[0].full_name;
+    
+    // Get the top-up request
+    const requestResult = await db.query(
+      `SELECT * FROM topup_requests WHERE id = $1`,
+      [id]
+    );
+    
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({ error: "Top-up request not found" });
+    }
+    
+    const topupRequest = requestResult.rows[0];
+    
+    if (topupRequest.status !== 'pending') {
+      return res.status(400).json({ error: "Request has already been reviewed" });
+    }
+    
+    // Update the request status
+    await db.query(
+      `UPDATE topup_requests 
+       SET status = $1, admin_notes = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW()
+       WHERE id = $4`,
+      [action, adminNotes, adminName, id]
+    );
+    
+    // If approved, update user's wallet balance
+    if (action === 'approved') {
+      await db.query(`
+        INSERT INTO wallets(firebase_uid, balance)
+        VALUES($1, $2)
+        ON CONFLICT(firebase_uid) DO UPDATE
+          SET balance = wallets.balance + $2, updated_at = NOW()
+      `, [topupRequest.firebase_uid, topupRequest.amount]);
+      
+      console.log(`Wallet updated: Added ${topupRequest.amount} ${topupRequest.currency} to user ${topupRequest.firebase_uid}`);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Top-up request ${action} successfully`,
+      walletUpdated: action === 'approved'
+    });
+  } catch (err) {
+    console.error("Error reviewing top-up request:", err);
+    res.status(500).json({ error: "Database error" });
   }
 });
