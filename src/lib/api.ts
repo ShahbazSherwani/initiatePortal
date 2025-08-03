@@ -102,6 +102,40 @@ export const getAllProjects = async (status = 'published') => {
   }
 };
 
+// Get approved projects for investor view
+export async function getApprovedProjects() {
+  try {
+    const data = await authFetch(`${API_URL}/projects?approved=true`);
+    return data.map((item) => ({
+      id: item.id.toString(),
+      creatorId: item.firebase_uid,
+      creatorName: item.full_name,
+      ...item.project_data,
+      createdAt: item.created_at
+    }));
+  } catch (error) {
+    console.error("Failed to fetch approved projects:", error);
+    return [];
+  }
+}
+
+// Get projects for calendar view (approved/pending)
+export async function getCalendarProjects() {
+  try {
+    const data = await authFetch(`${API_URL}/calendar/projects`);
+    return data.map((item) => ({
+      id: item.id.toString(),
+      creatorId: item.firebase_uid,
+      creatorName: item.full_name,
+      ...item.project_data,
+      createdAt: item.created_at
+    }));
+  } catch (error) {
+    console.error("Failed to fetch calendar projects:", error);
+    return [];
+  }
+}
+
 // Invest in a project
 export async function investInProject(id, amount) {
   return await authFetch(`${API_URL}/projects/${id}/invest`, {

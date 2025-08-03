@@ -243,6 +243,11 @@ projectsRouter.post("/", verifyToken, async (req, res) => {
   console.log("Project data size:", JSON.stringify(projectData).length);
   
   try {
+    // Set default approval status if not provided
+    if (!projectData.approvalStatus) {
+      projectData.approvalStatus = 'pending';
+    }
+    
     // Add database ID to project_data to ensure consistency
     const result = await db.query(
       `INSERT INTO projects (firebase_uid, project_data)
@@ -479,7 +484,7 @@ app.use("/api/projects", projectsRouter);
 // Add this debug endpoint (for development only)
 app.get('/api/debug/projects', async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT id, firebase_uid, project_data FROM projects');
+    const { rows } = await db.query('SELECT id, firebase_uid, project_data FROM projects ORDER BY created_at DESC LIMIT 20');
     
     // Extract useful debug info
     const projectInfo = rows.map(row => ({
@@ -488,12 +493,57 @@ app.get('/api/debug/projects', async (req, res) => {
       userId: row.firebase_uid,
       type: row.project_data.type || 'unknown',
       status: row.project_data.status || 'unknown',
+      approvalStatus: row.project_data.approvalStatus || 'no approval status',
+      productName: row.project_data.details?.product || 'no product name',
       createdAt: row.project_data.createdAt || 'unknown'
     }));
     
-    res.json(projectInfo);
+    res.json({
+      totalProjects: projectInfo.length,
+      projects: projectInfo
+    });
   } catch (err) {
     console.error("Debug error:", err);
+    res.status(500).json({ error: "Debug error" });
+  }
+});
+
+// Add endpoint to see what calendar would return
+app.get('/api/debug/calendar', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      WHERE (p.project_data->>'status' = 'published' 
+             OR p.project_data->>'status' = 'draft'
+             OR p.project_data->>'status' = 'pending'
+             OR p.project_data->>'status' IS NULL)
+      AND (p.project_data->>'approvalStatus' = 'approved' 
+           OR p.project_data->>'approvalStatus' = 'pending'
+           OR p.project_data->>'approvalStatus' IS NULL)
+      ORDER BY p.created_at DESC
+    `;
+    
+    const { rows } = await db.query(query);
+    
+    const calendarInfo = rows.map(row => ({
+      id: row.id,
+      userId: row.firebase_uid,
+      userName: row.full_name,
+      productName: row.project_data.details?.product || 'no product name',
+      status: row.project_data.status || 'no status',
+      approvalStatus: row.project_data.approvalStatus || 'no approval status',
+      created: row.created_at
+    }));
+    
+    res.json({
+      message: "This is what the calendar endpoint would return",
+      count: calendarInfo.length,
+      projects: calendarInfo
+    });
+  } catch (err) {
+    console.error("Debug calendar error:", err);
     res.status(500).json({ error: "Debug error" });
   }
 });
@@ -664,12 +714,15 @@ app.get('/api/projects', verifyToken, async (req, res) => {
     
     // Check if we need to filter for approved projects
     if (approved === 'true') {
-      conditions.push(`p.project_data->>'approvalStatus' = $${params.length + 1}`);
-      params.push('approved');
-      
-      // Also add condition for published status
       conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
       params.push('published');
+      
+      // Include approved projects and also projects without approval status (for backward compatibility)
+      conditions.push(`(p.project_data->>'approvalStatus' = $${params.length + 1} 
+                      OR p.project_data->>'approvalStatus' = $${params.length + 2}
+                      OR p.project_data->>'approvalStatus' IS NULL)`);
+      params.push('approved');
+      params.push('pending');
     }
     
     if (conditions.length > 0) {
@@ -837,24 +890,66 @@ app.get('/api/admin/projects/:id', verifyToken, async (req, res) => {
 
 app.get('/api/calendar/projects', verifyToken, async (req, res) => {
   try {
-    // For calendar, we want published AND approved projects
+    // For calendar, we want ALL projects that investors can potentially invest in
+    // This includes both published projects AND draft projects (borrowers working on them)
     const query = `
       SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
       FROM projects p
       LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
-      WHERE p.project_data->>'status' = 'published' 
-      AND p.project_data->>'approvalStatus' = 'approved'
+      WHERE (p.project_data->>'status' = 'published' 
+             OR p.project_data->>'status' = 'draft'
+             OR p.project_data->>'status' = 'pending'
+             OR p.project_data->>'status' IS NULL)
+      AND (p.project_data->>'approvalStatus' = 'approved' 
+           OR p.project_data->>'approvalStatus' = 'pending'
+           OR p.project_data->>'approvalStatus' IS NULL)
       ORDER BY p.created_at DESC
     `;
     
     const { rows } = await db.query(query);
     
     // Log what's being returned
-    console.log(`Calendar API returning ${rows.length} approved projects`);
+    console.log(`Calendar API returning ${rows.length} projects (published, draft, pending, or no status)`);
     
     res.json(rows);
   } catch (err) {
     console.error("Error fetching calendar projects:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Add migration endpoint to fix existing projects without approval status
+app.post('/api/admin/migrate-approval-status', async (req, res) => {
+  try {
+    console.log("Starting migration of projects without approval status...");
+    
+    // Get all projects that don't have approvalStatus set
+    const { rows: projectsToUpdate } = await db.query(`
+      SELECT id, project_data 
+      FROM projects 
+      WHERE project_data->>'approvalStatus' IS NULL
+    `);
+    
+    console.log(`Found ${projectsToUpdate.length} projects to update`);
+    
+    // Update each project to have 'pending' approval status
+    for (const project of projectsToUpdate) {
+      const updatedData = { ...project.project_data };
+      updatedData.approvalStatus = 'pending';
+      
+      await db.query(
+        `UPDATE projects SET project_data = $1 WHERE id = $2`,
+        [updatedData, project.id]
+      );
+    }
+    
+    console.log("Migration completed successfully");
+    res.json({ 
+      success: true, 
+      message: `Updated ${projectsToUpdate.length} projects with pending approval status`
+    });
+  } catch (err) {
+    console.error("Migration error:", err);
+    res.status(500).json({ error: "Migration failed", details: err.message });
   }
 });

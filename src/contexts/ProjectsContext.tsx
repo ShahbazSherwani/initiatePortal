@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
-import { getMyProjects, createProject as apiCreateProject, updateProject as apiUpdateProject, getAdminProjects as apiGetAdminProjects } from '../lib/api';
+import { getMyProjects, createProject as apiCreateProject, updateProject as apiUpdateProject, getAdminProjects as apiGetAdminProjects, getCalendarProjects } from '../lib/api';
 import { AuthContext } from './AuthContext';
 import type { Milestone } from "../types/Milestone";
 
@@ -29,6 +29,7 @@ export interface Project {
   createdAt?: string;
   estimatedReturn?: number;
   fundingProgress?: number;
+  approvalStatus?: "pending" | "approved" | "rejected"; // Add this
   roi?: {
     totalAmount?: number;       // Change to number
     description?: string;       // Add common properties
@@ -43,6 +44,15 @@ export interface Project {
     salesPricePerUnit?: number;
     expectedYield?: number;
     // other sales properties
+  };
+  payoutSchedule?: {            // Add this
+    scheduleDate?: string;
+    scheduleAmount?: number;
+    totalPayoutReq?: number;
+    payoutPercent?: number;
+    netIncome?: number;
+    penaltyAgree?: boolean;
+    legalAgree?: boolean;
   };
   status: "draft" | "published" | "funded" | "in-progress" | "completed" | "closed";
   investorRequests?: {
@@ -66,7 +76,7 @@ const ProjectsContext = createContext<{
 export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
-  const { token, user } = useContext(AuthContext)!;
+  const { token, user, profile } = useContext(AuthContext)!;
   
   // Load projects whenever user or token changes
   useEffect(() => {
@@ -76,14 +86,24 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
       // Clear projects when user logs out
       setProjects([]);
     }
-  }, [user, token]);
+  }, [user, token, profile?.role]);
   
   const loadProjects = async () => {
     try {
       setLoading(true);
-      console.log("Loading projects...");
-      const data = await getMyProjects();
-      console.log(`Loaded ${data.length} projects`);
+      console.log("Loading projects for role:", profile?.role);
+      
+      let data;
+      if (profile?.role === 'investor') {
+        // For investors, load all approved projects from all borrowers
+        data = await getCalendarProjects();
+        console.log(`Loaded ${data.length} calendar projects for investor`);
+      } else {
+        // For borrowers, load only their own projects
+        data = await getMyProjects();
+        console.log(`Loaded ${data.length} own projects for borrower`);
+      }
+      
       setProjects(data);
     } catch (error) {
       console.error("Failed to load projects:", error);
