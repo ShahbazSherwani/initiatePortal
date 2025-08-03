@@ -71,14 +71,6 @@ app.use(cors(corsOptions));
 if (process.env.NODE_ENV === 'production') {
   // Serve static files from the dist directory
   app.use(express.static(path.join(__dirname, '../../dist')));
-  
-  // Handle client-side routing
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) {
-      return next(); // Skip static file serving for API routes
-    }
-    res.sendFile(path.join(__dirname, '../../dist/index.html'));
-  });
 }
 
 app.get('/', (req, res) => {
@@ -886,10 +878,6 @@ app.get('/api/debug/calendar', verifyToken, async (req, res) => {
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`API listening on port ${PORT}`));
-
 // Create top-up requests table on startup
 async function createTopUpTable() {
   try {
@@ -1414,4 +1402,19 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
     console.error("Error reviewing top-up request:", err);
     res.status(500).json({ error: "Database error" });
   }
+});
+
+// Handle client-side routing - must be AFTER all API routes
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(__dirname, '../../dist/index.html'));
+  });
+}
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
