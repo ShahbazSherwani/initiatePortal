@@ -1406,16 +1406,6 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
   }
 });
 
-// Handle client-side routing - must be AFTER all API routes
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ error: 'API endpoint not found' });
-    }
-    res.sendFile(path.join(__dirname, '../../dist/index.html'));
-  });
-}
-
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
