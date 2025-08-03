@@ -8,8 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node src/server/server.js",
-    "start:api": "node src/server/server.js",
+    "start": "node src/server/minimal-server.js",
+    "start:api": "node src/server/minimal-server.js",
     "start:dev": "concurrently \"npm run dev\" \"npm run start:api\"",
     "render-build": "echo 'Backend build complete'",
     "heroku-postbuild": "echo 'Backend build complete'"
