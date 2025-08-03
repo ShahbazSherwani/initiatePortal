@@ -417,43 +417,43 @@ projectsRouter.post("/", verifyToken, async (req, res) => {
   }
 });
 
-// Get all projects (with optional filters)
-projectsRouter.get("/", async (req, res) => {
-  const { status } = req.query;
-  
-  try {
-    console.log("=== PROJECTS API CALL ===");
-    console.log("Status filter:", status);
-    
-    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
-                FROM projects p
-                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid`;
-    
-    const params = [];
-    if (status) {
-      query += ` WHERE p.project_data->>'status' = $1`;
-      params.push(status);
-      console.log("Filtering for status:", status);
-    }
-    
-    console.log("Executing query:", query);
-    console.log("With params:", params);
-    
-    const { rows } = await db.query(query, params);
-    console.log(`Found ${rows.length} projects`);
-    
-    // Log project statuses for debugging
-    rows.forEach((project, index) => {
-      const projectData = project.project_data || {};
-      console.log(`Project ${index + 1}: ID=${project.id}, Status="${projectData.status || 'no status'}", Product="${projectData.details?.product || 'no product'}"`);
-    });
-    
-    res.json(rows);
-  } catch (err) {
-    console.error("DB error:", err);
-    res.status(500).json({ error: "Database error" });
-  }
-});
+// Get all projects (with optional filters) - MOVED TO MAIN APP ROUTE WITH AUTH
+// projectsRouter.get("/", async (req, res) => {
+//   const { status } = req.query;
+//   
+//   try {
+//     console.log("=== PROJECTS API CALL ===");
+//     console.log("Status filter:", status);
+//     
+//     let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+//                 FROM projects p
+//                 LEFT JOIN users u ON p.firebase_uid = u.firebase_uid`;
+//     
+//     const params = [];
+//     if (status) {
+//       query += ` WHERE p.project_data->>'status' = $1`;
+//       params.push(status);
+//       console.log("Filtering for status:", status);
+//     }
+//     
+//     console.log("Executing query:", query);
+//     console.log("With params:", params);
+//     
+//     const { rows } = await db.query(query, params);
+//     console.log(`Found ${rows.length} projects`);
+//     
+//     // Log project statuses for debugging
+//     rows.forEach((project, index) => {
+//       const projectData = project.project_data || {};
+//       console.log(`Project ${index + 1}: ID=${project.id}, Status="${projectData.status || 'no status'}", Product="${projectData.details?.product || 'no product'}"`);
+//     });
+//     
+//     res.json(rows);
+//   } catch (err) {
+//     console.error("DB error:", err);
+//     res.status(500).json({ error: "Database error" });
+//   }
+// });
 
 // Get projects by creator
 projectsRouter.get("/my-projects", verifyToken, async (req, res) => {
@@ -1068,7 +1068,7 @@ app.post('/api/admin/projects/:id/review', verifyToken, async (req, res) => {
 
 // Modify the existing GET projects endpoint to filter by approval
 app.get('/api/projects', verifyToken, async (req, res) => {
-  const { approved } = req.query;
+  const { approved, status } = req.query;
   
   try {
     let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
@@ -1077,6 +1077,12 @@ app.get('/api/projects', verifyToken, async (req, res) => {
     
     const params = [];
     let conditions = [];
+    
+    // Handle status parameter
+    if (status) {
+      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
+      params.push(status);
+    }
     
     // Check if we need to filter for approved projects
     if (approved === 'true') {
