@@ -702,9 +702,10 @@ projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
 });
 
 // Approve interest request
-projectsRouter.post('/:id/interest/:investorId/approve', verifyToken, async (req, res) => {
+projectsRouter.post('/:id/interest-approve', verifyToken, async (req, res) => {
   try {
-    const { id, investorId } = req.params;
+    const { id } = req.params;
+    const { investorId } = req.body;
     const { uid } = req.user;
     
     // Get the project
@@ -756,9 +757,10 @@ projectsRouter.post('/:id/interest/:investorId/approve', verifyToken, async (req
 });
 
 // Reject interest request
-projectsRouter.post('/:id/interest/:investorId/reject', verifyToken, async (req, res) => {
+projectsRouter.post('/:id/interest-reject', verifyToken, async (req, res) => {
   try {
-    const { id, investorId } = req.params;
+    const { id } = req.params;
+    const { investorId } = req.body;
     const { uid } = req.user;
     
     // Get the project
