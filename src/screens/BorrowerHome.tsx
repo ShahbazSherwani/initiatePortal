@@ -38,14 +38,27 @@ export const BorrowerHome: React.FC = () => {
   const [isRegistrationComplete, setIsRegistrationComplete] = useState(true);
   // NEW: Track if this is a new user (no role selected yet)
   const [isNewUser, setIsNewUser] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
+    // Wait for profile to be loaded
+    if (!profile) {
+      setProfileLoaded(false);
+      return;
+    }
+    
+    setProfileLoaded(true);
+    
     // Check if user has a role and has completed registration
-    if (!profile?.role || !profile.hasCompletedRegistration) {
+    if (!profile?.role || !profile?.hasCompletedRegistration) {
       setIsNewUser(true);
       setIsRegistrationComplete(false);
+    } else {
+      // User has role and completed registration - show returning user experience
+      setIsNewUser(false);
+      setIsRegistrationComplete(true);
     }
-  }, [profile]);
+  }, [profile, navigate]);
 
   // fetch wallet balance on mount
   useEffect(() => {
@@ -130,14 +143,20 @@ export const BorrowerHome: React.FC = () => {
   
   return (
     <>
-      <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-        <div className="flex flex-1 overflow-hidden">
-          {/* Only show sidebar if not in registration mode */}
-          {!isNewUser && (
-            <div className="hidden md:block w-[280px] flex-shrink-0">
-              <Sidebar activePage="home" />
-            </div>
-          )}
+      {/* Show loading state while profile is loading */}
+      {!profileLoaded ? (
+        <div className="flex min-h-screen items-center justify-center">
+          <div>Loading your profile...</div>
+        </div>
+      ) : (
+        <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
+          <div className="flex flex-1 overflow-hidden">
+            {/* Only show sidebar if not in registration mode */}
+            {!isNewUser && (
+              <div className="hidden md:block w-[280px] flex-shrink-0">
+                <Sidebar activePage="home" />
+              </div>
+            )}
 
           {/* Main content - use full width */}
           <main className={`flex-1 overflow-y-auto p-4 md:p-8 w-full ${isNewUser ? 'flex justify-center items-center' : ''}`}>
@@ -241,28 +260,33 @@ export const BorrowerHome: React.FC = () => {
                   </div>
                 </section>
 
-                {/* Account Type Selectors - For switching roles */}
+                {/* Account Type Selectors - Show current role highlighted and others as switchable */}
                 <section className="mt-12">
                   <h3 className="font-poppins font-semibold text-black text-xl md:text-[26px] mb-6">
-                    Choose account type
+                    Account type
                   </h3>
                   <div className="flex flex-wrap gap-6">
-                    {accountTypes
-                      .filter(type => {
-                        // Don't show current role
-                        const currentRole = profile?.role;
-                        if (currentRole === 'investor' && type.key === 'individual') return false;
-                        if (currentRole === 'borrower' && type.key === 'borrower') return false;
-                        if (currentRole === 'guarantor' && type.key === 'guarantee') return false;
-                        return true;
-                      })
-                      .map((type) => (
+                    {accountTypes.map((type) => {
+                      // Check if this is the current role
+                      const isCurrentRole = 
+                        (profile?.role === 'investor' && type.key === 'individual') ||
+                        (profile?.role === 'borrower' && type.key === 'borrower') ||
+                        (profile?.role === 'guarantor' && type.key === 'guarantee');
+                      
+                      return (
                         <button
                           key={type.key}
-                          onClick={() => handleRoleSelection(type.key)}
-                          className="w-full sm:w-[216px] flex flex-col items-center focus:outline-none"
+                          onClick={() => !isCurrentRole && handleRoleSelection(type.key)}
+                          className={`w-full sm:w-[216px] flex flex-col items-center focus:outline-none ${
+                            isCurrentRole ? 'cursor-default' : 'cursor-pointer'
+                          }`}
+                          disabled={isCurrentRole}
                         >
-                          <Card className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition bg-white border border-black`}>
+                          <Card className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition ${
+                            isCurrentRole 
+                              ? 'bg-[#ffc628] border-[#ffc628] border-2 shadow-lg' 
+                              : 'bg-white border border-black hover:shadow-md'
+                          }`}>
                             <CardContent className="p-0 flex items-center justify-center">
                               <img
                                 className="w-[115px] h-[115px] object-cover"
@@ -271,13 +295,30 @@ export const BorrowerHome: React.FC = () => {
                               />
                             </CardContent>
                           </Card>
-                          <span className="mt-4 font-poppins font-medium text-black text-base md:text-xl opacity-70">
-                            {type.title}
+                          <span className={`mt-4 font-poppins font-medium text-base md:text-xl ${
+                            isCurrentRole 
+                              ? 'text-[#ffc628] font-bold' 
+                              : 'text-black opacity-70'
+                          }`}>
+                            {type.title} {isCurrentRole && '(Current)'}
                           </span>
                         </button>
-                      ))}
+                      );
+                    })}
                   </div>
                 </section>
+
+                {/* Invest Button - Only for Investors and Admins */}
+                {(profile?.role === 'investor' || profile?.role === 'admin') && (
+                  <section className="mt-8">
+                    <Button 
+                      onClick={() => navigate('/investor/discover')}
+                      className="bg-[#ffc628] text-black px-8 py-4 text-lg font-semibold rounded-xl hover:bg-[#e6b324] transition-colors"
+                    >
+                      🎯 Start Investing
+                    </Button>
+                  </section>
+                )}
 
                 {/* Action Cards */}
                 <section className="mt-12">
@@ -309,6 +350,7 @@ export const BorrowerHome: React.FC = () => {
           </main>
         </div>
       </div>
+      )}
     </>
   );
 };

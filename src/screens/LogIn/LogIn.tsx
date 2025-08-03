@@ -38,9 +38,17 @@ export const LogIn = (): JSX.Element => {
       const idToken = await cred.user.getIdToken();
       localStorage.setItem("fb_token", idToken);
   
-      // 2) Fetch their profile
+      // 2) Fetch their profile with complete data
       const prof = await fetchProfile(idToken);
-      setProfile({ name: prof.full_name, joined: prof.created_at });
+      setProfile({ 
+        id: cred.user.uid,
+        email: cred.user.email,
+        name: prof.full_name, 
+        role: prof.role || null,
+        joined: prof.created_at,
+        hasCompletedRegistration: prof.has_completed_registration || false,
+        isAdmin: prof.is_admin || false
+      });
   
       // 3) Navigate into the protected area
       navigate("/borrow");
@@ -65,7 +73,7 @@ export const LogIn = (): JSX.Element => {
       </div>
       <form onSubmit={handleSubmit} className="relative z-10 max-w-6xl mx-auto px-4 md:px-12 py-10">
         <div className="w-full max-w-2xl">
-          <Button variant="ghost" className="mb-4">
+          <Button variant="ghost" className="mb-4" type="button">
             <ArrowLeftIcon className="h-6 w-6" />
           </Button>
 
@@ -118,10 +126,10 @@ export const LogIn = (): JSX.Element => {
             </Button>
             <span>or</span>
             <div className="flex items-center gap-4 mt-4 md:mt-0">
-              <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none">
+              <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none" type="button">
                 <img src="/image-3.png" alt="Google sign in" className="w-[33px] h-[34px] object-cover" />
               </Button>
-              <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none">
+              <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none" type="button">
                 <img src="/image-6.png" alt="Facebook sign in" className="w-[33px] h-[34px] object-cover" />
               </Button>
             </div>

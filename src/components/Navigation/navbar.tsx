@@ -24,7 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
 
   const navItems = [
     { name: "Borrow", to: "/borrow", color: "text-[#ffc00f]" },
-    { name: "Invest", to: "/invest", color: "text-[#ffc00f]" },
+    ...(profile?.role === 'admin' ? [{ name: "Invest", to: "/invest", color: "text-[#ffc00f]" }] : []),
     { name: "Donate", to: "/donate", color: "text-[#ffc00f]" },
     { name: "About us", to: "/about", color: "text-black" },
     { name: "Farming & Livestock", to: "/farming", color: "text-black" },

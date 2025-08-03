@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { useProjects } from "../contexts/ProjectsContext";
@@ -13,53 +13,213 @@ const TABS = ["Details", "Milestones", "ROI (Expense)", "ROI (Sales)", "Payout S
 
 const BorwEditProjectLend: React.FC = () => {
   const { form, setForm, loadProject } = useProjectForm();
-  const { updateProject } = useProjects();
+  const { updateProject, projects } = useProjects();
+  const { profile } = useAuth();
   const navigate = useNavigate();
+  const { projectId } = useParams();
   const [activeTab, setActiveTab] = useState("Details");
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
-  // Details state
-  const [loanAmount, setLoanAmount] = useState(form.projectDetails.loanAmount || "");
-  const [projectRequirements, setProjectRequirements] = useState(form.projectDetails.projectRequirements || "");
-  const [investorPercentage, setInvestorPercentage] = useState(form.projectDetails.investorPercentage || "");
-  const [timeDuration, setTimeDuration] = useState(form.projectDetails.timeDuration || "");
-  const [product, setProduct] = useState(form.projectDetails.product || "");
-  const [location, setLocation] = useState(form.projectDetails.location || "");
-  const [overview, setOverview] = useState(form.projectDetails.overview || "");
-  const [videoLink, setVideoLink] = useState(form.projectDetails.videoLink || "");
-  const [imagePreview, setImagePreview] = useState<string | null>(form.projectDetails.image || null);
+  // ALL useState hooks must be at the top level - before any conditional logic
+  // Details state - Initialize with empty values, will be populated when project loads
+  const [loanAmount, setLoanAmount] = useState("");
+  const [projectRequirements, setProjectRequirements] = useState("");
+  const [investorPercentage, setInvestorPercentage] = useState("");
+  const [timeDuration, setTimeDuration] = useState("");
+  const [product, setProduct] = useState("");
+  const [location, setLocation] = useState("");
+  const [overview, setOverview] = useState("");
+  const [videoLink, setVideoLink] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Milestone state (example for first milestone)
-  const [milestoneAmount, setMilestoneAmount] = useState(form.milestones?.[0]?.amount || "");
-  const [milestonePercentage, setMilestonePercentage] = useState(form.milestones?.[0]?.percentage || "");
-  const [milestoneDate, setMilestoneDate] = useState<Date | null>(
-    form.milestones?.[0]?.date ? new Date(form.milestones[0].date) : null
-  );
-  const [milestoneImage, setMilestoneImage] = useState<string | null>(form.milestones?.[0]?.image || null);
-  const [milestoneFile, setMilestoneFile] = useState<File | null>(null); // <-- New state for file
+  const [milestoneAmount, setMilestoneAmount] = useState("");
+  const [milestonePercentage, setMilestonePercentage] = useState("");
+  const [milestoneDate, setMilestoneDate] = useState<Date | null>(null);
+  const [milestoneImage, setMilestoneImage] = useState<string | null>(null);
+  const [milestoneFile, setMilestoneFile] = useState<File | null>(null);
 
   // ROI (Expense) state
-  const [expenseDetail, setExpenseDetail] = useState(form.roi?.expenseDetail || "");
-  const [expensePricePerUnit, setExpensePricePerUnit] = useState(form.roi?.pricePerUnit || "");
-  const [expenseUnitOfMeasure, setExpenseUnitOfMeasure] = useState(form.roi?.unitOfMeasure || "");
-  const [expenseTotalAmount, setExpenseTotalAmount] = useState(form.roi?.totalAmount || "");
+  const [expenseDetail, setExpenseDetail] = useState("");
+  const [expensePricePerUnit, setExpensePricePerUnit] = useState("");
+  const [expenseUnitOfMeasure, setExpenseUnitOfMeasure] = useState("");
+  const [expenseTotalAmount, setExpenseTotalAmount] = useState("");
 
   // ROI (Sales) state
-  const [incomeDetail, setIncomeDetail] = useState(form.sales?.incomeDetail || "");
-  const [salesPricePerUnit, setSalesPricePerUnit] = useState(form.sales?.pricePerUnit || "");
-  const [salesUnitMeasure, setSalesUnitMeasure] = useState(form.sales?.unitMeasure || "");
-  const [totalSales, setTotalSales] = useState(form.sales?.totalSales || "");
-  const [unitsSold, setUnitsSold] = useState(form.sales?.unitsSold || "");
+  const [incomeDetail, setIncomeDetail] = useState("");
+  const [salesPricePerUnit, setSalesPricePerUnit] = useState("");
+  const [salesUnitMeasure, setSalesUnitMeasure] = useState("");
+  const [totalSales, setTotalSales] = useState("");
+  const [unitsSold, setUnitsSold] = useState("");
 
   // Payout Schedule state
-  const [totalPayoutReq, setTotalPayoutReq] = useState(form.payoutSchedule?.totalPayoutReq || "");
-  const [scheduleDate, setScheduleDate] = useState<Date | null>(
-    form.payoutSchedule?.scheduleDate ? new Date(form.payoutSchedule.scheduleDate) : null
-  );
-  const [scheduleAmount, setScheduleAmount] = useState(form.payoutSchedule?.scheduleAmount || "");
-  const [payoutPercent, setPayoutPercent] = useState(form.payoutSchedule?.payoutPercent || "");
-  const [netIncome, setNetIncome] = useState(form.payoutSchedule?.netIncome || "");
-  const [penaltyAgree, setPenaltyAgree] = useState(form.payoutSchedule?.penaltyAgree || false);
-  const [legalAgree, setLegalAgree] = useState(form.payoutSchedule?.legalAgree || false);
+  const [totalPayoutReq, setTotalPayoutReq] = useState("");
+  const [scheduleDate, setScheduleDate] = useState<Date | null>(null);
+  const [scheduleAmount, setScheduleAmount] = useState("");
+  const [payoutPercent, setPayoutPercent] = useState("");
+  const [netIncome, setNetIncome] = useState("");
+  const [penaltyAgree, setPenaltyAgree] = useState(false);
+  const [legalAgree, setLegalAgree] = useState(false);
+
+  // Track if we've already loaded the project data to avoid infinite updates
+  const [hasLoadedProject, setHasLoadedProject] = useState(false);
+
+  // Update state when form data changes (after project loads)
+  useEffect(() => {
+    // Only update if we have project data and haven't loaded it yet
+    if (form.projectId && !hasLoadedProject) {
+      console.log("Form data changed, updating state:", form);
+      
+      // Update Details state - convert numbers to strings for input fields
+      setLoanAmount(form.projectDetails?.loanAmount?.toString() || "");
+      setProjectRequirements(form.projectDetails?.projectRequirements || "");
+      setInvestorPercentage(form.projectDetails?.investorPercentage?.toString() || "");
+      setTimeDuration(form.projectDetails?.timeDuration || "");
+      setProduct(form.projectDetails?.product || "");
+      setLocation(form.projectDetails?.location || "");
+      setOverview(form.projectDetails?.overview || "");
+      setVideoLink(form.projectDetails?.videoLink || "");
+      setImagePreview(form.projectDetails?.image || null);
+
+      // Update Milestone state
+      setMilestoneAmount(form.milestones?.[0]?.amount || "");
+      setMilestonePercentage(form.milestones?.[0]?.percentage || "");
+      setMilestoneDate(form.milestones?.[0]?.date ? new Date(form.milestones[0].date) : null);
+      setMilestoneImage((form.milestones?.[0] as any)?.image || null);
+
+      // Update ROI (Expense) state
+      setExpenseDetail(form.roi?.description || "");
+      setExpensePricePerUnit(form.roi?.pricePerUnit?.toString() || "");
+      setExpenseUnitOfMeasure(form.roi?.unitOfMeasure || "");
+      setExpenseTotalAmount(form.roi?.totalAmount?.toString() || "");
+
+      // Update ROI (Sales) state  
+      setIncomeDetail(form.sales?.description || "");
+      setSalesPricePerUnit(form.sales?.salesPricePerUnit?.toString() || "");
+      setSalesUnitMeasure(form.sales?.unitMeasure || "");
+      setTotalSales(form.sales?.totalSales?.toString() || "");
+      setUnitsSold(form.sales?.unitsSold?.toString() || "");
+
+      // Update Payout Schedule state
+      setTotalPayoutReq(form.payoutSchedule?.totalPayoutReq?.toString() || "");
+      setScheduleDate(form.payoutSchedule?.scheduleDate ? new Date(form.payoutSchedule.scheduleDate) : null);
+      setScheduleAmount(form.payoutSchedule?.scheduleAmount?.toString() || "");
+      setPayoutPercent(form.payoutSchedule?.payoutPercent?.toString() || "");
+      setNetIncome(form.payoutSchedule?.netIncome?.toString() || "");
+      setPenaltyAgree(form.payoutSchedule?.penaltyAgree || false);
+      setLegalAgree(form.payoutSchedule?.legalAgree || false);
+
+      setHasLoadedProject(true);
+    }
+  }, [form, hasLoadedProject]);
+
+  // Check ownership when component mounts or project data changes
+  useEffect(() => {
+    const checkOwnership = async () => {
+      if (!projectId || !profile) {
+        console.log("Missing projectId or profile:", { projectId, profile: !!profile });
+        setIsAuthorized(false);
+        return;
+      }
+
+      // Prevent repeated calls if already authorized
+      if (isAuthorized === true) {
+        console.log("Already authorized, skipping check");
+        return;
+      }
+
+      try {
+        console.log("=== EDIT AUTHORIZATION CHECK ===");
+        console.log("Project ID:", projectId);
+        console.log("User ID:", profile.id);
+        
+        // Get the Firebase token
+        const token = localStorage.getItem('fb_token');
+        if (!token) {
+          console.log("❌ No Firebase token found");
+          setIsAuthorized(false);
+          return;
+        }
+        
+        console.log("✅ Token found:", token.substring(0, 20) + "...");
+        
+        // Check project ownership
+        const response = await fetch(`http://localhost:4000/api/projects/${projectId}?edit=true`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'x-edit-mode': 'true'
+          }
+        });
+
+        console.log("Response status:", response.status);
+
+        if (response.status === 403) {
+          console.log("❌ User not authorized to edit this project");
+          setIsAuthorized(false);
+          return;
+        }
+
+        if (response.status === 401) {
+          console.log("❌ Token is invalid or expired");
+          setIsAuthorized(false);
+          return;
+        }
+
+        if (response.ok) {
+          const projectData = await response.json();
+          console.log("✅ Project loaded successfully, user is authorized");
+          console.log("Project owner:", projectData.firebase_uid, "Current user:", profile.id);
+          console.log("Full project data:", projectData);
+          
+          // Load the project into the form context
+          try {
+            console.log("Loading project data into form:", projectData);
+            loadProject(projectData);
+            console.log("✅ Project loaded into form successfully");
+            setIsAuthorized(true);
+          } catch (loadError) {
+            console.error("⚠️ Error loading project into form:", loadError);
+            // Still authorize since the user owns it, just couldn't load into form
+            setIsAuthorized(true);
+          }
+        } else {
+          console.log("❌ Project not found or other error");
+          const errorText = await response.text();
+          console.log("Error details:", errorText);
+          setIsAuthorized(false);
+        }
+      } catch (error) {
+        console.error("Error checking project ownership:", error);
+        setIsAuthorized(false);
+      }
+    };
+
+    checkOwnership();
+  }, [projectId, profile]); // Removed loadProject from dependencies
+
+  // Show loading while checking authorization
+  if (isAuthorized === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
+  // Show unauthorized message if user doesn't own the project
+  if (isAuthorized === false) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Unauthorized Access</h2>
+          <p className="text-gray-600 mb-4">You can only edit projects that you created.</p>
+          <Button onClick={() => navigate("/borwMyProj")}>
+            Go to My Projects
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Handle image upload for details
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,178 +255,150 @@ const BorwEditProjectLend: React.FC = () => {
   };
 
   // Save Details
-  const handleSaveDetails = () => {
-    // First, update form state
-    setForm(f => ({
-      ...f,
-      projectDetails: {
-        ...f.projectDetails,
-        loanAmount,
+  const handleSaveDetails = async () => {
+    if (!projectId) {
+      toast.error("Project ID not found");
+      return;
+    }
+
+    try {
+      // Create the details object with current values, converting strings to numbers where needed
+      const detailsData = {
+        loanAmount: loanAmount ? parseFloat(loanAmount) : undefined,
         projectRequirements,
-        investorPercentage,
+        investorPercentage: investorPercentage ? parseFloat(investorPercentage) : undefined,
         timeDuration,
         product,
         location,
         overview,
         videoLink,
-        image: imagePreview,
-      },
-    }));
+        image: imagePreview || undefined, // Convert null to undefined
+      };
 
-    // Then update the actual project
-    updateProject(form.projectId, {
-      details: {
-        ...form.projectDetails,
-        loanAmount,
-        projectRequirements,
-        investorPercentage,
-        timeDuration,
-        product,
-        location,
-        overview,
-        videoLink,
-        image: imagePreview,
-      },
-    });
+      // Update the project - context will handle deep merging
+      await updateProject(projectId, {
+        details: detailsData,
+      });
 
-    // Show success feedback
-    toast.success("Project details saved successfully!");
-    
-    // Navigate back to projects page
-    navigate("/borwMyProj");
+      // Show success feedback
+      toast.success("Project details saved successfully!");
+      
+      // Navigate back to projects page
+      navigate("/borwMyProj");
+    } catch (error) {
+      console.error("Failed to save project details:", error);
+      toast.error("Failed to save project details");
+    }
   };
 
   // Save Milestone
-  const handleSaveMilestone = () => {
-    // First update the form state with current state variables
-    const updatedMilestones = [{
-      amount: milestoneAmount,
-      percentage: milestonePercentage,
-      date: milestoneDate,
-      image: milestoneImage
-    }];
-    
-    setForm(f => ({
-      ...f,
-      milestones: updatedMilestones
-    }));
-    
-    // Then update the project directly with just milestones data
-    updateProject(form.projectId, {
-      milestones: updatedMilestones
-    })
-    .then(() => {
+  const handleSaveMilestone = async () => {
+    if (!projectId) {
+      toast.error("Project ID not found");
+      return;
+    }
+
+    try {
+      // Create the milestones array with current state variables
+      const updatedMilestones = [{
+        id: "milestone-1", // Add required id
+        name: "Milestone 1", // Add required name
+        amount: milestoneAmount,
+        percentage: milestonePercentage,
+        date: milestoneDate,
+        image: milestoneImage || "", // Ensure image is a string, not null
+        file: milestoneFile // Include the file property
+      }];
+      
+      // Update the project directly with just milestones data
+      await updateProject(projectId, {
+        milestones: updatedMilestones
+      });
+      
       toast.success("Milestone saved successfully!");
-    })
-    .catch(error => {
+    } catch (error) {
       console.error("Failed to save milestone:", error);
       toast.error("Failed to save milestone");
-    });
+    }
   };
 
   // Save ROI (Expense)
-  const handleSaveExpense = () => {
-    // First create the ROI data object
-    const roiData = {
-      expenseDetail,
-      pricePerUnit: expensePricePerUnit,
-      unitOfMeasure: expenseUnitOfMeasure,
-      totalAmount: expenseTotalAmount
-    };
-    
-    // Update the form state
-    setForm(f => ({
-      ...f,
-      roi: roiData
-    }));
-    
-    // IMPORTANT: Send the data to the server before navigating
-    updateProject(form.projectId, { roi: roiData })
-      .then(() => {
-        toast.success("ROI expenses saved successfully!");
-        // Only navigate after successful update
-        navigate("/borwMyProj");
-      })
-      .catch(error => {
-        console.error("Failed to save ROI expenses:", error);
-        toast.error("Failed to save ROI expenses");
-      });
+  const handleSaveExpense = async () => {
+    if (!projectId) {
+      toast.error("Project ID not found");
+      return;
+    }
+
+    try {
+      // Create the ROI data object with proper type conversions
+      const roiData = {
+        description: expenseDetail,
+        pricePerUnit: expensePricePerUnit ? parseFloat(expensePricePerUnit) : undefined,
+        unitOfMeasure: expenseUnitOfMeasure,
+        totalAmount: expenseTotalAmount ? parseFloat(expenseTotalAmount) : undefined
+      };
+      
+      // Send the data to the server
+      await updateProject(projectId, { roi: roiData });
+      toast.success("ROI expenses saved successfully!");
+      // Only navigate after successful update
+      navigate("/borwMyProj");
+    } catch (error) {
+      console.error("Failed to save ROI expenses:", error);
+      toast.error("Failed to save ROI expenses");
+    }
   };
 
   // Save ROI (Sales)
-  const handleSaveSales = () => {
-    const salesData = {
-      incomeDetail: incomeDetail,
-      pricePerUnit: salesPricePerUnit,
-      unitMeasure: salesUnitMeasure,
-      totalSales: totalSales,
-      unitsSold: unitsSold
-    };
-    
-    setForm(f => ({
-      ...f,
-      sales: salesData
-    }));
-    
-    // Send only sales data to API
-    updateProject(form.projectId, { sales: salesData })
-    .then(() => {
+  const handleSaveSales = async () => {
+    if (!projectId) {
+      toast.error("Project ID not found");
+      return;
+    }
+
+    try {
+      const salesData = {
+        description: incomeDetail,
+        salesPricePerUnit: salesPricePerUnit ? parseFloat(salesPricePerUnit) : undefined,
+        unitMeasure: salesUnitMeasure,
+        totalSales: totalSales ? parseFloat(totalSales) : undefined,
+        unitsSold: unitsSold ? parseFloat(unitsSold) : undefined
+      };
+      
+      // Send only sales data to API
+      await updateProject(projectId, { sales: salesData });
       toast.success("ROI sales saved successfully!");
-    })
-    .catch(error => {
+    } catch (error) {
       console.error("Failed to save ROI sales:", error);
       toast.error("Failed to save ROI sales");
-    });
+    }
   };
 
   // Save Payout Schedule
-  const handleSavePayoutSchedule = () => {
-    const payoutData = {
-      totalPayoutReq: totalPayoutReq,
-      scheduleDate: scheduleDate ? scheduleDate.toISOString() : null,
-      scheduleAmount: scheduleAmount,
-      payoutPercent: payoutPercent,
-      netIncome: netIncome,
-      penaltyAgree: penaltyAgree,
-      legalAgree: legalAgree
-    };
-    
-    setForm(f => ({
-      ...f,
-      payoutSchedule: payoutData
-    }));
-    
-    // Send only payout data to API
-    updateProject(form.projectId, { payoutSchedule: payoutData })
-    .then(() => {
+  const handleSavePayoutSchedule = async () => {
+    if (!projectId) {
+      toast.error("Project ID not found");
+      return;
+    }
+
+    try {
+      const payoutData = {
+        totalPayoutReq: totalPayoutReq ? parseFloat(totalPayoutReq) : undefined,
+        scheduleDate: scheduleDate ? scheduleDate.toISOString() : undefined,
+        scheduleAmount: scheduleAmount ? parseFloat(scheduleAmount) : undefined,
+        payoutPercent: payoutPercent ? parseFloat(payoutPercent) : undefined,
+        netIncome: netIncome ? parseFloat(netIncome) : undefined,
+        penaltyAgree: penaltyAgree,
+        legalAgree: legalAgree
+      };
+      
+      // Send only payout data to API
+      await updateProject(projectId, { payoutSchedule: payoutData });
       toast.success("Payout schedule saved successfully!");
-    })
-    .catch(error => {
+    } catch (error) {
       console.error("Failed to save payout schedule:", error);
       toast.error("Failed to save payout schedule");
-    });
-  };
-
-  // Example of updating milestones in the form
-  const handleMilestoneChange = (index, field, value) => {
-    const updatedMilestones = [...form.milestones];
-    updatedMilestones[index][field] = value;
-    
-    setForm({
-      ...form,
-      milestones: updatedMilestones
-    });
-  };
-
-  // Example of updating ROI in the form
-  const handleROIChange = (field, value) => {
-    setForm({
-      ...form,
-      roi: {
-        ...form.roi,
-        [field]: value
-      }
-    });
+    }
   };
 
   return (

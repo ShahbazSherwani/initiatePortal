@@ -54,7 +54,7 @@ export interface Project {
     penaltyAgree?: boolean;
     legalAgree?: boolean;
   };
-  status: "draft" | "published" | "funded" | "in-progress" | "completed" | "closed";
+  status: "draft" | "pending" | "published" | "funded" | "in-progress" | "completed" | "closed";
   investorRequests?: {
     investorId: string;
     name: string;
@@ -158,8 +158,17 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         throw new Error(`Project with ID ${id} not found`);
       }
       
-      // Merge updates with current project
-      const updatedProject = { ...currentProject, ...updates };
+      // Merge updates with current project (deep merge for nested objects)
+      const updatedProject = { 
+        ...currentProject, 
+        ...updates,
+        // Deep merge for nested objects
+        details: updates.details ? { ...currentProject.details, ...updates.details } : currentProject.details,
+        milestones: updates.milestones || currentProject.milestones,
+        roi: updates.roi ? { ...currentProject.roi, ...updates.roi } : currentProject.roi,
+        sales: updates.sales ? { ...currentProject.sales, ...updates.sales } : currentProject.sales,
+        payoutSchedule: updates.payoutSchedule ? { ...currentProject.payoutSchedule, ...updates.payoutSchedule } : currentProject.payoutSchedule,
+      };
       
       const result = await apiUpdateProject(id, updatedProject);
       

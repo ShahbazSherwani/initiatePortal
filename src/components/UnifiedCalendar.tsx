@@ -14,6 +14,7 @@ import {
   PopoverContent, 
   PopoverTrigger 
 } from "../components/ui/popover";
+import { InterestButton } from "../components/ui/InterestButton";
 
 // Add TypeScript interfaces
 interface Project {
@@ -119,24 +120,41 @@ export const UnifiedCalendar = () => {
   };
   
   const renderEventContent = (eventInfo: any) => {
-    const { isOwner, isApproved } = eventInfo.event.extendedProps;
+    const { isOwner, projectId } = eventInfo.event.extendedProps;
+    
+    // Check if investor has already shown interest
+    const hasShownInterest = eventInfo.event.extendedProps.projectData?.interestRequests?.some(
+      (req: any) => req.investorId === profile?.id
+    );
     
     return (
       <div className="flex items-center p-1">
         <div className="flex-1">
           {eventInfo.event.title}
         </div>
-        {profile?.role === 'investor' && (
-          <Button 
-            size="sm" 
-            className="ml-2 bg-[#ffc628] text-black hover:bg-[#e6b324]"
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              navigate(`/investor/project/${eventInfo.event.extendedProps.projectId}`);
-            }}
-          >
-            Invest
-          </Button>
+        {profile?.role === 'investor' && !isOwner && (
+          <div className="flex gap-1 ml-2">
+            <InterestButton
+              projectId={projectId}
+              hasShownInterest={hasShownInterest}
+              size="sm"
+              onInterestShown={() => {
+                // Refresh the calendar or show success message
+                window.location.reload();
+              }}
+            />
+            <Button 
+              size="sm" 
+              variant="outline"
+              className="bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                navigate(`/investor/project/${projectId}`);
+              }}
+            >
+              View
+            </Button>
+          </div>
         )}
         {isOwner && (
           <Button 

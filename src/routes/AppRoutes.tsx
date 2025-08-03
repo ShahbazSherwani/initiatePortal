@@ -47,18 +47,48 @@ const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
 };
 
 export const AppRoutes: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, profile } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect based on auth state
+  // Redirect based on auth state and profile completion
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        // User not logged in, redirect to home
+    if (!loading && user) {
+      const currentPath = window.location.pathname;
+      
+      // Wait for profile to be loaded before making routing decisions
+      if (!profile) {
+        return; // Profile is still loading, don't redirect yet
+      }
+      
+      // If user has completed registration and has a role
+      if (profile.hasCompletedRegistration && profile.role) {
+        // Don't redirect if already on a valid page or registration/auth pages
+        if (currentPath !== "/" && currentPath !== "/register") {
+          return; // Stay on current page - allow access to BorrowerHome and other pages
+        }
+        
+        // Only redirect from home page to appropriate dashboard
+        if (currentPath === "/") {
+          if (profile.role === 'investor') {
+            navigate("/investor/discover", { replace: true });
+          } else if (profile.role === 'borrower') {
+            navigate("/borrow", { replace: true });
+          } else if (profile.role === 'admin') {
+            navigate("/admin/projects", { replace: true });
+          }
+        }
+      }
+      // If user is missing role or hasn't completed registration, but we're not in registration flow
+      else if (!profile.role && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrowocu" && currentPath !== "/register") {
+        navigate("/borrow", { replace: true });
+      }
+    } else if (!loading && !user) {
+      // User not logged in, allow access to login and register pages
+      if (window.location.pathname !== "/" && window.location.pathname !== "/register") {
         navigate("/", { replace: true });
       }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, profile]);
 
   if (loading) {
     return <div>Loading...</div>;
@@ -172,6 +202,14 @@ export const AppRoutes: React.FC = () => {
               />
               <Route 
                 path="borwCreateNewProjLend" 
+                element={
+                  <PrivateRoute>
+                    <BorwEditProjectLend />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borwEditProject/:projectId" 
                 element={
                   <PrivateRoute>
                     <BorwEditProjectLend />

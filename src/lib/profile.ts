@@ -1,6 +1,6 @@
 // src/lib/profile.ts
 export async function upsertProfile(token: string, fullName: string) {
-  const res = await fetch('/api/profile', {
+  const res = await fetch('http://localhost:4000/api/profile', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -12,7 +12,7 @@ export async function upsertProfile(token: string, fullName: string) {
 }
 
 export async function fetchProfile(token: string) {
-  const res = await fetch('/api/profile', {
+  const res = await fetch('http://localhost:4000/api/profile', {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {

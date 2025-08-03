@@ -40,19 +40,8 @@ const handleContinue = () => {
 };
 
   const handleEdit = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    if (project) {
-      setForm({
-        projectId: project.id, // Add this line
-        selectedType: project.type,
-        projectDetails: project.details,
-        milestones: project.milestones,
-        roi: project.roi,
-        sales: project.sales,
-        payoutSchedule: project.payoutSchedule,
-      });
-      navigate("/borwCreateNewProjLend");
-    }
+    console.log("Editing project with ID:", projectId);
+    navigate(`/borwEditProject/${projectId}`);
   };
 
   const handleClose = (projectId: string) => {
@@ -255,9 +244,11 @@ const handleContinue = () => {
                   ? 'bg-green-100 text-green-800' 
                   : project.status === 'draft'
                   ? 'bg-yellow-100 text-yellow-800'
+                  : project.status === 'pending'
+                  ? 'bg-orange-100 text-orange-800'
                   : 'bg-gray-100 text-gray-800'
               }`}>
-                {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                {project.status ? project.status.charAt(0).toUpperCase() + project.status.slice(1) : 'No Status'}
               </span>
               
               {project.approvalStatus === 'approved' && (
@@ -308,7 +299,7 @@ const handleContinue = () => {
             Edit
           </Button>
           
-          {project.status === "draft" && (
+          {(project.status === "draft" || project.status === "pending" || !project.status) && (
             <Button 
               onClick={() => handlePublishProject(project.id)}
               className="bg-blue-600 text-white hover:bg-blue-700"

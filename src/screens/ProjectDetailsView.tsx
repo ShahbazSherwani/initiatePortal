@@ -8,19 +8,30 @@ import { ChevronLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { differenceInDays, parseISO, addMonths } from 'date-fns';
+import { toast } from 'react-hot-toast';
+import { authFetch } from '../lib/api';
 
 const ProjectDetailsView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const { projects } = useProjects();
+  const { projects, updateProject } = useProjects();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Details');
   const [selectedMilestoneTab, setSelectedMilestoneTab] = useState('ROI (Expense)');
 
+  console.log("ProjectDetailsView - projectId from URL:", projectId);
+  console.log("ProjectDetailsView - projects in context:", projects);
+  console.log("ProjectDetailsView - project IDs in context:", projects.map(p => ({ id: p.id, product: p.details?.product || 'No product' })));
+
   const project = projects.find(p => p.id === projectId);
+  console.log("ProjectDetailsView - found project:", project);
+  
   if (!project) return <div>Project not found</div>;
   
   // Investor requests now come from the project data
   const investorRequests = project.investorRequests || [];
+  
+  // Interest requests from investors (new feature)
+  const interestRequests = (project as any).interestRequests || [];
 
   // Calculate funding percentage from project data
   const calculateFundingPercentage = () => {
@@ -203,31 +214,45 @@ const ProjectDetailsView: React.FC = () => {
   // Get the calculated payout schedule
   const payoutSchedule = calculatePayoutSchedule();
 
-  // // Example of properly saving milestone image in your milestone creation form
-  // const handleMilestoneSubmit = () => {
-  //   // Make sure image data is in the right format (URL or Data URL)
-  //   const milestoneImageURL = milestoneImageFile 
-  //     ? URL.createObjectURL(milestoneImageFile) 
-  //     : null;
-      
-  //   // Create new milestone
-  //   const newMilestone = {
-  //     id: Date.now().toString(),
-  //     name: milestoneName,
-  //     amount: milestoneAmount,
-  //     percentage: milestonePercentage,
-  //     image: milestoneImageURL
-  //   };
-    
-  //   // Log to verify data
-  //   console.log("Adding new milestone:", newMilestone);
-    
-  //   // Update project with the new milestone
-  //   updateProject({
-  //     ...project,
-  //     milestones: [...(project.milestones || []), newMilestone]
-  //   });
-  // };
+  // Handler for approving interest requests
+  const handleApproveInterest = async (investorId: string) => {
+    try {
+      const response = await authFetch(`/api/projects/${projectId}/interest/${investorId}/approve`, {
+        method: 'POST'
+      });
+
+      if (response.success) {
+        toast.success('Interest request approved!');
+        // Reload the page to refresh the data
+        window.location.reload();
+      } else {
+        toast.error('Failed to approve interest request');
+      }
+    } catch (error) {
+      console.error('Error approving interest:', error);
+      toast.error('Failed to approve interest request');
+    }
+  };
+
+  // Handler for rejecting interest requests
+  const handleRejectInterest = async (investorId: string) => {
+    try {
+      const response = await authFetch(`/api/projects/${projectId}/interest/${investorId}/reject`, {
+        method: 'POST'
+      });
+
+      if (response.success) {
+        toast.success('Interest request rejected');
+        // Reload the page to refresh the data
+        window.location.reload();
+      } else {
+        toast.error('Failed to reject interest request');
+      }
+    } catch (error) {
+      console.error('Error rejecting interest:', error);
+      toast.error('Failed to reject interest request');
+    }
+  };
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -469,6 +494,68 @@ const ProjectDetailsView: React.FC = () => {
                 ) : (
                   <p className="text-gray-500">No investment requests yet.</p>
                 )}
+
+                {/* Interest Requests Section */}
+                <div className="mt-8">
+                  <h2 className="text-xl font-bold mb-4">Interest Requests</h2>
+                  <p className="text-sm mb-4">You have {interestRequests.length} interested investors:</p>
+                  
+                  {interestRequests.length > 0 ? (
+                    <div className="space-y-3">
+                      {interestRequests.map((interest: any, index: number) => (
+                        <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <img 
+                                src={`https://ui-avatars.com/api/?name=${interest.name}&background=3b82f6&color=ffffff`}
+                                alt={interest.name} 
+                                className="w-10 h-10 rounded-full mr-3"
+                              />
+                              <div>
+                                <p className="font-medium text-sm">{interest.name}</p>
+                                <p className="text-xs text-gray-500">Showed interest on {new Date(interest.date).toLocaleDateString()}</p>
+                                {interest.message && (
+                                  <p className="text-sm text-gray-600 mt-1">"{interest.message}"</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {interest.status === 'pending' ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600 text-white hover:bg-green-700"
+                                    onClick={() => handleApproveInterest(interest.investorId)}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                    onClick={() => handleRejectInterest(interest.investorId)}
+                                  >
+                                    Reject
+                                  </Button>
+                                </>
+                              ) : (
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  interest.status === 'approved' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {interest.status === 'approved' ? 'Approved' : 'Rejected'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No interest requests yet.</p>
+                  )}
+                </div>
               </div>
             </div>
           )}

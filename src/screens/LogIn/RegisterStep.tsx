@@ -54,8 +54,16 @@ export const RegisterStep = (): JSX.Element => {
       await upsertProfile(idToken, fullName);
       const prof = await fetchProfile(idToken);
     
-      // 3) populate context + navigate
-      setProfile({ name: prof.full_name, joined: prof.created_at });
+      // 3) populate context + navigate - set complete profile data
+      setProfile({ 
+        id: cred.user.uid,
+        email: cred.user.email,
+        name: prof.full_name, 
+        role: prof.role || null,
+        joined: prof.created_at,
+        hasCompletedRegistration: prof.has_completed_registration || false,
+        isAdmin: prof.is_admin || false
+      });
       navigate("/borrow");
     } catch (err: any) {
       // handle specific Firebase errors

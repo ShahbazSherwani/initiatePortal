@@ -21,12 +21,16 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// Initialize Postgres client (Neon)
+// Initialize Postgres client (Supabase)
 const db = new Pool({
-  connectionString: process.env.NEON_DATABASE_URL,
+  connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false,  // Neon uses a self-signed cert
+    rejectUnauthorized: false,  // Supabase requires SSL
   },
+  // Optional: Configure pool settings for better performance
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 // After your app definition and before any routes
@@ -106,7 +110,8 @@ profileRouter.get('/', verifyToken, async (req, res) => {
     const safeProfile = {
       full_name: rows[0].full_name,
       created_at: rows[0].created_at,
-      is_admin: rows[0].is_admin || false  // Add this line
+      is_admin: rows[0].is_admin || false,
+      has_completed_registration: rows[0].has_completed_registration || false
     };
     
     // Only add role if it exists
@@ -284,6 +289,9 @@ projectsRouter.get("/", async (req, res) => {
   const { status } = req.query;
   
   try {
+    console.log("=== PROJECTS API CALL ===");
+    console.log("Status filter:", status);
+    
     let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
                 FROM projects p
                 LEFT JOIN users u ON p.firebase_uid = u.firebase_uid`;
@@ -292,9 +300,21 @@ projectsRouter.get("/", async (req, res) => {
     if (status) {
       query += ` WHERE p.project_data->>'status' = $1`;
       params.push(status);
+      console.log("Filtering for status:", status);
     }
     
+    console.log("Executing query:", query);
+    console.log("With params:", params);
+    
     const { rows } = await db.query(query, params);
+    console.log(`Found ${rows.length} projects`);
+    
+    // Log project statuses for debugging
+    rows.forEach((project, index) => {
+      const projectData = project.project_data || {};
+      console.log(`Project ${index + 1}: ID=${project.id}, Status="${projectData.status || 'no status'}", Product="${projectData.details?.product || 'no product'}"`);
+    });
+    
     res.json(rows);
   } catch (err) {
     console.error("DB error:", err);
@@ -401,12 +421,13 @@ projectsRouter.put("/:id", verifyToken, async (req, res) => {
   }
 });
 
-// Get a single project
-projectsRouter.get("/:id", async (req, res) => {
+// Get a single project (with ownership check for editing)
+projectsRouter.get("/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
+  const uid = req.uid;
   
   try {
-    console.log(`Fetching project with ID: ${id}`);
+    console.log(`Fetching project with ID: ${id} for user: ${uid}`);
     
     const { rows } = await db.query(
       `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name
@@ -417,10 +438,24 @@ projectsRouter.get("/:id", async (req, res) => {
     );
     
     if (rows.length === 0) {
+      console.log(`Project ${id} not found`);
       return res.status(404).json({ error: "Project not found" });
     }
+
+    const project = rows[0];
+    console.log(`Project found - Owner: ${project.firebase_uid}, Requester: ${uid}`);
     
-    res.json(rows[0]);
+    // Check if user is requesting for editing (indicated by header or query param)
+    const isEditRequest = req.headers['x-edit-mode'] === 'true' || req.query.edit === 'true';
+    console.log(`Edit request: ${isEditRequest}`);
+    
+    if (isEditRequest && project.firebase_uid !== uid) {
+      console.log(`User ${uid} attempted to edit project owned by ${project.firebase_uid}`);
+      return res.status(403).json({ error: "You can only edit projects that you created" });
+    }
+    
+    console.log(`Access granted for project ${id}`);
+    res.json(project);
   } catch (err) {
     console.error("DB error:", err);
     res.status(500).json({ error: "Database error" });
@@ -473,6 +508,175 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
     );
     
     res.json({ success: true });
+  } catch (err) {
+    console.error("DB error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Add interest request to a project
+projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const uid = req.uid;
+  const { message } = req.body;
+  
+  try {
+    // Get the project and user data
+    const projectResult = await db.query(
+      `SELECT project_data FROM projects WHERE id = $1`,
+      [id]
+    );
+    
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const userResult = await db.query(
+      `SELECT full_name FROM users WHERE firebase_uid = $1`,
+      [uid]
+    );
+    
+    // Update the project with the interest request
+    const projectData = projectResult.rows[0].project_data;
+    const investorName = userResult.rows[0]?.full_name || "Investor";
+    
+    if (!projectData.interestRequests) {
+      projectData.interestRequests = [];
+    }
+    
+    // Check if investor already showed interest
+    const existingInterest = projectData.interestRequests.find(
+      req => req.investorId === uid
+    );
+    
+    if (existingInterest) {
+      return res.status(400).json({ error: "Interest already shown" });
+    }
+    
+    projectData.interestRequests.push({
+      investorId: uid,
+      name: investorName,
+      message: message || "I'm interested in this project",
+      date: new Date().toISOString(),
+      status: "pending"
+    });
+    
+    await db.query(
+      `UPDATE projects 
+       SET project_data = $1, updated_at = NOW()
+       WHERE id = $2`,
+      [projectData, id]
+    );
+    
+    res.json({ success: true, message: "Interest shown successfully" });
+  } catch (err) {
+    console.error("DB error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Approve interest request
+projectsRouter.post('/:id/interest/:investorId/approve', verifyToken, async (req, res) => {
+  try {
+    const { id, investorId } = req.params;
+    const { uid } = req.user;
+    
+    // Get the project
+    const result = await db.query(
+      `SELECT * FROM projects WHERE id = $1`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const project = result.rows[0];
+    const projectData = project.project_data || {};
+    
+    // Check if user is the project owner
+    if (project.firebase_uid !== uid) {
+      return res.status(403).json({ error: "Not authorized to approve interest for this project" });
+    }
+    
+    // Find and update the interest request
+    if (projectData.interestRequests) {
+      const interestIndex = projectData.interestRequests.findIndex(
+        req => req.investorId === investorId
+      );
+      
+      if (interestIndex !== -1) {
+        projectData.interestRequests[interestIndex].status = "approved";
+        projectData.interestRequests[interestIndex].approvedAt = new Date().toISOString();
+        
+        await db.query(
+          `UPDATE projects 
+           SET project_data = $1, updated_at = NOW()
+           WHERE id = $2`,
+          [projectData, id]
+        );
+        
+        res.json({ success: true, message: "Interest request approved" });
+      } else {
+        res.status(404).json({ error: "Interest request not found" });
+      }
+    } else {
+      res.status(404).json({ error: "No interest requests found" });
+    }
+  } catch (err) {
+    console.error("DB error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Reject interest request
+projectsRouter.post('/:id/interest/:investorId/reject', verifyToken, async (req, res) => {
+  try {
+    const { id, investorId } = req.params;
+    const { uid } = req.user;
+    
+    // Get the project
+    const result = await db.query(
+      `SELECT * FROM projects WHERE id = $1`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const project = result.rows[0];
+    const projectData = project.project_data || {};
+    
+    // Check if user is the project owner
+    if (project.firebase_uid !== uid) {
+      return res.status(403).json({ error: "Not authorized to reject interest for this project" });
+    }
+    
+    // Find and update the interest request
+    if (projectData.interestRequests) {
+      const interestIndex = projectData.interestRequests.findIndex(
+        req => req.investorId === investorId
+      );
+      
+      if (interestIndex !== -1) {
+        projectData.interestRequests[interestIndex].status = "rejected";
+        projectData.interestRequests[interestIndex].rejectedAt = new Date().toISOString();
+        
+        await db.query(
+          `UPDATE projects 
+           SET project_data = $1, updated_at = NOW()
+           WHERE id = $2`,
+          [projectData, id]
+        );
+        
+        res.json({ success: true, message: "Interest request rejected" });
+      } else {
+        res.status(404).json({ error: "Interest request not found" });
+      }
+    } else {
+      res.status(404).json({ error: "No interest requests found" });
+    }
   } catch (err) {
     console.error("DB error:", err);
     res.status(500).json({ error: "Database error" });

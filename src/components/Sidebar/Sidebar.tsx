@@ -34,6 +34,12 @@ const navItems: NavItem[] = [
     key: 'issuer-borrower',
   },
   {
+    icon: <img src="/investor-1.png" alt="Investment" className="w-5 h-5" />,
+    label: "Investment Opportunities",
+    to: '/investor/discover',
+    key: 'investment-opportunities'
+  },
+  {
     icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
     label: "Initiate Request",
     to: '/request',

@@ -38,14 +38,18 @@ export const ProjectFormProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const loadProject = (project: any) => {
     console.log("Loading project into form:", project);
+    
+    // Extract project data - it might be nested in project_data field
+    const projectData = project.project_data || project;
+    
     setForm({
-      projectId: project.id,
-      selectedType: project.type || '',
-      projectDetails: project.details || {},
-      milestones: project.milestones || [],
-      roi: project.roi || { expenses: [], income: [] },
-      sales: project.sales || { projections: [] },
-      payoutSchedule: project.payoutSchedule || []
+      projectId: project.id, // ID is always on the top level
+      selectedType: projectData.type || '',
+      projectDetails: projectData.details || {},
+      milestones: projectData.milestones || [],
+      roi: projectData.roi || {},
+      sales: projectData.sales || {},
+      payoutSchedule: projectData.payoutSchedule || {}
     });
   };
 
