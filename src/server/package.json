@@ -2,11 +2,11 @@
   "name": "initiate-portal-backend",
   "version": "1.0.0",
   "description": "Backend API for Initiate Portal",
-  "main": "server.js",
+  "main": "minimal-server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node minimal-server.js",
+    "dev": "node minimal-server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
