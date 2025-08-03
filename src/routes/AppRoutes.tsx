@@ -30,6 +30,10 @@ import { InvestorProjectView } from "../screens/InvestorProjectView";
 import { InvestorCalendar } from "../screens/InvestorCalendar";
 import { useAuth } from '../contexts/AuthContext';
 import { BorrowerPayoutSchedule } from "../screens/BorrowerPayoutSchedule";
+import { AdminProjectsList } from "../screens/AdminProjectsList";
+import { AdminProjectApproval } from "../screens/AdminProjectApproval";
+import { UnifiedCalendarView } from "../screens/UnifiedCalendarView";
+import { AdminProjectView } from "../screens/AdminProjectView";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -275,6 +279,40 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <PrivateRoute>
                     <InvestorCalendar />
+                  </PrivateRoute>
+                } 
+              />
+              
+              {/* Admin routes */}
+              <Route 
+                path="/admin/projects" 
+                element={
+                  <PrivateRoute>
+                    <AdminProjectsList />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/admin/project/:projectId" 
+                element={
+                  <PrivateRoute>
+                    <AdminProjectApproval />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/admin/projects/:projectId" 
+                element={
+                  <PrivateRoute>
+                    <AdminProjectView />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/calendar" 
+                element={
+                  <PrivateRoute>
+                    <UnifiedCalendarView />
                   </PrivateRoute>
                 } 
               />

@@ -243,94 +243,90 @@ const handleContinue = () => {
             {projects.filter(p => p.status !== "closed").length > 0 ? (
   <div>
     {projects.filter(p => p.status !== "closed").map(project => (
-      <div key={project.id} className="bg-white rounded-lg border border-gray-100 shadow-sm mb-4 p-0 flex">
-        {/* Project Image */}
-        <div className="flex-shrink-0">
-          <img
-            src={project.details.image || "/default-project.jpg"}
-            alt="Project"
-            className="w-[150px] h-[110px] object-cover rounded-l-lg"
-          />
+      <div key={project.id} className="bg-white rounded-lg border border-gray-100 shadow-sm mb-4 p-4 flex">
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-lg">{project.details.product || "Untitled Project"}</h3>
+            
+            {/* Add approval status badge */}
+            <div className="flex items-center gap-2">
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                project.status === 'published' 
+                  ? 'bg-green-100 text-green-800' 
+                  : project.status === 'draft'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+              </span>
+              
+              {project.approvalStatus === 'approved' && (
+                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                  Approved
+                </span>
+              )}
+              
+              {project.approvalStatus === 'rejected' && (
+                <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-800">
+                  Rejected
+                </span>
+              )}
+              
+              {project.approvalStatus === 'pending' && project.status === 'published' && (
+                <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                  Awaiting Approval
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {/* Project details */}
+          <div className="text-sm text-gray-600 mb-2">Project ID: {project.id}</div>
+          <div className="text-sm text-gray-600 mb-2">Location: {project.details.location || "Not specified"}</div>
+          
+          {/* Approval feedback if rejected */}
+          {project.approvalStatus === 'rejected' && project.approvalFeedback && (
+            <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded">
+              <p className="text-sm font-medium text-red-800">Rejection reason:</p>
+              <p className="text-sm text-red-700">{project.approvalFeedback}</p>
+            </div>
+          )}
         </div>
         
-        {/* Project Content */}
-        <div className="flex-1 p-4 flex flex-col">
-          {/* Status */}
-          <div className="mb-2">
-            <div className="flex items-center">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#ffc628] mr-2"></span>
-              <span className="text-sm font-medium">
-                Status: {project.status === "pending" ? "Pending Verification" : "Approved"}
-              </span>
-            </div>
-          </div>
+        <div className="flex flex-col gap-2">
+          <Button 
+            onClick={() => handleViewDetails(project.id)} 
+            className="bg-[#ffc628] text-black"
+          >
+            View Details
+          </Button>
           
-          {/* Project Details */}
-          <div className="grid grid-cols-2 gap-y-2 gap-x-8">
-            <div>
-              <p className="text-xs text-gray-500">Project ID:</p>
-              <p className="font-medium text-sm">{project.id}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Funding Requirements:</p>
-              <p className="font-medium text-sm">PHP {project.details.loanAmount || project.details.investmentAmount}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Project Location:</p>
-              <p className="font-medium text-sm">{project.details.location || "N/A"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Guarantor:</p>
-              <p className="font-medium text-sm">John Doe</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">45% Funding Progress:</p>
-              <p className="font-medium text-sm">{project.id}</p>
-            </div>
-          </div>
+          <Button 
+            onClick={() => handleEdit(project.id)} 
+            variant="outline"
+          >
+            Edit
+          </Button>
           
-          {/* Buttons */}
-          <div className="flex gap-3 mt-4 justify-end">
-            <button 
-              onClick={() => handleViewDetails(project.id)}
-              className="px-4 py-1.5 bg-[#ffc628] hover:bg-[#e9b725] text-black rounded-md text-sm font-medium"
+          {project.status === "draft" && (
+            <Button 
+              onClick={() => handlePublishProject(project.id)}
+              className="bg-blue-600 text-white hover:bg-blue-700"
             >
-              View Project Details
-            </button>
-            <button 
-              onClick={() => handleEdit(project.id)} 
-              className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-md text-sm font-medium"
+              Publish
+            </Button>
+          )}
+          
+          {project.status !== "closed" && (
+            <Button 
+              onClick={() => handleClose(project.id)}
+              variant="outline" 
+              className="border-red-500 text-red-500"
             >
-              Edit
-            </button>
-            <button 
-              onClick={() => handleClose(project.id)} 
-              className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-md text-sm font-medium"
-            >
-              Close Project
-            </button>
-            {/* Add this button for draft projects */}
-            {(project.status === "draft" || project.status === "pending") && (
-  <Button 
-    onClick={() => handlePublishProject(project.id)}
-    className="bg-[#ffc628] text-black ml-4"
-  >
-    Publish Project
-  </Button>
-)}
-          </div>
+              Close
+            </Button>
+          )}
         </div>
-        <div className="flex items-center gap-2 ml-auto">
-  <span className={`text-xs px-2 py-1 rounded-full ${
-    project.status === 'published' 
-      ? 'bg-green-100 text-green-800' 
-      : project.status === 'draft'
-      ? 'bg-yellow-100 text-yellow-800'
-      : 'bg-gray-100 text-gray-800'
-  }`}>
-    {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-  </span>
-</div>
       </div>
     ))}
   </div>

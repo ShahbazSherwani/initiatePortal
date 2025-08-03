@@ -1,6 +1,6 @@
 // src/components/Navigation/Navbar.tsx
 import React, { useState, useContext } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { MenuIcon, XIcon, BellIcon, ChevronDownIcon } from "lucide-react";
 import { AuthContext } from "../../contexts/AuthContext";
@@ -20,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { token, profile, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navItems = [
     { name: "Borrow", to: "/borrow", color: "text-[#ffc00f]" },
@@ -152,6 +153,16 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
             </Avatar>
 
             <AccountDisplay />
+
+            {/* Admin Tools button - only visible to admins */}
+            {profile?.isAdmin && (
+              <Button 
+                onClick={() => navigate('/admin/projects')}
+                className="bg-[#ffc628] text-black ml-4"
+              >
+                Admin Panel
+              </Button>
+            )}
 
             <Button
               variant="outline"

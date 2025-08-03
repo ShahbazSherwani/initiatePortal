@@ -19,30 +19,29 @@ export async function getAuthToken() {
 }
 
 // Wrapper for API calls that need authentication
-export async function authFetch(url, options = {}) {
+export async function authFetch(url: string, options: RequestInit = {}) {
   try {
-    // Get a fresh token
     const token = await getAuthToken();
-    
-    // Merge headers with authorization
-    const headers = {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`
-    };
-    
-    // Make the request
     const response = await fetch(url, {
       ...options,
-      headers
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`
+      }
     });
-    
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-    
     return await response.json();
   } catch (error) {
     console.error("API request failed:", error);
+    
+    // Special handling for network errors
+    if (error.code === "auth/network-request-failed") {
+      // Try to use cached data if available
+      if (url.includes("/admin/projects")) {
+        console.log("Using cached projects data due to network error");
+        return JSON.parse(localStorage.getItem("cachedAdminProjects") || "[]");
+      }
+    }
+    
     throw error;
   }
 }
@@ -135,5 +134,16 @@ export async function getProjectById(id) {
   } catch (error) {
     console.error("Failed to fetch project:", error);
     throw error;
+  }
+}
+
+// Add this function to get all projects as admin
+export async function getAdminProjects() {
+  try {
+    const data = await authFetch(`${API_URL}/admin/projects`);
+    return data || [];
+  } catch (error) {
+    console.error("Failed to fetch admin projects:", error);
+    return [];
   }
 }

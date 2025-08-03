@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
-import { getMyProjects, createProject as apiCreateProject, updateProject as apiUpdateProject } from '../lib/api';
+import { getMyProjects, createProject as apiCreateProject, updateProject as apiUpdateProject, getAdminProjects as apiGetAdminProjects } from '../lib/api';
 import { AuthContext } from './AuthContext';
 import type { Milestone } from "../types/Milestone";
 
@@ -58,6 +58,8 @@ const ProjectsContext = createContext<{
   projects: Project[];
   addProject: (project: Project) => void;
   updateProject: (id: string, data: Partial<Project>) => void;
+  loadProjects: () => Promise<void>;
+  getAdminProjects: () => Promise<any[]>; // Add this line
   loading: boolean;
 } | undefined>(undefined);
 
@@ -159,12 +161,28 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   };
   
+  // Add this function
+  const getAdminProjects = async () => {
+    try {
+      setLoading(true);
+      const data = await apiGetAdminProjects();
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch admin projects:", error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Include it in the provider value
   return (
     <ProjectsContext.Provider value={{ 
       projects, 
       addProject, 
       updateProject, 
       loadProjects,
+      getAdminProjects, // Add this line
       loading
     }}>
       {children}

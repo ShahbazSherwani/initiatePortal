@@ -105,7 +105,8 @@ profileRouter.get('/', verifyToken, async (req, res) => {
     // Return what we have, omitting problematic fields
     const safeProfile = {
       full_name: rows[0].full_name,
-      created_at: rows[0].created_at
+      created_at: rows[0].created_at,
+      is_admin: rows[0].is_admin || false  // Add this line
     };
     
     // Only add role if it exists
@@ -550,28 +551,310 @@ app.post('/api/profile/complete-registration', verifyToken, async (req, res) => 
   }
 });
 
-// In your GET /api/projects endpoint:
-
-app.get('/api/projects', verifyToken, async (req, res) => {
+// Create the admin role if it doesn't exist
+app.post('/api/admin/setup', async (req, res) => {
   try {
-    const { status } = req.query;
+    // Add admin column if it doesn't exist
+    await db.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+    `);
     
-    // Log to debug
-    console.log("Fetching projects with status:", status);
+    res.json({ success: true, message: "Admin column added to users table" });
+  } catch (err) {
+    console.error("Error setting up admin:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Mark a user as admin
+app.post('/api/admin/create', async (req, res) => {
+  const { adminKey, userId } = req.body;
+  
+  // Simple protection - would use better auth in production
+  // You can set this to any secret value for development
+  const secretKey = "admin-secret-key-1234"; 
+  
+  if (adminKey !== secretKey) {
+    return res.status(403).json({ error: "Unauthorized: Invalid admin key" });
+  }
+  
+  try {
+    await db.query(`
+      UPDATE users SET is_admin = TRUE WHERE firebase_uid = $1
+    `, [userId]);
     
-    let query = `SELECT * FROM projects`;
-    if (status) {
-      query += ` WHERE status = $1`;
+    res.json({ success: true, message: "User granted admin privileges" });
+  } catch (err) {
+    console.error("Error creating admin:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Admin endpoint to approve or reject projects
+app.post('/api/admin/projects/:id/review', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { action, feedback } = req.body;
+  
+  try {
+    // Verify admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Admin access required" });
     }
     
-    const result = status 
-      ? await db.query(query, [status])
-      : await db.query(query);
+    // Get the project first to preserve existing data
+    const projectResult = await db.query(
+      `SELECT project_data FROM projects WHERE id = $1`,
+      [id]
+    );
+    
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const projectData = projectResult.rows[0].project_data;
+    
+    // Update approval status
+    projectData.approvalStatus = action === 'approve' ? 'approved' : 'rejected';
+    if (feedback) {
+      projectData.adminFeedback = feedback;
+    }
+    
+    // Update the project
+    const updateResult = await db.query(
+      `UPDATE projects SET project_data = $1 WHERE id = $2 RETURNING *`,
+      [projectData, id]
+    );
+    
+    // Get the updated project with user info for the response
+    const updatedProject = await db.query(
+      `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+       FROM projects p
+       LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+       WHERE p.id = $1`,
+      [id]
+    );
+    
+    res.json({ 
+      success: true, 
+      message: `Project ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+      updatedProject: updatedProject.rows[0]
+    });
+  } catch (err) {
+    console.error("Error reviewing project:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Modify the existing GET projects endpoint to filter by approval
+app.get('/api/projects', verifyToken, async (req, res) => {
+  const { approved } = req.query;
+  
+  try {
+    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+                FROM projects p
+                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid`;
+    
+    const params = [];
+    let conditions = [];
+    
+    // Check if we need to filter for approved projects
+    if (approved === 'true') {
+      conditions.push(`p.project_data->>'approvalStatus' = $${params.length + 1}`);
+      params.push('approved');
       
-    console.log(`Found ${result.rows.length} projects`);
-    res.json({ success: true, projects: result.rows });
+      // Also add condition for published status
+      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
+      params.push('published');
+    }
+    
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+    
+    console.log("Projects query:", query);
+    console.log("With params:", params);
+    
+    const { rows } = await db.query(query, params);
+    console.log(`Returning ${rows.length} projects for investor`);
+    
+    res.json(rows);
   } catch (err) {
     console.error("Error fetching projects:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Add this endpoint for debugging
+
+app.post('/api/check-admin', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const result = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [userId]
+    );
+    
+    res.json({ 
+      isAdmin: result.rows.length > 0 ? result.rows[0].is_admin : false,
+      found: result.rows.length > 0
+    });
+  } catch (err) {
+    console.error("Error checking admin status:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Add this near your other project-related endpoints
+
+// Create a test project for admin review
+app.post('/api/projects/create-test', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  
+  try {
+    // Create a test project with pending approval status
+    const testProject = {
+      type: "lending",
+      status: "published",
+      approvalStatus: "pending",
+      details: {
+        product: "Test Admin Project",
+        loanAmount: "100000",
+        projectRequirements: "Testing admin review",
+        investorPercentage: "10",
+        timeDuration: "12",
+        location: "Test Location",
+        overview: "This is a test project to verify admin functionality"
+      },
+      createdAt: new Date().toISOString()
+    };
+    
+    const result = await db.query(
+      `INSERT INTO projects (firebase_uid, project_data)
+       VALUES ($1, $2) RETURNING id`,
+      [uid, testProject]
+    );
+    
+    res.json({ 
+      success: true, 
+      message: "Test project created successfully",
+      projectId: result.rows[0].id
+    });
+  } catch (err) {
+    console.error("Error creating test project:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Add a debug endpoint to check token validity
+app.post('/api/debug/token', async (req, res) => {
+  const { token } = req.body;
+  
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    res.json({ 
+      valid: true, 
+      uid: decoded.uid,
+      expiration: new Date(decoded.exp * 1000).toISOString()
+    });
+  } catch (err) {
+    res.json({ 
+      valid: false, 
+      error: err.message 
+    });
+  }
+});
+
+// Add this new endpoint for admin users to see all projects
+
+app.get('/api/admin/projects', verifyToken, async (req, res) => {
+  try {
+    // Verify admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Admin access required" });
+    }
+    
+    // Get all projects with user information
+    const { rows } = await db.query(`
+      SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      ORDER BY p.created_at DESC
+    `);
+    
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching admin projects:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Add this endpoint near your other admin endpoints
+
+app.get('/api/admin/projects/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Verify admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Admin access required" });
+    }
+    
+    // Get the specific project with user information
+    const { rows } = await db.query(`
+      SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      WHERE p.id = $1
+    `, [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Error fetching admin project:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Update or add this endpoint for calendar/investor view
+
+app.get('/api/calendar/projects', verifyToken, async (req, res) => {
+  try {
+    // For calendar, we want published AND approved projects
+    const query = `
+      SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      WHERE p.project_data->>'status' = 'published' 
+      AND p.project_data->>'approvalStatus' = 'approved'
+      ORDER BY p.created_at DESC
+    `;
+    
+    const { rows } = await db.query(query);
+    
+    // Log what's being returned
+    console.log(`Calendar API returning ${rows.length} approved projects`);
+    
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching calendar projects:", err);
     res.status(500).json({ error: "Database error" });
   }
 });

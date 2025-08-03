@@ -10,6 +10,7 @@ export const MainLayout = () => {
     <div className="flex flex-col min-h-screen w-full">
       {/* Role indicator banner */}
 
+      
       {/* ONLY navbar */}
       <Navbar activePage="" showAuthButtons={!profile} />
       

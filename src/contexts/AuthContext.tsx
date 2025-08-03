@@ -13,6 +13,7 @@ interface AuthContextType {
     role: string | null;
     joined: string;
     hasCompletedRegistration?: boolean; // Add this field
+    isAdmin?: boolean; // Add this property
   } | null;
   setProfile: React.Dispatch<React.SetStateAction<any>>;
   loading: boolean;
@@ -87,7 +88,8 @@ export const AuthProvider = ({ children }) => {
                 name: profileData.full_name,
                 role: profileData.role || null,
                 joined: profileData.created_at || new Date().toISOString(),
-                hasCompletedRegistration: profileData.has_completed_registration || false
+                hasCompletedRegistration: profileData.has_completed_registration || false,
+                isAdmin: profileData.is_admin || false // Add this line
               });
             }
           } catch (error) {

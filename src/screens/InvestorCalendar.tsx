@@ -43,15 +43,15 @@ export const InvestorCalendar: React.FC = () => {
     // Add investor-specific events
     projects.forEach(project => {
       // Projects the investor has invested in
-      if (project.investorRequests && project.investorRequests.length > 0) {
-        project.investorRequests.forEach(request => {
+      if (project.project_data?.investorRequests && project.project_data.investorRequests.length > 0) {
+        project.project_data.investorRequests.forEach(request => {
           // Only show this investor's own investments
           if (request.investorId === profile?.id) {
             allEvents.push({
               id: `investment-${project.id}-${request.investorId}`,
-              title: `Your Investment in ${project.details.product}`,
+              title: `Your Investment in ${project.project_data.details?.product || 'Project'}`,
               date: request.date,
-              image: project.details.image || "/investment.png",
+              image: project.project_data.details?.image || "/investment.png",
               type: 'investment',
               projectId: project.id,
               amount: request.amount,
@@ -59,15 +59,15 @@ export const InvestorCalendar: React.FC = () => {
             });
             
             // Add payout events for accepted investments
-            if (request.status === "accepted" && project.payoutSchedule?.scheduleDate) {
+            if (request.status === "accepted" && project.project_data.payoutSchedule?.scheduleDate) {
               allEvents.push({
                 id: `payout-${project.id}-${request.investorId}`,
-                title: `Expected Payout from ${project.details.product}`,
-                date: new Date(project.payoutSchedule.scheduleDate).toISOString(),
-                image: project.details.image || "/payout.png",
+                title: `Expected Payout from ${project.project_data.details?.product || 'Project'}`,
+                date: new Date(project.project_data.payoutSchedule.scheduleDate).toISOString(),
+                image: project.project_data.details?.image || "/payout.png",
                 type: 'expected-payout',
                 projectId: project.id,
-                amount: (request.amount * (1 + (project.estimatedReturn || 0) / 100)).toFixed(2)
+                amount: (request.amount * (1 + (project.project_data.details?.estimatedReturn || 0) / 100)).toFixed(2)
               });
             }
           }
@@ -77,18 +77,20 @@ export const InvestorCalendar: React.FC = () => {
     
     // Add published projects that investor hasn't invested in yet
     projects.forEach(project => {
-      if (project.status === "published") {
+      // Update this condition to check for both published AND approved status
+      if (project.project_data?.status === "published" && 
+          project.project_data?.approvalStatus === "approved") {
         // Check if investor hasn't already invested
-        const alreadyInvested = project.investorRequests?.some(
+        const alreadyInvested = project.project_data?.investorRequests?.some(
           req => req.investorId === profile?.id
         );
         
         if (!alreadyInvested) {
           allEvents.push({
             id: `opportunity-${project.id}`,
-            title: `Investment Opportunity: ${project.details.product}`,
-            date: project.createdAt || new Date().toISOString(),
-            image: project.details.image || "/opportunity.png",
+            title: `Investment Opportunity: ${project.project_data?.details?.product || 'New Project'}`,
+            date: project.created_at || new Date().toISOString(),
+            image: project.project_data?.details?.image || "/opportunity.png",
             type: 'opportunity',
             projectId: project.id
           });
