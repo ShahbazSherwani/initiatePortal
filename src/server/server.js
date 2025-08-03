@@ -62,6 +62,23 @@ app.get('/', (req, res) => {
   res.json({ message: 'Server with Firebase and DB is running successfully!' });
 });
 
+// Middleware: Verify Firebase ID Token
+async function verifyToken(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    req.uid = decoded.uid;
+    next();
+  } catch (err) {
+    console.error('Token verification error:', err);
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+}
+
 // Test route
 app.get('/api/test', (req, res) => {
   res.json({ status: 'API working', timestamp: new Date().toISOString() });
@@ -70,6 +87,11 @@ app.get('/api/test', (req, res) => {
 // Simple parameterized route to test
 app.get('/api/test/:id', (req, res) => {
   res.json({ id: req.params.id, message: 'Parameter route working' });
+});
+
+// Protected route test
+app.get('/api/protected', verifyToken, (req, res) => {
+  res.json({ uid: req.uid, message: 'Protected route working' });
 });
 
 const PORT = process.env.PORT || 3001;
