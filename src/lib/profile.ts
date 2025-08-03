@@ -1,6 +1,8 @@
 // src/lib/profile.ts
+import { API_BASE_URL } from '../config/environment';
+
 export async function upsertProfile(token: string, fullName: string) {
-  const res = await fetch('http://localhost:4000/api/profile', {
+  const res = await fetch(`${API_BASE_URL}/profile`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -12,7 +14,7 @@ export async function upsertProfile(token: string, fullName: string) {
 }
 
 export async function fetchProfile(token: string) {
-  const res = await fetch('http://localhost:4000/api/profile', {
+  const res = await fetch(`${API_BASE_URL}/profile`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
