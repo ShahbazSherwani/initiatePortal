@@ -11,7 +11,8 @@
     "start": "node src/server/server.js",
     "start:api": "node src/server/server.js",
     "start:dev": "concurrently \"npm run dev\" \"npm run start:api\"",
-    "heroku-postbuild": "npm run build"
+    "render-build": "echo 'Backend build complete'",
+    "heroku-postbuild": "echo 'Backend build complete'"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.18",
