@@ -45,7 +45,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // CORS configuration for production
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL, 'https://your-app.vercel.app'] // Add your actual deployed URL
+    ? ['https://initiate-portal.vercel.app', 'https://initiate-portal-git-deployment-mvp-shahbazsherwanis-projects.vercel.app', process.env.FRONTEND_URL]
     : true,
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-edit-mode']
