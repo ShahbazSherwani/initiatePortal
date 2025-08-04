@@ -44,9 +44,34 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // CORS configuration for production
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://initiate-portal.vercel.app', 'https://initiate-portal-git-deployment-mvp-shahbazsherwanis-projects.vercel.app', process.env.FRONTEND_URL]
-    : true,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // In production, check if origin is allowed
+    const allowedOrigins = [
+      'https://initiate-portal.vercel.app',
+      process.env.FRONTEND_URL
+    ];
+    
+    // Allow all Vercel deployment URLs for this project
+    if (origin.includes('initiate-portal') && origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Check specific allowed origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Block the request
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-edit-mode']
 };
