@@ -8,6 +8,7 @@ import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { toast } from "react-hot-toast";
+import { API_BASE_URL } from '../config/environment';
 import { investInProject, authFetch } from '../lib/api';
 
 export const InvestorProjectView: React.FC = () => {
@@ -25,7 +26,7 @@ export const InvestorProjectView: React.FC = () => {
     const fetchProject = async () => {
       try {
         console.log("InvestorProjectView - fetching project with ID:", projectId);
-        const projectData = await authFetch(`http://localhost:4000/api/projects/${projectId}`);
+        const projectData = await authFetch(`${API_BASE_URL}/projects/${projectId}`);
         console.log("InvestorProjectView - fetched project data:", projectData);
         setProject(projectData);
       } catch (error) {

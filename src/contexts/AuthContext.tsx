@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { auth } from "../lib/firebase";
 import { User } from 'firebase/auth';
+import { API_BASE_URL } from '../config/environment';
 
 // Define the interface for your context
 interface AuthContextType {
@@ -74,7 +75,7 @@ export const AuthProvider = ({ children }) => {
           
           // Fetch profile with role
           try {
-            const response = await fetch('http://localhost:4000/api/profile', {
+            const response = await fetch(`${API_BASE_URL}/profile`, {
               headers: {
                 'Authorization': `Bearer ${token}`
               }

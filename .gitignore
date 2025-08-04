@@ -33,3 +33,4 @@ dist-ssr
 *.pem
 *.key
 src/server/firebase-service-account.json
+.vercel

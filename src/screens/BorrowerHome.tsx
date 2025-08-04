@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { authFetch } from '../lib/api';
 import { TopUpModal } from '../components/TopUpModal';
+import { API_BASE_URL } from '../config/environment';
 
 import {
   BellIcon,
@@ -121,7 +122,7 @@ export const BorrowerHome: React.FC = () => {
       }
       
       // Update role in database
-      const result = await authFetch('http://localhost:4000/api/profile/set-role', {
+      const result = await authFetch(`${API_BASE_URL}/profile/set-role`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

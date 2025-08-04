@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 
 export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> = ({ action }) => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -22,7 +23,7 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
   const handleApproveReject = useCallback(async (actionType: 'approve' | 'reject') => {
     setLoading(true);
     try {
-      const result = await authFetch(`/api/admin/projects/${projectId}/review`, {
+      const result = await authFetch(`${API_BASE_URL}/admin/projects/${projectId}/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -86,7 +87,7 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
     if (!project) {
       async function fetchProject() {
         try {
-          const data = await authFetch(`/api/admin/projects/${projectId}`);
+          const data = await authFetch(`${API_BASE_URL}/admin/projects/${projectId}`);
           setRemoteProject(data);
         } catch (error) {
           console.error("Failed to fetch project:", error);

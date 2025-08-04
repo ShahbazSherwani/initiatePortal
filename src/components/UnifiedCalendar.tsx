@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProjects } from '../contexts/ProjectsContext';
 import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -44,7 +45,7 @@ export const UnifiedCalendar = () => {
     async function fetchApprovedProjects() {
       try {
         console.log("Fetching approved projects...");
-        const data = await authFetch('/api/calendar/projects');
+        const data = await authFetch(`${API_BASE_URL}/calendar/projects`);
         console.log("Approved projects data:", data);
         
         // Check if data is an array or if it has a nested data property

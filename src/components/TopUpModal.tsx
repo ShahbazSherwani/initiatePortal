@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 
 interface Account {
   id: number;
@@ -65,7 +66,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
     setLoading(true);
     
     try {
-      const response = await authFetch('http://localhost:4000/api/topup/request', {
+      const response = await authFetch(`${API_BASE_URL}/topup/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

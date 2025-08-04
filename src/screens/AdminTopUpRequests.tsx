@@ -3,6 +3,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { Button } from '../components/ui/button';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 
 interface TopUpRequest {
   id: number;
@@ -36,7 +37,7 @@ export const AdminTopUpRequests: React.FC = () => {
 
   const loadRequests = async () => {
     try {
-      const data = await authFetch('http://localhost:4000/api/admin/topup-requests');
+      const data = await authFetch(`${API_BASE_URL}/admin/topup-requests`);
       setRequests(data);
     } catch (error) {
       console.error('Error loading top-up requests:', error);
@@ -50,7 +51,7 @@ export const AdminTopUpRequests: React.FC = () => {
     setReviewing(true);
     
     try {
-      const response = await authFetch(`http://localhost:4000/api/admin/topup-requests/${requestId}/review`, {
+      const response = await authFetch(`${API_BASE_URL}/admin/topup-requests/${requestId}/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

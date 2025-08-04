@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authFetch } from '../lib/api'; // Adjust the import based on your project structure
 import { DashboardLayout } from "../layouts/DashboardLayout";
+import { API_BASE_URL } from '../config/environment';
 
 export const InvestorDiscovery: React.FC = () => {
   const [availableProjects, setAvailableProjects] = useState<any[]>([]);
@@ -13,8 +14,8 @@ export const InvestorDiscovery: React.FC = () => {
     const fetchProjects = async () => {
       try {
         console.log("Fetching projects for investor discovery...");
-        console.log("Making request to: http://localhost:4000/api/projects?status=published");
-        const result = await authFetch('http://localhost:4000/api/projects?status=published');
+        console.log("Making request to:", `${API_BASE_URL}/projects?status=published`);
+        const result = await authFetch(`${API_BASE_URL}/projects?status=published`);
         console.log("Projects result:", result);
         console.log("Number of projects returned:", result?.length || 0);
         

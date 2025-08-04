@@ -25,16 +25,40 @@ export async function getAuthToken() {
 export async function authFetch(url: string, options: RequestInit = {}) {
   try {
     const token = await getAuthToken();
+    console.log("🔐 Making authenticated request to:", url);
+    console.log("🔑 Token (first 20 chars):", token?.substring(0, 20) + "...");
+    
     const response = await fetch(url, {
       ...options,
       headers: {
         ...options.headers,
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     });
-    return await response.json();
+    
+    console.log("📡 Response status:", response.status);
+    console.log("📡 Response headers:", Object.fromEntries(response.headers.entries()));
+    
+    // Check if response is ok and is JSON
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("❌ HTTP error response:", text.substring(0, 300));
+      throw new Error(`HTTP error! status: ${response.status}. Response: ${text.substring(0, 200)}`);
+    }
+    
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await response.text();
+      console.error("❌ Non-JSON response:", text.substring(0, 300));
+      throw new Error(`Expected JSON response but got: ${contentType}. Response: ${text.substring(0, 200)}`);
+    }
+    
+    const result = await response.json();
+    console.log("✅ Successful API response:", url, "returned", Array.isArray(result) ? `${result.length} items` : typeof result);
+    return result;
   } catch (error) {
-    console.error("API request failed:", error);
+    console.error("💥 API request failed:", error);
     
     // Special handling for network errors
     if (error.code === "auth/network-request-failed") {
@@ -97,7 +121,7 @@ export async function updateProject(id, projectData) {
 // Get all published projects
 export const getAllProjects = async (status = 'published') => {
   try {
-    const result = await authFetch(`http://localhost:4000/api/projects?status=${status}`);
+    const result = await authFetch(`${API_URL}/projects?status=${status}`);
     return result.projects || [];
   } catch (error) {
     console.error("Error fetching projects:", error);

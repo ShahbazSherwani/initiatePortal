@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 import { Sidebar } from '../components/Sidebar/Sidebar';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge'; // Add this import
@@ -17,7 +18,7 @@ export const AdminProjectView = () => {
       setLoading(true);
       try {
         // Try to fetch from server
-        const data = await authFetch(`/api/admin/projects/${projectId}`);
+        const data = await authFetch(`${API_BASE_URL}/admin/projects/${projectId}`);
         console.log("Admin project data:", data);
         setProject(data);
         

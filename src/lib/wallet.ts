@@ -1,6 +1,8 @@
 // src/lib/wallet.ts
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
 export async function getWalletBalance(token: string): Promise<number> {
-    const res = await fetch('/api/wallet', {
+    const res = await fetch(`${API_BASE_URL}/wallet`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -8,7 +10,7 @@ export async function getWalletBalance(token: string): Promise<number> {
   }
   
   export async function topUpWallet(token: string, amount: number) {
-    await fetch('/api/wallet/topup', {
+    await fetch(`${API_BASE_URL}/wallet/topup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,7 +21,7 @@ export async function getWalletBalance(token: string): Promise<number> {
   }
   
   export async function withdrawWallet(token: string, amount: number) {
-    await fetch('/api/wallet/withdraw', {
+    await fetch(`${API_BASE_URL}/wallet/withdraw`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

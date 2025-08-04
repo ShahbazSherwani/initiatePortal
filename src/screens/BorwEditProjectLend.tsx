@@ -8,6 +8,7 @@ import { Sidebar } from "../components/Sidebar/Sidebar";
 import type { Milestone } from "../types/Milestone";
 import { toast, Toaster } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
+import { API_BASE_URL } from '../config/environment';
 
 const TABS = ["Details", "Milestones", "ROI (Expense)", "ROI (Sales)", "Payout Schedule"];
 
@@ -144,7 +145,7 @@ const BorwEditProjectLend: React.FC = () => {
         console.log("✅ Token found:", token.substring(0, 20) + "...");
         
         // Check project ownership
-        const response = await fetch(`http://localhost:4000/api/projects/${projectId}?edit=true`, {
+        const response = await fetch(`${API_BASE_URL}/projects/${projectId}?edit=true`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'x-edit-mode': 'true'

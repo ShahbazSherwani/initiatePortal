@@ -19,6 +19,7 @@ import { Testimonials } from "../screens/LogIn/Testimonials";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { useAuth } from '../contexts/AuthContext';
 import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 
 export const BorrowerWallet = (): JSX.Element => {
   const { profile, setProfile } = useAuth();
@@ -107,7 +108,7 @@ export const BorrowerWallet = (): JSX.Element => {
     }));
     
     // Update the database that registration is complete
-    authFetch('http://localhost:4000/api/profile/complete-registration', {
+    authFetch(`${API_BASE_URL}/profile/complete-registration`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
