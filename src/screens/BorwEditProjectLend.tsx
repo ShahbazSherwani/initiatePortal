@@ -147,8 +147,8 @@ const BorwEditProjectLend: React.FC = () => {
         // Check project ownership
         const response = await fetch(`${API_BASE_URL}/projects/${projectId}?edit=true`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'x-edit-mode': 'true'
+            'Authorization': `Bearer ${token}`
+            // Removed x-edit-mode header to avoid CORS issues - using query param instead
           }
         });
 
