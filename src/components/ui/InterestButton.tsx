@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { authFetch } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL } from '../../config/environment';
 
 interface InterestButtonProps {
   projectId: string;
@@ -26,7 +27,7 @@ export const InterestButton: React.FC<InterestButtonProps> = ({
 
     setIsLoading(true);
     try {
-      const response = await authFetch(`/api/projects/${projectId}/interest`, {
+      const response = await authFetch(`${API_BASE_URL}/projects/${projectId}/interest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/badge';
 import { differenceInDays, parseISO, addMonths } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 
 const ProjectDetailsView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -217,7 +218,7 @@ const ProjectDetailsView: React.FC = () => {
   // Handler for approving interest requests
   const handleApproveInterest = async (investorId: string) => {
     try {
-      const response = await authFetch(`/api/projects/${projectId}/interest/${investorId}/approve`, {
+      const response = await authFetch(`${API_BASE_URL}/projects/${projectId}/interest/${investorId}/approve`, {
         method: 'POST'
       });
 
@@ -237,7 +238,7 @@ const ProjectDetailsView: React.FC = () => {
   // Handler for rejecting interest requests
   const handleRejectInterest = async (investorId: string) => {
     try {
-      const response = await authFetch(`/api/projects/${projectId}/interest/${investorId}/reject`, {
+      const response = await authFetch(`${API_BASE_URL}/projects/${projectId}/interest/${investorId}/reject`, {
         method: 'POST'
       });
 
