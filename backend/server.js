@@ -47,7 +47,8 @@ const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [process.env.FRONTEND_URL, 'https://your-app.vercel.app'] // Add your actual deployed URL
     : true,
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-edit-mode']
 };
 
 app.use(cors(corsOptions));

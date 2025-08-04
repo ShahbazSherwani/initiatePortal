@@ -30,13 +30,13 @@ const ProjectDetailsView: React.FC = () => {
   
   if (!project) return <div>Project not found</div>;
   
-  // Check if current user is the project owner - handle different property names
-  const isProjectOwner = profile?.id === (project as any).creatorId || 
-                        profile?.id === (project as any).firebase_uid ||
+  // Check if current user is the project owner - check both project data and top-level fields
+  const isProjectOwner = profile?.id === (project as any).firebase_uid || 
+                        profile?.id === (project as any).creatorId || 
                         profile?.id === (project as any).userId;
-  console.log("Is project owner:", isProjectOwner, "Current user:", profile?.id, "Project creator fields:", {
-    creatorId: (project as any).creatorId,
+  console.log("Is project owner:", isProjectOwner, "Current user:", profile?.id, "Project firebase_uid:", (project as any).firebase_uid, "Project creator fields:", {
     firebase_uid: (project as any).firebase_uid,
+    creatorId: (project as any).creatorId,
     userId: (project as any).userId
   });
   

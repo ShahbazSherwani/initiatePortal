@@ -79,6 +79,7 @@ export async function getMyProjects() {
     const data = await authFetch(`${API_URL}/projects/my-projects`);
     return data.map((item) => ({
       id: item.id.toString(),
+      firebase_uid: item.firebase_uid, // Include the firebase_uid for ownership checks
       ...item.project_data,
       createdAt: item.created_at
     }));
