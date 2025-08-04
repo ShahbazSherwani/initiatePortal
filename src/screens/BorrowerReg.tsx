@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { Country, State, City } from "country-state-city";
@@ -26,6 +26,12 @@ export const BorrowerReg = (): JSX.Element => {
   const [passport, setPassport] = useState("");
   const [tin, setTin] = useState("");
 
+  // File uploads
+  const [nationalIdFile, setNationalIdFile] = useState<File | null>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
+  const nationalIdFileRef = useRef<HTMLInputElement>(null);
+  const passportFileRef = useRef<HTMLInputElement>(null);
+
   // Address
   const [street, setStreet] = useState("");
   const [barangay, setBarangay] = useState("");
@@ -48,6 +54,29 @@ export const BorrowerReg = (): JSX.Element => {
     setRegistration(reg => ({ ...reg, accountType: type }));
   };
 
+  // File upload handlers
+  const handleNationalIdUpload = () => {
+    nationalIdFileRef.current?.click();
+  };
+
+  const handlePassportUpload = () => {
+    passportFileRef.current?.click();
+  };
+
+  const handleNationalIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNationalIdFile(file);
+    }
+  };
+
+  const handlePassportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPassportFile(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -65,6 +94,10 @@ export const BorrowerReg = (): JSX.Element => {
         stateIso,
         cityName,
         postalCode,
+      },
+      files: {
+        nationalIdFile,
+        passportFile,
       },
     }));
     
@@ -136,8 +169,20 @@ export const BorrowerReg = (): JSX.Element => {
               {/* Upload ID Copy */}
               <div className="space-y-2">
                 <Label>Upload ID Copy</Label>
-                <Button className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2">
-                  <span className="text-2xl">+</span> Upload
+                <input
+                  type="file"
+                  ref={nationalIdFileRef}
+                  onChange={handleNationalIdFileChange}
+                  accept="image/*,.pdf"
+                  className="hidden"
+                />
+                <Button 
+                  type="button"
+                  onClick={handleNationalIdUpload}
+                  className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2"
+                >
+                  <span className="text-2xl">+</span> 
+                  {nationalIdFile ? `Selected: ${nationalIdFile.name}` : 'Upload'}
                 </Button>
               </div>
               {/* Passport */}
@@ -157,8 +202,20 @@ export const BorrowerReg = (): JSX.Element => {
               {/* Upload Passport */}
               <div className="space-y-2">
                 <Label>Upload Passport Copy</Label>
-                <Button className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2">
-                  <span className="text-2xl">+</span> Upload
+                <input
+                  type="file"
+                  ref={passportFileRef}
+                  onChange={handlePassportFileChange}
+                  accept="image/*,.pdf"
+                  className="hidden"
+                />
+                <Button 
+                  type="button"
+                  onClick={handlePassportUpload}
+                  className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2"
+                >
+                  <span className="text-2xl">+</span> 
+                  {passportFile ? `Selected: ${passportFile.name}` : 'Upload'}
                 </Button>
               </div>
               {/* TIN */}

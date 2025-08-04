@@ -18,107 +18,74 @@ Welcome to **Initiate Portal** - your comprehensive platform for investment and 
 
 ---
 
-## 👥 USER ROLES & ACCESS GUIDE
+## 👥 USER ROLES & SIMPLE WORKFLOW
 
-### 🏦 **BORROWER ROLE** - Project Creators & Loan Seekers
+### 🏦 **BORROWER ROLE** - Project Creators
 
-**How to Access:**
-1. Visit: https://initiate-portal.vercel.app
-2. Click "Sign Up" or "Login"
-3. Create account with email/password
-4. Select "Borrower" as your role during registration
-5. Complete your profile setup
+**Simple Steps:**
+1. **Sign Up** → Visit: https://initiate-portal.vercel.app → Create account → Select "Borrower"
+2. **Create Project** → Use project creation wizard (Loan or Equity type)
+3. **Submit for Review** → Your project goes to admin for approval
+4. **Publish Project** → Once approved by admin, YOU must publish it manually
+5. **Wait for Investors** → Only PUBLISHED projects are visible to investors
+6. **Handle Investment Requests** → Approve/reject investor funding offers
+7. **Manage Funding** → Track progress and handle payouts
+
+**Important Notes:**
+- ⚠️ **Projects must be PUBLISHED by you after admin approval for investors to see them**
+- ✅ Only you can approve/reject investment requests for YOUR projects
+- 💰 For wallet top-up: Submit request → Admin approves → Balance updates
 
 **What You Can Do:**
-- ✅ **Create New Projects**: Submit loan or equity investment proposals
-- ✅ **Manage Projects**: Edit, update, and track your project submissions
-- ✅ **View Calendar**: See all approved projects in the marketplace
-- ✅ **Handle Investment Requests**: Approve/reject investor interest and funding requests
-- ✅ **Track Funding Progress**: Monitor how much funding you've received
-- ✅ **Manage Milestones**: Set up and track project milestones and ROI schedules
-- ✅ **Payout Scheduling**: Plan and manage investor payouts
-- ✅ **Wallet Management**: Handle financial transactions and withdrawals
-
-**Key Features:**
-- Project creation wizard with two types: **Loan Projects** and **Equity Investment Projects**
-- Real-time funding progress tracking
-- Investor communication and approval system
-- Financial dashboard and wallet integration
-- Milestone and ROI management tools
-
-**Navigation:**
-- Dashboard: `/borrower/home`
-- Create Project: `/borrower/create-project`
-- My Projects: `/borrower/my-projects`
-- Project Details: `/borrower/project/{id}/details`
-- Calendar View: `/borrower/calendar`
-- Wallet: `/borrower/wallet`
+- Create and manage projects
+- Publish approved projects to make them visible
+- Approve/reject investor requests
+- Track funding and manage payouts
+- Request wallet top-ups (admin approval required)
 
 ---
 
 ### 💰 **INVESTOR ROLE** - Funding Providers
 
-**How to Access:**
-1. Visit: https://initiate-portal.vercel.app
-2. Click "Sign Up" or "Login"
-3. Create account with email/password
-4. Select "Investor" as your role during registration
-5. Complete your profile and verification
+**Simple Steps:**
+1. **Sign Up** → Visit: https://initiate-portal.vercel.app → Create account → Select "Investor"
+2. **Browse Projects** → See only PUBLISHED projects (approved by admin + published by borrower)
+3. **Show Interest** → Express interest in projects you like
+4. **Make Investment Offers** → Submit funding proposals
+5. **Wait for Approval** → Borrower must approve your investment request
+6. **Track Investments** → Monitor your portfolio and returns
+
+**Important Notes:**
+- 👀 **You only see PUBLISHED projects** (not drafts or pending approval)
+- 📝 **Borrowers decide** if they accept your investment offers
+- 💰 For wallet top-up: Submit request → Admin approves → Balance updates
 
 **What You Can Do:**
-- ✅ **Browse Projects**: Explore all approved investment opportunities
-- ✅ **Show Interest**: Express interest in projects you want to fund
-- ✅ **Make Investment Offers**: Submit funding proposals to project owners
-- ✅ **Track Investments**: Monitor your portfolio and returns
-- ✅ **Calendar View**: See all available projects with timeline information
-- ✅ **Communication**: Interact with borrowers about investment opportunities
-- ✅ **Wallet Management**: Manage funds and track investment performance
-
-**Key Features:**
-- Project discovery marketplace
-- Interest request system
-- Investment proposal tools
-- Portfolio tracking dashboard
-- Real-time project status updates
-- ROI and payout schedule visibility
-
-**Navigation:**
-- Discovery: `/investor/discovery`
-- Project View: `/investor/project/{id}`
-- Calendar: `/investor/calendar`
-- My Investments: `/investor/portfolio`
-- Wallet: `/investor/wallet`
+- Browse and discover published projects
+- Request to invest in projects
+- Track investment portfolio
+- Request wallet top-ups (admin approval required)
 
 ---
 
-### 🛡️ **ADMIN ROLE** - Platform Management
+### 🛡️ **ADMIN ROLE** - Platform Manager
 
-**How to Access:**
-1. **Admin accounts are created by system administrators**
-2. Contact support for admin access
-3. Login with provided admin credentials
-4. Access admin dashboard
+**Simple Steps:**
+1. **Review Projects** → Approve/reject borrower submissions
+2. **Approve Top-ups** → Handle wallet top-up requests from all users
+3. **Monitor Platform** → Oversee all activities and transactions
+4. **Manage Users** → Handle user accounts and issues
+
+**Important Notes:**
+- 🔍 **You approve projects** but borrowers must publish them
+- 💳 **You approve all wallet top-up requests** from borrowers and investors
+- 📊 **You can see everything** - all projects, users, and transactions
 
 **What You Can Do:**
-- ✅ **Project Approval**: Review and approve/reject submitted projects
-- ✅ **User Management**: Oversee all platform users and their activities
-- ✅ **Platform Oversight**: Monitor all transactions and activities
-- ✅ **Content Moderation**: Ensure project quality and compliance
-- ✅ **Financial Oversight**: Manage platform-wide financial activities
-- ✅ **System Administration**: Platform configuration and maintenance
-
-**Key Features:**
-- Project approval workflow
-- User activity monitoring
-- Financial transaction oversight
-- Platform analytics and reporting
-- System configuration tools
-
-**Navigation:**
-- Admin Dashboard: `/admin/dashboard`
-- Project Approval: `/admin/projects`
-- User Management: `/admin/users`
-- Financial Overview: `/admin/finances`
+- Approve/reject project submissions
+- Approve wallet top-up requests
+- Monitor all platform activities
+- Manage user accounts and platform settings
 
 ---
 
@@ -137,23 +104,51 @@ Welcome to **Initiate Portal** - your comprehensive platform for investment and 
 
 ---
 
-## 🚀 GETTING STARTED STEPS
+## 🚀 HOW THE PLATFORM WORKS - STEP BY STEP
 
-### For New Borrowers:
-1. **Sign Up** → Select "Borrower" role
-2. **Complete Profile** → Add business/personal details
-3. **Create Your First Project** → Use the project creation wizard
-4. **Wait for Approval** → Admin review (typically 24-48 hours)
-5. **Manage Investor Interest** → Respond to investor requests
-6. **Track Funding** → Monitor progress in real-time
+### 📝 **PROJECT WORKFLOW**
+1. **Borrower creates project** → Project status: "Draft"
+2. **Admin reviews and approves** → Project status: "Approved" (but still hidden)
+3. **Borrower manually publishes** → Project status: "Published" (now visible to investors)
+4. **Investors can see and invest** → Only in published projects
+5. **Borrower approves investments** → Funding happens
+6. **Project runs and pays back** → ROI distributed
 
-### For New Investors:
-1. **Sign Up** → Select "Investor" role
-2. **Complete Profile** → Add investment preferences
-3. **Browse Projects** → Explore approved opportunities
-4. **Show Interest** → Contact project owners
-5. **Make Investment Offers** → Submit funding proposals
-6. **Track Portfolio** → Monitor your investments
+### 💳 **WALLET TOP-UP WORKFLOW**
+1. **User requests top-up** → Submit amount and payment details
+2. **Admin reviews request** → Verify payment and approve
+3. **Balance updates automatically** → Money appears in user wallet
+4. **User can now invest/fund** → Use wallet balance for transactions
+
+### 🎯 **KEY RULES**
+- ⚠️ **Investors only see PUBLISHED projects** (not drafts or just approved ones)
+- 🔒 **Only project owners can publish their approved projects**
+- 💰 **All wallet top-ups need admin approval**
+- ✅ **Only borrowers can approve investment requests for their projects**
+
+---
+
+## 🚀 GETTING STARTED - SIMPLE GUIDE
+
+### For Borrowers:
+1. **Sign Up** → Select "Borrower" 
+2. **Create Project** → Fill project details
+3. **Wait for Admin Approval** → Usually 24-48 hours
+4. **Publish Your Project** → Make it visible to investors
+5. **Handle Investment Requests** → Approve the ones you like
+6. **Manage Funding & Payouts** → Track progress
+
+### For Investors:
+1. **Sign Up** → Select "Investor"
+2. **Browse Published Projects** → Only see live opportunities
+3. **Request to Invest** → Submit your funding offer
+4. **Wait for Borrower Approval** → They decide yes/no
+5. **Track Your Investments** → Monitor returns
+
+### For Admins:
+1. **Review Project Submissions** → Approve quality projects
+2. **Handle Top-up Requests** → Verify and approve wallet funding
+3. **Monitor Platform** → Keep everything running smoothly
 
 ---
 
@@ -200,17 +195,23 @@ Welcome to **Initiate Portal** - your comprehensive platform for investment and 
 
 ---
 
-## 📊 QUICK REFERENCE
+## 📊 QUICK REFERENCE - WHAT EACH ROLE CAN DO
 
-| Feature | Borrower | Investor | Admin |
+| Action | Borrower | Investor | Admin |
 |---------|----------|----------|--------|
 | Create Projects | ✅ | ❌ | ❌ |
-| Browse Projects | ✅ | ✅ | ✅ |
-| Approve Investments | ✅ | ❌ | ✅ |
-| Make Investment Offers | ❌ | ✅ | ❌ |
-| Project Approval | ❌ | ❌ | ✅ |
-| Wallet Management | ✅ | ✅ | ✅ |
-| Calendar Access | ✅ | ✅ | ✅ |
+| Publish Approved Projects | ✅ | ❌ | ❌ |
+| See Published Projects | ✅ | ✅ | ✅ |
+| Request to Invest | ❌ | ✅ | ❌ |
+| Approve Investments | ✅ | ❌ | ❌ |
+| Approve Projects | ❌ | ❌ | ✅ |
+| Approve Wallet Top-ups | ❌ | ❌ | ✅ |
+| Request Wallet Top-up | ✅ | ✅ | ❌ |
+
+**Key Points:**
+- 🔑 **Borrowers**: Create → Get approved → Publish → Handle investments
+- 🔑 **Investors**: Browse published → Request to invest → Wait for approval
+- 🔑 **Admins**: Approve projects + wallet top-ups → Monitor everything
 
 ---
 
@@ -236,21 +237,32 @@ Welcome to **Initiate Portal** - your comprehensive platform for investment and 
 
 ---
 
-## 🔄 RECENT UPDATES
+## 🔄 RECENT UPDATES & IMPORTANT FEATURES
 
-- ✅ **Enhanced Security**: Project ownership authorization implemented
-- ✅ **API Improvements**: All endpoints now use absolute URLs for reliability
-- ✅ **Bug Fixes**: Resolved HTML response issues in production
-- ✅ **UI Enhancements**: Improved user experience across all roles
+### ✅ **Project Publishing System**
+- Projects need TWO steps: Admin approval + Borrower publishing
+- Only PUBLISHED projects are visible to investors
+- Borrowers have full control over when their approved projects go live
+
+### ✅ **Admin-Approved Wallet Top-ups**
+- All wallet funding requests go through admin approval
+- Secure verification process for all transactions
+- Automatic balance updates after admin approval
+
+### ✅ **Enhanced Security** 
+- Project ownership authorization
+- Role-based access control
+- Secure API endpoints
+
+### ✅ **Bug Fixes**
+- Resolved CORS issues for project editing
+- Improved user experience across all roles
+- Fixed production deployment issues
 
 ---
 
-Welcome to the Initiate Portal community! We're excited to help you achieve your funding and investment goals.
+**🎉 Welcome to Initiate Portal!**
 
-**Happy Investing & Creating!**
+*This simplified guide should help you understand exactly how each role works and what steps to follow. For technical support, contact our team.*
 
-The Initiate Portal Team
-
----
-
-*For technical issues or questions, please don't hesitate to reach out to our support team.*
+**The Initiate Portal Team**

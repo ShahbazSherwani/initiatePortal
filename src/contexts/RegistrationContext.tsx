@@ -5,6 +5,11 @@ export interface RegistrationData {
   accountType: string;
   details: Record<string, any>;
   bankAccounts?: BankAccount[];
+  files?: {
+    nationalIdFile?: File | null;
+    passportFile?: File | null;
+    [key: string]: File | null | undefined;
+  };
 }
 
 interface RegistrationContextType {
