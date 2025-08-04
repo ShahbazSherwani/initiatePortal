@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
               ←
             </Button>
           )}
-          <img src="/group.png" alt="Logo" className="w-[132px]" />
+          <img src="/initiate_logo.png" alt="Initiate PH Logo" className="w-[132px]" />
         </div>
         <Button variant="ghost" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <XIcon className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
@@ -119,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
               ←
             </Button>
           )}
-          <img src="/group.png" alt="Logo" className="w-[132px]" />
+          <img src="/initiate_logo.png" alt="Initiate PH Logo" className="w-[132px]" />
         </div>
 
         {/* Nav links */}
