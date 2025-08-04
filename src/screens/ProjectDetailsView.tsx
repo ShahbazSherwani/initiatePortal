@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjectForm } from '../contexts/ProjectFormContext';
 import { useProjects } from '../contexts/ProjectsContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/Navigation/navbar';
 import { Sidebar } from '../components/Sidebar/Sidebar';
 import { ChevronLeft } from 'lucide-react';
@@ -15,6 +16,7 @@ import { API_BASE_URL } from '../config/environment';
 const ProjectDetailsView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { projects, updateProject } = useProjects();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Details');
   const [selectedMilestoneTab, setSelectedMilestoneTab] = useState('ROI (Expense)');
@@ -25,6 +27,18 @@ const ProjectDetailsView: React.FC = () => {
 
   const project = projects.find(p => p.id === projectId);
   console.log("ProjectDetailsView - found project:", project);
+  
+  if (!project) return <div>Project not found</div>;
+  
+  // Check if current user is the project owner - handle different property names
+  const isProjectOwner = profile?.id === (project as any).creatorId || 
+                        profile?.id === (project as any).firebase_uid ||
+                        profile?.id === (project as any).userId;
+  console.log("Is project owner:", isProjectOwner, "Current user:", profile?.id, "Project creator fields:", {
+    creatorId: (project as any).creatorId,
+    firebase_uid: (project as any).firebase_uid,
+    userId: (project as any).userId
+  });
   
   if (!project) return <div>Project not found</div>;
   
@@ -425,60 +439,69 @@ const ProjectDetailsView: React.FC = () => {
                         
                         {investor.status === "pending" && (
                           <div className="flex gap-2">
-                            <Button 
-                              className="flex-1 bg-[#ffc628] hover:bg-[#e6b324] text-black"
-                              onClick={() => {
-                                // Update the investor status
-                                const updatedRequests = investorRequests.map(req => 
-                                  req.investorId === investor.investorId 
-                                    ? {...req, status: "accepted"} 
-                                    : req
-                                );
-                                
-                                // Update funding progress
-                                const totalRequired = parseFloat(project.details.loanAmount || 
-                                                                   project.details.investmentAmount || "0");
-                                const totalFunded = updatedRequests
-                                  .filter(req => req.status === "accepted")
-                                  .reduce((sum, req) => sum + req.amount, 0);
-                                
-                                const progress = Math.round((totalFunded / totalRequired) * 100);
-                                
-                                // Update project
-                                updateProject(project.id, {
-                                  investorRequests: updatedRequests,
-                                  fundingProgress: progress,
-                                  details: {
-                                    ...project.details,
-                                    fundedAmount: totalFunded.toString()
-                                  }
-                                });
-                                
-                                toast.success(`Investment from ${investor.name} accepted!`);
-                              }}
-                            >
-                              Accept
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              className="flex-1 bg-gray-100 hover:bg-gray-200"
-                              onClick={() => {
-                                // Update just this investor's status
-                                const updatedRequests = investorRequests.map(req => 
-                                  req.investorId === investor.investorId 
-                                    ? {...req, status: "rejected"} 
-                                    : req
-                                );
-                                
-                                updateProject(project.id, {
-                                  investorRequests: updatedRequests
-                                });
-                                
-                                toast.success(`Investment request rejected`);
-                              }}
-                            >
-                              Reject
-                            </Button>
+                            {/* Only show accept/reject buttons if current user is the project owner */}
+                            {isProjectOwner ? (
+                              <>
+                                <Button 
+                                  className="flex-1 bg-[#ffc628] hover:bg-[#e6b324] text-black"
+                                  onClick={() => {
+                                    // Update the investor status
+                                    const updatedRequests = investorRequests.map(req => 
+                                      req.investorId === investor.investorId 
+                                        ? {...req, status: "accepted"} 
+                                        : req
+                                    );
+                                    
+                                    // Update funding progress
+                                    const totalRequired = parseFloat(project.details.loanAmount || 
+                                                                       project.details.investmentAmount || "0");
+                                    const totalFunded = updatedRequests
+                                      .filter(req => req.status === "accepted")
+                                      .reduce((sum, req) => sum + req.amount, 0);
+                                    
+                                    const progress = Math.round((totalFunded / totalRequired) * 100);
+                                    
+                                    // Update project
+                                    updateProject(project.id, {
+                                      investorRequests: updatedRequests,
+                                      fundingProgress: progress,
+                                      details: {
+                                        ...project.details,
+                                        fundedAmount: totalFunded.toString()
+                                      }
+                                    });
+                                    
+                                    toast.success(`Investment from ${investor.name} accepted!`);
+                                  }}
+                                >
+                                  Accept
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="flex-1 bg-gray-100 hover:bg-gray-200"
+                                  onClick={() => {
+                                    // Update just this investor's status
+                                    const updatedRequests = investorRequests.map(req => 
+                                      req.investorId === investor.investorId 
+                                        ? {...req, status: "rejected"} 
+                                        : req
+                                    );
+                                    
+                                    updateProject(project.id, {
+                                      investorRequests: updatedRequests
+                                    });
+                                    
+                                    toast.success(`Investment request rejected`);
+                                  }}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Pending Approval
+                              </span>
+                            )}
                           </div>
                         )}
                         
@@ -523,21 +546,30 @@ const ProjectDetailsView: React.FC = () => {
                             <div className="flex items-center gap-2">
                               {interest.status === 'pending' ? (
                                 <>
-                                  <Button
-                                    size="sm"
-                                    className="bg-green-600 text-white hover:bg-green-700"
-                                    onClick={() => handleApproveInterest(interest.investorId)}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="border-red-300 text-red-600 hover:bg-red-50"
-                                    onClick={() => handleRejectInterest(interest.investorId)}
-                                  >
-                                    Reject
-                                  </Button>
+                                  {/* Only show approve/reject buttons if current user is the project owner */}
+                                  {isProjectOwner ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        className="bg-green-600 text-white hover:bg-green-700"
+                                        onClick={() => handleApproveInterest(interest.investorId)}
+                                      >
+                                        Approve
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-red-300 text-red-600 hover:bg-red-50"
+                                        onClick={() => handleRejectInterest(interest.investorId)}
+                                      >
+                                        Reject
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                      Pending
+                                    </span>
+                                  )}
                                 </>
                               ) : (
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
