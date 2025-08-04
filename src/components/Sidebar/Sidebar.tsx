@@ -1,5 +1,6 @@
-import React, { useState, ReactNode } from "react";
-import { Button } from "../../../src/components/ui/button";
+import React, { useState, ReactNode, useContext } from "react";
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Button } from "../ui/button";
 import {
   HomeIcon,
   CalendarIcon,
@@ -11,51 +12,122 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react";
+import { AuthContext } from '../../contexts/AuthContext';
 
 interface NavItem {
   icon: ReactNode;
   label: string;
+  to?: string;
   subItems?: string[];
+  key: string;
 }
 
 const navItems: NavItem[] = [
-  { icon: <HomeIcon className="w-5 h-5" />, label: "Home" },
-  { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar" },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "Wallet" },
+  { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrow', key: 'home' },
+  { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/borrowCalendar', key: 'calendar' },
+  { icon: <WalletIcon className="w-5 h-5" />, label: "Wallet", to: '/borrowBank', key: 'wallet' },
   {
     icon: <img src="/group-23.png" alt="Issuer" className="w-5 h-5" />,
     label: "My Issuer/Borrower",
+    to: '/borwMyProj', // <-- Add this line to enable routing
     subItems: ["My Investments/Lending", "My Guarantees"],
+    key: 'issuer-borrower',
+  },
+  {
+    icon: <img src="/investor-1.png" alt="Investment" className="w-5 h-5" />,
+    label: "Investment Opportunities",
+    to: '/investor/discover',
+    key: 'investment-opportunities'
   },
   {
     icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
     label: "Initiate Request",
+    to: '/request',
+    key: 'initiate-request'
   },
   {
     icon: <img src="/group-26.png" alt="Donation" className="w-3.5 h-5" />,
     label: "Donation",
+    to: '/donation',
+    key: 'donation'
   },
-  { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings" },
-  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support" },
+  { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
+  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help', key: 'help' },
 ];
 
-export const Sidebar: React.FC = () => {
-  const [selectedIdx, setSelectedIdx] = useState(
-    navItems.findIndex((item) => item.label === "Home")
-  );
+interface SidebarProps {
+  activePage?: string;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ activePage }) =>  {
+  const authContext = useContext(AuthContext);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Get navigation items based on user role
+  const getNavItems = () => {
+    const baseItems = [...navItems];
+    
+    // Add admin-specific items if user is admin
+    if (authContext?.profile?.isAdmin) {
+      baseItems.push(
+        {
+          icon: <SettingsIcon className="w-5 h-5" />,
+          label: "Admin Projects",
+          to: '/admin/projects',
+          key: 'admin-projects'
+        },
+        {
+          icon: <WalletIcon className="w-5 h-5" />,
+          label: "Top-up Requests",
+          to: '/admin/topup-requests',
+          key: 'admin-topup'
+        }
+      );
+    }
+    
+    return baseItems;
+  };
+
+  const currentNavItems = getNavItems();
+
+  // Highlight based on current route
+  const selectedIdx = currentNavItems.findIndex((item) => {
+    if (item.to && (location.pathname === item.to || location.pathname.startsWith(item.to + "/"))) {
+      return true;
+    }
+    // Highlight parent if on any sub-page
+    if (
+      item.subItems &&
+      (location.pathname.startsWith("/borwMyProj") ||
+       location.pathname.startsWith("/borwMyProjects") ||
+       location.pathname.startsWith("/borwNewProj") ||
+       location.pathname.startsWith("/borwNewProjEq"))
+    ) {
+      return true;
+    }
+    return false;
+  });
+
+  const handleLogout = () => {
+    authContext?.logout();
+    navigate('/');
+  };
 
   const renderNav = (isMobile = false) => (
     <nav className={`flex flex-col ${isMobile ? "space-y-4 px-6 pt-20" : "space-y-4"}`}>
-      {navItems.map((item, idx) => {
+      {currentNavItems.map((item, idx) => {
         const isSelected = idx === selectedIdx;
         return (
-          <div key={idx}>
+          <div key={item.key}>
             <Button
               variant={isSelected ? "default" : "ghost"}
               onClick={() => {
-                setSelectedIdx(idx);
-                if (isMobile) setMobileOpen(false);
+                if (item.to) {
+                  navigate(item.to);
+                  if (isMobile) setMobileOpen(false);
+                }
               }}
               className={
                 `flex items-center justify-start w-full gap-3 text-left ` +
@@ -78,7 +150,12 @@ export const Sidebar: React.FC = () => {
                     key={subIdx}
                     variant="ghost"
                     className="opacity-70 p-0 h-auto flex justify-start"
-                    onClick={() => isMobile && setMobileOpen(false)}
+                    onClick={() => {
+                      // Add navigation for sub-items if needed
+                      if (subItem === "My Investments/Lending") navigate("/borwMyProj");
+                      if (subItem === "My Guarantees") navigate("/borwMyProjects");
+                      if (isMobile) setMobileOpen(false);
+                    }}
                   >
                     <span className="font-poppins font-medium text-black text-[14.8px]">
                       {subItem}
@@ -95,10 +172,7 @@ export const Sidebar: React.FC = () => {
         <Button
           variant="ghost"
           className="flex items-center justify-start w-full gap-3 text-left opacity-70 p-2"
-          onClick={() => {
-            setSelectedIdx(-1);
-            if (isMobile) setMobileOpen(false);
-          }}
+          onClick={handleLogout}
         >
           <LogOutIcon className="w-5 h-5" />
           <span className="font-poppins font-medium text-black text-[17.8px]">

@@ -1,18 +1,373 @@
-import { Routes, Route } from "react-router-dom";
+import React, { useContext, useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import { LogIn } from "../screens/LogIn/LogIn";
 import { RegisterStep } from "../screens/LogIn/RegisterStep";
 import { BorrowerHome } from "../screens/BorrowerHome";
+import { BorrowerReg } from "../screens/BorrowerReg";
+import { BorrowerOccupation } from "../screens/BorrowOcu";
+import { AuthContext } from "../contexts/AuthContext";
+import { BorrowerWallet } from "../screens/BorrowerWallet";
+import { BorrowerCalender } from "../screens/BorrowCalendar";
+import { BorrowerEvent } from "../screens/BorrowEvents";
+import { BorrowerProject } from "../screens/BorrowProject";
+import { BorrowerBankDet } from "../screens/BorrowerBankDet";
+import { BorrowerMyProjects } from "../screens/BorwMyProjects";
+import { BorrowerCreateNew } from "../screens/BorwCreateNewProjLend";
+import { BorrowerCreateNewEq } from "../screens/BorwCreateNewProjEquity";
+import { BorrowerMilestones } from "../screens/BorrowerMilestones";
+import { Milestones } from "../screens/Milestones";
+import { AddMilestones } from "../screens/AddMilestones";
+import { BorrowerROI } from "../screens/BorrowerROI";
+import { BorrowerROISales } from "../screens/BorrowerROISales";
+import { RegistrationProvider } from "../contexts/RegistrationContext";
+import { ProjectsProvider } from "../contexts/ProjectsContext";
+import { ProjectFormProvider } from "../contexts/ProjectFormContext";
+import BorwEditProjectLend from "../screens/BorwEditProjectLend";
+import ProjectDetailsView from "../screens/ProjectDetailsView";
+import { InvestorDiscovery } from "../screens/InvestorDiscovery";
+import { InvestorProjectView } from "../screens/InvestorProjectView";
+import { InvestorCalendar } from "../screens/InvestorCalendar";
+import { useAuth } from '../contexts/AuthContext';
+import { BorrowerPayoutSchedule } from "../screens/BorrowerPayoutSchedule";
+import { AdminProjectsList } from "../screens/AdminProjectsList";
+import { AdminProjectApproval } from "../screens/AdminProjectApproval";
+import { UnifiedCalendarView } from "../screens/UnifiedCalendarView";
+import { AdminProjectView } from "../screens/AdminProjectView";
+import { AdminTopUpRequests } from "../screens/AdminTopUpRequests";
 
-export const AppRoutes = () => {
+// A wrapper for protected routes
+const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
+  const authContext = useContext(AuthContext);
+  const token = authContext?.token;
+  if (!token) {
+    // not authenticated, redirect to login
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
+export const AppRoutes: React.FC = () => {
+  const { user, loading, profile } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect based on auth state and profile completion
+  useEffect(() => {
+    if (!loading && user) {
+      const currentPath = window.location.pathname;
+      
+      // Wait for profile to be loaded before making routing decisions
+      if (!profile) {
+        return; // Profile is still loading, don't redirect yet
+      }
+      
+      // If user has completed registration and has a role
+      if (profile.hasCompletedRegistration && profile.role) {
+        // Don't redirect if already on a valid page or registration/auth pages
+        if (currentPath !== "/" && currentPath !== "/register") {
+          return; // Stay on current page - allow access to BorrowerHome and other pages
+        }
+        
+        // Only redirect from home page to appropriate dashboard
+        if (currentPath === "/") {
+          if (profile.role === 'investor') {
+            navigate("/investor/discover", { replace: true });
+          } else if (profile.role === 'borrower') {
+            navigate("/borrow", { replace: true });
+          } else if (profile.role === 'admin') {
+            navigate("/admin/projects", { replace: true });
+          }
+        }
+      }
+      // If user is missing role or hasn't completed registration, but we're not in registration flow
+      else if (!profile.role && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrowocu" && currentPath !== "/register") {
+        navigate("/borrow", { replace: true });
+      }
+    } else if (!loading && !user) {
+      // User not logged in, allow access to login and register pages
+      if (window.location.pathname !== "/" && window.location.pathname !== "/register") {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [user, loading, navigate, profile]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <Routes>
-      <Route path="/" element={<MainLayout />}>
-        <Route index element={<LogIn />} />
-        <Route path="register" element={<RegisterStep />} />
-        <Route path="borrow" element={<BorrowerHome />} />
-      </Route>
-    </Routes>
+    <RegistrationProvider>
+      <ProjectsProvider>
+        <ProjectFormProvider>
+          <Routes>
+            {/* Auth routes - no layout needed */}
+            <Route path="/" element={<LogIn />} />
+            
+            {/* All other routes with MainLayout */}
+            <Route element={<MainLayout />}>
+              {/* Authentication */}
+              <Route path="register" element={<RegisterStep />} />
+              
+              {/* Initial account selection and registration flow */}
+              <Route
+                path="borrow"
+                element={
+                  <PrivateRoute>
+                    <BorrowerHome />
+                  </PrivateRoute>
+                }
+              />
+              <Route 
+                path="borrowreg" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerReg />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borrowocu" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerOccupation />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borrowWallet" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerWallet />
+                  </PrivateRoute>
+                } 
+              />
+              
+              {/* Borrower/User features */}
+              <Route 
+                path="borrowCalendar" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerCalender />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borrowEvents" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerEvent />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borrowProj" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerProject />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borrowBank" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerBankDet />
+                  </PrivateRoute>
+                } 
+              />
+              
+              {/* Projects management */}
+              <Route 
+                path="borwMyProj" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerMyProjects />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borwNewProj" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerCreateNew />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borwNewProjEq" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerCreateNewEq />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borwCreateNewProjLend" 
+                element={
+                  <PrivateRoute>
+                    <BorwEditProjectLend />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borwEditProject/:projectId" 
+                element={
+                  <PrivateRoute>
+                    <BorwEditProjectLend />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="project/:projectId" 
+                element={
+                  <PrivateRoute>
+                    <ProjectDetailsView />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/borrower/project/:projectId/details" 
+                element={
+                  <PrivateRoute>
+                    <ProjectDetailsView />
+                  </PrivateRoute>
+                } 
+              />
+              
+              {/* Milestones */}
+              <Route 
+                path="borwMilestones" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerMilestones />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="milestones" 
+                element={
+                  <PrivateRoute>
+                    <Milestones />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="addMilestones" 
+                element={
+                  <PrivateRoute>
+                    <AddMilestones />
+                  </PrivateRoute>
+                } 
+              />
+              
+              {/* ROI and Payouts */}
+              <Route
+                path="borrowROI"
+                element={
+                  <PrivateRoute>
+                    <BorrowerROI />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="borrowROISales"
+                element={
+                  <PrivateRoute>
+                    <BorrowerROISales />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="borrowPayout"
+                element={
+                  <PrivateRoute>
+                    <BorrowerPayoutSchedule />
+                  </PrivateRoute>
+                }
+              />
+
+              {/* Request routes */}
+              <Route
+                path="borrow/request"
+                element={
+                  <PrivateRoute>
+                    <BorrowerReg />
+                  </PrivateRoute>
+                }
+              />
+              
+              {/* Investor routes */}
+              <Route 
+                path="/investor/discover" 
+                element={
+                  <PrivateRoute>
+                    <InvestorDiscovery />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor/project/:projectId" 
+                element={
+                  <PrivateRoute>
+                    <InvestorProjectView />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor/calendar" 
+                element={
+                  <PrivateRoute>
+                    <InvestorCalendar />
+                  </PrivateRoute>
+                } 
+              />
+              
+              {/* Admin routes */}
+              <Route 
+                path="/admin/projects" 
+                element={
+                  <PrivateRoute>
+                    <AdminProjectsList />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/admin/project/:projectId" 
+                element={
+                  <PrivateRoute>
+                    <AdminProjectApproval />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/admin/projects/:projectId" 
+                element={
+                  <PrivateRoute>
+                    <AdminProjectView />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/admin/topup-requests" 
+                element={
+                  <PrivateRoute>
+                    <AdminTopUpRequests />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/calendar" 
+                element={
+                  <PrivateRoute>
+                    <UnifiedCalendarView />
+                  </PrivateRoute>
+                } 
+              />
+            </Route>
+          </Routes>
+        </ProjectFormProvider>
+      </ProjectsProvider>
+    </RegistrationProvider>
   );
 };
 

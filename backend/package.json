@@ -1,0 +1,21 @@
+{
+  "name": "initiate-portal-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Initiate Portal",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "firebase-admin": "^13.3.0",
+    "pg": "^8.15.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
