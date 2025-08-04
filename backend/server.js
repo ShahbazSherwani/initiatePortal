@@ -43,18 +43,25 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// CORS configuration for production
+// CORS configuration for production - debug version
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    console.log('CORS: Origin received:', origin);
+    console.log('CORS: NODE_ENV:', process.env.NODE_ENV);
     
-    // In development, allow all origins
-    if (process.env.NODE_ENV !== 'production') {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log('CORS: No origin, allowing');
       return callback(null, true);
     }
     
-    // In production, check if origin is allowed
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('CORS: Development mode, allowing all');
+      return callback(null, true);
+    }
+    
+    // In production, be more permissive for debugging
     const allowedOrigins = [
       'https://initiate-portal.vercel.app',
       process.env.FRONTEND_URL
@@ -62,19 +69,25 @@ const corsOptions = {
     
     // Allow all Vercel deployment URLs for this project
     if (origin.includes('initiate-portal') && origin.includes('vercel.app')) {
+      console.log('CORS: Vercel origin matched, allowing');
       return callback(null, true);
     }
     
     // Check specific allowed origins
     if (allowedOrigins.includes(origin)) {
+      console.log('CORS: Specific origin matched, allowing');
       return callback(null, true);
     }
     
-    // Block the request
-    callback(new Error('Not allowed by CORS'));
+    // For debugging, temporarily allow all origins
+    console.log('CORS: Allowing all origins for debugging');
+    return callback(null, true);
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-edit-mode']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-edit-mode'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
