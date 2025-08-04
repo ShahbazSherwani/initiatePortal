@@ -39,48 +39,28 @@ const db = new Pool({
 // After your app definition and before any routes
 const app = express();
 
-// Increase body size limit to 50MB
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// LOG ALL INCOMING REQUESTS FIRST
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log('Request Origin:', req.headers.origin);
+  console.log('Request Headers:', Object.keys(req.headers));
+  next();
+});
 
-// CORS configuration for production - debug version with explicit preflight handling
+// CORS configuration - MUST BE FIRST MIDDLEWARE
 const corsOptions = {
   origin: (origin, callback) => {
-    console.log('CORS: Origin received:', origin);
-    console.log('CORS: NODE_ENV:', process.env.NODE_ENV);
+    console.log('🌍 CORS ORIGIN CHECK:', origin);
+    console.log('🌍 NODE_ENV:', process.env.NODE_ENV);
     
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('CORS: No origin, allowing');
+      console.log('🌍 No origin, allowing');
       return callback(null, true);
     }
     
-    // In development, allow all origins
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('CORS: Development mode, allowing all');
-      return callback(null, true);
-    }
-    
-    // In production, be more permissive for debugging
-    const allowedOrigins = [
-      'https://initiate-portal.vercel.app',
-      process.env.FRONTEND_URL
-    ];
-    
-    // Allow all Vercel deployment URLs for this project
-    if (origin.includes('initiate-portal') && origin.includes('vercel.app')) {
-      console.log('CORS: Vercel origin matched, allowing');
-      return callback(null, true);
-    }
-    
-    // Check specific allowed origins
-    if (allowedOrigins.includes(origin)) {
-      console.log('CORS: Specific origin matched, allowing');
-      return callback(null, true);
-    }
-    
-    // For debugging, temporarily allow all origins
-    console.log('CORS: Allowing all origins for debugging');
+    // Allow all origins for debugging
+    console.log('🌍 Allowing all origins for debugging');
     return callback(null, true);
   },
   credentials: true,
@@ -90,7 +70,8 @@ const corsOptions = {
     'x-edit-mode',
     'Accept',
     'X-Requested-With',
-    'Access-Control-Allow-Headers'
+    'Access-Control-Allow-Headers',
+    'Origin'
   ],
   exposedHeaders: ['Content-Type', 'Authorization', 'x-edit-mode'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
@@ -100,16 +81,28 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Explicit OPTIONS handler for all routes
-app.options('*', (req, res) => {
-  console.log('OPTIONS request received for:', req.path);
-  console.log('Request headers:', req.headers);
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-edit-mode,Accept,X-Requested-With');
+// MANUAL CORS HEADERS - AGGRESSIVE APPROACH
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  console.log('🔧 Manual CORS headers for origin:', origin);
+  
+  res.header('Access-Control-Allow-Origin', origin || '*');
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.status(200).end();
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-edit-mode,Accept,X-Requested-With,Origin');
+  res.header('Access-Control-Expose-Headers', 'Content-Type,Authorization,x-edit-mode');
+  
+  if (req.method === 'OPTIONS') {
+    console.log('🔧 OPTIONS request - responding with 200');
+    return res.status(200).end();
+  }
+  
+  next();
 });
+
+// Increase body size limit to 50MB
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
