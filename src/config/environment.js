@@ -1,7 +1,7 @@
 // Environment configuration for different environments
 const config = {
   development: {
-    API_URL: 'http://localhost:4000/api'
+    API_URL: 'http://localhost:3001/api'
   },
   production: {
     API_URL: import.meta.env.VITE_API_BASE_URL || 'https://initiate-portal-api.onrender.com/api'

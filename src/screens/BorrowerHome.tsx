@@ -7,6 +7,7 @@ import { useRegistration } from "../contexts/RegistrationContext";
 import { authFetch } from '../lib/api';
 import { TopUpModal } from '../components/TopUpModal';
 import { API_BASE_URL } from '../config/environment';
+import { generateProfileCode } from '../lib/profileUtils';
 
 import {
   BellIcon,
@@ -14,6 +15,8 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
+  EyeIcon,
+  EyeOffIcon,
   HelpCircleIcon,
   HomeIcon,
   LogOutIcon,
@@ -34,6 +37,7 @@ export const BorrowerHome: React.FC = () => {
   const { profile, setProfile, token, logout } = useAuth();
   const { registration, setRegistration } = useRegistration();
   const [balance, setBalance] = useState<number | null>(null);
+  const [showProfileCode, setShowProfileCode] = useState(false);
   const navigate = useNavigate();
   
   // NEW: Track if registration is complete
@@ -91,7 +95,7 @@ export const BorrowerHome: React.FC = () => {
   const accountTypes = [
     { key: "individual", title: "Invest/Lender", image: "/investor-1.png" },
     { key: "borrower", title: "Issue/Borrower", image: "/debt-1.png" },
-    { key: "guarantee", title: "Guarantee", image: "/cashback-1.png" },
+    // { key: "guarantee", title: "Guarantee", image: "/cashback-1.png" }, // Hidden guarantee option
   ];
 
   // action cards (static)
@@ -114,9 +118,9 @@ export const BorrowerHome: React.FC = () => {
         case "borrower": 
           apiRoleValue = "borrower"; 
           break;
-        case "guarantee": 
-          apiRoleValue = "guarantor"; 
-          break;
+        // case "guarantee": 
+        //   apiRoleValue = "guarantor"; 
+        //   break;
         default:
           apiRoleValue = roleKey;
       }
@@ -186,7 +190,7 @@ export const BorrowerHome: React.FC = () => {
                   Please select how you would like to use the platform.
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {accountTypes.map((type) => (
                     <button
                       key={type.key}
@@ -215,7 +219,7 @@ export const BorrowerHome: React.FC = () => {
             ) : (
               /* RETURNING USER EXPERIENCE */
               <div className="w-full max-w-none">
-                {/* Profile / Wallet Section */}
+                {/* Profile / iFunds Section */}
                 <section className="flex flex-col md:flex-row items-start md:items-center mb-12 gap-6">
                   <Avatar className="w-[100px] md:w-[123px] h-[100px] md:h-[123px]">
                     <AvatarImage src="/ellipse-1.png" alt="User profile" />
@@ -238,9 +242,9 @@ export const BorrowerHome: React.FC = () => {
                         </p>
                       </div>
 
-                      {/* Wallet Balance & Actions */}
+                      {/* iFunds Balance & Actions */}
                       <div className="ml-auto text-right">
-                        <h2 className="text-xl opacity-70">Wallet Balance:</h2>
+                        <h2 className="text-xl opacity-70">iFunds Balance:</h2>
                         <p className="text-2xl font-semibold">
                           {balance !== null ? balance.toFixed(2) : "—"}
                         </p>
@@ -273,8 +277,21 @@ export const BorrowerHome: React.FC = () => {
                         <div className="opacity-70 font-poppins font-medium text-black text-base md:text-xl">
                           Profile Code:
                         </div>
-                        <div className="font-poppins font-medium text-black text-base md:text-xl">
-                          554Xd1
+                        <div className="flex items-center gap-2">
+                          <div className="font-poppins font-medium text-black text-base md:text-xl">
+                            {showProfileCode 
+                              ? (profile?.profileCode || generateProfileCode(profile?.id || ''))
+                              : '••••••'
+                            }
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowProfileCode(!showProfileCode)}
+                            className="p-1 h-auto"
+                          >
+                            {showProfileCode ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -291,8 +308,8 @@ export const BorrowerHome: React.FC = () => {
                       // Check if this is the current role
                       const isCurrentRole = 
                         (profile?.role === 'investor' && type.key === 'individual') ||
-                        (profile?.role === 'borrower' && type.key === 'borrower') ||
-                        (profile?.role === 'guarantor' && type.key === 'guarantee');
+                        (profile?.role === 'borrower' && type.key === 'borrower');
+                        // (profile?.role === 'guarantor' && type.key === 'guarantee'); // Hidden guarantee option
                       
                       return (
                         <button

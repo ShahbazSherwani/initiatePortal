@@ -2,10 +2,16 @@
 import React, { useState, useContext } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
-import { MenuIcon, XIcon, BellIcon, ChevronDownIcon } from "lucide-react";
+import { MenuIcon, XIcon, BellIcon, ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { AuthContext } from "../../contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 export interface NavbarProps {
   activePage: string;
@@ -18,6 +24,7 @@ export interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showProfileCode, setShowProfileCode] = useState(false);
   const { token, profile, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,11 +46,30 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
     
     return (
       <div className="flex items-center">
-        <span className="text-gray-600 mr-1">Account:</span>
-        <span className="font-medium">
-          {profile?.name} 
-          {profile?.role && `(${profile.role === 'investor' ? 'Investor' : 'Borrower'})`}
-        </span>
+        <div className="flex flex-col">
+          <div className="flex items-center">
+            <span className="text-gray-600 mr-1">Account:</span>
+            <span className="font-medium">
+              {profile?.name} 
+              {profile?.role && `(${profile.role === 'investor' ? 'Investor' : 'Borrower'})`}
+            </span>
+          </div>
+          {profile?.profileCode && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm text-gray-500">
+                Profile Code: {showProfileCode ? profile.profileCode : '••••••'}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowProfileCode(!showProfileCode)}
+                className="p-0 h-auto"
+              >
+                {showProfileCode ? <EyeOffIcon className="w-3 h-3" /> : <EyeIcon className="w-3 h-3" />}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -122,66 +148,70 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
           <img src="/initiate_logo.png" alt="Initiate PH Logo" className="w-[132px]" />
         </div>
 
-        {/* Nav links */}
-        <div className="flex flex-wrap items-center gap-6">
-          {navItems.map((item) => (
-            <Link key={item.name} to={item.to}>
-              <span
-                className={`
-                  font-['Poppins',Helvetica] text-base ${item.color}
-                  hover:bg-[#203863] hover:text-white
-                  px-3 py-1 rounded-md transition-shadow duration-200
-                  `}
-              >
-                {item.name}
-              </span>
-            </Link>
-          ))}
-        </div>
-
-        {/* Right side: either logged-in header or auth buttons */}
-        {token && profile ? (
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <BellIcon className="w-6 h-6 text-black" />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full" />
-            </div>
-
-            <Avatar className="w-10 h-10">
-              <AvatarImage src="/ellipse-1.png" alt="avatar" />
-              <AvatarFallback>U</AvatarFallback>
-            </Avatar>
-
-            <AccountDisplay />
-
-            {/* Admin Tools button - only visible to admins */}
-            {profile?.isAdmin && (
-              <Button 
-                onClick={() => navigate('/admin/projects')}
-                className="bg-[#ffc628] text-black ml-4"
-              >
-                Admin Panel
+        {/* Right side: Nav dropdown + Auth/Profile */}
+        <div className="flex items-center gap-4">
+          {/* Nav links - Desktop Dropdown Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2">
+                Menu <ChevronDownIcon className="w-4 h-4" />
               </Button>
-            )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {navItems.map((item) => (
+                <DropdownMenuItem key={item.name} asChild>
+                  <Link to={item.to} className={`font-['Poppins',Helvetica] ${item.color}`}>
+                    {item.name}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-            <Button
-              variant="outline"
-              className="text-red-600 border-red-600"
-              onClick={logout}
-            >
-              Log Out
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-4">
-            <Link to="/">
-              <Button className="bg-[#203863] text-white">Sign In</Button>
-            </Link>
-            <Link to="/register">
-              <Button className="bg-[#203863] text-white">Sign Up</Button>
-            </Link>
-          </div>
-        )}
+          {/* Auth/Profile section */}
+          {token && profile ? (
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <BellIcon className="w-6 h-6 text-black" />
+                <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full" />
+              </div>
+
+              <Avatar className="w-10 h-10">
+                <AvatarImage src="/ellipse-1.png" alt="avatar" />
+                <AvatarFallback>U</AvatarFallback>
+              </Avatar>
+
+              <AccountDisplay />
+
+              {/* Admin Tools button - only visible to admins */}
+              {profile?.isAdmin && (
+                <Button 
+                  onClick={() => navigate('/admin/projects')}
+                  className="bg-[#ffc628] text-black ml-4"
+                >
+                  Admin Panel
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                className="text-red-600 border-red-600"
+                onClick={logout}
+              >
+                Log Out
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <Link to="/">
+                <Button className="bg-[#203863] text-white">Sign In</Button>
+              </Link>
+              <Link to="/register">
+                <Button className="bg-[#203863] text-white">Sign Up</Button>
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
       
     </nav>

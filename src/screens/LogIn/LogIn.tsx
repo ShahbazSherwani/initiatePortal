@@ -17,6 +17,7 @@ import { useAuth } from '../../contexts/AuthContext'; // Ensure this is the corr
 import { upsertProfile, fetchProfile } from '../../lib/profile';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase"; // your client init
+import { generateProfileCode } from "../../lib/profileUtils";
 
 
 export const LogIn = (): JSX.Element => {
@@ -47,7 +48,8 @@ export const LogIn = (): JSX.Element => {
         role: prof.role || null,
         joined: prof.created_at,
         hasCompletedRegistration: prof.has_completed_registration || false,
-        isAdmin: prof.is_admin || false
+        isAdmin: prof.is_admin || false,
+        profileCode: generateProfileCode(cred.user.uid)
       });
   
       // 3) Navigate into the protected area
@@ -140,7 +142,7 @@ export const LogIn = (): JSX.Element => {
           <p className="text-center text-sm mt-6">
             Don’t have an account?{' '}
             <Link to="/register" className="text-[#ffc628] font-semibold">
-              Sign Up
+              Join Now!
             </Link>
           </p>
         </div>

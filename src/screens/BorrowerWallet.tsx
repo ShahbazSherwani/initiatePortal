@@ -37,8 +37,8 @@ export const BorrowerWallet = (): JSX.Element => {
   ];
 
   const cryptoFields = [
-    { id: "selectWallet",  label: "Select Wallet",  type: "select", placeholder: "Please select" },
-    { id: "walletAddress", label: "Wallet Address", type: "input",  placeholder: "Enter here" },
+    { id: "selectWallet",  label: "Select iFunds",  type: "select", placeholder: "Please select" },
+    { id: "walletAddress", label: "iFunds Address", type: "input",  placeholder: "Enter here" },
   ];
 
   const paymentOptions = [
@@ -125,9 +125,11 @@ export const BorrowerWallet = (): JSX.Element => {
           navigate("/investor/discover");
         } else if (role === 'borrower') {
           navigate("/borrow");
-        } else if (role === 'guarantor') {
-          navigate("/guarantee");
-        } else {
+        } 
+        // else if (role === 'guarantor') {
+        //   navigate("/guarantee");
+        // } 
+        else {
           navigate("/borrow");
         }
       }, 2000);
@@ -214,7 +216,7 @@ export const BorrowerWallet = (): JSX.Element => {
 
           {/* ── Crypto-Wallet Section ── */}
           <section className="mb-12">
-            <h2 className="text-xl font-semibold mb-6">Crypto-Wallet Address</h2>
+            <h2 className="text-xl font-semibold mb-6">Crypto-iFunds Address</h2>
             {cryptoFields.map((field) => (
               <div key={field.id} className="mb-6">
                 <label htmlFor={field.id} className="block text-base font-medium mb-2">

@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { auth } from "../lib/firebase";
 import { User } from 'firebase/auth';
 import { API_BASE_URL } from '../config/environment';
+import { generateProfileCode } from '../lib/profileUtils';
 
 // Define the interface for your context
 interface AuthContextType {
@@ -15,6 +16,7 @@ interface AuthContextType {
     joined: string;
     hasCompletedRegistration?: boolean; // Add this field
     isAdmin?: boolean; // Add this property
+    profileCode?: string; // Add profile code
   } | null;
   setProfile: React.Dispatch<React.SetStateAction<any>>;
   loading: boolean;
@@ -90,7 +92,8 @@ export const AuthProvider = ({ children }) => {
                 role: profileData.role || null,
                 joined: profileData.created_at || new Date().toISOString(),
                 hasCompletedRegistration: profileData.has_completed_registration || false,
-                isAdmin: profileData.is_admin || false // Add this line
+                isAdmin: profileData.is_admin || false, // Add this line
+                profileCode: generateProfileCode(user.uid) // Generate profile code for existing users
               });
             }
           } catch (error) {

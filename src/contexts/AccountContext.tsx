@@ -1,7 +1,8 @@
 // src/contexts/AccountContext.tsx
 import React, { createContext, useState, useContext, ReactNode } from "react";
 
-type AccountType = "invest" | "issue" | "guarantee" | null;
+// Define the account types available in the application
+type AccountType = "invest" | "issue" | null; // Hidden "guarantee" option
 
 interface AccountContextValue {
   accountType: AccountType;

@@ -71,7 +71,7 @@ export const BorrowerBankDet: React.FC = () => {
             >
               <ChevronLeftIcon className="w-6 h-6 text-black" />
             </button>
-            <h1 className="ml-4 text-2xl md:text-3xl font-bold">Wallet</h1>
+            <h1 className="ml-4 text-2xl md:text-3xl font-bold">iFunds</h1>
             <Button onClick={() => setShowModal(true)} className="ml-auto bg-[#ffc628] text-black px-4 py-2 rounded-lg">
               Add Another Bank Account
             </Button>
@@ -159,15 +159,15 @@ setViewModalOpen(false);
             </div>
           </section>
 
-          {/* Connect Crypto-Wallet */}
+          {/* Connect Crypto-iFunds */}
           <section className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-xl font-semibold">Connect Crypto-Wallet</h2>
-                <p className="text-sm text-gray-600">Looks like you haven't connected any wallet.</p>
+                <h2 className="text-xl font-semibold">Connect Crypto-iFunds</h2>
+                <p className="text-sm text-gray-600">Looks like you haven't connected any iFunds.</p>
               </div>
               <Button className="bg-[#ffc628] text-black py-2 px-4 rounded-lg">
-                Connect Wallet
+                Connect iFunds
               </Button>
             </div>
           </section>

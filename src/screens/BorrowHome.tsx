@@ -68,7 +68,7 @@ export const BorrowHome = () => {
                 Welcome to Initiate Portal! Please select how you'd like to use the platform.
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
                   onClick={() => handleRoleSelection('investor')}
                   className="p-4 border-2 border-[#ffc628] rounded-lg hover:bg-[#fff8e6] transition-colors"
@@ -91,7 +91,8 @@ export const BorrowHome = () => {
                   </p>
                 </button>
                 
-                <button
+                {/* Hidden Guarantee option */}
+                {/* <button
                   onClick={() => handleRoleSelection('guarantor')}
                   className="p-4 border-2 border-[#ffc628] rounded-lg hover:bg-[#fff8e6] transition-colors"
                 >
@@ -100,7 +101,7 @@ export const BorrowHome = () => {
                   <p className="text-sm text-gray-600 mt-2">
                     Provide guarantees for borrowers.
                   </p>
-                </button>
+                </button> */}
               </div>
             </div>
           ) : (

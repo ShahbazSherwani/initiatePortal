@@ -25,12 +25,12 @@ interface NavItem {
 const navItems: NavItem[] = [
   { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrow', key: 'home' },
   { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/borrowCalendar', key: 'calendar' },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "Wallet", to: '/borrowBank', key: 'wallet' },
+  { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' },
   {
     icon: <img src="/group-23.png" alt="Issuer" className="w-5 h-5" />,
     label: "My Issuer/Borrower",
     to: '/borwMyProj', // <-- Add this line to enable routing
-    subItems: ["My Investments/Lending", "My Guarantees"],
+    subItems: ["My Investments/Lending"], // Hidden "My Guarantees"
     key: 'issuer-borrower',
   },
   {
@@ -153,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage }) =>  {
                     onClick={() => {
                       // Add navigation for sub-items if needed
                       if (subItem === "My Investments/Lending") navigate("/borwMyProj");
-                      if (subItem === "My Guarantees") navigate("/borwMyProjects");
+                      // if (subItem === "My Guarantees") navigate("/borwMyProjects"); // Hidden guarantee navigation
                       if (isMobile) setMobileOpen(false);
                     }}
                   >

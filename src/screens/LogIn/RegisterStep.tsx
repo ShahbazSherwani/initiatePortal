@@ -9,7 +9,6 @@ import {
   MailIcon,
   UserIcon,
 } from "lucide-react";
-import { Navbar } from "../../components/Navigation/navbar";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { Checkbox } from "../../components/ui/checkbox";
@@ -18,6 +17,7 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { upsertProfile, fetchProfile } from "../../lib/profile";
+import { generateProfileCode } from "../../lib/profileUtils";
 
 export const RegisterStep = (): JSX.Element => {
   const navigate = useNavigate();
@@ -62,7 +62,8 @@ export const RegisterStep = (): JSX.Element => {
         role: prof.role || null,
         joined: prof.created_at,
         hasCompletedRegistration: prof.has_completed_registration || false,
-        isAdmin: prof.is_admin || false
+        isAdmin: prof.is_admin || false,
+        profileCode: generateProfileCode(cred.user.uid)
       });
       navigate("/borrow");
     } catch (err: any) {
@@ -77,7 +78,6 @@ export const RegisterStep = (): JSX.Element => {
 
   return (
     <div className="bg-white min-h-screen w-full relative overflow-hidden">
-      <Navbar activePage="register" showAuthButtons />
     <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 px-4 md:px-20 py-0">
 
       <form
@@ -229,7 +229,7 @@ export const RegisterStep = (): JSX.Element => {
           </div>
         </div>
 
-        <p className="text-center text-sm mt-6">
+        <p className="text-center md:text-right text-sm mt-6">
           Already a member?{" "}
           <Link to="/" className="text-[#ffc628] font-semibold">
             Sign In
