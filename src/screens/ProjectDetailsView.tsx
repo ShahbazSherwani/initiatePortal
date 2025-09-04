@@ -15,11 +15,19 @@ import { API_BASE_URL } from '../config/environment';
 
 const ProjectDetailsView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const { projects, updateProject } = useProjects();
+  const { projects, updateProject, loadProjects } = useProjects();
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Details');
   const [selectedMilestoneTab, setSelectedMilestoneTab] = useState('ROI (Expense)');
+
+  // Refresh projects when projectId changes to get latest funding data
+  React.useEffect(() => {
+    if (projectId) {
+      console.log("🔄 Refreshing project data for ID:", projectId);
+      loadProjects();
+    }
+  }, [projectId, loadProjects]);
 
   console.log("ProjectDetailsView - projectId from URL:", projectId);
   console.log("ProjectDetailsView - projects in context:", projects);
@@ -48,24 +56,47 @@ const ProjectDetailsView: React.FC = () => {
   // Interest requests from investors (new feature)
   const interestRequests = (project as any).interestRequests || [];
 
-  // Calculate funding percentage from project data
+  // Calculate total funding requirement (for slider and display) - MOVED FIRST
+  const getTotalFundingRequirement = () => {
+    if (!project || !project.details) return 100000;
+    
+    // Parse numeric values from project details
+    const amount = parseFloat(String(
+      project.details.loanAmount || 
+      project.details.investmentAmount || 
+      "100000"
+    ));
+    
+    return amount;
+  };
+
+  // Calculate funding percentage from project data - MOVED SECOND
   const calculateFundingPercentage = () => {
     if (!project) return 0;
     
-    // Try to get funding details from various possible sources
+    // First check if we have actual funding data from approved investments
+    const projectData = project as any; // Type assertion for funding data
+    if (projectData.funding && projectData.funding.totalFunded) {
+      const fundingRequirement = getTotalFundingRequirement();
+      const percentage = Math.round((projectData.funding.totalFunded / fundingRequirement) * 100);
+      console.log(`📊 Funding calculation: $${projectData.funding.totalFunded} / $${fundingRequirement} = ${percentage}%`);
+      return Math.min(percentage, 100); // Cap at 100%
+    }
+    
+    // Try to get funding details from various possible sources (legacy)
     if (project.fundingProgress) {
       return project.fundingProgress;
     } else if (project.details) {
-      const total = parseFloat(project.details.loanAmount || project.details.investmentAmount || "0");
-      const funded = parseFloat(project.details.fundedAmount || "0");
+      const total = parseFloat(String(project.details.loanAmount || project.details.investmentAmount || "0"));
+      const funded = parseFloat(String(project.details.fundedAmount || "0"));
       
       if (total > 0 && funded > 0) {
         return Math.round((funded / total) * 100);
       }
     }
     
-    // Default to 50% if no data available (for demonstration)
-    return 50;
+    // Default to 0% if no funding data available
+    return 0;
   };
 
   // Calculate estimated return from project data
@@ -107,20 +138,6 @@ const ProjectDetailsView: React.FC = () => {
   // Get the calculated values
   const fundingPercentage = calculateFundingPercentage();
   const estimatedReturn = calculateEstimatedReturn();
-
-  // Calculate total funding requirement (for slider and display)
-  const getTotalFundingRequirement = () => {
-    if (!project || !project.details) return 100000;
-    
-    // Parse numeric values from project details
-    const amount = parseFloat(
-      project.details.loanAmount || 
-      project.details.investmentAmount || 
-      "100000"
-    );
-    
-    return amount;
-  };
 
   const fundingRequirement = getTotalFundingRequirement();
 
@@ -392,9 +409,22 @@ const ProjectDetailsView: React.FC = () => {
                       style={{ width: `${fundingPercentage}%` }}
                     ></div>
                   </div>
-                  <div className="mt-2">
-                    <p className="text-sm font-medium">PHP {fundingRequirement.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500">Project Requirement</p>
+                  <div className="mt-2 flex justify-between">
+                    <div>
+                      <p className="text-sm font-medium">PHP {fundingRequirement.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">Project Requirement</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-600">
+                        PHP {(() => {
+                          const projectData = project as any;
+                          return projectData.funding?.totalFunded 
+                            ? projectData.funding.totalFunded.toLocaleString()
+                            : '0';
+                        })()}
+                      </p>
+                      <p className="text-xs text-gray-500">Currently Funded</p>
+                    </div>
                   </div>
                 </div>
                 
@@ -415,109 +445,16 @@ const ProjectDetailsView: React.FC = () => {
                 </div>
               </div>
               
-              {/* Right side - Investor Requests */}
+              {/* Right side - Admin Only Investment Management */}
               <div className="md:w-80">
-                <h2 className="text-xl font-bold mb-4">Investors Requests</h2>
-                <p className="text-sm mb-4">You have {investorRequests.length} offers:</p>
-                
-                {/* Investor list */}
-                {investorRequests.length > 0 ? (
-                  <div className="space-y-4">
-                    {investorRequests.map((investor, index) => (
-                      <div key={index} className="mb-4">
-                        <div className="flex items-center mb-3">
-                          <img 
-                            src={investor.avatar || `https://ui-avatars.com/api/?name=${investor.name}&background=random`}
-                            alt={investor.name} 
-                            className="w-10 h-10 rounded-full mr-3"
-                          />
-                          <div>
-                            <p className="font-medium">{investor.name}</p>
-                            <p className="text-xs text-gray-500">Amount: {investor.amount.toLocaleString()} PHP</p>
-                          </div>
-                        </div>
-                        
-                        {investor.status === "pending" && (
-                          <div className="flex gap-2">
-                            {/* Only show accept/reject buttons if current user is the project owner */}
-                            {isProjectOwner ? (
-                              <>
-                                <Button 
-                                  className="flex-1 bg-[#ffc628] hover:bg-[#e6b324] text-black"
-                                  onClick={() => {
-                                    // Update the investor status
-                                    const updatedRequests = investorRequests.map(req => 
-                                      req.investorId === investor.investorId 
-                                        ? {...req, status: "accepted"} 
-                                        : req
-                                    );
-                                    
-                                    // Update funding progress
-                                    const totalRequired = parseFloat(project.details.loanAmount || 
-                                                                       project.details.investmentAmount || "0");
-                                    const totalFunded = updatedRequests
-                                      .filter(req => req.status === "accepted")
-                                      .reduce((sum, req) => sum + req.amount, 0);
-                                    
-                                    const progress = Math.round((totalFunded / totalRequired) * 100);
-                                    
-                                    // Update project
-                                    updateProject(project.id, {
-                                      investorRequests: updatedRequests,
-                                      fundingProgress: progress,
-                                      details: {
-                                        ...project.details,
-                                        fundedAmount: totalFunded.toString()
-                                      }
-                                    });
-                                    
-                                    toast.success(`Investment from ${investor.name} accepted!`);
-                                  }}
-                                >
-                                  Accept
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  className="flex-1 bg-gray-100 hover:bg-gray-200"
-                                  onClick={() => {
-                                    // Update just this investor's status
-                                    const updatedRequests = investorRequests.map(req => 
-                                      req.investorId === investor.investorId 
-                                        ? {...req, status: "rejected"} 
-                                        : req
-                                    );
-                                    
-                                    updateProject(project.id, {
-                                      investorRequests: updatedRequests
-                                    });
-                                    
-                                    toast.success(`Investment request rejected`);
-                                  }}
-                                >
-                                  Reject
-                                </Button>
-                              </>
-                            ) : (
-                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Pending Approval
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        
-                        {investor.status === "accepted" && (
-                          <Badge className="bg-green-100 text-green-800">Accepted</Badge>
-                        )}
-                        
-                        {investor.status === "rejected" && (
-                          <Badge className="bg-red-100 text-red-800">Rejected</Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500">No investment requests yet.</p>
-                )}
+                {/* Investment requests are now handled by admin only */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-semibold text-blue-800 mb-2">Investment Requests</h3>
+                  <p className="text-sm text-blue-700">
+                    Investment requests are now processed by admin for approval. 
+                    You will be notified when investments are approved.
+                  </p>
+                </div>
 
                 {/* Interest Requests Section */}
                 <div className="mt-8">

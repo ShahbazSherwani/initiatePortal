@@ -105,27 +105,15 @@ export const BorrowerCalender: React.FC = () => {
       }
     });
     
-    // Add investment request events
+    // Investment requests are now handled by admin only
+    // Remove investment request events from borrower calendar
     projects.forEach(project => {
       if (project.investorRequests && project.investorRequests.length > 0) {
-        project.investorRequests.forEach(request => {
-          // For borrowers - show pending investment requests
-          if (profile.role === 'borrower' && request.status === 'pending') {
-            allEvents.push({
-              id: `investment-${project.id}-${request.investorId}`,
-              title: `New Investment Request for ${project.details.product}`,
-              date: request.date,
-              image: project.details.image || "/investment-request.png",
-              type: 'investment-request',
-              projectId: project.id,
-              amount: request.amount
-            });
-          }
-          
-          // For investors - show their own investment requests
+        project.investorRequests.forEach((request, index) => {
+          // For investors - show their own investment requests only
           if (profile.role === 'investor' && request.investorId === profile.id) {
             allEvents.push({
-              id: `investment-${project.id}-${request.investorId}`,
+              id: `investment-${project.id}-${request.investorId}-${index}-${request.date}`,
               title: `Your Investment in ${project.details.product}`,
               date: request.date,
               image: project.details.image || "/investment.png",

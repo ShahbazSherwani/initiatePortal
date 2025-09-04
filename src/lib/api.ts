@@ -147,32 +147,95 @@ export async function getApprovedProjects() {
   }
 }
 
+// Cache for calendar projects to prevent excessive API calls
+let calendarProjectsCache: any[] = [];
+let calendarProjectsCacheTime = 0;
+let isLoadingCalendarProjects = false; // Prevent concurrent requests
+const CACHE_DURATION = 30000; // 30 seconds
+
+// Clear calendar projects cache (useful after creating/updating projects)
+export function clearCalendarProjectsCache() {
+  calendarProjectsCache = [];
+  calendarProjectsCacheTime = 0;
+  isLoadingCalendarProjects = false;
+  console.log('🗑️ Calendar projects cache cleared');
+}
+
 // Get projects for calendar view (approved/pending)
 export async function getCalendarProjects() {
   try {
+    const now = Date.now();
+    
+    // Return cached data if still fresh
+    if (calendarProjectsCache.length > 0 && now - calendarProjectsCacheTime < CACHE_DURATION) {
+      console.log('📦 Returning cached calendar projects');
+      return calendarProjectsCache;
+    }
+    
+    // Prevent concurrent requests
+    if (isLoadingCalendarProjects) {
+      console.log('⏳ Calendar projects already loading, waiting...');
+      // Wait for ongoing request to finish
+      while (isLoadingCalendarProjects) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      // Return cache after waiting
+      if (calendarProjectsCache.length > 0) {
+        console.log('📦 Returning cached data after waiting');
+        return calendarProjectsCache;
+      }
+    }
+    
+    isLoadingCalendarProjects = true;
+    console.log('🌐 Fetching fresh calendar projects');
+    
     const data = await authFetch(`${API_URL}/calendar/projects`);
-    return data.map((item) => ({
+    const mappedData = data.map((item: any) => ({
       id: item.id.toString(),
       creatorId: item.firebase_uid,
       creatorName: item.full_name,
       ...item.project_data,
       createdAt: item.created_at
     }));
+    
+    // Update cache
+    calendarProjectsCache = mappedData;
+    calendarProjectsCacheTime = now;
+    isLoadingCalendarProjects = false;
+    
+    return mappedData;
   } catch (error) {
+    isLoadingCalendarProjects = false;
     console.error("Failed to fetch calendar projects:", error);
+    // Return cached data if available, even if stale
+    if (calendarProjectsCache.length > 0) {
+      console.log('⚠️ Returning stale cached data due to error');
+      return calendarProjectsCache;
+    }
     return [];
   }
 }
 
 // Invest in a project
 export async function investInProject(id, amount) {
-  return await authFetch(`${API_URL}/projects/${id}/invest`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ amount })
-  });
+  console.log("🚀 investInProject called with:", { id, amount });
+  console.log("🌐 API_URL configured as:", API_URL);
+  console.log("📞 Making request to:", `${API_URL}/projects/${id}/invest`);
+  
+  try {
+    const result = await authFetch(`${API_URL}/projects/${id}/invest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ amount })
+    });
+    console.log("✅ investInProject result:", result);
+    return result;
+  } catch (error) {
+    console.error("❌ investInProject error:", error);
+    throw error;
+  }
 }
 
 // Get project by ID

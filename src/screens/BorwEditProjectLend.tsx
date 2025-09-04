@@ -134,40 +134,13 @@ const BorwEditProjectLend: React.FC = () => {
         console.log("Project ID:", projectId);
         console.log("User ID:", profile.id);
         
-        // Get the Firebase token
-        const token = localStorage.getItem('fb_token');
-        if (!token) {
-          console.log("❌ No Firebase token found");
-          setIsAuthorized(false);
-          return;
-        }
+        // Use authFetch which automatically handles token refresh
+        const { authFetch } = await import('../lib/api');
         
-        console.log("✅ Token found:", token.substring(0, 20) + "...");
-        
-        // Check project ownership
-        const response = await fetch(`${API_BASE_URL}/projects/${projectId}?edit=true`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-            // Removed x-edit-mode header to avoid CORS issues - using query param instead
-          }
-        });
-
-        console.log("Response status:", response.status);
-
-        if (response.status === 403) {
-          console.log("❌ User not authorized to edit this project");
-          setIsAuthorized(false);
-          return;
-        }
-
-        if (response.status === 401) {
-          console.log("❌ Token is invalid or expired");
-          setIsAuthorized(false);
-          return;
-        }
-
-        if (response.ok) {
-          const projectData = await response.json();
+        try {
+          // Check project ownership using authFetch
+          const projectData = await authFetch(`${API_BASE_URL}/projects/${projectId}?edit=true`);
+          
           console.log("✅ Project loaded successfully, user is authorized");
           console.log("Project owner:", projectData.firebase_uid, "Current user:", profile.id);
           console.log("Full project data:", projectData);
@@ -183,10 +156,17 @@ const BorwEditProjectLend: React.FC = () => {
             // Still authorize since the user owns it, just couldn't load into form
             setIsAuthorized(true);
           }
-        } else {
-          console.log("❌ Project not found or other error");
-          const errorText = await response.text();
-          console.log("Error details:", errorText);
+        } catch (fetchError: any) {
+          console.error("❌ Authorization check failed:", fetchError);
+          
+          if (fetchError.message?.includes('403')) {
+            console.log("❌ User not authorized to edit this project");
+          } else if (fetchError.message?.includes('401')) {
+            console.log("❌ Authentication failed");
+          } else {
+            console.log("❌ Project not found or other error");
+          }
+          
           setIsAuthorized(false);
         }
       } catch (error) {

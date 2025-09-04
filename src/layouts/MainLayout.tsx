@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from '../components/Navigation/navbar';
 import { useAuth } from '../contexts/AuthContext';
+import { DebugAccountState } from '../components/DebugAccountState';
 
 export const MainLayout = () => {
   const { profile } = useAuth();
@@ -18,6 +19,9 @@ export const MainLayout = () => {
       <div className="flex-1 w-full overflow-hidden">
         <Outlet />
       </div>
+      
+      {/* Debug component for development */}
+      <DebugAccountState />
     </div>
   );
 };

@@ -12,6 +12,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   TrendingUpIcon,
+  UserIcon,
 } from "lucide-react";
 import { AuthContext } from '../../contexts/AuthContext';
 import { useAccount } from '../../contexts/AccountContext';
@@ -73,7 +74,7 @@ interface SidebarProps {
   activePage?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = () => {
+export const Sidebar: React.FC<SidebarProps> = () =>  {
   const authContext = useContext(AuthContext);
   const { currentAccountType, canCreateNewProject } = useAccount();
   const navigate = useNavigate();
@@ -113,12 +114,6 @@ export const Sidebar: React.FC<SidebarProps> = () => {
           label: "Top-up Requests",
           to: '/admin/topup-requests',
           key: 'admin-topup'
-        },
-        {
-          icon: <TrendingUpIcon className="w-5 h-5" />,
-          label: "Investment Requests",
-          to: '/admin/investment-requests',
-          key: 'admin-investments'
         }
       );
     }
@@ -143,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   };
 
   const currentNavItems = getNavItems();
-  
+
   // Highlight based on current route using our improved logic
   const selectedIdx = currentNavItems.findIndex(isActiveNavItem);
 

@@ -12,6 +12,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   TrendingUpIcon,
+  UserIcon,
 } from "lucide-react";
 import { AuthContext } from '../../contexts/AuthContext';
 import { useAccount } from '../../contexts/AccountContext';
@@ -113,12 +114,6 @@ export const Sidebar: React.FC<SidebarProps> = () => {
           label: "Top-up Requests",
           to: '/admin/topup-requests',
           key: 'admin-topup'
-        },
-        {
-          icon: <TrendingUpIcon className="w-5 h-5" />,
-          label: "Investment Requests",
-          to: '/admin/investment-requests',
-          key: 'admin-investments'
         }
       );
     }

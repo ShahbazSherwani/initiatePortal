@@ -18,12 +18,14 @@ import {
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { useAuth } from '../contexts/AuthContext';
+import { useAccount } from '../contexts/AccountContext';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
 
 export const BorrowerWallet = (): JSX.Element => {
   const { profile, setProfile } = useAuth();
   const { registration, setRegistration } = useRegistration();
+  const { createAccount, refreshAccounts } = useAccount();
   const navigate = useNavigate();
   const [showThankYou, setShowThankYou] = useState(false);
 
@@ -78,43 +80,73 @@ export const BorrowerWallet = (): JSX.Element => {
   //   ...
   // />
 
-  const handleNext = () => {
+  const handleNext = async () => {
     // Validate bank details
     if (!bankDetails.accountName || !bankDetails.accountNumber) {
       alert("Please fill in the required bank details");
       return;
     }
     
-    // Save bank account data
-    setRegistration(reg => ({
-      ...reg,
-      bankAccounts: [
-        ...(reg.bankAccounts || []),
-        {
-          accountName: bankDetails.accountName,
-          bankAccount: bankDetails.bankAccount,
-          accountNumber: bankDetails.accountNumber,
-          iban: bankDetails.iban,
-          swiftCode: bankDetails.swiftCode,
-          preferred: true,
+    try {
+      console.log('🏗️ Starting borrower account creation process...');
+      
+      // Save bank account data
+      setRegistration(reg => ({
+        ...reg,
+        bankAccounts: [
+          ...(reg.bankAccounts || []),
+          {
+            accountName: bankDetails.accountName,
+            bankAccount: bankDetails.bankAccount,
+            accountNumber: bankDetails.accountNumber,
+            iban: bankDetails.iban,
+            swiftCode: bankDetails.swiftCode,
+            preferred: true,
+          }
+        ]
+      }));
+      
+      // Create the borrower account with registration data
+      console.log('📝 Creating borrower account with registration data:', registration);
+      await createAccount('borrower', {
+        fullName: profile?.name || 'User',
+        occupation: registration.details?.occupation || 'Other',
+        businessType: registration.accountType || 'individual',
+        location: registration.details?.cityName || registration.details?.location,
+        phoneNumber: registration.details?.phoneNumber,
+        dateOfBirth: registration.details?.dateOfBirth,
+        experience: registration.details?.experience,
+        // Bank details
+        bankAccount: bankDetails.bankAccount,
+        accountName: bankDetails.accountName,
+        accountNumber: bankDetails.accountNumber,
+        iban: bankDetails.iban,
+        swiftCode: bankDetails.swiftCode
+      });
+      
+      console.log('✅ Borrower account created successfully');
+      
+      // Mark registration as complete in profile
+      setProfile((prev: any) => ({
+        ...prev,
+        hasCompletedRegistration: true
+      }));
+      
+      // Update the database that registration is complete
+      await authFetch(`${API_BASE_URL}/profile/complete-registration`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         }
-      ]
-    }));
-    
-    // Mark registration as complete in profile
-    setProfile(prev => ({
-      ...prev,
-      hasCompletedRegistration: true
-    }));
-    
-    // Update the database that registration is complete
-    authFetch(`${API_BASE_URL}/profile/complete-registration`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-    .then(() => {
+      });
+      
+      console.log('✅ Registration marked as complete');
+      
+      // Refresh accounts to get the new borrower account
+      await refreshAccounts();
+      
+      console.log('✅ Accounts refreshed');
+      
       // Show thank you message
       setShowThankYou(true);
       
@@ -133,11 +165,10 @@ export const BorrowerWallet = (): JSX.Element => {
           navigate("/borrow");
         }
       }, 2000);
-    })
-    .catch(error => {
-      console.error("Error completing registration:", error);
-      alert("Failed to complete registration. Please try again.");
-    });
+    } catch (error) {
+      console.error("❌ Error during borrower registration:", error);
+      alert("There was an error creating your account. Please try again.");
+    }
   };
 
   return (

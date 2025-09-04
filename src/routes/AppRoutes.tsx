@@ -7,6 +7,7 @@ import { BorrowerHome } from "../screens/BorrowerHome";
 import { BorrowerReg } from "../screens/BorrowerReg";
 import { BorrowerOccupation } from "../screens/BorrowOcu";
 import { AuthContext } from "../contexts/AuthContext";
+import { useAccount } from "../contexts/AccountContext";
 import { BorrowerWallet } from "../screens/BorrowerWallet";
 import { BorrowerCalender } from "../screens/BorrowCalendar";
 import { BorrowerEvent } from "../screens/BorrowEvents";
@@ -25,9 +26,11 @@ import { ProjectsProvider } from "../contexts/ProjectsContext";
 import { ProjectFormProvider } from "../contexts/ProjectFormContext";
 import BorwEditProjectLend from "../screens/BorwEditProjectLend";
 import ProjectDetailsView from "../screens/ProjectDetailsView";
+import { InvestorReg } from "../screens/InvestorReg";
 import { InvestorDiscovery } from "../screens/InvestorDiscovery";
 import { InvestorProjectView } from "../screens/InvestorProjectView";
 import { InvestorCalendar } from "../screens/InvestorCalendar";
+import { InvestorInvestments } from "../screens/InvestorInvestments";
 import { useAuth } from '../contexts/AuthContext';
 import { BorrowerPayoutSchedule } from "../screens/BorrowerPayoutSchedule";
 import { AdminProjectsList } from "../screens/AdminProjectsList";
@@ -35,6 +38,7 @@ import { AdminProjectApproval } from "../screens/AdminProjectApproval";
 import { UnifiedCalendarView } from "../screens/UnifiedCalendarView";
 import { AdminProjectView } from "../screens/AdminProjectView";
 import { AdminTopUpRequests } from "../screens/AdminTopUpRequests";
+import { AdminInvestmentRequests } from "../screens/AdminInvestmentRequests";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -47,40 +51,78 @@ const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
   return children;
 };
 
+// A wrapper for account-specific routes
+const AccountProtectedRoute: React.FC<{ 
+  children: JSX.Element;
+  requiredAccountType: 'borrower' | 'investor';
+  redirectTo?: string;
+}> = ({ children, requiredAccountType, redirectTo }) => {
+  const { hasAccount, currentAccountType } = useAccount();
+  
+  // If user doesn't have the required account type, redirect to setup or different route
+  if (!hasAccount(requiredAccountType)) {
+    if (requiredAccountType === 'borrower') {
+      return <Navigate to="/borrowreg" replace />;
+    } else {
+      return <Navigate to="/investor/register" replace />;
+    }
+  }
+
+  // If user has the account but is currently using a different account type, allow access
+  // This enables users to access routes even when switched to other account
+  return children;
+};
+
+// A wrapper for project creation routes that checks if user can create new projects
+const ProjectCreationGuard: React.FC<{ children: JSX.Element }> = ({ children }) => {
+  const { canCreateNewProject, currentAccountType } = useAccount();
+  
+  // Only apply this guard to borrower account
+  if (currentAccountType === 'borrower' && !canCreateNewProject) {
+    return <Navigate to="/borwMyProj" replace />;
+  }
+  
+  return children;
+};
+
 export const AppRoutes: React.FC = () => {
   const { user, loading, profile } = useAuth();
+  const { currentAccountType, borrowerProfile, investorProfile, hasAccount } = useAccount();
   const navigate = useNavigate();
 
-  // Redirect based on auth state and profile completion
+  // Redirect based on auth state and account type
   useEffect(() => {
     if (!loading && user) {
       const currentPath = window.location.pathname;
       
-      // Wait for profile to be loaded before making routing decisions
+      // Wait for profile and account context to be loaded
       if (!profile) {
         return; // Profile is still loading, don't redirect yet
       }
       
-      // If user has completed registration and has a role
-      if (profile.hasCompletedRegistration && profile.role) {
+      // If user has completed registration and has accounts
+      if (profile.hasCompletedRegistration) {
         // Don't redirect if already on a valid page or registration/auth pages
         if (currentPath !== "/" && currentPath !== "/register") {
-          return; // Stay on current page - allow access to BorrowerHome and other pages
+          return; // Stay on current page
         }
         
-        // Only redirect from home page to appropriate dashboard
+        // Only redirect from home page to appropriate dashboard based on current account
         if (currentPath === "/") {
-          if (profile.role === 'investor') {
+          if (currentAccountType === 'investor' && hasAccount('investor')) {
             navigate("/investor/discover", { replace: true });
-          } else if (profile.role === 'borrower') {
+          } else if (currentAccountType === 'borrower' && hasAccount('borrower')) {
             navigate("/borrow", { replace: true });
           } else if (profile.role === 'admin') {
             navigate("/admin/projects", { replace: true });
+          } else {
+            // No accounts exist, redirect to account setup
+            navigate("/borrow", { replace: true });
           }
         }
       }
-      // If user is missing role or hasn't completed registration, but we're not in registration flow
-      else if (!profile.role && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrowocu" && currentPath !== "/register") {
+      // If user needs to set up accounts
+      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrowocu" && currentPath !== "/register") {
         navigate("/borrow", { replace: true });
       }
     } else if (!loading && !user) {
@@ -89,7 +131,7 @@ export const AppRoutes: React.FC = () => {
         navigate("/", { replace: true });
       }
     }
-  }, [user, loading, navigate, profile]);
+  }, [user, loading, navigate, profile, currentAccountType, borrowerProfile, investorProfile, hasAccount]);
 
   if (loading) {
     return <div>Loading...</div>;
@@ -189,7 +231,9 @@ export const AppRoutes: React.FC = () => {
                 path="borwNewProj" 
                 element={
                   <PrivateRoute>
-                    <BorrowerCreateNew />
+                    <ProjectCreationGuard>
+                      <BorrowerCreateNew />
+                    </ProjectCreationGuard>
                   </PrivateRoute>
                 } 
               />
@@ -197,7 +241,9 @@ export const AppRoutes: React.FC = () => {
                 path="borwNewProjEq" 
                 element={
                   <PrivateRoute>
-                    <BorrowerCreateNewEq />
+                    <ProjectCreationGuard>
+                      <BorrowerCreateNewEq />
+                    </ProjectCreationGuard>
                   </PrivateRoute>
                 } 
               />
@@ -296,7 +342,15 @@ export const AppRoutes: React.FC = () => {
                 }
               />
               
-              {/* Investor routes */}
+              {/* Investor registration and routes */}
+              <Route 
+                path="/investor/register" 
+                element={
+                  <PrivateRoute>
+                    <InvestorReg />
+                  </PrivateRoute>
+                } 
+              />
               <Route 
                 path="/investor/discover" 
                 element={
@@ -318,6 +372,14 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <PrivateRoute>
                     <InvestorCalendar />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor/investments" 
+                element={
+                  <PrivateRoute>
+                    <InvestorInvestments />
                   </PrivateRoute>
                 } 
               />
@@ -352,6 +414,14 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <PrivateRoute>
                     <AdminTopUpRequests />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/admin/investment-requests" 
+                element={
+                  <PrivateRoute>
+                    <AdminInvestmentRequests />
                   </PrivateRoute>
                 } 
               />

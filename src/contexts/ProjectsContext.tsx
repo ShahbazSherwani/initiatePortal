@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
-import { getMyProjects, createProject as apiCreateProject, updateProject as apiUpdateProject, getAdminProjects as apiGetAdminProjects, getCalendarProjects } from '../lib/api';
+import { getMyProjects, createProject as apiCreateProject, updateProject as apiUpdateProject, getAdminProjects as apiGetAdminProjects, getCalendarProjects, clearCalendarProjectsCache } from '../lib/api';
 import { AuthContext } from './AuthContext';
 import type { Milestone } from "../types/Milestone";
 
@@ -77,14 +77,30 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const { token, user, profile } = useContext(AuthContext)!;
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
+  const [lastLoadedRole, setLastLoadedRole] = useState<string | null>(null);
   
-  // Load projects whenever user or token changes
+  // Load projects whenever user or token changes, with debouncing
   useEffect(() => {
-    if (user && token) {
-      loadProjects();
+    if (user && token && profile?.role) {
+      const now = Date.now();
+      const timeSinceLastLoad = now - lastLoadTime;
+      const roleChanged = lastLoadedRole !== profile.role;
+      
+      // Only load if it's been more than 5 seconds since last load, or role changed
+      if (timeSinceLastLoad > 5000 || roleChanged || lastLoadTime === 0) {
+        console.log('🔄 Loading projects - Role:', profile.role, 'Time since last load:', timeSinceLastLoad);
+        loadProjects();
+        setLastLoadTime(now);
+        setLastLoadedRole(profile.role);
+      } else {
+        console.log('⏸️ Skipping project load - too recent:', timeSinceLastLoad);
+      }
     } else {
       // Clear projects when user logs out
       setProjects([]);
+      setLastLoadTime(0);
+      setLastLoadedRole(null);
     }
   }, [user, token, profile?.role]);
   
@@ -131,6 +147,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
       
       if (result.success) {
         console.log("Project created successfully:", result);
+        // Clear cache to ensure fresh data on next load
+        clearCalendarProjectsCache();
         // Reload to get fresh data
         await loadProjects();
         return result;
@@ -174,6 +192,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
       
       if (result.success) {
         console.log("Project updated successfully");
+        // Clear cache to ensure fresh data on next load
+        clearCalendarProjectsCache();
         // Update local state - keep ID as string
         setProjects(projects.map(p => 
           p.id.toString() === id.toString() ? { ...updatedProject, id: id.toString() } : p

@@ -2,10 +2,12 @@
 import React, { useState, useContext } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
-import { MenuIcon, XIcon, BellIcon, ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { MenuIcon, XIcon, BellIcon, ChevronDownIcon } from "lucide-react";
 import { AuthContext } from "../../contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from '../../contexts/AuthContext';
+import { useAccount } from '../../contexts/AccountContext';
+import { AccountSwitcher } from './AccountSwitcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,10 +26,16 @@ export interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [showProfileCode, setShowProfileCode] = useState(false);
   const { token, profile, logout } = useAuth();
+  const { currentAccountType, borrowerProfile, investorProfile } = useAccount();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Get current account name
+  const getCurrentAccountName = () => {
+    const currentProfile = currentAccountType === 'borrower' ? borrowerProfile : investorProfile;
+    return currentProfile?.data?.fullName || profile?.name || 'User';
+  };
 
   const navItems = [
     { name: "Borrow", to: "/borrow", color: "text-[#ffc00f]" },
@@ -41,47 +49,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
     { name: "Unity", to: "/unity", color: "text-black" },
   ];
 
-  const AccountDisplay = () => {
-    const { profile } = useAuth();
-    
-    return (
-      <div className="flex items-center">
-        <div className="flex flex-col">
-          <div className="flex items-center">
-            <span className="text-gray-600 mr-1">Account:</span>
-            <span className="font-medium">
-              {profile?.name} 
-              {profile?.role && `(${profile.role === 'investor' ? 'Investor' : 'Borrower'})`}
-            </span>
-          </div>
-          {profile?.profileCode && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm text-gray-500">
-                Profile Code: {showProfileCode ? profile.profileCode : '••••••'}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowProfileCode(!showProfileCode)}
-                className="p-0 h-auto"
-              >
-                {showProfileCode ? <EyeOffIcon className="w-3 h-3" /> : <EyeIcon className="w-3 h-3" />}
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <nav className="relative z-50 w-full bg-white border-b border-gray-200 px-6 py-4" style={{ position: 'sticky', top: 0 }}>
-      {/* Role indicator banner - will only appear once */}
-      {profile?.role && (
+      {/* Role indicator banner - now shows current account type */}
+      {currentAccountType && (
         <div className={`absolute top-0 left-0 w-full text-center py-1 text-xs font-medium ${
-          profile.role === 'investor' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+          currentAccountType === 'investor' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
         }`}>
-          Currently in {profile.role === 'investor' ? 'Investor' : 'Borrower'} mode
+          Currently in {currentAccountType === 'investor' ? 'Investor' : 'Borrower'} mode
         </div>
       )}
       
@@ -170,7 +145,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
 
           {/* Auth/Profile section */}
           {token && profile ? (
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <div className="relative">
                 <BellIcon className="w-6 h-6 text-black" />
                 <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full" />
@@ -178,10 +153,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
 
               <Avatar className="w-10 h-10">
                 <AvatarImage src="/ellipse-1.png" alt="avatar" />
-                <AvatarFallback>U</AvatarFallback>
+                <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white font-semibold">
+                  {getCurrentAccountName().charAt(0).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
 
-              <AccountDisplay />
+              {/* Unified Account Switcher - replaces both AccountSwitcher and AccountDisplay */}
+              <AccountSwitcher />
 
               {/* Admin Tools button - only visible to admins */}
               {profile?.isAdmin && (

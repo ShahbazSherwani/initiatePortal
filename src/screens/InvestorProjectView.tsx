@@ -16,10 +16,27 @@ export const InvestorProjectView: React.FC = () => {
   const { profile } = React.useContext(AuthContext)!;
   const navigate = useNavigate();
   
+  console.log("🎯 InvestorProjectView loaded with projectId:", projectId);
+  
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Check if user is trying to invest in their own project
+  const isOwnProject = project?.firebase_uid === profile?.id;
+  
+  // Check if user already has an investment in this project
+  const investorRequests = project?.project_data?.investorRequests || [];
+  const userInvestment = investorRequests.find(req => req.investorId === profile?.id);
+  const hasExistingInvestment = !!userInvestment;
+  
+  console.log("🔍 InvestorProjectView - Project owner:", project?.firebase_uid);
+  console.log("🔍 InvestorProjectView - Current user:", profile?.id);
+  console.log("🔍 InvestorProjectView - Is own project:", isOwnProject);
+  console.log("🔍 InvestorProjectView - Investor requests:", investorRequests);
+  console.log("🔍 InvestorProjectView - User investment:", userInvestment);
+  console.log("🔍 InvestorProjectView - Has existing investment:", hasExistingInvestment);
   
   // Fetch project data directly from API
   useEffect(() => {
@@ -28,6 +45,7 @@ export const InvestorProjectView: React.FC = () => {
         console.log("InvestorProjectView - fetching project with ID:", projectId);
         const projectData = await authFetch(`${API_BASE_URL}/projects/${projectId}`);
         console.log("InvestorProjectView - fetched project data:", projectData);
+        console.log("InvestorProjectView - project details:", projectData?.project_data?.details);
         setProject(projectData);
       } catch (error) {
         console.error("Error fetching project:", error);
@@ -62,23 +80,28 @@ export const InvestorProjectView: React.FC = () => {
   const details = projectData.details || {};
   
   const handleInvest = async () => {
+    console.log("🎯 handleInvest called with amount:", investmentAmount);
+    
     if (!investmentAmount || parseFloat(investmentAmount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
     
     try {
+      console.log("📤 Making investment request to project:", projectId);
       const amount = parseFloat(investmentAmount);
       const result = await investInProject(projectId, amount);
+      console.log("📥 Investment result:", result);
       
       if (result.success) {
         toast.success("Investment request sent!");
         navigate("/investor/calendar");
       } else {
+        console.log("❌ Investment failed:", result);
         toast.error("Failed to submit investment request");
       }
     } catch (error) {
-      console.error('Investment error:', error);
+      console.error('💥 Investment error:', error);
       toast.error("An error occurred");
     }
   };
@@ -125,7 +148,49 @@ export const InvestorProjectView: React.FC = () => {
                   </div>
                 </div>
                 
-                {!showConfirm ? (
+                {isOwnProject ? (
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="font-medium mb-2 text-blue-800">This is your project</h3>
+                    <p className="text-blue-600">You cannot invest in your own project. Share this project with potential investors to get funding.</p>
+                    <Button 
+                      onClick={() => navigate("/borrower/calendar")}
+                      className="mt-3 bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      Go to My Projects
+                    </Button>
+                  </div>
+                ) : hasExistingInvestment ? (
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <h3 className="font-medium mb-2 text-orange-800">You already have an investment in this project</h3>
+                    <div className="text-orange-600 space-y-1">
+                      <p><strong>Amount:</strong> ₱{userInvestment.amount.toLocaleString()}</p>
+                      <p><strong>Status:</strong> 
+                        <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                          userInvestment.status === 'approved' ? 'bg-green-100 text-green-800' :
+                          userInvestment.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {userInvestment.status}
+                        </span>
+                      </p>
+                      <p><strong>Date:</strong> {new Date(userInvestment.date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Button 
+                        onClick={() => navigate("/investor/investments")}
+                        className="bg-orange-600 text-white hover:bg-orange-700"
+                      >
+                        View My Investments
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => navigate("/investor/calendar")}
+                      >
+                        Browse Other Projects
+                      </Button>
+                    </div>
+                  </div>
+                ) : !showConfirm ? (
                   <div>
                     <h3 className="font-medium mb-2">How much would you like to invest?</h3>
                     <div className="flex gap-4">

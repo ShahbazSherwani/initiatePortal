@@ -1,29 +1,11 @@
-import React, { useContext, useEffect, useState } from "react";
-import { Navigate } from 'react-router-dom';
-import { AuthContext } from '../contexts/AuthContext';
-import { getWalletBalance } from "../lib/wallet";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useRegistration } from "../contexts/RegistrationContext";
-import { authFetch } from '../lib/api';
+import { useAccount } from '../contexts/AccountContext';
+import { getWalletBalance } from "../lib/wallet";
 import { TopUpModal } from '../components/TopUpModal';
-import { API_BASE_URL } from '../config/environment';
 import { generateProfileCode } from '../lib/profileUtils';
 
-import {
-  BellIcon,
-  CalendarIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ChevronLeftIcon,
-  EyeIcon,
-  EyeOffIcon,
-  HelpCircleIcon,
-  HomeIcon,
-  LogOutIcon,
-  MenuIcon,
-  SettingsIcon,
-  WalletIcon,
-} from "lucide-react";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "../../src/components/ui/avatar";
 import { Button } from "../../src/components/ui/button";
@@ -34,15 +16,21 @@ import { useAuth } from '../contexts/AuthContext';
 import "../../src/styles/animations.css";
 
 export const BorrowerHome: React.FC = () => {
-  const { profile, setProfile, token, logout } = useAuth();
-  const { registration, setRegistration } = useRegistration();
+  const { profile, token } = useAuth();
+  const { 
+    currentAccountType, 
+    borrowerProfile, 
+    investorProfile, 
+    hasAccount, 
+    switchAccount,
+    loading: accountLoading 
+  } = useAccount();
   const [balance, setBalance] = useState<number | null>(null);
   const [showProfileCode, setShowProfileCode] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const navigate = useNavigate();
   
   // NEW: Track if registration is complete
-  const [isRegistrationComplete, setIsRegistrationComplete] = useState(true);
-  // NEW: Track if this is a new user (no role selected yet)
   const [isNewUser, setIsNewUser] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   
@@ -74,11 +62,9 @@ export const BorrowerHome: React.FC = () => {
     // Check if user has a role and has completed registration
     if (!profile?.role || !profile?.hasCompletedRegistration) {
       setIsNewUser(true);
-      setIsRegistrationComplete(false);
     } else {
       // User has role and completed registration - show returning user experience
       setIsNewUser(false);
-      setIsRegistrationComplete(true);
     }
   }, [profile, navigate]);
 
@@ -89,13 +75,10 @@ export const BorrowerHome: React.FC = () => {
     }
   }, [token]);
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // account‑type toggle
+  // Account creation options for new users
   const accountTypes = [
-    { key: "individual", title: "Invest/Lender", image: "/investor-1.png" },
-    { key: "borrower", title: "Issue/Borrower", image: "/debt-1.png" },
-    // { key: "guarantee", title: "Guarantee", image: "/cashback-1.png" }, // Hidden guarantee option
+    { key: "investor", title: "Invest/Lender Account", image: "/investor-1.png", description: "Browse and invest in projects, earn returns" },
+    { key: "borrower", title: "Issue/Borrow Account", image: "/debt-1.png", description: "Create projects and seek funding for your business" },
   ];
 
   // action cards (static)
@@ -104,65 +87,49 @@ export const BorrowerHome: React.FC = () => {
     { title: "Initiate Request", image: "/leader-1.png" },
   ];
 
-  // IMPROVED: Role switching function that starts registration flow
-  const handleRoleSelection = async (roleKey) => {
+  // Updated: Account creation function
+  const handleAccountCreation = async (accountType: 'borrower' | 'investor') => {
     try {
-      console.log(`Selecting role: ${roleKey}`);
+      console.log(`🏗️ Creating ${accountType} account`);
       
-      // Convert roleKey to proper API format
-      let apiRoleValue;
-      switch(roleKey) {
-        case "individual": 
-          apiRoleValue = "investor"; 
-          break;
-        case "borrower": 
-          apiRoleValue = "borrower"; 
-          break;
-        // case "guarantee": 
-        //   apiRoleValue = "guarantor"; 
-        //   break;
-        default:
-          apiRoleValue = roleKey;
-      }
-      
-      // Update role in database
-      const result = await authFetch(`${API_BASE_URL}/profile/set-role`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ role: apiRoleValue })
-      });
-      
-      if (result.success) {
-        console.log(`Role set to ${apiRoleValue} in database`);
-        
-        // Update the profile in context
-        setProfile(prev => ({
-          ...prev,
-          role: apiRoleValue,
-          // Mark as not completed registration yet
-          hasCompletedRegistration: false
-        }));
-        
-        // Update registration context
-        setRegistration(prev => ({
-          ...prev,
-          accountType: roleKey
-        }));
-        
-        // Start registration flow
-        navigate("/borrowreg");
+      if (accountType === 'borrower') {
+        navigate('/borrowreg');
       } else {
-        console.error("Failed to set role:", result);
-        alert("Failed to switch role. Please try again.");
+        navigate('/investor/register');
       }
     } catch (error) {
-      console.error("Role switch error:", error);
-      alert("An error occurred. Please try again.");
+      console.error(`Error initiating ${accountType} account creation:`, error);
     }
   };
-  
+
+  // NEW: Handle account switching
+  const handleAccountSwitch = async (accountType: 'borrower' | 'investor') => {
+    if (accountType === currentAccountType) return;
+    
+    console.log(`🔄 Switching from ${currentAccountType} to ${accountType}`);
+    
+    setSwitching(true);
+    try {
+      await switchAccount(accountType);
+      
+      // Navigate to appropriate dashboard
+      if (accountType === 'borrower') {
+        navigate('/borrow', { replace: true });
+      } else {
+        navigate('/investor/discover', { replace: true });
+      }
+      
+      // Force a small delay to allow context to update
+      setTimeout(() => {
+        window.dispatchEvent(new Event('account-switched'));
+      }, 100);
+    } catch (error) {
+      console.error('Error switching account:', error);
+    } finally {
+      setSwitching(false);
+    }
+  };
+      
   return (
     <>
       {/* Show loading state while profile is loading */}
@@ -183,18 +150,18 @@ export const BorrowerHome: React.FC = () => {
           {/* Main content - use full width */}
           <main className={`flex-1 overflow-y-auto p-4 md:p-8 w-full ${isNewUser ? 'flex justify-center items-center' : ''}`}>
             {isNewUser ? (
-              /* NEW USER EXPERIENCE - ROLE SELECTION */
+              /* NEW USER EXPERIENCE - ACCOUNT CREATION */
               <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg p-8 animate-fadeIn">
-                <h1 className="text-3xl font-bold mb-2 text-center">Welcome to Investie!</h1>
+                <h1 className="text-3xl font-bold mb-2 text-center">Welcome to Initiate!</h1>
                 <p className="text-gray-600 mb-8 text-center">
-                  Please select how you would like to use the platform.
+                  Create your account(s) to start using the platform. You can have both investor and borrower accounts.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {accountTypes.map((type) => (
                     <button
                       key={type.key}
-                      onClick={() => handleRoleSelection(type.key)}
+                      onClick={() => handleAccountCreation(type.key as 'borrower' | 'investor')}
                       className="flex flex-col items-center p-6 border-2 border-[#ffc628] rounded-xl hover:bg-[#fff8e6] transition-all transform hover:scale-105"
                     >
                       <h3 className="text-xl font-bold mb-4">{type.title}</h3>
@@ -204,16 +171,14 @@ export const BorrowerHome: React.FC = () => {
                         alt={type.title}
                       />
                       <p className="text-sm text-gray-600 text-center">
-                        {type.key === "individual" ? "Browse projects and invest in opportunities" :
-                         type.key === "borrower" ? "Create projects and seek funding" :
-                         "Provide guarantees for borrowers"}
+                        {type.description}
                       </p>
                     </button>
                   ))}
                 </div>
 
                 <p className="text-sm text-gray-500 text-center">
-                  After selecting a role, you'll be guided through a registration process to set up your account.
+                  You can create both account types and switch between them anytime using the account switcher in the top navigation.
                 </p>
               </div>
             ) : (
@@ -235,11 +200,26 @@ export const BorrowerHome: React.FC = () => {
                         <p className="mt-1 text-sm opacity-60">
                           Member since {profile ? new Date(profile.joined).toLocaleDateString() : "--"}
                         </p>
-                        {/* Account Type Display */}
-                        <h2 className="text-xl opacity-70 mt-4">Account Type:</h2>
+                        {/* Account Type & Profile Code Display */}
+                        <h2 className="text-xl opacity-70 mt-4">Current Account:</h2>
                         <p className="text-2xl font-semibold">
-                          {profile?.role ? profile.role.toUpperCase() : "Not selected"}
+                          {currentAccountType === 'borrower' ? 'Issue/Borrow Account' : 'Invest/Lender Account'}
                         </p>
+                        {profile?.profileCode && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-sm text-gray-600">
+                              Profile Code: {showProfileCode ? profile.profileCode : '••••••'}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowProfileCode(!showProfileCode)}
+                              className="p-0 h-auto"
+                            >
+                              {showProfileCode ? <EyeOffIcon className="w-3 h-3" /> : <EyeIcon className="w-3 h-3" />}
+                            </Button>
+                          </div>
+                        )}
                       </div>
 
                       {/* iFunds Balance & Actions */}
@@ -298,62 +278,116 @@ export const BorrowerHome: React.FC = () => {
                   </div>
                 </section>
 
-                {/* Account Type Selectors - Show current role highlighted and others as switchable */}
+                {/* Account Type Selectors - Show current account highlighted and others as switchable */}
                 <section className="mt-12">
                   <h3 className="font-poppins font-semibold text-black text-xl md:text-[26px] mb-6">
                     Account type
                   </h3>
                   <div className="flex flex-wrap gap-6">
                     {accountTypes.map((type) => {
-                      // Check if this is the current role
-                      const isCurrentRole = 
-                        (profile?.role === 'investor' && type.key === 'individual') ||
-                        (profile?.role === 'borrower' && type.key === 'borrower');
-                        // (profile?.role === 'guarantor' && type.key === 'guarantee'); // Hidden guarantee option
+                      const accountType = type.key as 'borrower' | 'investor';
+                      const isCurrentAccount = currentAccountType === accountType;
+                      const hasThisAccount = hasAccount(accountType);
+                      
+                      // Debug logging
+                      console.log(`🔍 Account type: ${accountType}`, {
+                        isCurrentAccount,
+                        hasThisAccount,
+                        borrowerProfile: borrowerProfile ? 'exists' : 'null',
+                        investorProfile: investorProfile ? 'exists' : 'null',
+                        currentAccountType
+                      });
                       
                       return (
-                        <button
-                          key={type.key}
-                          onClick={() => !isCurrentRole && handleRoleSelection(type.key)}
-                          className={`w-full sm:w-[216px] flex flex-col items-center focus:outline-none ${
-                            isCurrentRole ? 'cursor-default' : 'cursor-pointer'
-                          }`}
-                          disabled={isCurrentRole}
-                        >
-                          <Card className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition ${
-                            isCurrentRole 
-                              ? 'bg-[#ffc628] border-[#ffc628] border-2 shadow-lg' 
-                              : 'bg-white border border-black hover:shadow-md'
-                          }`}>
-                            <CardContent className="p-0 flex items-center justify-center">
-                              <img
-                                className="w-[115px] h-[115px] object-cover"
-                                src={type.image}
-                                alt={type.title}
-                              />
-                            </CardContent>
-                          </Card>
-                          <span className={`mt-4 font-poppins font-medium text-base md:text-xl ${
-                            isCurrentRole 
-                              ? 'text-[#ffc628] font-bold' 
-                              : 'text-black opacity-70'
-                          }`}>
-                            {type.title} {isCurrentRole && '(Current)'}
-                          </span>
-                        </button>
+                        <div key={type.key} className="w-full sm:w-[216px] flex flex-col items-center">
+                          <button
+                            onClick={() => {
+                              console.log(`🖱️ Main card clicked: ${accountType}`, {
+                                hasThisAccount,
+                                isCurrentAccount,
+                                action: hasThisAccount && !isCurrentAccount ? 'switch' : !hasThisAccount ? 'create' : 'none'
+                              });
+                              
+                              if (hasThisAccount && !isCurrentAccount) {
+                                handleAccountSwitch(accountType);
+                              } else if (!hasThisAccount) {
+                                handleAccountCreation(accountType);
+                              }
+                            }}
+                            className={`w-full flex flex-col items-center focus:outline-none ${
+                              isCurrentAccount ? 'cursor-default' : 'cursor-pointer'
+                            }`}
+                            disabled={isCurrentAccount || switching}
+                          >
+                            <Card className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition ${
+                              isCurrentAccount 
+                                ? 'bg-[#ffc628] border-[#ffc628] border-2 shadow-lg' 
+                                : 'bg-white border border-black hover:shadow-md'
+                            }`}>
+                              <CardContent className="p-0 flex items-center justify-center">
+                                <img
+                                  className="w-[115px] h-[115px] object-cover"
+                                  src={type.image}
+                                  alt={type.title}
+                                />
+                              </CardContent>
+                            </Card>
+                            <span className={`mt-2 font-poppins font-medium text-base md:text-lg ${
+                              isCurrentAccount 
+                                ? 'text-[#ffc628] font-bold' 
+                                : 'text-black opacity-70'
+                            }`}>
+                              {type.title}
+                            </span>
+                          </button>
+                          
+                          {/* Status and Action Button */}
+                          <div className="mt-2 text-center">
+                            {isCurrentAccount ? (
+                              <span className="inline-block px-3 py-1 bg-[#ffc628] text-black text-xs font-semibold rounded-full">
+                                Current Account
+                              </span>
+                            ) : hasThisAccount ? (
+                              <button
+                                onClick={() => handleAccountSwitch(accountType)}
+                                disabled={switching}
+                                className="inline-block px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {switching ? 'Switching...' : 'Switch to This Account'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  console.log(`🖱️ Create Account button clicked: ${accountType}`);
+                                  handleAccountCreation(accountType);
+                                }}
+                                className="inline-block px-3 py-1 bg-gray-500 text-white text-xs font-semibold rounded-full hover:bg-gray-600 transition-colors"
+                              >
+                                Create Account
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
                 </section>
 
-                {/* Invest Button - Only for Investors and Admins */}
-                {(profile?.role === 'investor' || profile?.role === 'admin') && (
+                {/* Start Investing Button - Show for current investors or if user has investor account */}
+                {(currentAccountType === 'investor' || hasAccount('investor')) && (
                   <section className="mt-8">
                     <Button 
-                      onClick={() => navigate('/investor/discover')}
+                      onClick={() => {
+                        if (currentAccountType === 'investor') {
+                          navigate('/investor/discover');
+                        } else if (hasAccount('investor')) {
+                          handleAccountSwitch('investor');
+                        }
+                      }}
                       className="bg-[#ffc628] text-black px-8 py-4 text-lg font-semibold rounded-xl hover:bg-[#e6b324] transition-colors"
+                      disabled={switching}
                     >
-                      🎯 Start Investing
+                      🎯 {currentAccountType === 'investor' ? 'Start Investing' : 'Switch & Start Investing'}
                     </Button>
                   </section>
                 )}
