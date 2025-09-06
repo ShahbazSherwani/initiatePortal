@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
+import { createAccount } from "../lib/api";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -20,34 +21,65 @@ export const InvestorRegBankDetails = (): JSX.Element => {
   const [accountNumber, setAccountNumber] = useState("");
   const [iban, setIban] = useState("");
   const [swiftCode, setSwiftCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { setRegistration } = useRegistration();
+  const { registration, setRegistration } = useRegistration();
   const navigate = useNavigate();
 
   const bankAccountTypes = [
     "Savings Account",
-    "Current Account",
+    "Current Account", 
     "Time Deposit",
     "Investment Account"
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // Save bank details
-    setRegistration(reg => ({
-      ...reg,
-      bankDetails: {
-        accountName,
-        bankAccount,
-        accountNumber,
-        iban,
-        swiftCode,
-      },
-    }));
-    
-    // Complete registration - navigate to investor dashboard or success page
-    navigate("/investor/discover");
+    try {
+      // Save bank details to context first
+      const updatedRegistration = {
+        ...registration,
+        bankDetails: {
+          accountName,
+          bankAccount,
+          accountNumber,
+          iban,
+          swiftCode,
+        },
+      };
+      
+      setRegistration(updatedRegistration);
+
+      // Prepare the complete profile data for the API
+      const profileData = {
+        fullName: `${updatedRegistration.details?.firstName || ''} ${updatedRegistration.details?.middleName || ''} ${updatedRegistration.details?.lastName || ''}`.trim(),
+        accountType: updatedRegistration.accountType,
+        personalDetails: updatedRegistration.details,
+        incomeDetails: updatedRegistration.incomeDetails,
+        bankDetails: updatedRegistration.bankDetails,
+        // Add any other data you want to save
+      };
+
+      // Create the investor account via API
+      const response = await createAccount('investor', profileData);
+      
+      if (response.success) {
+        console.log('✅ Investor account created successfully');
+        // Navigate to investor dashboard or success page
+        navigate("/investor/discover");
+      } else {
+        console.error('❌ Failed to create investor account:', response);
+        // Handle error - maybe show a toast notification
+        alert('Failed to create investor account. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error creating investor account:', error);
+      alert('An error occurred while creating your account. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -152,9 +184,10 @@ export const InvestorRegBankDetails = (): JSX.Element => {
           <div className="flex justify-end pt-6">
             <Button
               type="submit"
-              className="w-full sm:w-auto bg-[#ffc00f] hover:bg-[#ffc00f]/90 text-black font-semibold px-8 py-3 rounded-2xl h-14"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto bg-[#ffc00f] hover:bg-[#ffc00f]/90 text-black font-semibold px-8 py-3 rounded-2xl h-14 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Complete
+              {isSubmitting ? "Creating Account..." : "Complete"}
             </Button>
           </div>
         </form>

@@ -273,6 +273,17 @@ export async function getAdminProjects() {
   }
 }
 
+// Account management functions
+export async function createAccount(accountType: string, profileData: any) {
+  return await authFetch(`${API_URL}/accounts/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ accountType, profileData })
+  });
+}
+
 // Top-up related functions
 export async function getTopUpAccounts() {
   return await authFetch(`${API_URL}/topup/accounts`);

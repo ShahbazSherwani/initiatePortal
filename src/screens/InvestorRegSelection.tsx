@@ -8,7 +8,7 @@ import { ArrowLeftIcon } from "lucide-react";
 export const InvestorRegSelection = (): JSX.Element => {
   const location = useLocation();
   const initialAccountType = location.state?.accountType || "individual";
-  const [accountType, setAccountType] = useState(initialAccountType);
+  const [accountType, setAccountType] = useState("individual"); // Default to individual
 
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
@@ -121,16 +121,6 @@ export const InvestorRegSelection = (): JSX.Element => {
               </div>
               <span>Direct Lender</span>
             </button>
-          </div>
-
-          {/* Information Card */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-900 mb-2">Account Types:</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li><strong>Individual:</strong> Personal investment account for individual investors</li>
-              <li><strong>Non-Individual (Entity):</strong> Business entity investment account for organizations</li>
-              <li><strong>Direct Lender:</strong> Special account for direct lending with customized criteria</li>
-            </ul>
           </div>
         </div>
 
