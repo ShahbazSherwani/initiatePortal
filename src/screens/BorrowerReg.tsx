@@ -50,8 +50,19 @@ export const BorrowerReg = (): JSX.Element => {
   const navigate = useNavigate();
 
   const handleAccountTypeSelect = (type: string) => {
+    console.log("Account type selected:", type);
     setAccountType(type);
     setRegistration(reg => ({ ...reg, accountType: type }));
+    
+    // Navigate to non-individual registration if selected
+    if (type === "non-individual") {
+      console.log("Navigating to non-individual registration...");
+      // Use replace to avoid adding to history stack
+      navigate("/borrower-reg-non-individual", { 
+        state: { accountType: type },
+        replace: true 
+      });
+    }
   };
 
   // File upload handlers
@@ -110,12 +121,8 @@ export const BorrowerReg = (): JSX.Element => {
       {/* <Navbar activePage="register" showAuthButtons /> */}
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] px-4 md:px-20 py-10">
-        {/* ─── FORM ─── */}
-        <form
-          onSubmit={handleSubmit}
-          className="md:w-2/4 overflow-y-auto pr-4 space-y-8"
-          noValidate
-        >
+        {/* ─── CONTENT ─── */}
+        <div className="md:w-2/4 overflow-y-auto pr-4 space-y-8">
           {/* Header */}
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">
@@ -124,30 +131,46 @@ export const BorrowerReg = (): JSX.Element => {
             <h2 className="text-2xl md:text-3xl font-bold">Issue/Borrow</h2>
           </div>
 
-          {/* Option */}
+          {/* Option Selection - Outside Form */}
           <div>
             <p className="font-medium text-lg mb-2">Please select an option</p>
-            <RadioGroup
-              value={accountType}
-              onValueChange={handleAccountTypeSelect}
-              className="flex flex-col sm:flex-row gap-4"
-            >
-              {["individual", "msme"].map(val => (
-                <label
-                  key={val}
+            <div className="flex flex-col sm:flex-row gap-4">
+              {[
+                { value: "individual", label: "Individual" },
+                { value: "non-individual", label: "Non-Individual (Entity)" }
+              ].map(option => (
+                <button
+                  key={option.value}
+                  type="button"
                   className={`
-                    flex items-center gap-2 px-4 py-2 rounded-lg border
-                    ${accountType === val
+                    flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer
+                    ${accountType === option.value
                       ? "bg-[url('/radio-btns.svg')] bg-cover"
                       : "bg-white"}
                   `}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Button clicked:", option.value);
+                    handleAccountTypeSelect(option.value);
+                  }}
                 >
-                  <RadioGroupItem value={val} id={val} className="mr-2" />
-                  <span className="capitalize">{val}</span>
-                </label>
+                  <div className={`w-4 h-4 rounded-full border-2 ${accountType === option.value ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                    {accountType === option.value && <div className="w-2 h-2 bg-white rounded-full m-auto mt-0.5"></div>}
+                  </div>
+                  <span>{option.label}</span>
+                </button>
               ))}
-            </RadioGroup>
+            </div>
           </div>
+
+          {/* Individual Registration Form - Only show if individual is selected */}
+          {accountType === "individual" && (
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-8"
+              noValidate
+            >
 
           {/* Identification */}
           <section className="space-y-4">
@@ -346,7 +369,9 @@ export const BorrowerReg = (): JSX.Element => {
               Next
             </Button>
           </div>
-        </form>
+            </form>
+          )}
+        </div>
 
         {/* ─── TESTIMONIALS ─── */}
         <div className="hidden md:block md:w-1/3 flex-shrink-0">

@@ -39,6 +39,8 @@ import { UnifiedCalendarView } from "../screens/UnifiedCalendarView";
 import { AdminProjectView } from "../screens/AdminProjectView";
 import { AdminTopUpRequests } from "../screens/AdminTopUpRequests";
 import { AdminInvestmentRequests } from "../screens/AdminInvestmentRequests";
+import { BorrowerRegNonIndividual } from "../screens/BorrowerRegNonIndividual";
+import { BorrowerBankDetailsNonIndividual } from "../screens/BorrowerBankDetailsNonIndividual";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -122,7 +124,7 @@ export const AppRoutes: React.FC = () => {
         }
       }
       // If user needs to set up accounts
-      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrowocu" && currentPath !== "/register") {
+      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrower-reg-non-individual" && currentPath !== "/borrower-bank-details-non-individual" && currentPath !== "/borrowocu" && currentPath !== "/borrowWallet" && currentPath !== "/register") {
         navigate("/borrow", { replace: true });
       }
     } else if (!loading && !user) {
@@ -164,6 +166,22 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <PrivateRoute>
                     <BorrowerReg />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borrower-reg-non-individual" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerRegNonIndividual />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borrower-bank-details-non-individual" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerBankDetailsNonIndividual />
                   </PrivateRoute>
                 } 
               />
