@@ -41,6 +41,12 @@ import { AdminTopUpRequests } from "../screens/AdminTopUpRequests";
 import { AdminInvestmentRequests } from "../screens/AdminInvestmentRequests";
 import { BorrowerRegNonIndividual } from "../screens/BorrowerRegNonIndividual";
 import { BorrowerBankDetailsNonIndividual } from "../screens/BorrowerBankDetailsNonIndividual";
+import { InvestorRegSelection } from "../screens/InvestorRegSelection";
+import { InvestorRegIndividual } from "../screens/InvestorRegIndividual";
+import { InvestorRegNonIndividual } from "../screens/InvestorRegNonIndividual";
+import { InvestorRegDirectLender } from "../screens/InvestorRegDirectLender";
+import { InvestorRegIncomeDetails } from "../screens/InvestorRegIncomeDetails";
+import { InvestorRegBankDetails } from "../screens/InvestorRegBankDetails";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -124,7 +130,7 @@ export const AppRoutes: React.FC = () => {
         }
       }
       // If user needs to set up accounts
-      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrower-reg-non-individual" && currentPath !== "/borrower-bank-details-non-individual" && currentPath !== "/borrowocu" && currentPath !== "/borrowWallet" && currentPath !== "/register") {
+      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrower-reg-non-individual" && currentPath !== "/borrower-bank-details-non-individual" && currentPath !== "/borrowocu" && currentPath !== "/borrowWallet" && currentPath !== "/investor/register" && currentPath !== "/investor-reg-individual" && currentPath !== "/investor-reg-non-individual" && currentPath !== "/investor-reg-direct-lender" && currentPath !== "/investor-reg-income-details" && currentPath !== "/investor-reg-bank-details" && currentPath !== "/register") {
         navigate("/borrow", { replace: true });
       }
     } else if (!loading && !user) {
@@ -365,7 +371,47 @@ export const AppRoutes: React.FC = () => {
                 path="/investor/register" 
                 element={
                   <PrivateRoute>
-                    <InvestorReg />
+                    <InvestorRegSelection />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor-reg-individual" 
+                element={
+                  <PrivateRoute>
+                    <InvestorRegIndividual />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor-reg-non-individual" 
+                element={
+                  <PrivateRoute>
+                    <InvestorRegNonIndividual />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor-reg-direct-lender" 
+                element={
+                  <PrivateRoute>
+                    <InvestorRegDirectLender />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor-reg-income-details" 
+                element={
+                  <PrivateRoute>
+                    <InvestorRegIncomeDetails />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor-reg-bank-details" 
+                element={
+                  <PrivateRoute>
+                    <InvestorRegBankDetails />
                   </PrivateRoute>
                 } 
               />
