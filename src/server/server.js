@@ -1467,6 +1467,28 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
   console.log(`💰 Investment request received - Project: ${id}, Investor: ${uid}, Amount: ${amount}`);
   
   try {
+    // First, check wallet balance
+    const walletResult = await db.query(
+      'SELECT balance FROM wallets WHERE firebase_uid = $1',
+      [uid]
+    );
+    
+    const walletBalance = walletResult.rows[0]?.balance || 0;
+    const investmentAmount = parseFloat(amount);
+    
+    console.log(`💳 Checking wallet balance: ₱${walletBalance.toLocaleString()} vs Required: ₱${investmentAmount.toLocaleString()}`);
+    
+    // Check if user has sufficient funds
+    if (walletBalance < investmentAmount) {
+      console.log(`❌ Insufficient wallet balance: ₱${walletBalance.toLocaleString()} < ₱${investmentAmount.toLocaleString()}`);
+      return res.status(400).json({ 
+        error: `Insufficient wallet balance. Your current balance is ₱${walletBalance.toLocaleString()}, but you need ₱${investmentAmount.toLocaleString()} to make this investment.`,
+        currentBalance: walletBalance,
+        requiredAmount: investmentAmount,
+        shortfall: investmentAmount - walletBalance
+      });
+    }
+    
     // Get the project and user data
     const projectResult = await db.query(
       `SELECT project_data, firebase_uid FROM projects WHERE id = $1`,

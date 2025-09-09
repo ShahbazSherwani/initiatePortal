@@ -20,7 +20,7 @@ export const BorrowerMyProjects: React.FC = (): JSX.Element => {
   const { projects, updateProject } = useProjects();
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
-  const [selectedType, setSelectedType] = useState<"equity" | "lending" | null>(null);
+  const [selectedType, setSelectedType] = useState<"equity" | "lending" | "donation" | "rewards" | null>(null);
 
 
   if (!token) return <Navigate to="/login" />;
@@ -29,8 +29,12 @@ const handleContinue = () => {
   setShowModal(false);
   if (selectedType === "equity") {
     navigate("/borwNewProjEq");
-  } else {
+  } else if (selectedType === "lending") {
     navigate("/borwNewProj");
+  } else if (selectedType === "donation") {
+    navigate("/borwNewProjDonation");
+  } else if (selectedType === "rewards") {
+    navigate("/borwNewProjRewards");
   }
 };
 
@@ -156,7 +160,7 @@ const handleContinue = () => {
           </div>
 
           {/* choice buttons */}
-          <div className="mt-6 flex gap-4">
+          <div className="mt-6 grid grid-cols-2 gap-4">
             <button
               onClick={() => setSelectedType("equity")}
               className={`flex-1 py-3 rounded-2xl border ${
@@ -172,6 +176,22 @@ const handleContinue = () => {
               }`}
             >
               Lending
+            </button>
+            <button
+              onClick={() => setSelectedType("donation")}
+              className={`flex-1 py-3 rounded-2xl border ${
+                selectedType === "donation" ? "bg-[#ffc628] text-black" : "bg-white"
+              }`}
+            >
+              Donation
+            </button>
+            <button
+              onClick={() => setSelectedType("rewards")}
+              className={`flex-1 py-3 rounded-2xl border ${
+                selectedType === "rewards" ? "bg-[#ffc628] text-black" : "bg-white"
+              }`}
+            >
+              Rewards
             </button>
           </div>
 

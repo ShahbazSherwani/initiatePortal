@@ -48,6 +48,8 @@ import { InvestorRegDirectLender } from "../screens/InvestorRegDirectLender";
 import { InvestorRegIncomeDetails } from "../screens/InvestorRegIncomeDetails";
 import { InvestorRegBankDetails } from "../screens/InvestorRegBankDetails";
 import Settings from "../screens/Settings";
+import BorwCreateNewProjDonation from "../screens/BorwCreateNewProjDonation";
+import BorwCreateNewProjRewards from "../screens/BorwCreateNewProjRewards";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -276,6 +278,26 @@ export const AppRoutes: React.FC = () => {
                   <PrivateRoute>
                     <ProjectCreationGuard>
                       <BorrowerCreateNewEq />
+                    </ProjectCreationGuard>
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borwNewProjDonation" 
+                element={
+                  <PrivateRoute>
+                    <ProjectCreationGuard>
+                      <BorwCreateNewProjDonation />
+                    </ProjectCreationGuard>
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="borwNewProjRewards" 
+                element={
+                  <PrivateRoute>
+                    <ProjectCreationGuard>
+                      <BorwCreateNewProjRewards />
                     </ProjectCreationGuard>
                   </PrivateRoute>
                 } 

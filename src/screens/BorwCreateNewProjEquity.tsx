@@ -158,16 +158,16 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                       onValueChange={setInvestmentAmount}
                     >
                       <ToggleGroupItem
-                        value="100000"
+                        value="Under 100000"
                         className="flex-1 py-3 rounded-2xl bg-[#ffc628] text-center font-medium"
                       >
-                        100,000
+                       Under 100000
                       </ToggleGroupItem>
                       <ToggleGroupItem
-                        value="100000above"
+                        value="100000 and Above"
                         className="flex-1 py-3 rounded-2xl bg-white border text-center font-medium"
                       >
-                        100,000 above
+                        100000 and Above
                       </ToggleGroupItem>
                     </ToggleGroup>
                   </div>
@@ -349,6 +349,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                     <div className="w-full h-40 border-2 border-dashed rounded-2xl flex items-center justify-center">
                       <div className="flex flex-col items-center">
                         <UploadIcon className="w-8 h-8 mb-2" />
+                        {imagePreview && <img src={imagePreview} alt="Preview" />}
                           <button
                               type="button"
                               onClick={handleUploadClick}
@@ -363,7 +364,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                       accept="image/*"
                       onChange={handleImageUpload}
                     />
-                    {imagePreview && <img src={imagePreview} alt="Preview" />}
+                    
                   </div>
 
                   {/* Video Attestation */}

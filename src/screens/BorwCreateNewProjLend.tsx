@@ -173,16 +173,16 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                     onValueChange={setLoanAmount}
                   >
                     <ToggleGroupItem
-                      value="100000"
+                      value="Under 100000"
                       className="flex-1 py-3 rounded-2xl bg-[#ffc628] text-center font-medium"
                     >
-                      100,000
+                      Under 100000
                     </ToggleGroupItem>
                     <ToggleGroupItem
-                      value="100000above"
+                      value="100000 and Above"
                       className="flex-1 py-3 rounded-2xl bg-white border text-center font-medium"
                     >
-                      100,000 above
+                      100000 and Above
                     </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
