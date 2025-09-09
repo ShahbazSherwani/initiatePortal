@@ -46,26 +46,37 @@ const borrowerNavItems: NavItem[] = [
 
 // Investor navigation items
 const investorNavItems: NavItem[] = [
-  { icon: <TrendingUpIcon className="w-5 h-5" />, label: "Discover", to: '/investor/discover', key: 'discover' },
+  { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrowerHome', key: 'home' },
   { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/investor/calendar', key: 'calendar' },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' },
-
+  { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/investor/wallet', key: 'wallet' },
   {
     icon: <img src="/investor-1.png" alt="Investment" className="w-5 h-5" />,
     label: "My Investments",
     to: '/investor/investments',
     key: 'my-investments'
   },
+  {
+    icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
+    label: "Raise Tickets",
+    to: '/request',
+    key: 'raise-tickets'
+  },
 ];
 
-// Common navigation items for all accounts
-const commonNavItems: NavItem[] = [
+// Common navigation items for borrowers
+const borrowerCommonNavItems: NavItem[] = [
   {
     icon: <img src="/group-26.png" alt="Donation" className="w-3.5 h-5" />,
     label: "Donation",
     to: '/donation',
     key: 'donation'
   },
+  { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
+  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help', key: 'help' },
+];
+
+// Common navigation items for investors (no donation)
+const investorCommonNavItems: NavItem[] = [
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
   { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help', key: 'help' },
 ];
@@ -84,9 +95,11 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   // Get navigation items based on current account type
   const getNavItems = () => {
     let accountSpecificItems: NavItem[] = [];
+    let commonItems: NavItem[] = [];
     
     if (currentAccountType === 'borrower') {
       accountSpecificItems = [...borrowerNavItems];
+      commonItems = [...borrowerCommonNavItems];
       
       // Modify the "My Projects" item based on project creation ability
       const projectsItem = accountSpecificItems.find(item => item.key === 'my-projects');
@@ -95,10 +108,11 @@ export const Sidebar: React.FC<SidebarProps> = () => {
       }
     } else {
       accountSpecificItems = [...investorNavItems];
+      commonItems = [...investorCommonNavItems];
     }
     
     // Combine account-specific items with common items
-    const baseItems = [...accountSpecificItems, ...commonNavItems];
+    const baseItems = [...accountSpecificItems, ...commonItems];
     
     // Add admin-specific items if user is admin
     if (authContext?.profile?.isAdmin) {
@@ -136,9 +150,14 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     
     // Handle special cases for dynamic routes
     if (navItem.key === 'my-projects' && location.pathname.startsWith('/borw')) return true;
-    if (navItem.key === 'discover' && location.pathname.startsWith('/investor')) return true;
-    if (navItem.key === 'my-investments' && location.pathname.includes('invest')) return true;
+    if (navItem.key === 'home' && currentAccountType === 'investor' && location.pathname === '/borrowerHome') return true;
+    if (navItem.key === 'calendar' && currentAccountType === 'investor' && location.pathname === '/investor/calendar') return true;
+    if (navItem.key === 'wallet' && currentAccountType === 'investor' && location.pathname === '/investor/wallet') return true;
+    if (navItem.key === 'my-investments' && location.pathname === '/investor/investments') return true;
+    if (navItem.key === 'raise-tickets' && location.pathname === '/request') return true;
     if (navItem.key === 'home' && currentAccountType === 'borrower' && location.pathname === '/borrow') return true;
+    if (navItem.key === 'calendar' && currentAccountType === 'borrower' && location.pathname === '/borrowCalendar') return true;
+    if (navItem.key === 'wallet' && currentAccountType === 'borrower' && location.pathname === '/borrowBank') return true;
     
     return false;
   };

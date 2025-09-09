@@ -168,6 +168,14 @@ export const AppRoutes: React.FC = () => {
                   </PrivateRoute>
                 }
               />
+              <Route
+                path="borrowerHome"
+                element={
+                  <PrivateRoute>
+                    <BorrowerHome />
+                  </PrivateRoute>
+                }
+              />
               <Route 
                 path="borrowreg" 
                 element={
