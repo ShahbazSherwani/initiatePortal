@@ -284,6 +284,44 @@ export async function createAccount(accountType: string, profileData: any) {
   });
 }
 
+export async function getUserProfile() {
+  return await authFetch(`${API_URL}/settings/profile`);
+}
+
+export async function updateUserProfile(profileData: any) {
+  return await authFetch(`${API_URL}/profile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(profileData)
+  });
+}
+
+export async function getUserSettings() {
+  return await authFetch(`${API_URL}/settings`);
+}
+
+export async function updateUserSettings(settingsData: any) {
+  return await authFetch(`${API_URL}/settings`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(settingsData)
+  });
+}
+
+export async function changePassword(passwordData: any) {
+  return await authFetch(`${API_URL}/settings/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(passwordData)
+  });
+}
+
 // Top-up related functions
 export async function getTopUpAccounts() {
   return await authFetch(`${API_URL}/topup/accounts`);

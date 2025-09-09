@@ -39,7 +39,7 @@ const borrowerNavItems: NavItem[] = [
   },
   {
     icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
-    label: "Initiate Request",
+    label: "Raise Tickets",
     to: '/request',
     key: 'initiate-request'
   },

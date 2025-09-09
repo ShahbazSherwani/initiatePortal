@@ -84,7 +84,7 @@ export const BorrowerHome: React.FC = () => {
   // action cards (static)
   const actionCards = [
     { title: "Initiate Donation Campaign", image: "/donate-1.png" },
-    { title: "Initiate Request", image: "/leader-1.png" },
+    { title: "Raise Tickets", image: "/leader-1.png" },
   ];
 
   // Updated: Account creation function

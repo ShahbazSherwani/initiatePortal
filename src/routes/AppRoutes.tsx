@@ -47,6 +47,7 @@ import { InvestorRegNonIndividual } from "../screens/InvestorRegNonIndividual";
 import { InvestorRegDirectLender } from "../screens/InvestorRegDirectLender";
 import { InvestorRegIncomeDetails } from "../screens/InvestorRegIncomeDetails";
 import { InvestorRegBankDetails } from "../screens/InvestorRegBankDetails";
+import Settings from "../screens/Settings";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -447,6 +448,14 @@ export const AppRoutes: React.FC = () => {
                   </PrivateRoute>
                 } 
               />
+              <Route 
+                path="/investor/wallet" 
+                element={
+                  <PrivateRoute>
+                    <BorrowerWallet />
+                  </PrivateRoute>
+                } 
+              />
               
               {/* Admin routes */}
               <Route 
@@ -494,6 +503,16 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <PrivateRoute>
                     <UnifiedCalendarView />
+                  </PrivateRoute>
+                } 
+              />
+
+              {/* Settings */}
+              <Route 
+                path="/settings" 
+                element={
+                  <PrivateRoute>
+                    <Settings />
                   </PrivateRoute>
                 } 
               />

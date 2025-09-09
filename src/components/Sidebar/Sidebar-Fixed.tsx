@@ -39,7 +39,7 @@ const borrowerNavItems: NavItem[] = [
   },
   {
     icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
-    label: "Initiate Request",
+    label: "Raise Tickets",
     to: '/request',
     key: 'initiate-request'
   },
@@ -49,7 +49,7 @@ const borrowerNavItems: NavItem[] = [
 const investorNavItems: NavItem[] = [
   { icon: <TrendingUpIcon className="w-5 h-5" />, label: "Discover", to: '/investor/discover', key: 'discover' },
   { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/investor/calendar', key: 'calendar' },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "Portfolio", to: '/investor/portfolio', key: 'portfolio' },
+  { icon: <WalletIcon className="w-5 h-5" />, label: "ifunds", to: '/investor/wallet', key: 'ifunds' },
   {
     icon: <img src="/investor-1.png" alt="Investment" className="w-5 h-5" />,
     label: "My Investments",

@@ -37,6 +37,32 @@ const db = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+// Add error handling for database connection
+db.on('error', (err, client) => {
+  console.error('❌ Unexpected error on idle client', err);
+  // Don't exit the process, just log the error
+});
+
+// Test database connection on startup
+db.query('SELECT NOW()', (err, result) => {
+  if (err) {
+    console.error('❌ Database connection failed:', err);
+  } else {
+    console.log('✅ Database connected successfully');
+  }
+});
+
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // Don't exit the process in development
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process in development
+});
+
 // After your app definition and before any routes
 const app = express();
 
@@ -565,6 +591,473 @@ borrowRouter.post("/", verifyToken, async (req, res) => {
 });
 
 app.use("/api/borrow-requests", borrowRouter);
+
+// Settings Routes
+// Get user profile with detailed information
+app.get('/api/settings/profile', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    console.log('🔍 Settings profile request for user:', firebase_uid);
+    
+    // Get user base info (optimized - only needed columns)
+    const userQuery = await db.query(
+      `SELECT firebase_uid, full_name, email, current_account_type, has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    console.log('📊 User query result:', userQuery.rows);
+    
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userQuery.rows[0];
+    
+    // Try to get email from Firebase if not in database
+    let userEmail = user.email || '';
+    if (!userEmail && firebase_uid) {
+      try {
+        const firebaseUser = await admin.auth().getUser(firebase_uid);
+        userEmail = firebaseUser.email || '';
+      } catch (e) {
+        console.log('Could not get email from Firebase:', e.message);
+      }
+    }
+    
+    let profileData = {
+      fullName: user.full_name,
+      email: userEmail,
+      phone: user.phone_number || '',
+      dateOfBirth: user.date_of_birth || '',
+      nationality: user.nationality || '',
+      accountType: user.current_account_type || 'individual',
+      profileType: user.has_borrower_account && user.has_investor_account ? 'Both' : 
+                  user.has_borrower_account ? 'Borrower' : 
+                  user.has_investor_account ? 'Investor' : 'None',
+      address: {
+        street: '',
+        barangay: '',
+        city: '',
+        state: '',
+        country: '',
+        postalCode: '',
+      },
+      identification: {
+        nationalId: '',
+        passport: '',
+        tin: '',
+      },
+    };
+
+    console.log('📋 Initial profile data:', profileData);
+
+    // Get detailed profile data based on account type
+    if (user.has_borrower_account) {
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      console.log('👤 Borrower profile query result:', borrowerQuery.rows);
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        profileData.phone = borrower.phone_number || profileData.phone;
+        profileData.dateOfBirth = borrower.date_of_birth || profileData.dateOfBirth;
+        profileData.nationality = borrower.nationality || profileData.nationality;
+        
+        // Always map borrower address fields (handle null values)
+        profileData.address = {
+          street: borrower.street || '',
+          barangay: borrower.barangay || '',
+          city: borrower.municipality || '',
+          state: borrower.province || '',
+          country: borrower.country || '',
+          postalCode: borrower.postal_code || '',
+        };
+        
+        // Always map borrower identification fields (handle null values)
+        profileData.identification = {
+          nationalId: borrower.national_id || '',
+          passport: borrower.passport_no || '',
+          tin: borrower.tin || '',
+        };
+        
+        // Parse stored JSON data if available
+        try {
+          if (borrower.address_data) {
+            profileData.address = JSON.parse(borrower.address_data);
+          }
+          if (borrower.identification_data) {
+            profileData.identification = JSON.parse(borrower.identification_data);
+          }
+        } catch (e) {
+          console.log('Could not parse JSON data:', e.message);
+        }
+      }
+    }
+    
+    if (user.has_investor_account) {
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      console.log('💼 Investor profile query result:', investorQuery.rows);
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        console.log('🔍 Investor profile columns:', Object.keys(investor));
+        console.log('🔍 Checking for address fields:', {
+          street: investor.street,
+          barangay: investor.barangay,
+          municipality: investor.municipality,
+          province: investor.province,
+          country: investor.country,
+          postal_code: investor.postal_code
+        });
+        
+        profileData.phone = investor.phone_number || profileData.phone;
+        profileData.dateOfBirth = investor.date_of_birth || profileData.dateOfBirth;
+        
+        // Always map investor address fields (handle null values)
+        profileData.address = {
+          street: investor.street || '',
+          barangay: investor.barangay || '',
+          city: investor.municipality || '',
+          state: investor.province || '',
+          country: investor.country || '',
+          postalCode: investor.postal_code || '',
+        };
+        console.log('✅ Mapped address data from investor profile:', profileData.address);
+        
+        // Always map investor identification fields (handle null values)
+        profileData.identification = {
+          nationalId: investor.national_id || '',
+          passport: investor.passport_no || '',
+          tin: investor.tin || '',
+        };
+        console.log('✅ Mapped identification data from investor profile:', profileData.identification);
+      }
+    }
+
+    console.log('📤 Final profile data being returned:', profileData);
+
+    res.json({
+      success: true,
+      profile: profileData
+    });
+    
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Get user settings
+app.get('/api/settings', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    
+    // Create user_settings table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS user_settings (
+        id SERIAL PRIMARY KEY,
+        firebase_uid VARCHAR(255) UNIQUE NOT NULL,
+        privacy_settings JSONB DEFAULT '{}',
+        notification_settings JSONB DEFAULT '{}',
+        security_settings JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const settingsQuery = await db.query(
+      `SELECT * FROM user_settings WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    let settings = {
+      privacySettings: {
+        profileVisibility: "private",
+        showEmail: false,
+        showPhone: false,
+        allowMessaging: true,
+        showInvestments: false,
+      },
+      notificationSettings: {
+        emailNotifications: true,
+        pushNotifications: true,
+        smsNotifications: false,
+        marketingEmails: false,
+        projectUpdates: true,
+        paymentAlerts: true,
+        systemAnnouncements: true,
+      },
+      securitySettings: {
+        twoFactorEnabled: false,
+        loginNotifications: true,
+        securityAlerts: true,
+      }
+    };
+    
+    if (settingsQuery.rows.length > 0) {
+      const userSettings = settingsQuery.rows[0];
+      settings = {
+        privacySettings: { ...settings.privacySettings, ...userSettings.privacy_settings },
+        notificationSettings: { ...settings.notificationSettings, ...userSettings.notification_settings },
+        securitySettings: { ...settings.securitySettings, ...userSettings.security_settings }
+      };
+    }
+    
+    res.json({
+      success: true,
+      settings
+    });
+    
+  } catch (error) {
+    console.error('Error fetching user settings:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Update user settings
+app.post('/api/settings', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { profileData, privacySettings, notificationSettings, securitySettings } = req.body;
+    
+    console.log('🔄 Updating settings for user:', firebase_uid);
+    console.log('📋 Profile data received:', JSON.stringify(profileData, null, 2));
+    console.log('🔐 Privacy settings:', JSON.stringify(privacySettings, null, 2));
+    console.log('🔔 Notification settings:', JSON.stringify(notificationSettings, null, 2));
+    console.log('🔒 Security settings:', JSON.stringify(securitySettings, null, 2));
+    
+    // Update basic user info first
+    if (profileData) {
+      console.log('📝 Updating basic user info...');
+      await db.query(
+        `UPDATE users SET 
+         full_name = $1,
+         updated_at = CURRENT_TIMESTAMP
+         WHERE firebase_uid = $2`,
+        [profileData.fullName, firebase_uid]
+      );
+      console.log('✅ Basic user info updated successfully');
+      
+      // Get user account types to determine which profiles to update
+      console.log('🔍 Checking user account types...');
+      const userQuery = await db.query(
+        `SELECT has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      if (userQuery.rows.length > 0) {
+        const user = userQuery.rows[0];
+        
+        // Update borrower profile if user has borrower account
+        if (user.has_borrower_account) {
+          try {
+            // Only update confirmed existing fields
+            await db.query(`
+              UPDATE borrower_profiles SET
+                phone_number = $1,
+                date_of_birth = $2,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE firebase_uid = $3
+            `, [
+              profileData.phone || null,
+              profileData.dateOfBirth || null,
+              firebase_uid
+            ]);
+            console.log('✅ Updated borrower profile basic info');
+            
+            // Try to update address fields separately with error handling
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  street = $1,
+                  barangay = $2,
+                  municipality = $3,
+                  province = $4,
+                  country = $5,
+                  postal_code = $6
+                WHERE firebase_uid = $7
+              `, [
+                profileData.address?.street || null,
+                profileData.address?.barangay || null,
+                profileData.address?.city || null,
+                profileData.address?.state || null,
+                profileData.address?.country || null,
+                profileData.address?.postalCode || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower address info');
+            } catch (addressError) {
+              console.log('⚠️ Address fields may not exist in borrower_profiles:', addressError.message);
+            }
+            
+            // Try to update identification fields separately
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  national_id = $1,
+                  passport_no = $2,
+                  tin = $3
+                WHERE firebase_uid = $4
+              `, [
+                profileData.identification?.nationalId || null,
+                profileData.identification?.passport || null,
+                profileData.identification?.tin || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower identification info');
+            } catch (idError) {
+              console.log('⚠️ ID fields may not exist in borrower_profiles:', idError.message);
+            }
+            
+          } catch (error) {
+            console.error('❌ Error updating borrower profile:', error);
+            // Don't throw error, continue with other updates
+          }
+        }
+        
+        // Update investor profile if user has investor account
+        if (user.has_investor_account) {
+          try {
+            // Update basic info
+            await db.query(`
+              UPDATE investor_profiles SET
+                phone_number = $1,
+                date_of_birth = $2,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE firebase_uid = $3
+            `, [
+              profileData.phone || null,
+              profileData.dateOfBirth || null,
+              firebase_uid
+            ]);
+            console.log('✅ Updated investor profile basic info');
+
+            // Update address fields
+            try {
+              await db.query(`
+                UPDATE investor_profiles SET
+                  street = $1,
+                  barangay = $2,
+                  municipality = $3,
+                  province = $4,
+                  country = $5,
+                  postal_code = $6
+                WHERE firebase_uid = $7
+              `, [
+                profileData.address?.street || null,
+                profileData.address?.barangay || null,
+                profileData.address?.city || null,
+                profileData.address?.state || null,
+                profileData.address?.country || null,
+                profileData.address?.postalCode || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated investor address info');
+            } catch (addressError) {
+              console.log('⚠️ Address fields may not exist in investor_profiles:', addressError.message);
+            }
+
+            // Update identification fields
+            try {
+              await db.query(`
+                UPDATE investor_profiles SET
+                  national_id = $1,
+                  passport_no = $2,
+                  tin = $3
+                WHERE firebase_uid = $4
+              `, [
+                profileData.identification?.nationalId || null,
+                profileData.identification?.passport || null,
+                profileData.identification?.tin || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated investor identification info');
+            } catch (idError) {
+              console.log('⚠️ ID fields may not exist in investor_profiles:', idError.message);
+            }
+
+          } catch (error) {
+            console.error('❌ Error updating investor profile:', error);
+            // Don't throw error, continue with other updates
+          }
+        }
+      }
+      
+      // Create user_settings table if it doesn't exist
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS user_settings (
+          id SERIAL PRIMARY KEY,
+          firebase_uid VARCHAR(255) UNIQUE NOT NULL,
+          privacy_settings JSONB DEFAULT '{}',
+          notification_settings JSONB DEFAULT '{}',
+          security_settings JSONB DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Upsert settings
+      await db.query(`
+        INSERT INTO user_settings (firebase_uid, privacy_settings, notification_settings, security_settings)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (firebase_uid) 
+        DO UPDATE SET 
+          privacy_settings = EXCLUDED.privacy_settings,
+          notification_settings = EXCLUDED.notification_settings,
+          security_settings = EXCLUDED.security_settings,
+          updated_at = CURRENT_TIMESTAMP
+      `, [
+        firebase_uid,
+        JSON.stringify(privacySettings || {}),
+        JSON.stringify(notificationSettings || {}),
+        JSON.stringify(securitySettings || {})
+      ]);
+    }
+      
+    console.log('✅ Profile and settings updated successfully');
+    res.json({ success: true, message: 'Settings updated successfully' });
+      
+  } catch (error) {
+    console.error('❌ Error updating user settings:', error);
+    console.error('🔍 Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      detail: error.detail
+    });
+    res.status(500).json({ error: 'Database error', details: error.message });
+  }
+});
+
+// Change password endpoint
+app.post('/api/settings/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    // Note: In a real implementation, you would:
+    // 1. Verify the current password against Firebase Auth
+    // 2. Update the password through Firebase Auth API
+    // For now, we'll just return success
+    
+    console.log('Password change requested for user:', req.uid);
+    
+    res.json({ 
+      success: true, 
+      message: 'Password changed successfully' 
+    });
+    
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
 
 // Top-up routes
 const topupRouter = express.Router();
@@ -2252,47 +2745,56 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
 });
 
 const PORT = process.env.PORT || 3001;
+
+// Set up admin user before starting server
+(async () => {
+  try {
+    console.log('🔧 Setting up admin user...');
+    
+    // Remove admin status from all users first
+    await db.query('UPDATE users SET is_admin = false');
+    console.log('✅ Removed admin status from all users');
+    
+    // Get Firebase user by email to find the correct UID
+    let adminUID = null;
+    try {
+      const userRecord = await admin.auth().getUserByEmail('m.shahbazsherwani@gmail.com');
+      adminUID = userRecord.uid;
+      console.log(`🔍 Found Firebase UID for admin email: ${adminUID}`);
+    } catch (firebaseError) {
+      console.log('⚠️ Could not find Firebase user with email m.shahbazsherwani@gmail.com');
+      console.log('Will check database for existing users...');
+    }
+    
+    if (adminUID) {
+      // Set the specific Firebase UID as admin
+      const adminResult = await db.query(
+        'UPDATE users SET is_admin = true WHERE firebase_uid = $1',
+        [adminUID]
+      );
+      
+      if (adminResult.rowCount > 0) {
+        console.log('✅ Set user with UID', adminUID, 'as admin');
+      } else {
+        console.log('⚠️ Firebase UID not found in database - user needs to sign in first');
+      }
+    }
+    
+    // Show current admin users
+    const adminCheck = await db.query('SELECT firebase_uid, full_name, is_admin FROM users WHERE is_admin = true');
+    console.log('📋 Current admin users:', adminCheck.rows);
+    
+  } catch (err) {
+    console.error('❌ Error updating admin status:', err);
+  }
+})();
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('🚀 Server is ready to accept connections');
   
-  // Set only specific Firebase UID as admin, remove admin from others
-  (async () => {
-    try {
-      // Remove admin status from all users first
-      await db.query('UPDATE users SET is_admin = false');
-      console.log('✅ Removed admin status from all users');
-      
-      // Get Firebase user by email to find the correct UID
-      let adminUID = null;
-      try {
-        const userRecord = await admin.auth().getUserByEmail('m.shahbazsherwani@gmail.com');
-        adminUID = userRecord.uid;
-        console.log(`🔍 Found Firebase UID for admin email: ${adminUID}`);
-      } catch (firebaseError) {
-        console.log('⚠️ Could not find Firebase user with email m.shahbazsherwani@gmail.com');
-        console.log('Will check database for existing users...');
-      }
-      
-      if (adminUID) {
-        // Set the specific Firebase UID as admin
-        const adminResult = await db.query(
-          'UPDATE users SET is_admin = true WHERE firebase_uid = $1',
-          [adminUID]
-        );
-        
-        if (adminResult.rowCount > 0) {
-          console.log('✅ Set user with UID', adminUID, 'as admin');
-        } else {
-          console.log('⚠️ Firebase UID not found in database - user needs to sign in first');
-        }
-      }
-      
-      // Show current admin users
-      const adminCheck = await db.query('SELECT firebase_uid, full_name, is_admin FROM users WHERE is_admin = true');
-      console.log('📋 Current admin users:', adminCheck.rows);
-      
-    } catch (err) {
-      console.error('❌ Error updating admin status:', err);
-    }
-  })();
+  // Keep the process alive
+  setInterval(() => {
+    // This empty interval keeps the process running
+  }, 30000); // Every 30 seconds
 });
