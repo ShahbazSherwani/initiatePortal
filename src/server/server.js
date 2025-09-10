@@ -25,32 +25,66 @@ admin.initializeApp({
 
 console.log('Firebase Admin SDK initialized successfully');
 
-// Initialize Postgres client (Supabase)
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,  // Supabase requires SSL
-  },
-  // Optional: Configure pool settings for better performance
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+// Initialize Postgres client (Supabase) with better connection settings
+let db = null;
+let dbConnected = false;
 
-// Add error handling for database connection
-db.on('error', (err, client) => {
-  console.error('❌ Unexpected error on idle client', err);
-  // Don't exit the process, just log the error
-});
+try {
+  db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false,  // Supabase requires SSL
+    },
+    // Optimized settings for Supabase
+    max: 10,                    // Reduced max connections
+    idleTimeoutMillis: 60000,   // 1 minute idle timeout
+    connectionTimeoutMillis: 10000,  // 10 seconds connection timeout
+    acquireTimeoutMillis: 10000,     // 10 seconds to acquire connection
+    query_timeout: 30000,       // 30 seconds query timeout
+  });
 
-// Test database connection on startup
-db.query('SELECT NOW()', (err, result) => {
-  if (err) {
-    console.error('❌ Database connection failed:', err);
-  } else {
-    console.log('✅ Database connected successfully');
-  }
-});
+  // Add error handling for database connection
+  db.on('error', (err, client) => {
+    console.error('❌ Database pool error:', err);
+    dbConnected = false;
+  });
+
+  db.on('connect', () => {
+    console.log('✅ Database pool connected');
+    dbConnected = true;
+  });
+
+  // Test database connection on startup with retry
+  const testConnection = async () => {
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        const result = await db.query('SELECT NOW() as current_time');
+        console.log('✅ Database connected successfully at:', result.rows[0].current_time);
+        dbConnected = true;
+        break;
+      } catch (err) {
+        retries--;
+        console.error(`❌ Database connection attempt failed (${3-retries}/3):`, err.message);
+        if (retries > 0) {
+          console.log('🔄 Retrying in 2 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          console.error('❌ Database connection failed after 3 attempts');
+          console.log('🔄 Server will continue without database functionality');
+          dbConnected = false;
+        }
+      }
+    }
+  };
+
+  testConnection();
+
+} catch (error) {
+  console.error('❌ Database initialization failed:', error);
+  console.log('🔄 Server will continue without database functionality');
+  dbConnected = false;
+}
 
 // Handle uncaught exceptions and unhandled rejections
 process.on('uncaughtException', (error) => {
@@ -599,9 +633,34 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
     const { uid: firebase_uid } = req;
     console.log('🔍 Settings profile request for user:', firebase_uid);
     
+    // Check if database is connected
+    if (!dbConnected || !db) {
+      console.log('⚠️ Database not connected, returning default profile');
+      
+      // Try to get basic info from Firebase
+      let defaultProfile = {
+        firebase_uid,
+        full_name: '',
+        email: '',
+        current_account_type: 'individual',
+        has_borrower_account: false,
+        has_investor_account: false
+      };
+      
+      try {
+        const firebaseUser = await admin.auth().getUser(firebase_uid);
+        defaultProfile.full_name = firebaseUser.displayName || '';
+        defaultProfile.email = firebaseUser.email || '';
+      } catch (e) {
+        console.log('Could not get Firebase user data:', e.message);
+      }
+      
+      return res.json(defaultProfile);
+    }
+    
     // Get user base info (optimized - only needed columns)
     const userQuery = await db.query(
-      `SELECT firebase_uid, full_name, email, current_account_type, has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
+      `SELECT firebase_uid, full_name, current_account_type, has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
       [firebase_uid]
     );
     
@@ -613,15 +672,13 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
     
     const user = userQuery.rows[0];
     
-    // Try to get email from Firebase if not in database
-    let userEmail = user.email || '';
-    if (!userEmail && firebase_uid) {
-      try {
-        const firebaseUser = await admin.auth().getUser(firebase_uid);
-        userEmail = firebaseUser.email || '';
-      } catch (e) {
-        console.log('Could not get email from Firebase:', e.message);
-      }
+    // Get email from Firebase since it's not stored in the database
+    let userEmail = '';
+    try {
+      const firebaseUser = await admin.auth().getUser(firebase_uid);
+      userEmail = firebaseUser.email || '';
+    } catch (e) {
+      console.log('Could not get email from Firebase:', e.message);
     }
     
     let profileData = {
@@ -1040,22 +1097,94 @@ app.post('/api/settings', verifyToken, async (req, res) => {
 app.post('/api/settings/change-password', verifyToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
+    const uid = req.uid;
     
-    // Note: In a real implementation, you would:
-    // 1. Verify the current password against Firebase Auth
-    // 2. Update the password through Firebase Auth API
-    // For now, we'll just return success
+    console.log('Password change request for user:', uid);
     
-    console.log('Password change requested for user:', req.uid);
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Current password and new password are required" 
+      });
+    }
     
-    res.json({ 
-      success: true, 
-      message: 'Password changed successfully' 
+    if (newPassword.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "New password must be at least 8 characters long" 
+      });
+    }
+    
+    // Use Firebase Admin SDK to update password
+    await admin.auth().updateUser(uid, {
+      password: newPassword
     });
+    
+    console.log("Password updated successfully for user:", uid);
+    res.json({ success: true });
     
   } catch (error) {
     console.error('Error changing password:', error);
-    res.status(500).json({ error: 'Failed to change password' });
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to change password' 
+    });
+  }
+});
+
+// Forgot password route
+app.post('/api/settings/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    console.log("Forgot password request for email:", email);
+    
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Email is required" 
+      });
+    }
+    
+    // Check if user exists in Firebase
+    let userExists = false;
+    try {
+      await admin.auth().getUserByEmail(email);
+      userExists = true;
+    } catch (error) {
+      // User doesn't exist, but we don't want to reveal this for security
+      console.log("User not found for email:", email);
+    }
+    
+    if (userExists) {
+      // Generate a password reset link
+      const resetLink = await admin.auth().generatePasswordResetLink(email);
+      
+      console.log("Reset link generated for:", email);
+      console.log("Reset link (dev only):", resetLink);
+      
+      // In production, you would send this via email
+      // For development, we'll return it in the response
+      res.json({ 
+        success: true, 
+        message: "Password reset link sent",
+        resetLink: resetLink // Remove this in production
+      });
+    } else {
+      // Still return success to prevent email enumeration
+      res.json({ 
+        success: true, 
+        message: "If an account exists, a password reset link has been sent"
+      });
+    }
+    
+  } catch (error) {
+    console.error("Error processing forgot password:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Failed to process password reset request" 
+    });
   }
 });
 
@@ -2159,6 +2288,214 @@ app.post('/api/profile/complete-registration', verifyToken, async (req, res) => 
     res.json({ success: true });
   } catch (err) {
     console.error("Error completing registration:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Complete KYC registration
+app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
+  try {
+    const uid = req.uid;
+    const { accountType, kycData } = req.body;
+    
+    if (!accountType || !kycData) {
+      return res.status(400).json({ error: "Missing required fields: accountType and kycData" });
+    }
+    
+    // Begin transaction
+    await db.query('BEGIN');
+    
+    try {
+      // Update user role and registration status
+      await db.query(
+        `UPDATE users 
+         SET role = $1, 
+             has_completed_registration = true,
+             updated_at = NOW()
+         WHERE firebase_uid = $2`,
+        [accountType, uid]
+      );
+      
+      // Set account flags
+      const hasBorowrAccount = accountType === 'borrower';
+      const hasInvestorAccount = accountType === 'investor';
+      
+      await db.query(
+        `UPDATE users 
+         SET has_borrower_account = $1,
+             has_investor_account = $2,
+             current_account_type = $3,
+             updated_at = NOW()
+         WHERE firebase_uid = $4`,
+        [hasBorowrAccount, hasInvestorAccount, accountType, uid]
+      );
+      
+      // Insert into appropriate profile table
+      if (accountType === 'borrower') {
+        await db.query(`
+          INSERT INTO borrower_profiles (
+            firebase_uid, is_individual_account, place_of_birth, gender, civil_status, 
+            nationality, contact_email, secondary_id_type, secondary_id_number,
+            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, 
+            emergency_contact_email, business_registration_type, business_registration_number,
+            business_registration_date, corporate_tin, nature_of_business, principal_office_street,
+            principal_office_barangay, principal_office_municipality, principal_office_province,
+            principal_office_country, principal_office_postal_code, gis_total_assets,
+            gis_total_liabilities, gis_paid_up_capital, gis_number_of_stockholders,
+            gis_number_of_employees, is_politically_exposed_person, pep_details,
+            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_type,
+            authorized_signatory_id_number, is_complete, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 
+            $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, 
+            TRUE, NOW(), NOW()
+          )
+          ON CONFLICT (firebase_uid) DO UPDATE SET
+            is_individual_account = EXCLUDED.is_individual_account,
+            place_of_birth = EXCLUDED.place_of_birth,
+            gender = EXCLUDED.gender,
+            civil_status = EXCLUDED.civil_status,
+            nationality = EXCLUDED.nationality,
+            contact_email = EXCLUDED.contact_email,
+            secondary_id_type = EXCLUDED.secondary_id_type,
+            secondary_id_number = EXCLUDED.secondary_id_number,
+            emergency_contact_name = EXCLUDED.emergency_contact_name,
+            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+            emergency_contact_email = EXCLUDED.emergency_contact_email,
+            business_registration_type = EXCLUDED.business_registration_type,
+            business_registration_number = EXCLUDED.business_registration_number,
+            business_registration_date = EXCLUDED.business_registration_date,
+            corporate_tin = EXCLUDED.corporate_tin,
+            nature_of_business = EXCLUDED.nature_of_business,
+            principal_office_street = EXCLUDED.principal_office_street,
+            principal_office_barangay = EXCLUDED.principal_office_barangay,
+            principal_office_municipality = EXCLUDED.principal_office_municipality,
+            principal_office_province = EXCLUDED.principal_office_province,
+            principal_office_country = EXCLUDED.principal_office_country,
+            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            gis_total_assets = EXCLUDED.gis_total_assets,
+            gis_total_liabilities = EXCLUDED.gis_total_liabilities,
+            gis_paid_up_capital = EXCLUDED.gis_paid_up_capital,
+            gis_number_of_stockholders = EXCLUDED.gis_number_of_stockholders,
+            gis_number_of_employees = EXCLUDED.gis_number_of_employees,
+            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
+            pep_details = EXCLUDED.pep_details,
+            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
+            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
+            authorized_signatory_id_type = EXCLUDED.authorized_signatory_id_type,
+            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+            is_complete = TRUE,
+            updated_at = NOW()
+        `, [
+          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.gender, 
+          kycData.civilStatus, kycData.nationality, kycData.contactEmail, 
+          kycData.secondaryIdType, kycData.secondaryIdNumber, kycData.emergencyContactName,
+          kycData.emergencyContactRelationship, kycData.emergencyContactPhone, 
+          kycData.emergencyContactEmail, kycData.businessRegistrationType, 
+          kycData.businessRegistrationNumber, kycData.businessRegistrationDate,
+          kycData.corporateTin, kycData.natureOfBusiness, kycData.principalOfficeStreet,
+          kycData.principalOfficeBarangay, kycData.principalOfficeMunicipality,
+          kycData.principalOfficeProvince, kycData.principalOfficeCountry,
+          kycData.principalOfficePostalCode, kycData.gisTotalAssets,
+          kycData.gisTotalLiabilities, kycData.gisPaidUpCapital, 
+          kycData.gisNumberOfStockholders, kycData.gisNumberOfEmployees,
+          kycData.isPoliticallyExposedPerson, kycData.pepDetails,
+          kycData.authorizedSignatoryName, kycData.authorizedSignatoryPosition,
+          kycData.authorizedSignatoryIdType, kycData.authorizedSignatoryIdNumber
+        ]);
+      } else {
+        // Similar for investor_profiles
+        await db.query(`
+          INSERT INTO investor_profiles (
+            firebase_uid, is_individual_account, place_of_birth, gender, civil_status, 
+            nationality, contact_email, secondary_id_type, secondary_id_number,
+            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, 
+            emergency_contact_email, business_registration_type, business_registration_number,
+            business_registration_date, corporate_tin, nature_of_business, principal_office_street,
+            principal_office_barangay, principal_office_municipality, principal_office_province,
+            principal_office_country, principal_office_postal_code, gis_total_assets,
+            gis_total_liabilities, gis_paid_up_capital, gis_number_of_stockholders,
+            gis_number_of_employees, is_politically_exposed_person, pep_details,
+            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_type,
+            authorized_signatory_id_number, is_complete, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 
+            $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, 
+            TRUE, NOW(), NOW()
+          )
+          ON CONFLICT (firebase_uid) DO UPDATE SET
+            is_individual_account = EXCLUDED.is_individual_account,
+            place_of_birth = EXCLUDED.place_of_birth,
+            gender = EXCLUDED.gender,
+            civil_status = EXCLUDED.civil_status,
+            nationality = EXCLUDED.nationality,
+            contact_email = EXCLUDED.contact_email,
+            secondary_id_type = EXCLUDED.secondary_id_type,
+            secondary_id_number = EXCLUDED.secondary_id_number,
+            emergency_contact_name = EXCLUDED.emergency_contact_name,
+            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+            emergency_contact_email = EXCLUDED.emergency_contact_email,
+            business_registration_type = EXCLUDED.business_registration_type,
+            business_registration_number = EXCLUDED.business_registration_number,
+            business_registration_date = EXCLUDED.business_registration_date,
+            corporate_tin = EXCLUDED.corporate_tin,
+            nature_of_business = EXCLUDED.nature_of_business,
+            principal_office_street = EXCLUDED.principal_office_street,
+            principal_office_barangay = EXCLUDED.principal_office_barangay,
+            principal_office_municipality = EXCLUDED.principal_office_municipality,
+            principal_office_province = EXCLUDED.principal_office_province,
+            principal_office_country = EXCLUDED.principal_office_country,
+            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            gis_total_assets = EXCLUDED.gis_total_assets,
+            gis_total_liabilities = EXCLUDED.gis_total_liabilities,
+            gis_paid_up_capital = EXCLUDED.gis_paid_up_capital,
+            gis_number_of_stockholders = EXCLUDED.gis_number_of_stockholders,
+            gis_number_of_employees = EXCLUDED.gis_number_of_employees,
+            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
+            pep_details = EXCLUDED.pep_details,
+            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
+            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
+            authorized_signatory_id_type = EXCLUDED.authorized_signatory_id_type,
+            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+            is_complete = TRUE,
+            updated_at = NOW()
+        `, [
+          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.gender, 
+          kycData.civilStatus, kycData.nationality, kycData.contactEmail, 
+          kycData.secondaryIdType, kycData.secondaryIdNumber, kycData.emergencyContactName,
+          kycData.emergencyContactRelationship, kycData.emergencyContactPhone, 
+          kycData.emergencyContactEmail, kycData.businessRegistrationType, 
+          kycData.businessRegistrationNumber, kycData.businessRegistrationDate,
+          kycData.corporateTin, kycData.natureOfBusiness, kycData.principalOfficeStreet,
+          kycData.principalOfficeBarangay, kycData.principalOfficeMunicipality,
+          kycData.principalOfficeProvince, kycData.principalOfficeCountry,
+          kycData.principalOfficePostalCode, kycData.gisTotalAssets,
+          kycData.gisTotalLiabilities, kycData.gisPaidUpCapital, 
+          kycData.gisNumberOfStockholders, kycData.gisNumberOfEmployees,
+          kycData.isPoliticallyExposedPerson, kycData.pepDetails,
+          kycData.authorizedSignatoryName, kycData.authorizedSignatoryPosition,
+          kycData.authorizedSignatoryIdType, kycData.authorizedSignatoryIdNumber
+        ]);
+      }
+      
+      // Commit transaction
+      await db.query('COMMIT');
+      
+      res.json({ 
+        success: true, 
+        message: 'KYC information submitted successfully',
+        accountType: accountType
+      });
+      
+    } catch (innerErr) {
+      await db.query('ROLLBACK');
+      throw innerErr;
+    }
+    
+  } catch (err) {
+    console.error("Error completing KYC:", err);
     res.status(500).json({ error: "Database error", details: err.message });
   }
 });

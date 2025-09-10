@@ -131,7 +131,9 @@ export const LogIn = (): JSX.Element => {
           </div>
 
           <div className="text-right text-sm mt-2 mb-6 font-medium text-black w-full md:max-w-[65%]">
-            Forgot Password?
+            <Link to="/forgot-password" className="hover:text-[#ffc00f] transition-colors">
+              Forgot Password?
+            </Link>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center md:gap-4 md:max-w-[65%]">

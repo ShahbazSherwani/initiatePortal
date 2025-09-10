@@ -64,6 +64,46 @@ export const Settings = (): JSX.Element => {
       passport: "",
       tin: "",
     },
+    personalInfo: {
+      placeOfBirth: "",
+      gender: "",
+      civilStatus: "",
+      nationality: "",
+      motherMaidenName: "",
+    },
+    employmentInfo: {
+      employerName: "",
+      occupation: "",
+      employerAddress: "",
+      sourceOfIncome: "",
+      monthlyIncome: null as number | null,
+    },
+    emergencyContact: {
+      name: "",
+      relationship: "",
+      phone: "",
+      address: "",
+    },
+    businessInfo: {
+      businessRegistrationType: "",
+      businessRegistrationNumber: "",
+      businessRegistrationDate: "",
+      corporateTin: "",
+      natureOfBusiness: "",
+      businessAddress: "",
+    },
+    authorizedSignatory: {
+      name: "",
+      position: "",
+      idNumber: "",
+    },
+    investmentInfo: {
+      experience: "",
+      preference: "",
+      riskTolerance: "",
+      portfolioValue: 0,
+    },
+    pepStatus: false,
     accountType: "",
     profileType: "",
   });
@@ -170,6 +210,46 @@ export const Settings = (): JSX.Element => {
           passport: "P123456789",
           tin: "123-456-789-000",
         },
+        personalInfo: {
+          placeOfBirth: "Manila",
+          gender: "male",
+          civilStatus: "single",
+          nationality: "Filipino",
+          motherMaidenName: "Dela Cruz",
+        },
+        employmentInfo: {
+          employerName: "ABC Corporation",
+          occupation: "Software Engineer",
+          employerAddress: "BGC, Taguig City",
+          sourceOfIncome: "employment",
+          monthlyIncome: 50000,
+        },
+        emergencyContact: {
+          name: "Maria Doe",
+          relationship: "spouse",
+          phone: "+63 912 345 6788",
+          address: "123 Main Street, Makati",
+        },
+        businessInfo: {
+          businessRegistrationType: "",
+          businessRegistrationNumber: "",
+          businessRegistrationDate: "",
+          corporateTin: "",
+          natureOfBusiness: "",
+          businessAddress: "",
+        },
+        authorizedSignatory: {
+          name: "",
+          position: "",
+          idNumber: "",
+        },
+        investmentInfo: {
+          experience: "intermediate",
+          preference: "both",
+          riskTolerance: "moderate",
+          portfolioValue: 100000,
+        },
+        pepStatus: false,
         accountType: "Individual",
         profileType: "Investor",
       });
@@ -482,6 +562,451 @@ export const Settings = (): JSX.Element => {
                             className="h-12"
                           />
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Individual Account KYC Fields */}
+                    {profileData.accountType?.toLowerCase() === 'individual' && (
+                      <>
+                        {/* Additional Personal Information */}
+                        <div className="pt-6">
+                          <h3 className="text-lg font-semibold mb-4">Additional Personal Information</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Place of Birth</Label>
+                              <Input
+                                value={profileData.personalInfo.placeOfBirth}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  personalInfo: { ...prev.personalInfo, placeOfBirth: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Gender</Label>
+                              <Select
+                                value={profileData.personalInfo.gender}
+                                onValueChange={(value) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  personalInfo: { ...prev.personalInfo, gender: value }
+                                }))}
+                              >
+                                <SelectTrigger className="h-12">
+                                  <SelectValue placeholder="Select gender" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="male">Male</SelectItem>
+                                  <SelectItem value="female">Female</SelectItem>
+                                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Civil Status</Label>
+                              <Select
+                                value={profileData.personalInfo.civilStatus}
+                                onValueChange={(value) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  personalInfo: { ...prev.personalInfo, civilStatus: value }
+                                }))}
+                              >
+                                <SelectTrigger className="h-12">
+                                  <SelectValue placeholder="Select civil status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="single">Single</SelectItem>
+                                  <SelectItem value="married">Married</SelectItem>
+                                  <SelectItem value="divorced">Divorced</SelectItem>
+                                  <SelectItem value="widowed">Widowed</SelectItem>
+                                  <SelectItem value="separated">Separated</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Mother's Maiden Name</Label>
+                              <Input
+                                value={profileData.personalInfo.motherMaidenName}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  personalInfo: { ...prev.personalInfo, motherMaidenName: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Employment Information */}
+                        <div className="pt-6">
+                          <h3 className="text-lg font-semibold mb-4">Employment Information</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Employer/Company Name</Label>
+                              <Input
+                                value={profileData.employmentInfo.employerName}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  employmentInfo: { ...prev.employmentInfo, employerName: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Occupation/Position</Label>
+                              <Input
+                                value={profileData.employmentInfo.occupation}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  employmentInfo: { ...prev.employmentInfo, occupation: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                              <Label>Employer Address</Label>
+                              <Input
+                                value={profileData.employmentInfo.employerAddress}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  employmentInfo: { ...prev.employmentInfo, employerAddress: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Primary Source of Income</Label>
+                              <Select
+                                value={profileData.employmentInfo.sourceOfIncome}
+                                onValueChange={(value) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  employmentInfo: { ...prev.employmentInfo, sourceOfIncome: value }
+                                }))}
+                              >
+                                <SelectTrigger className="h-12">
+                                  <SelectValue placeholder="Select source of income" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="employment">Employment/Salary</SelectItem>
+                                  <SelectItem value="business">Business Income</SelectItem>
+                                  <SelectItem value="investments">Investment Income</SelectItem>
+                                  <SelectItem value="pension">Pension/Retirement</SelectItem>
+                                  <SelectItem value="remittances">Remittances</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Monthly Income (PHP)</Label>
+                              <Input
+                                type="number"
+                                value={profileData.employmentInfo.monthlyIncome || ''}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  employmentInfo: { ...prev.employmentInfo, monthlyIncome: e.target.value ? parseFloat(e.target.value) : null }
+                                }))}
+                                className="h-12"
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Emergency Contact Information */}
+                        <div className="pt-6">
+                          <h3 className="text-lg font-semibold mb-4">Emergency Contact</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Contact Person Name</Label>
+                              <Input
+                                value={profileData.emergencyContact.name}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  emergencyContact: { ...prev.emergencyContact, name: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Relationship</Label>
+                              <Select
+                                value={profileData.emergencyContact.relationship}
+                                onValueChange={(value) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  emergencyContact: { ...prev.emergencyContact, relationship: value }
+                                }))}
+                              >
+                                <SelectTrigger className="h-12">
+                                  <SelectValue placeholder="Select relationship" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="spouse">Spouse</SelectItem>
+                                  <SelectItem value="parent">Parent</SelectItem>
+                                  <SelectItem value="child">Child</SelectItem>
+                                  <SelectItem value="sibling">Sibling</SelectItem>
+                                  <SelectItem value="relative">Relative</SelectItem>
+                                  <SelectItem value="friend">Friend</SelectItem>
+                                  <SelectItem value="colleague">Colleague</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Contact Phone Number</Label>
+                              <Input
+                                value={profileData.emergencyContact.phone}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  emergencyContact: { ...prev.emergencyContact, phone: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Contact Address</Label>
+                              <Input
+                                value={profileData.emergencyContact.address}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  emergencyContact: { ...prev.emergencyContact, address: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Non-Individual Account KYC Fields */}
+                    {profileData.accountType?.toLowerCase() === 'non-individual' && (
+                      <>
+                        {/* Business Information */}
+                        <div className="pt-6">
+                          <h3 className="text-lg font-semibold mb-4">Business Information</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Registration Type</Label>
+                              <Select
+                                value={profileData.businessInfo.businessRegistrationType}
+                                onValueChange={(value) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, businessRegistrationType: value }
+                                }))}
+                              >
+                                <SelectTrigger className="h-12">
+                                  <SelectValue placeholder="Select registration type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="SEC">SEC (Securities and Exchange Commission)</SelectItem>
+                                  <SelectItem value="CDA">CDA (Cooperative Development Authority)</SelectItem>
+                                  <SelectItem value="DTI">DTI (Department of Trade and Industry)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Registration Number</Label>
+                              <Input
+                                value={profileData.businessInfo.businessRegistrationNumber}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, businessRegistrationNumber: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Registration Date</Label>
+                              <Input
+                                type="date"
+                                value={profileData.businessInfo.businessRegistrationDate}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, businessRegistrationDate: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Corporate TIN</Label>
+                              <Input
+                                value={profileData.businessInfo.corporateTin}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, corporateTin: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                              <Label>Nature of Business</Label>
+                              <Input
+                                value={profileData.businessInfo.natureOfBusiness}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, natureOfBusiness: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                              <Label>Business Address</Label>
+                              <Input
+                                value={profileData.businessInfo.businessAddress}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, businessAddress: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Authorized Signatory Information */}
+                        <div className="pt-6">
+                          <h3 className="text-lg font-semibold mb-4">Authorized Signatory</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Signatory Name</Label>
+                              <Input
+                                value={profileData.authorizedSignatory.name}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  authorizedSignatory: { ...prev.authorizedSignatory, name: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Position/Title</Label>
+                              <Input
+                                value={profileData.authorizedSignatory.position}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  authorizedSignatory: { ...prev.authorizedSignatory, position: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                              <Label>ID Number</Label>
+                              <Input
+                                value={profileData.authorizedSignatory.idNumber}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  authorizedSignatory: { ...prev.authorizedSignatory, idNumber: e.target.value }
+                                }))}
+                                className="h-12"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Investment Information (for Investors) */}
+                    {profileData.profileType?.toLowerCase().includes('investor') && (
+                      <div className="pt-6">
+                        <h3 className="text-lg font-semibold mb-4">Investment Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Investment Experience</Label>
+                            <Select
+                              value={profileData.investmentInfo.experience}
+                              onValueChange={(value) => setProfileData(prev => ({ 
+                                ...prev, 
+                                investmentInfo: { ...prev.investmentInfo, experience: value }
+                              }))}
+                            >
+                              <SelectTrigger className="h-12">
+                                <SelectValue placeholder="Select experience" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="beginner">Beginner (0-2 years)</SelectItem>
+                                <SelectItem value="intermediate">Intermediate (3-5 years)</SelectItem>
+                                <SelectItem value="advanced">Advanced (5+ years)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Investment Preference</Label>
+                            <Select
+                              value={profileData.investmentInfo.preference}
+                              onValueChange={(value) => setProfileData(prev => ({ 
+                                ...prev, 
+                                investmentInfo: { ...prev.investmentInfo, preference: value }
+                              }))}
+                            >
+                              <SelectTrigger className="h-12">
+                                <SelectValue placeholder="Select preference" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="lending">Lending Projects</SelectItem>
+                                <SelectItem value="equity">Equity Investments</SelectItem>
+                                <SelectItem value="both">Both Lending & Equity</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Risk Tolerance</Label>
+                            <Select
+                              value={profileData.investmentInfo.riskTolerance}
+                              onValueChange={(value) => setProfileData(prev => ({ 
+                                ...prev, 
+                                investmentInfo: { ...prev.investmentInfo, riskTolerance: value }
+                              }))}
+                            >
+                              <SelectTrigger className="h-12">
+                                <SelectValue placeholder="Select risk tolerance" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="conservative">Conservative</SelectItem>
+                                <SelectItem value="moderate">Moderate</SelectItem>
+                                <SelectItem value="aggressive">Aggressive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Portfolio Value (PHP)</Label>
+                            <Input
+                              type="number"
+                              value={profileData.investmentInfo.portfolioValue}
+                              onChange={(e) => setProfileData(prev => ({ 
+                                ...prev, 
+                                investmentInfo: { ...prev.investmentInfo, portfolioValue: parseFloat(e.target.value) || 0 }
+                              }))}
+                              className="h-12"
+                              min="0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PEP Declaration */}
+                    <div className="pt-6">
+                      <h3 className="text-lg font-semibold mb-4">Compliance Declaration</h3>
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            id="pepStatus"
+                            checked={profileData.pepStatus}
+                            onCheckedChange={(checked) => setProfileData(prev => ({ 
+                              ...prev, 
+                              pepStatus: !!checked 
+                            }))}
+                          />
+                          <Label htmlFor="pepStatus" className="text-sm leading-relaxed">
+                            {profileData.accountType?.toLowerCase() === 'individual' 
+                              ? "I am a Politically Exposed Person (PEP) or have an immediate family member or close associate who is a PEP."
+                              : "The entity or any of its beneficial owners, directors, or authorized signatories is a Politically Exposed Person (PEP) or has an immediate family member or close associate who is a PEP."
+                            }
+                          </Label>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          Note: PEP status does not disqualify you from using our services but requires additional compliance procedures.
+                        </p>
                       </div>
                     </div>
 

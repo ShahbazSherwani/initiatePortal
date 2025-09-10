@@ -24,17 +24,44 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// Initialize Postgres client (Supabase)
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,  // Supabase requires SSL
-  },
-  // Optional: Configure pool settings for better performance
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+// Initialize Postgres client with better error handling
+let db = null;
+let dbConnected = false;
+
+if (process.env.DATABASE_URL) {
+  try {
+    db = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL.includes('localhost') ? false : {
+        rejectUnauthorized: false,  // Supabase requires SSL
+      },
+      // Optional: Configure pool settings for better performance
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    });
+
+    // Test the connection
+    db.connect()
+      .then(client => {
+        console.log('✅ Database connected successfully');
+        dbConnected = true;
+        client.release();
+      })
+      .catch(err => {
+        console.log('❌ Database connection failed:', err.message);
+        console.log('🔄 API will continue without database functionality');
+        dbConnected = false;
+      });
+  } catch (error) {
+    console.log('❌ Database initialization failed:', error.message);
+    console.log('🔄 API will continue without database functionality');
+    dbConnected = false;
+  }
+} else {
+  console.log('⚠️  No DATABASE_URL found in environment variables');
+  console.log('🔄 API will continue without database functionality');
+}
 
 // After your app definition and before any routes
 const app = express();
@@ -169,6 +196,18 @@ profileRouter.get('/', verifyToken, async (req, res) => {
   console.log("Profile request for user:", req.uid);
   
   try {
+    // Check if database is connected
+    if (!dbConnected || !db) {
+      console.log('Database not connected, returning default profile');
+      return res.json({
+        full_name: null,
+        role: null,
+        created_at: null,
+        is_admin: false,
+        has_completed_registration: false
+      });
+    }
+
     // Try a simpler query first
     const query = 'SELECT * FROM users WHERE firebase_uid = $1';
     console.log("Executing query:", query);
@@ -181,7 +220,9 @@ profileRouter.get('/', verifyToken, async (req, res) => {
       return res.json({
         full_name: null,
         role: null,
-        created_at: null
+        created_at: null,
+        is_admin: false,
+        has_completed_registration: false
       });
     }
     
@@ -210,7 +251,9 @@ profileRouter.get('/', verifyToken, async (req, res) => {
       // Default profile
       full_name: null,
       role: null,
-      created_at: null 
+      created_at: null,
+      is_admin: false,
+      has_completed_registration: false 
     });
   }
 });
@@ -284,6 +327,334 @@ app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
 });
 
 app.use('/api/profile', profileRouter);
+
+// Settings routes
+const settingsRouter = express.Router();
+
+// Get user settings/profile (extended version)
+settingsRouter.get('/', verifyToken, async (req, res) => {
+  try {
+    if (!dbConnected || !db) {
+      // Return default settings when database is not available
+      console.log('Database not connected, returning default settings');
+      return res.json({
+        fullName: '',
+        email: req.user?.email || '',
+        phone: '',
+        personalInfo: {},
+        accountType: 'individual'
+      });
+    }
+
+    const uid = req.uid;
+    console.log("Settings request for user:", uid);
+    
+    // Get user profile data from Firebase
+    const userRecord = await admin.auth().getUser(uid);
+    
+    // Try to get additional data from database
+    let dbUserData = null;
+    try {
+      const { rows } = await db.query(
+        'SELECT * FROM users WHERE firebase_uid = $1',
+        [uid]
+      );
+      dbUserData = rows[0];
+    } catch (dbError) {
+      console.log('Database query failed, using Firebase data only:', dbError.message);
+    }
+    
+    // Combine Firebase and database data
+    const settings = {
+      fullName: dbUserData?.full_name || userRecord.displayName || '',
+      email: userRecord.email || '',
+      phone: dbUserData?.phone || userRecord.phoneNumber || '',
+      accountType: dbUserData?.account_type || 'individual',
+      // Include all KYC fields
+      personalInfo: {
+        // Individual fields
+        firstName: dbUserData?.first_name || '',
+        lastName: dbUserData?.last_name || '',
+        middleName: dbUserData?.middle_name || '',
+        dateOfBirth: dbUserData?.date_of_birth || '',
+        placeOfBirth: dbUserData?.place_of_birth || '',
+        nationality: dbUserData?.nationality || '',
+        gender: dbUserData?.gender || '',
+        maritalStatus: dbUserData?.marital_status || '',
+        
+        // Contact Information
+        emailAddress: dbUserData?.email_address || userRecord.email || '',
+        phoneNumber: dbUserData?.phone_number || '',
+        mobileNumber: dbUserData?.mobile_number || '',
+        
+        // Address Information
+        presentAddress: dbUserData?.present_address || '',
+        permanentAddress: dbUserData?.permanent_address || '',
+        city: dbUserData?.city || '',
+        state: dbUserData?.state || '',
+        postalCode: dbUserData?.postal_code || '',
+        country: dbUserData?.country || '',
+        
+        // Identification
+        nationalId: dbUserData?.national_id || '',
+        passport: dbUserData?.passport || '',
+        driversLicense: dbUserData?.drivers_license || '',
+        tinNumber: dbUserData?.tin_number || '',
+        
+        // Employment Information
+        employmentStatus: dbUserData?.employment_status || '',
+        occupation: dbUserData?.occupation || '',
+        employerName: dbUserData?.employer_name || '',
+        employerAddress: dbUserData?.employer_address || '',
+        monthlyIncome: dbUserData?.monthly_income || '',
+        incomeSource: dbUserData?.income_source || '',
+        
+        // Non-Individual specific fields
+        companyName: dbUserData?.company_name || '',
+        businessType: dbUserData?.business_type || '',
+        businessRegistrationNumber: dbUserData?.business_registration_number || '',
+        taxIdentificationNumber: dbUserData?.tax_identification_number || '',
+        businessAddress: dbUserData?.business_address || '',
+        authorizedPersonName: dbUserData?.authorized_person_name || '',
+        authorizedPersonPosition: dbUserData?.authorized_person_position || '',
+        
+        // Investment Information
+        investmentExperience: dbUserData?.investment_experience || '',
+        riskTolerance: dbUserData?.risk_tolerance || '',
+        investmentGoals: dbUserData?.investment_goals || '',
+        liquidNetWorth: dbUserData?.liquid_net_worth || '',
+        annualIncome: dbUserData?.annual_income || '',
+        investmentHorizon: dbUserData?.investment_horizon || '',
+        
+        // PEP (Politically Exposed Person) Information
+        pepStatus: dbUserData?.pep_status || 'no',
+        pepDetails: dbUserData?.pep_details || '',
+        pepCountry: dbUserData?.pep_country || '',
+        pepPosition: dbUserData?.pep_position || '',
+        
+        // Related Persons PEP Information
+        relatedPepStatus: dbUserData?.related_pep_status || 'no',
+        relatedPepDetails: dbUserData?.related_pep_details || '',
+        relatedPepRelationship: dbUserData?.related_pep_relationship || '',
+        relatedPepCountry: dbUserData?.related_pep_country || '',
+        relatedPepPosition: dbUserData?.related_pep_position || ''
+      }
+    };
+    
+    console.log("Returning settings for user:", uid);
+    res.json(settings);
+    
+  } catch (error) {
+    console.error("Error getting user settings:", error);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Update user settings
+settingsRouter.put('/', verifyToken, async (req, res) => {
+  try {
+    if (!dbConnected || !db) {
+      console.log('Database not connected, cannot update settings');
+      return res.status(503).json({ error: "Database not available" });
+    }
+
+    const uid = req.uid;
+    const settingsData = req.body;
+    
+    console.log("Updating settings for user:", uid);
+    console.log("Settings data:", settingsData);
+    
+    // Update user data in database
+    const updateFields = [];
+    const updateValues = [];
+    let paramCounter = 1;
+    
+    // Map frontend fields to database columns
+    const fieldMapping = {
+      'personalInfo.firstName': 'first_name',
+      'personalInfo.lastName': 'last_name',
+      'personalInfo.middleName': 'middle_name',
+      'personalInfo.dateOfBirth': 'date_of_birth',
+      'personalInfo.placeOfBirth': 'place_of_birth',
+      'personalInfo.nationality': 'nationality',
+      'personalInfo.gender': 'gender',
+      'personalInfo.maritalStatus': 'marital_status',
+      'personalInfo.emailAddress': 'email_address',
+      'personalInfo.phoneNumber': 'phone_number',
+      'personalInfo.mobileNumber': 'mobile_number',
+      'personalInfo.presentAddress': 'present_address',
+      'personalInfo.permanentAddress': 'permanent_address',
+      'personalInfo.city': 'city',
+      'personalInfo.state': 'state',
+      'personalInfo.postalCode': 'postal_code',
+      'personalInfo.country': 'country',
+      'personalInfo.nationalId': 'national_id',
+      'personalInfo.passport': 'passport',
+      'personalInfo.driversLicense': 'drivers_license',
+      'personalInfo.tinNumber': 'tin_number',
+      'personalInfo.employmentStatus': 'employment_status',
+      'personalInfo.occupation': 'occupation',
+      'personalInfo.employerName': 'employer_name',
+      'personalInfo.employerAddress': 'employer_address',
+      'personalInfo.monthlyIncome': 'monthly_income',
+      'personalInfo.incomeSource': 'income_source',
+      'personalInfo.companyName': 'company_name',
+      'personalInfo.businessType': 'business_type',
+      'personalInfo.businessRegistrationNumber': 'business_registration_number',
+      'personalInfo.taxIdentificationNumber': 'tax_identification_number',
+      'personalInfo.businessAddress': 'business_address',
+      'personalInfo.authorizedPersonName': 'authorized_person_name',
+      'personalInfo.authorizedPersonPosition': 'authorized_person_position',
+      'personalInfo.investmentExperience': 'investment_experience',
+      'personalInfo.riskTolerance': 'risk_tolerance',
+      'personalInfo.investmentGoals': 'investment_goals',
+      'personalInfo.liquidNetWorth': 'liquid_net_worth',
+      'personalInfo.annualIncome': 'annual_income',
+      'personalInfo.investmentHorizon': 'investment_horizon',
+      'personalInfo.pepStatus': 'pep_status',
+      'personalInfo.pepDetails': 'pep_details',
+      'personalInfo.pepCountry': 'pep_country',
+      'personalInfo.pepPosition': 'pep_position',
+      'personalInfo.relatedPepStatus': 'related_pep_status',
+      'personalInfo.relatedPepDetails': 'related_pep_details',
+      'personalInfo.relatedPepRelationship': 'related_pep_relationship',
+      'personalInfo.relatedPepCountry': 'related_pep_country',
+      'personalInfo.relatedPepPosition': 'related_pep_position',
+      'fullName': 'full_name',
+      'phone': 'phone_number',
+      'accountType': 'account_type'
+    };
+    
+    // Build update query
+    for (const [frontendField, dbField] of Object.entries(fieldMapping)) {
+      const value = frontendField.includes('.') ? 
+        settingsData[frontendField.split('.')[0]]?.[frontendField.split('.')[1]] :
+        settingsData[frontendField];
+        
+      if (value !== undefined) {
+        updateFields.push(`${dbField} = $${paramCounter}`);
+        updateValues.push(value);
+        paramCounter++;
+      }
+    }
+    
+    if (updateFields.length > 0) {
+      updateFields.push(`updated_at = NOW()`);
+      updateValues.push(uid);
+      
+      const query = `
+        UPDATE users 
+        SET ${updateFields.join(', ')}
+        WHERE firebase_uid = $${paramCounter}
+      `;
+      
+      await db.query(query, updateValues);
+    }
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error("Error updating user settings:", error);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Change password
+settingsRouter.post('/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const uid = req.uid;
+    
+    console.log("Password change request for user:", uid);
+    
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Current password and new password are required" 
+      });
+    }
+    
+    if (newPassword.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "New password must be at least 8 characters long" 
+      });
+    }
+    
+    // Use Firebase Admin SDK to update password
+    await admin.auth().updateUser(uid, {
+      password: newPassword
+    });
+    
+    console.log("Password updated successfully for user:", uid);
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error("Error changing password:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Failed to change password" 
+    });
+  }
+});
+
+// Forgot password
+settingsRouter.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    console.log("Forgot password request for email:", email);
+    
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Email is required" 
+      });
+    }
+    
+    // Check if user exists in Firebase
+    let userExists = false;
+    try {
+      await admin.auth().getUserByEmail(email);
+      userExists = true;
+    } catch (error) {
+      // User doesn't exist, but we don't want to reveal this for security
+      console.log("User not found for email:", email);
+    }
+    
+    if (userExists) {
+      // Generate a password reset link
+      const resetLink = await admin.auth().generatePasswordResetLink(email);
+      
+      console.log("Reset link generated for:", email);
+      console.log("Reset link (dev only):", resetLink);
+      
+      // In production, you would send this via email
+      // For development, we'll return it in the response
+      res.json({ 
+        success: true, 
+        message: "Password reset link sent",
+        resetLink: resetLink // Remove this in production
+      });
+    } else {
+      // Still return success to prevent email enumeration
+      res.json({ 
+        success: true, 
+        message: "If an account exists, a password reset link has been sent"
+      });
+    }
+    
+  } catch (error) {
+    console.error("Error processing forgot password:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Failed to process password reset request" 
+    });
+  }
+});
+
+app.use('/api/settings', settingsRouter);
 
 // at top, after profileRouter…
 const borrowRouter = express.Router();

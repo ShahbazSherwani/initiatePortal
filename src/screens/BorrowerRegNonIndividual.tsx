@@ -29,6 +29,22 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
   const [contactPersonEmail, setContactPersonEmail] = useState("");
   const [contactPersonPhone, setContactPersonPhone] = useState("");
 
+  // Additional KYC fields for Non-Individual accounts
+  const [businessRegistrationType, setBusinessRegistrationType] = useState("");
+  const [businessRegistrationDate, setBusinessRegistrationDate] = useState("");
+  const [corporateTin, setCorporateTin] = useState("");
+  const [authorizedSignatoryName, setAuthorizedSignatoryName] = useState("");
+  const [authorizedSignatoryPosition, setAuthorizedSignatoryPosition] = useState("");
+  const [authorizedSignatoryIdNumber, setAuthorizedSignatoryIdNumber] = useState("");
+  const [natureOfBusiness, setNatureOfBusiness] = useState("");
+  const [principalOfficeStreet, setPrincipalOfficeStreet] = useState("");
+  const [principalOfficeBarangay, setPrincipalOfficeBarangay] = useState("");
+  const [principalOfficeCountry, setPrincipalOfficeCountry] = useState("");
+  const [principalOfficeState, setPrincipalOfficeState] = useState("");
+  const [principalOfficeCity, setPrincipalOfficeCity] = useState("");
+  const [principalOfficePostalCode, setPrincipalOfficePostalCode] = useState("");
+  const [pepStatus, setPepStatus] = useState<boolean>(false);
+
   // File uploads
   const [registrationCertFile, setRegistrationCertFile] = useState<File | null>(null);
   const [tinCertFile, setTinCertFile] = useState<File | null>(null);
@@ -101,11 +117,12 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Save registration data
+    // Save registration data with all KYC fields
     setRegistration(reg => ({
       ...reg,
       accountType,
       details: {
+        // Basic entity information
         entityType,
         entityName,
         registrationNumber,
@@ -114,12 +131,28 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
         contactPersonPosition,
         contactPersonEmail,
         contactPersonPhone,
+        // Address
         street,
         barangay,
         countryIso,
         stateIso,
         cityName,
         postalCode,
+        // Additional KYC fields for Non-Individual accounts
+        businessRegistrationType,
+        businessRegistrationDate,
+        corporateTin,
+        authorizedSignatoryName,
+        authorizedSignatoryPosition,
+        authorizedSignatoryIdNumber,
+        natureOfBusiness,
+        principalOfficeStreet,
+        principalOfficeBarangay,
+        principalOfficeCountry,
+        principalOfficeState,
+        principalOfficeCity,
+        principalOfficePostalCode,
+        pepStatus,
       },
       files: {
         registrationCertFile,
@@ -325,12 +358,244 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                   className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
-                  {authorizationFile ? `Selected: ${authorizationFile.name}` : 'Upload Authorization Letter'}
+                  {authorizationFile ? `Selected: ${authorizationFile.name}` : 'Upload'}
                 </Button>
-                <p className="text-sm text-gray-600">
-                  Required if contact person is not the owner/authorized representative
-                </p>
               </div>
+            </div>
+          </section>
+
+          {/* Business Registration Details */}
+          <section className="space-y-4">
+            <h3 className="text-xl md:text-2xl font-semibold">Business Registration Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Business Registration Type */}
+              <div className="space-y-2">
+                <Label>Registration Type*</Label>
+                <Select
+                  required
+                  value={businessRegistrationType}
+                  onValueChange={setBusinessRegistrationType}
+                >
+                  <SelectTrigger className="h-14 rounded-2xl">
+                    <SelectValue placeholder="Select registration type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SEC">SEC (Securities and Exchange Commission)</SelectItem>
+                    <SelectItem value="CDA">CDA (Cooperative Development Authority)</SelectItem>
+                    <SelectItem value="DTI">DTI (Department of Trade and Industry)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Business Registration Date */}
+              <div className="space-y-2">
+                <Label>Registration Date*</Label>
+                <Input
+                  required
+                  type="date"
+                  value={businessRegistrationDate}
+                  onChange={e => setBusinessRegistrationDate(e.target.value)}
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+
+              {/* Corporate TIN */}
+              <div className="space-y-2">
+                <Label>Corporate TIN*</Label>
+                <Input
+                  required
+                  value={corporateTin}
+                  onChange={e => setCorporateTin(e.target.value)}
+                  placeholder="Enter corporate TIN"
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+
+              {/* Nature of Business */}
+              <div className="space-y-2">
+                <Label>Nature of Business*</Label>
+                <Input
+                  required
+                  value={natureOfBusiness}
+                  onChange={e => setNatureOfBusiness(e.target.value)}
+                  placeholder="Describe business activities"
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Authorized Signatory Information */}
+          <section className="space-y-4">
+            <h3 className="text-xl md:text-2xl font-semibold">Authorized Signatory</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Authorized Signatory Name */}
+              <div className="space-y-2">
+                <Label>Signatory Name*</Label>
+                <Input
+                  required
+                  value={authorizedSignatoryName}
+                  onChange={e => setAuthorizedSignatoryName(e.target.value)}
+                  placeholder="Enter signatory name"
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+
+              {/* Authorized Signatory Position */}
+              <div className="space-y-2">
+                <Label>Position/Title*</Label>
+                <Input
+                  required
+                  value={authorizedSignatoryPosition}
+                  onChange={e => setAuthorizedSignatoryPosition(e.target.value)}
+                  placeholder="Enter position/title"
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+
+              {/* Authorized Signatory ID Number */}
+              <div className="sm:col-span-2 space-y-2">
+                <Label>ID Number*</Label>
+                <Input
+                  required
+                  value={authorizedSignatoryIdNumber}
+                  onChange={e => setAuthorizedSignatoryIdNumber(e.target.value)}
+                  placeholder="Enter ID number"
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Principal Office Address */}
+          <section className="space-y-4">
+            <h3 className="text-xl md:text-2xl font-semibold">Principal Office Address</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Principal Office Street */}
+              <div className="space-y-2">
+                <Label>Street Address*</Label>
+                <Input
+                  required
+                  value={principalOfficeStreet}
+                  onChange={e => setPrincipalOfficeStreet(e.target.value)}
+                  placeholder="Enter street address"
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+
+              {/* Principal Office Barangay */}
+              <div className="space-y-2">
+                <Label>Barangay*</Label>
+                <Input
+                  required
+                  value={principalOfficeBarangay}
+                  onChange={e => setPrincipalOfficeBarangay(e.target.value)}
+                  placeholder="Enter barangay"
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+
+              {/* Principal Office Country */}
+              <div className="space-y-2">
+                <Label>Country*</Label>
+                <Select
+                  required
+                  value={principalOfficeCountry}
+                  onValueChange={setPrincipalOfficeCountry}
+                >
+                  <SelectTrigger className="h-14 rounded-2xl">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map(c => (
+                      <SelectItem key={c.isoCode} value={c.isoCode}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Principal Office State/Province */}
+              <div className="space-y-2">
+                <Label>State / Province*</Label>
+                <Select
+                  required
+                  value={principalOfficeState}
+                  onValueChange={setPrincipalOfficeState}
+                  disabled={!principalOfficeCountry}
+                >
+                  <SelectTrigger className="h-14 rounded-2xl">
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {principalOfficeCountry && State.getStatesOfCountry(principalOfficeCountry).map(s => (
+                      <SelectItem key={s.isoCode} value={s.isoCode}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Principal Office City */}
+              <div className="space-y-2">
+                <Label>City*</Label>
+                <Select
+                  value={principalOfficeCity}
+                  onValueChange={setPrincipalOfficeCity}
+                  disabled={!principalOfficeState}
+                >
+                  <SelectTrigger className="h-14 rounded-2xl">
+                    <SelectValue placeholder="Select city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {principalOfficeState && City.getCitiesOfState(principalOfficeCountry, principalOfficeState).map(ci => (
+                      <SelectItem key={ci.name} value={ci.name}>
+                        {ci.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Principal Office Postal Code */}
+              <div className="space-y-2">
+                <Label>Postal Code*</Label>
+                <Input
+                  required
+                  value={principalOfficePostalCode}
+                  onChange={e => setPrincipalOfficePostalCode(e.target.value)}
+                  placeholder="Enter postal code"
+                  className="h-14 rounded-2xl"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* PEP Declaration - Non-Individual */}
+          <section className="space-y-4">
+            <h3 className="text-xl md:text-2xl font-semibold">
+              Politically Exposed Person (PEP) Declaration
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="pepStatusBusiness"
+                  checked={pepStatus}
+                  onChange={e => setPepStatus(e.target.checked)}
+                  className="mt-1"
+                />
+                <Label htmlFor="pepStatusBusiness" className="text-sm leading-relaxed">
+                  The entity or any of its beneficial owners, directors, or authorized signatories is a Politically Exposed Person (PEP) 
+                  or has an immediate family member or close associate who is a PEP. This includes current or former senior political figures, 
+                  their immediate family members, or close business associates.
+                </Label>
+              </div>
+              <p className="text-xs text-gray-600">
+                Note: PEP status does not disqualify your entity from using our services but requires additional compliance procedures.
+              </p>
             </div>
           </section>
 

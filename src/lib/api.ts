@@ -90,7 +90,7 @@ export async function getMyProjects() {
 }
 
 // Create a project
-export async function createProject(project) {
+export async function createProject(project: any) {
   return await authFetch(`${API_URL}/projects`, {
     method: 'POST',
     headers: {
@@ -101,7 +101,7 @@ export async function createProject(project) {
 }
 
 // Update a project
-export async function updateProject(id, projectData) {
+export async function updateProject(id: string, projectData: any) {
   try {
     // Don't try to convert UUID to number
     console.log("Updating project with ID:", id);
@@ -217,7 +217,7 @@ export async function getCalendarProjects() {
 }
 
 // Invest in a project
-export async function investInProject(id, amount) {
+export async function investInProject(id: string, amount: number) {
   console.log("🚀 investInProject called with:", { id, amount });
   console.log("🌐 API_URL configured as:", API_URL);
   console.log("📞 Making request to:", `${API_URL}/projects/${id}/invest`);
@@ -239,7 +239,7 @@ export async function investInProject(id, amount) {
 }
 
 // Get project by ID
-export async function getProjectById(id) {
+export async function getProjectById(id: string) {
   try {
     console.log("Fetching project with ID:", id);
     
@@ -322,12 +322,22 @@ export async function changePassword(passwordData: any) {
   });
 }
 
+export async function forgotPassword(email: string) {
+  return await fetch(`${API_URL}/settings/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email })
+  }).then(response => response.json());
+}
+
 // Top-up related functions
 export async function getTopUpAccounts() {
   return await authFetch(`${API_URL}/topup/accounts`);
 }
 
-export async function submitTopUpRequest(data) {
+export async function submitTopUpRequest(data: any) {
   return await authFetch(`${API_URL}/topup/request`, {
     method: 'POST',
     headers: {
@@ -345,7 +355,7 @@ export async function getAdminTopUpRequests() {
   return await authFetch(`${API_URL}/admin/topup-requests`);
 }
 
-export async function reviewTopUpRequest(requestId, action, adminNotes) {
+export async function reviewTopUpRequest(requestId: string, action: string, adminNotes: string) {
   return await authFetch(`${API_URL}/admin/topup-requests/${requestId}/review`, {
     method: 'POST',
     headers: {

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import { LogIn } from "../screens/LogIn/LogIn";
 import { RegisterStep } from "../screens/LogIn/RegisterStep";
+import { RegisterKYC } from "../screens/LogIn/RegisterKYC";
 import { BorrowerHome } from "../screens/BorrowerHome";
 import { BorrowerReg } from "../screens/BorrowerReg";
 import { BorrowerOccupation } from "../screens/BorrowOcu";
@@ -38,6 +39,7 @@ import { AdminProjectApproval } from "../screens/AdminProjectApproval";
 import { UnifiedCalendarView } from "../screens/UnifiedCalendarView";
 import { AdminProjectView } from "../screens/AdminProjectView";
 import { AdminTopUpRequests } from "../screens/AdminTopUpRequests";
+import { ForgotPassword } from "../screens/ForgotPassword";
 import { AdminInvestmentRequests } from "../screens/AdminInvestmentRequests";
 import { BorrowerRegNonIndividual } from "../screens/BorrowerRegNonIndividual";
 import { BorrowerBankDetailsNonIndividual } from "../screens/BorrowerBankDetailsNonIndividual";
@@ -155,13 +157,13 @@ export const AppRoutes: React.FC = () => {
           <Routes>
             {/* Auth routes - no layout needed */}
             <Route path="/" element={<LogIn />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             
             {/* All other routes with MainLayout */}
             <Route element={<MainLayout />}>
-              {/* Authentication */}
-              <Route path="register" element={<RegisterStep />} />
-              
-              {/* Initial account selection and registration flow */}
+            {/* Authentication */}
+            <Route path="register" element={<RegisterStep />} />
+            <Route path="register-kyc" element={<RegisterKYC />} />              {/* Initial account selection and registration flow */}
               <Route
                 path="borrow"
                 element={
