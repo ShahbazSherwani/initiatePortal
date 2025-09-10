@@ -297,9 +297,9 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
 
                 {/* Reference */}
                 <div>
-                  <label className="block text-sm font-medium mb-1">Reference</label>
+                  <label className="block text-sm font-medium mb-1">Reference Number</label>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Reference</label>
+                    {/* <label className="block text-xs text-gray-500 mb-1">Reference Number</label> */}
                     <Input
                       type="text"
                       placeholder="Enter here"

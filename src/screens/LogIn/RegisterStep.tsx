@@ -1,5 +1,5 @@
 // src/screens/LogIn/RegisterStep.tsx
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeftIcon,
@@ -8,6 +8,10 @@ import {
   LockIcon,
   MailIcon,
   UserIcon,
+  CheckIcon,
+  XIcon,
+  RefreshCwIcon,
+  CopyIcon,
 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
@@ -32,6 +36,102 @@ export const RegisterStep = (): JSX.Element => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Common password check function
+  const isCommonPassword = (pwd: string): boolean => {
+    const commonPasswords = [
+      'password', '123456', '123456789', 'qwerty', 'abc123', 'password123',
+      'admin', 'letmein', 'welcome', 'monkey', '1234567890', 'dragon',
+      'master', 'login', 'passw0rd', 'football', 'baseball', 'princess'
+    ];
+    return commonPasswords.some(common => 
+      pwd.toLowerCase().includes(common.toLowerCase())
+    );
+  };
+
+  // Personal info check function
+  const containsPersonalInfo = (pwd: string, name: string, emailAddr: string): boolean => {
+    if (!pwd || pwd.length < 3) return false;
+    
+    const lowerPwd = pwd.toLowerCase();
+    const nameParts = name.toLowerCase().split(' ').filter(part => part.length > 2);
+    const emailLocal = emailAddr.split('@')[0]?.toLowerCase() || '';
+    
+    return nameParts.some(part => lowerPwd.includes(part)) || 
+           (emailLocal.length > 2 && lowerPwd.includes(emailLocal));
+  };
+
+  // Password validation functions
+  const passwordValidation = useMemo(() => {
+    const checks = {
+      length: password.length >= 12,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      numbers: /\d/.test(password),
+      symbols: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\?]/.test(password),
+      noCommon: !isCommonPassword(password),
+      noPersonal: !containsPersonalInfo(password, fullName, email),
+    };
+
+    const strength = Object.values(checks).filter(Boolean).length;
+    let strengthText = 'Very Weak';
+    let strengthColor = 'text-red-600';
+    
+    if (strength >= 7) {
+      strengthText = 'Very Strong';
+      strengthColor = 'text-green-600';
+    } else if (strength >= 6) {
+      strengthText = 'Strong';
+      strengthColor = 'text-green-500';
+    } else if (strength >= 4) {
+      strengthText = 'Moderate';
+      strengthColor = 'text-yellow-500';
+    } else if (strength >= 2) {
+      strengthText = 'Weak';
+      strengthColor = 'text-orange-500';
+    }
+
+    return { checks, strength, strengthText, strengthColor };
+  }, [password, fullName, email]);
+
+  // Generate secure password function
+  const generateSecurePassword = (): string => {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    
+    let password = '';
+    
+    // Ensure at least one character from each category
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += symbols[Math.floor(Math.random() * symbols.length)];
+    
+    // Fill the rest with random characters
+    const allChars = uppercase + lowercase + numbers + symbols;
+    for (let i = 4; i < 16; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+    
+    // Shuffle the password
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
+  const handleGeneratePassword = () => {
+    const newPassword = generateSecurePassword();
+    setPassword(newPassword);
+    setConfirm(newPassword);
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error('Failed to copy password');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -42,6 +142,48 @@ export const RegisterStep = (): JSX.Element => {
     }
     if (password !== confirm) {
       setError("Passwords do not match.");
+      return;
+    }
+    
+    // Enhanced password validation - enforce strong security requirements
+    if (password.length < 12) {
+      setError("Password must be at least 12 characters long for security.");
+      return;
+    }
+    
+    if (passwordValidation.strength < 6) {
+      setError("Password is not strong enough. Please ensure it meets at least 6 out of 7 security requirements.");
+      return;
+    }
+    
+    // Check for specific critical requirements
+    if (!passwordValidation.checks.uppercase) {
+      setError("Password must contain at least one uppercase letter (A-Z).");
+      return;
+    }
+    
+    if (!passwordValidation.checks.lowercase) {
+      setError("Password must contain at least one lowercase letter (a-z).");
+      return;
+    }
+    
+    if (!passwordValidation.checks.numbers) {
+      setError("Password must contain at least one number (0-9).");
+      return;
+    }
+    
+    if (!passwordValidation.checks.symbols) {
+      setError("Password must contain at least one special character (!@#$%^&*).");
+      return;
+    }
+    
+    if (!passwordValidation.checks.noCommon) {
+      setError("Password is too common. Please choose a more unique password.");
+      return;
+    }
+    
+    if (!passwordValidation.checks.noPersonal) {
+      setError("Password cannot contain your name or email. Please choose a different password.");
       return;
     }
     try {
@@ -67,11 +209,20 @@ export const RegisterStep = (): JSX.Element => {
       });
       navigate("/borrow");
     } catch (err: any) {
-      // handle specific Firebase errors
+      // Handle Firebase authentication errors with user-friendly messages
       if (err.code === "auth/email-already-in-use") {
         setError("That email is already registered. Please log in instead.");
+      } else if (err.code === "auth/weak-password") {
+        setError("Password is too weak. Please use at least 6 characters.");
+      } else if (err.code === "auth/invalid-email") {
+        setError("Please enter a valid email address.");
+      } else if (err.code === "auth/network-request-failed") {
+        setError("Network error. Please check your internet connection and try again.");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Too many attempts. Please try again later.");
       } else {
-        setError(err.message);
+        // Generic fallback for any other errors
+        setError("Registration failed. Please check your information and try again.");
       }
     }
   };
@@ -129,25 +280,109 @@ export const RegisterStep = (): JSX.Element => {
 
         {/* Password */}
         <div>
-          <label className="block mb-1 font-medium">Password</label>
+          <label className="font-medium block mb-1">Password</label>
           <div className="relative">
             <Input
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create a password"
-              className="h-[58px] rounded-2xl border border-black pl-12 pr-4 w-full"
+              placeholder="Create a strong password"
+              className="h-[58px] rounded-2xl border border-black pl-12 pr-16 w-full"
             />
             <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black" />
-            <Button
-              variant="ghost"
-              size="icon"
-              type="button"
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8"
-              onClick={() => setShowPassword((p) => !p)}
-            >
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-            </Button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                className="w-8 h-8"
+                onClick={handleGeneratePassword}
+                title="Generate secure password"
+              >
+                <RefreshCwIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                className="w-8 h-8"
+                onClick={() => setShowPassword((p) => !p)}
+              >
+                {showPassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+
+          {/* Password Strength Indicator */}
+          {password && (
+            <div className="mt-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Password Strength:</span>
+                <span className={`text-sm font-medium ${passwordValidation.strengthColor}`}>
+                  {passwordValidation.strengthText}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    passwordValidation.strength >= 7 ? 'bg-green-600' :
+                    passwordValidation.strength >= 6 ? 'bg-green-500' :
+                    passwordValidation.strength >= 4 ? 'bg-yellow-500' :
+                    passwordValidation.strength >= 2 ? 'bg-orange-500' : 'bg-red-600'
+                  }`}
+                  style={{ width: `${(passwordValidation.strength / 7) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Password Requirements - Always Visible */}
+          <div className="mt-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
+            <h4 className="font-medium text-blue-900 mb-2">Password Security Requirements:</h4>
+            <div className="grid grid-cols-1 gap-1 text-sm">
+              {[
+                { key: 'length', text: 'At least 12 characters long' },
+                { key: 'uppercase', text: 'Contains uppercase letters (A-Z)' },
+                { key: 'lowercase', text: 'Contains lowercase letters (a-z)' },
+                { key: 'numbers', text: 'Contains numbers (0-9)' },
+                { key: 'symbols', text: 'Contains special characters (!@#$%^&*)' },
+                { key: 'noCommon', text: 'Not a common password' },
+                { key: 'noPersonal', text: 'Does not contain personal information' },
+              ].map(({ key, text }) => (
+                <div key={key} className="flex items-center gap-2">
+                  {passwordValidation.checks[key as keyof typeof passwordValidation.checks] ? (
+                    <CheckIcon className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <XIcon className="w-4 h-4 text-red-500" />
+                  )}
+                  <span className={passwordValidation.checks[key as keyof typeof passwordValidation.checks] ? 'text-green-700' : 'text-gray-600'}>
+                    {text}
+                  </span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <Button
+                type="button"
+                onClick={handleGeneratePassword}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"
+              >
+                <RefreshCwIcon className="w-4 h-4" />
+                Generate Secure Password
+              </Button>
+              {password && passwordValidation.strength >= 6 && (
+                <Button
+                  type="button"
+                  onClick={() => copyToClipboard(password)}
+                  variant="outline"
+                  className="w-full mt-2 py-2 rounded-lg flex items-center justify-center gap-2"
+                >
+                  <CopyIcon className="w-4 h-4" />
+                  Copy Password
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -160,19 +395,40 @@ export const RegisterStep = (): JSX.Element => {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="Confirm password"
-              className="h-[58px] rounded-2xl border border-black pl-12 pr-4 w-full"
+              className={`h-[58px] rounded-2xl border pl-12 pr-12 w-full ${
+                confirm && password ? 
+                  (password === confirm ? 'border-green-500' : 'border-red-500') 
+                  : 'border-black'
+              }`}
             />
             <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black" />
-            <Button
-              variant="ghost"
-              size="icon"
-              type="button"
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8"
-              onClick={() => setShowConfirm((p) => !p)}
-            >
-              {showConfirm ? <EyeOffIcon /> : <EyeIcon />}
-            </Button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {confirm && password && (
+                <div className="mr-1">
+                  {password === confirm ? (
+                    <CheckIcon className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <XIcon className="w-4 h-4 text-red-500" />
+                  )}
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                className="w-8 h-8"
+                onClick={() => setShowConfirm((p) => !p)}
+              >
+                {showConfirm ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+              </Button>
+            </div>
           </div>
+          {confirm && password && password !== confirm && (
+            <p className="text-red-500 text-sm mt-1">Passwords do not match</p>
+          )}
+          {confirm && password && password === confirm && (
+            <p className="text-green-600 text-sm mt-1">Passwords match</p>
+          )}
         </div>
 
         {/* Terms & Conditions */}
@@ -194,15 +450,45 @@ export const RegisterStep = (): JSX.Element => {
           </label>
         </div>
 
-        {error && <p className="text-red-500">{error}</p>}
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+
+        {/* Password Requirements Status */}
+        {password && (
+          <div className="mb-4 p-3 rounded-lg border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Security Requirements:</span>
+              <span className={`text-sm ${passwordValidation.strength >= 6 ? 'text-green-600' : 'text-red-500'}`}>
+                {passwordValidation.strength}/7 met
+              </span>
+            </div>
+            {passwordValidation.strength < 6 && (
+              <p className="text-sm text-amber-600">
+                ⚠️ Complete at least 6 requirements to register with a secure password.
+              </p>
+            )}
+            {passwordValidation.strength >= 6 && (
+              <p className="text-sm text-green-600">
+                ✅ Password meets security requirements!
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Register Button & Social */}
         <div className="flex flex-col md:flex-row md:items-center md:gap-4">
           <Button
             type="submit"
-            className="w-full md:w-[266px] h-[58px] bg-[#ffc00f] rounded-2xl text-black font-medium"
+            disabled={!password || !confirm || password !== confirm || passwordValidation.strength < 6 || !termsChecked}
+            className={`w-full md:w-[266px] h-[58px] rounded-2xl text-black font-medium transition-all ${
+              password && confirm && password === confirm && passwordValidation.strength >= 6 && termsChecked
+                ? 'bg-[#ffc00f] hover:bg-[#e6b324]'
+                : 'bg-gray-300 cursor-not-allowed'
+            }`}
           >
-            Register
+            {!password || !confirm || password !== confirm || passwordValidation.strength < 6 || !termsChecked
+              ? 'Complete Requirements to Register'
+              : 'Register'
+            }
           </Button>
           <span className="mx-4 md:mx-2">or</span>
           <div className="flex items-center gap-4">

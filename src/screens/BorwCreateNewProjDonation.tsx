@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useRef } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import { Sidebar } from "../components/Sidebar/Sidebar";
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { UploadIcon, ArrowLeftIcon } from "lucide-react";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 
 const BorwCreateNewProjDonation: React.FC = () => {
@@ -25,6 +26,32 @@ const BorwCreateNewProjDonation: React.FC = () => {
   const [location, setLocation] = useState("");
   const [overview, setOverview] = useState("");
   const [category, setCategory] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle upload click
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+        setForm((f) => ({
+          ...f,
+          projectDetails: {
+            ...f.projectDetails,
+            image: reader.result,
+          },
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   if (!token) {
     return <Navigate to="/login" />;
@@ -73,8 +100,17 @@ const BorwCreateNewProjDonation: React.FC = () => {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <h1 className="text-3xl font-bold mb-8">Create New Donation Project</h1>
+        <main className="flex-1 overflow-y-auto">
+          <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+            {/* Header with back button */}
+            <div className="flex items-center mb-6">
+              <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+                <ArrowLeftIcon className="w-6 h-6" />
+              </Button>
+              <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
+                Create New Project
+              </h1>
+            </div>
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Project Details */}
             <div className="p-8 bg-white rounded-lg shadow-md">
@@ -147,6 +183,41 @@ const BorwCreateNewProjDonation: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Upload Picture*
+                  </label>
+                  <div 
+                    className={`w-full border-2 border-dashed rounded-2xl flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors ${
+                      imagePreview ? 'min-h-40 p-4' : 'h-40'
+                    }`}
+                    onClick={handleUploadClick}
+                  >
+                    {imagePreview ? (
+                      <div className="w-full">
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          className="w-full h-auto rounded-lg object-contain max-h-96"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <UploadIcon className="w-8 h-8 mb-2 text-gray-400" />
+                        <span className="font-medium text-gray-700">
+                          + Upload
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
               </div>
             </div>
 
@@ -159,6 +230,7 @@ const BorwCreateNewProjDonation: React.FC = () => {
               </Button>
             </div>
           </form>
+          </div>
         </main>
       </div>
     </div>

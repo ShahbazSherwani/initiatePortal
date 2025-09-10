@@ -22,7 +22,6 @@ import {
   ChevronRightIcon,
 } from "lucide-react";
 import { useProjectForm } from "../contexts/ProjectFormContext";
-import { Calendar } from "../components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { format, addMonths } from "date-fns";
 import { Clock } from "lucide-react";
@@ -46,6 +45,10 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
   const [videoLink, setVideoLink] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null); // State for image preview
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Calendar state
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const onSubmit = () => {
     setForm(f => ({
@@ -256,48 +259,119 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full py-3 px-3 rounded-2xl border flex justify-between items-center"
+                          className="w-full py-3 px-4 rounded-2xl border border-gray-200 flex justify-between items-center bg-white hover:bg-gray-50 focus:ring-2 focus:ring-[#ffc628] focus:border-transparent transition-all text-left font-normal text-gray-700"
                         >
-                          {timeDuration ? format(new Date(timeDuration), "PPP p") : "Select date and time"}
-                          <ChevronRightIcon className="w-4 h-4 ml-2" />
+                          <span>
+                            {timeDuration ? format(new Date(timeDuration), "PPP 'at' p") : "Select project end date and time"}
+                          </span>
+                          <ChevronRightIcon className="w-4 h-4 text-gray-400" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <div className="p-4">
-                          <Calendar
-                            mode="single"
-                            selected={timeDuration ? new Date(timeDuration) : undefined}
-                            onSelect={(date) => {
-                              if (date) {
-                                // Default to end of project (3 months later)
-                                const endDate = addMonths(date, 3);
-                                setTimeDuration(endDate.toISOString());
-                              }
-                            }}
-                            initialFocus
-                          />
-                          <div className="p-3 border-t border-gray-200">
-                            <div className="flex items-center">
-                              <Clock className="mr-2 h-4 w-4" />
-                              <select 
-                                className="w-full p-2 border rounded"
-                                onChange={(e) => {
-                                  if (timeDuration) {
-                                    const date = new Date(timeDuration);
-                                    const [hours, minutes] = e.target.value.split(':');
-                                    date.setHours(parseInt(hours), parseInt(minutes));
-                                    setTimeDuration(date.toISOString());
-                                  }
-                                }}
+                      <PopoverContent className="w-auto p-0 bg-white shadow-lg rounded-2xl border-0" align="start">
+                        <div className="p-8">
+                          {/* Custom Calendar Grid */}
+                          <div className="calendar-container">
+                            {/* Navigation Header */}
+                            <div className="flex justify-center items-center text-gray-800 font-medium mb-4 relative">
+                              <button 
+                                className="h-10 w-10 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors shadow-sm absolute left-0"
+                                onClick={() => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
                               >
-                                <option value="09:00">9:00 AM</option>
-                                <option value="12:00">12:00 PM</option>
-                                <option value="15:00">3:00 PM</option>
-                                <option value="18:00">6:00 PM</option>
-                              </select>
+                                <ChevronLeftIcon className="w-5 h-5" />
+                              </button>
+                              <h3 className="text-lg font-semibold px-4">
+                                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                              </h3>
+                              <button 
+                                className="h-10 w-10 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors shadow-sm absolute right-0"
+                                onClick={() => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                              >
+                                <ChevronRightIcon className="w-5 h-5" />
+                              </button>
                             </div>
-                            <div className="mt-4">
-                              <p className="text-sm text-gray-500">Project duration: 3 months</p>
+                            
+                            {/* Calendar Grid */}
+                            <div className="w-full">
+                              {/* Days Header */}
+                              <div className="grid grid-cols-7 gap-1 mb-2">
+                                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+                                  <div key={day} className="h-10 flex items-center justify-center text-gray-500 font-medium text-sm">
+                                    {day}
+                                  </div>
+                                ))}
+                              </div>
+                              
+                              {/* Calendar Days */}
+                              <div className="grid grid-cols-7 gap-1">
+                                {(() => {
+                                  const year = currentDate.getFullYear();
+                                  const month = currentDate.getMonth();
+                                  const firstDay = new Date(year, month, 1);
+                                  const startDate = new Date(firstDay);
+                                  startDate.setDate(startDate.getDate() - firstDay.getDay());
+                                  
+                                  const days = [];
+                                  for (let i = 0; i < 42; i++) {
+                                    const day = new Date(startDate);
+                                    day.setDate(startDate.getDate() + i);
+                                    
+                                    const isCurrentMonth = day.getMonth() === month;
+                                    const isToday = day.toDateString() === new Date().toDateString();
+                                    const isSelected = selectedDate && day.toDateString() === selectedDate.toDateString();
+                                    
+                                    days.push(
+                                      <div 
+                                        key={i}
+                                        className={`h-10 flex items-center justify-center font-normal cursor-pointer rounded-lg transition-colors ${
+                                          !isCurrentMonth 
+                                            ? 'text-gray-400 opacity-50 hover:bg-gray-100' 
+                                            : isSelected
+                                            ? 'bg-[#ffc628] text-black font-medium shadow-sm'
+                                            : isToday 
+                                            ? 'bg-blue-100 text-blue-700 font-medium' 
+                                            : 'text-gray-700 hover:bg-gray-100'
+                                        }`}
+                                        onClick={() => {
+                                          setSelectedDate(day);
+                                          const endDate = addMonths(day, 3);
+                                          setTimeDuration(endDate.toISOString());
+                                        }}
+                                      >
+                                        {day.getDate()}
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  return days.slice(0, 35); // Show 5 weeks
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-6 pt-4 border-t border-gray-100">
+                            <div className="flex items-center space-x-3 mb-3">
+                              <Clock className="h-5 w-5 text-gray-500" />
+                              <span className="text-base font-medium text-gray-700">Select Time</span>
+                            </div>
+                            <select 
+                              className="w-full p-3 border border-gray-200 rounded-xl text-base font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#ffc628] focus:border-transparent transition-all shadow-sm"
+                              onChange={(e) => {
+                                if (timeDuration) {
+                                  const date = new Date(timeDuration);
+                                  const [hours, minutes] = e.target.value.split(':');
+                                  date.setHours(parseInt(hours), parseInt(minutes));
+                                  setTimeDuration(date.toISOString());
+                                }
+                              }}
+                              defaultValue="09:00"
+                            >
+                              <option value="09:00">9:00 AM</option>
+                              <option value="12:00">12:00 PM</option>
+                              <option value="15:00">3:00 PM</option>
+                              <option value="18:00">6:00 PM</option>
+                              <option value="21:00">9:00 PM</option>
+                            </select>
+                            <div className="mt-4 text-center">
+                              <p className="text-sm text-gray-500 bg-gray-50 py-2 px-4 rounded-lg">Project duration: 3 months</p>
                             </div>
                           </div>
                         </div>
@@ -346,25 +420,36 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                     <label className="font-medium text-black text-base block mb-2">
                       Upload Picture*
                     </label>
-                    <div className="w-full h-40 border-2 border-dashed rounded-2xl flex items-center justify-center">
-                      <div className="flex flex-col items-center">
-                        <UploadIcon className="w-8 h-8 mb-2" />
-                        {imagePreview && <img src={imagePreview} alt="Preview" />}
-                          <button
-                              type="button"
-                              onClick={handleUploadClick}
-                              className="upload-btn font-medium text-black text-base block mb-2"
-                            >
-                              + Upload
-                          </button>
-                      </div>
+                    <div 
+                      className={`w-full border-2 border-dashed rounded-2xl flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors ${
+                        imagePreview ? 'min-h-40 p-4' : 'h-40'
+                      }`}
+                      onClick={handleUploadClick}
+                    >
+                      {imagePreview ? (
+                        <div className="w-full">
+                          <img 
+                            src={imagePreview} 
+                            alt="Preview" 
+                            className="w-full h-auto rounded-lg object-contain max-h-96"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <UploadIcon className="w-8 h-8 mb-2 text-gray-400" />
+                          <span className="font-medium text-black text-base">
+                            + Upload
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*"
                       onChange={handleImageUpload}
+                      className="hidden"
                     />
-                    
                   </div>
 
                   {/* Video Attestation */}

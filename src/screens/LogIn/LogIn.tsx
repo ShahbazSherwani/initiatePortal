@@ -55,14 +55,26 @@ export const LogIn = (): JSX.Element => {
       // 3) Navigate into the protected area
       navigate("/borrow");
     } catch (err: any) {
-      // 4) If the email is already registered, the user should go to login instead
-      if (err.code === "auth/user-not-found") {
+      // Handle Firebase authentication errors with user-friendly messages
+      // Note: Firebase v9+ returns 'auth/invalid-credential' for security reasons
+      // instead of specific 'auth/user-not-found' or 'auth/wrong-password' errors
+      if (err.code === "auth/invalid-credential") {
+        setError("Invalid email or password. Please check your credentials and try again. If you don't have an account, please register first.");
+      } else if (err.code === "auth/user-not-found") {
         setError("No account found with that email. Please register first.");
       } else if (err.code === "auth/wrong-password") {
         setError("Incorrect password. Please try again.");
+      } else if (err.code === "auth/user-disabled") {
+        setError("This account has been disabled. Please contact support.");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Too many failed login attempts. Please try again later.");
+      } else if (err.code === "auth/network-request-failed") {
+        setError("Network error. Please check your internet connection and try again.");
+      } else if (err.code === "auth/invalid-email") {
+        setError("Please enter a valid email address.");
       } else {
-        // Generic fallback
-        setError(err.message);
+        // Generic fallback for any other errors
+        setError("Login failed. Please check your email and password and try again.");
       }
     }
   };

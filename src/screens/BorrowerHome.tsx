@@ -195,7 +195,7 @@ export const BorrowerHome: React.FC = () => {
                     <div className="flex justify-between items-center w-full">
                       {/* Legal Name */}
                       <div>
-                        <h2 className="text-xl opacity-70">Legal Name:</h2>
+                        <h2 className="text-xl opacity-70">Account Name:</h2>
                         <p className="text-2xl font-semibold">{profile?.name}</p>
                         <p className="mt-1 text-sm opacity-60">
                           Member since {profile ? new Date(profile.joined).toLocaleDateString() : "--"}

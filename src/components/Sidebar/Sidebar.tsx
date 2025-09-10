@@ -72,13 +72,13 @@ const borrowerCommonNavItems: NavItem[] = [
     key: 'donation'
   },
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
-  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help', key: 'help' },
+  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/help', key: 'help' },
 ];
 
 // Common navigation items for investors (no donation)
 const investorCommonNavItems: NavItem[] = [
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
-  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "Help & Support", to: '/help', key: 'help' },
+  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/help', key: 'help' },
 ];
 
 interface SidebarProps {
