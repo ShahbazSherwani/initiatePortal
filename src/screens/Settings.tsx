@@ -63,6 +63,8 @@ export const Settings = (): JSX.Element => {
       nationalId: "",
       passport: "",
       tin: "",
+      secondaryIdType: "",
+      secondaryIdNumber: "",
     },
     personalInfo: {
       placeOfBirth: "",
@@ -70,6 +72,7 @@ export const Settings = (): JSX.Element => {
       civilStatus: "",
       nationality: "",
       motherMaidenName: "",
+      contactEmail: "",
     },
     employmentInfo: {
       employerName: "",
@@ -85,16 +88,32 @@ export const Settings = (): JSX.Element => {
       address: "",
     },
     businessInfo: {
+      entityType: "",
       businessRegistrationType: "",
       businessRegistrationNumber: "",
       businessRegistrationDate: "",
       corporateTin: "",
       natureOfBusiness: "",
       businessAddress: "",
+      // GIS Fields for Non-Individual entities
+      gisTotalAssets: null as number | null,
+      gisTotalLiabilities: null as number | null,
+      gisPaidUpCapital: null as number | null,
+      gisNumberOfStockholders: null as number | null,
+      gisNumberOfEmployees: null as number | null,
+    },
+    principalOfficeAddress: {
+      street: "",
+      barangay: "",
+      municipality: "",
+      province: "",
+      country: "Philippines",
+      postalCode: "",
     },
     authorizedSignatory: {
       name: "",
       position: "",
+      idType: "",
       idNumber: "",
     },
     investmentInfo: {
@@ -528,7 +547,7 @@ export const Settings = (): JSX.Element => {
                     {/* Identification Section */}
                     <div className="pt-6">
                       <h3 className="text-lg font-semibold mb-4">Identification Documents</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>National ID</Label>
                           <Input
@@ -560,6 +579,42 @@ export const Settings = (): JSX.Element => {
                               identification: { ...prev.identification, tin: e.target.value }
                             }))}
                             className="h-12"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Secondary ID Type</Label>
+                          <Select
+                            value={profileData.identification.secondaryIdType}
+                            onValueChange={(value) => setProfileData(prev => ({ 
+                              ...prev, 
+                              identification: { ...prev.identification, secondaryIdType: value }
+                            }))}
+                          >
+                            <SelectTrigger className="h-12">
+                              <SelectValue placeholder="Select ID type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="drivers_license">Driver's License</SelectItem>
+                              <SelectItem value="sss_id">SSS ID</SelectItem>
+                              <SelectItem value="philhealth_id">PhilHealth ID</SelectItem>
+                              <SelectItem value="voters_id">Voter's ID</SelectItem>
+                              <SelectItem value="postal_id">Postal ID</SelectItem>
+                              <SelectItem value="umid">UMID</SelectItem>
+                              <SelectItem value="prc_license">PRC License</SelectItem>
+                              <SelectItem value="other">Other Government ID</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Secondary ID Number</Label>
+                          <Input
+                            value={profileData.identification.secondaryIdNumber}
+                            onChange={(e) => setProfileData(prev => ({ 
+                              ...prev, 
+                              identification: { ...prev.identification, secondaryIdNumber: e.target.value }
+                            }))}
+                            className="h-12"
+                            placeholder="Enter secondary ID number"
                           />
                         </div>
                       </div>
@@ -622,6 +677,19 @@ export const Settings = (): JSX.Element => {
                                   <SelectItem value="separated">Separated</SelectItem>
                                 </SelectContent>
                               </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Contact Email</Label>
+                              <Input
+                                type="email"
+                                value={profileData.personalInfo.contactEmail}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  personalInfo: { ...prev.personalInfo, contactEmail: e.target.value }
+                                }))}
+                                className="h-12"
+                                placeholder="Contact email address"
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label>Mother's Maiden Name</Label>
@@ -786,6 +854,28 @@ export const Settings = (): JSX.Element => {
                           <h3 className="text-lg font-semibold mb-4">Business Information</h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
+                              <Label>Entity Type</Label>
+                              <Select
+                                value={profileData.businessInfo.entityType}
+                                onValueChange={(value) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, entityType: value }
+                                }))}
+                              >
+                                <SelectTrigger className="h-12">
+                                  <SelectValue placeholder="Select entity type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Sole Proprietor">Sole Proprietor</SelectItem>
+                                  <SelectItem value="MSME">MSME</SelectItem>
+                                  <SelectItem value="NGO">NGO</SelectItem>
+                                  <SelectItem value="Foundation">Foundation</SelectItem>
+                                  <SelectItem value="Educational Institution">Educational Institution</SelectItem>
+                                  <SelectItem value="Others">Others</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
                               <Label>Registration Type</Label>
                               <Select
                                 value={profileData.businessInfo.businessRegistrationType}
@@ -838,7 +928,7 @@ export const Settings = (): JSX.Element => {
                                 className="h-12"
                               />
                             </div>
-                            <div className="md:col-span-2 space-y-2">
+                            <div className="space-y-2">
                               <Label>Nature of Business</Label>
                               <Input
                                 value={profileData.businessInfo.natureOfBusiness}
@@ -858,6 +948,162 @@ export const Settings = (): JSX.Element => {
                                   businessInfo: { ...prev.businessInfo, businessAddress: e.target.value }
                                 }))}
                                 className="h-12"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* GIS (General Information Sheet) Fields */}
+                        <div className="pt-6">
+                          <h3 className="text-lg font-semibold mb-4">General Information Sheet (GIS)</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Total Assets (PHP)</Label>
+                              <Input
+                                type="number"
+                                value={profileData.businessInfo.gisTotalAssets || ''}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, gisTotalAssets: e.target.value ? parseFloat(e.target.value) : null }
+                                }))}
+                                className="h-12"
+                                min="0"
+                                placeholder="Enter total assets"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Total Liabilities (PHP)</Label>
+                              <Input
+                                type="number"
+                                value={profileData.businessInfo.gisTotalLiabilities || ''}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, gisTotalLiabilities: e.target.value ? parseFloat(e.target.value) : null }
+                                }))}
+                                className="h-12"
+                                min="0"
+                                placeholder="Enter total liabilities"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Paid-up Capital (PHP)</Label>
+                              <Input
+                                type="number"
+                                value={profileData.businessInfo.gisPaidUpCapital || ''}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, gisPaidUpCapital: e.target.value ? parseFloat(e.target.value) : null }
+                                }))}
+                                className="h-12"
+                                min="0"
+                                placeholder="Enter paid-up capital"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Number of Stockholders</Label>
+                              <Input
+                                type="number"
+                                value={profileData.businessInfo.gisNumberOfStockholders || ''}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, gisNumberOfStockholders: e.target.value ? parseInt(e.target.value) : null }
+                                }))}
+                                className="h-12"
+                                min="0"
+                                placeholder="Enter number of stockholders"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Number of Employees</Label>
+                              <Input
+                                type="number"
+                                value={profileData.businessInfo.gisNumberOfEmployees || ''}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  businessInfo: { ...prev.businessInfo, gisNumberOfEmployees: e.target.value ? parseInt(e.target.value) : null }
+                                }))}
+                                className="h-12"
+                                min="0"
+                                placeholder="Enter number of employees"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Principal Office Address */}
+                        <div className="pt-6">
+                          <h3 className="text-lg font-semibold mb-4">Principal Office Address</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Street Address</Label>
+                              <Input
+                                value={profileData.principalOfficeAddress.street}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  principalOfficeAddress: { ...prev.principalOfficeAddress, street: e.target.value }
+                                }))}
+                                className="h-12"
+                                placeholder="Street address"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Barangay</Label>
+                              <Input
+                                value={profileData.principalOfficeAddress.barangay}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  principalOfficeAddress: { ...prev.principalOfficeAddress, barangay: e.target.value }
+                                }))}
+                                className="h-12"
+                                placeholder="Barangay"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Municipality/City</Label>
+                              <Input
+                                value={profileData.principalOfficeAddress.municipality}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  principalOfficeAddress: { ...prev.principalOfficeAddress, municipality: e.target.value }
+                                }))}
+                                className="h-12"
+                                placeholder="Municipality or City"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Province</Label>
+                              <Input
+                                value={profileData.principalOfficeAddress.province}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  principalOfficeAddress: { ...prev.principalOfficeAddress, province: e.target.value }
+                                }))}
+                                className="h-12"
+                                placeholder="Province"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Country</Label>
+                              <Input
+                                value={profileData.principalOfficeAddress.country}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  principalOfficeAddress: { ...prev.principalOfficeAddress, country: e.target.value }
+                                }))}
+                                className="h-12"
+                                placeholder="Country"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Postal Code</Label>
+                              <Input
+                                value={profileData.principalOfficeAddress.postalCode}
+                                onChange={(e) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  principalOfficeAddress: { ...prev.principalOfficeAddress, postalCode: e.target.value }
+                                }))}
+                                className="h-12"
+                                placeholder="Postal code"
                               />
                             </div>
                           </div>
@@ -889,7 +1135,30 @@ export const Settings = (): JSX.Element => {
                                 className="h-12"
                               />
                             </div>
-                            <div className="md:col-span-2 space-y-2">
+                            <div className="space-y-2">
+                              <Label>ID Type</Label>
+                              <Select
+                                value={profileData.authorizedSignatory.idType}
+                                onValueChange={(value) => setProfileData(prev => ({ 
+                                  ...prev, 
+                                  authorizedSignatory: { ...prev.authorizedSignatory, idType: value }
+                                }))}
+                              >
+                                <SelectTrigger className="h-12">
+                                  <SelectValue placeholder="Select ID type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="national_id">National ID</SelectItem>
+                                  <SelectItem value="drivers_license">Driver's License</SelectItem>
+                                  <SelectItem value="passport">Passport</SelectItem>
+                                  <SelectItem value="sss_id">SSS ID</SelectItem>
+                                  <SelectItem value="philhealth_id">PhilHealth ID</SelectItem>
+                                  <SelectItem value="voters_id">Voter's ID</SelectItem>
+                                  <SelectItem value="other">Other Government ID</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
                               <Label>ID Number</Label>
                               <Input
                                 value={profileData.authorizedSignatory.idNumber}

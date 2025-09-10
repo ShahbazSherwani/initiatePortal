@@ -703,7 +703,65 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
         nationalId: '',
         passport: '',
         tin: '',
+        secondaryIdType: '',
+        secondaryIdNumber: '',
       },
+      personalInfo: {
+        placeOfBirth: '',
+        gender: '',
+        civilStatus: '',
+        nationality: '',
+        motherMaidenName: '',
+        contactEmail: '',
+      },
+      employmentInfo: {
+        employerName: '',
+        occupation: '',
+        employerAddress: '',
+        sourceOfIncome: '',
+        monthlyIncome: null,
+      },
+      emergencyContact: {
+        name: '',
+        relationship: '',
+        phone: '',
+        address: '',
+      },
+      businessInfo: {
+        entityType: '',
+        businessRegistrationType: '',
+        businessRegistrationNumber: '',
+        businessRegistrationDate: '',
+        corporateTin: '',
+        natureOfBusiness: '',
+        businessAddress: '',
+        gisTotalAssets: null,
+        gisTotalLiabilities: null,
+        gisPaidUpCapital: null,
+        gisNumberOfStockholders: null,
+        gisNumberOfEmployees: null,
+      },
+      principalOfficeAddress: {
+        street: '',
+        barangay: '',
+        municipality: '',
+        province: '',
+        country: 'Philippines',
+        postalCode: '',
+      },
+      authorizedSignatory: {
+        name: '',
+        position: '',
+        idType: '',
+        idNumber: '',
+      },
+      investmentInfo: {
+        experience: '',
+        preference: '',
+        riskTolerance: '',
+        portfolioValue: 0,
+      },
+      pepStatus: false,
     };
 
     console.log('📋 Initial profile data:', profileData);
@@ -738,7 +796,73 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           nationalId: borrower.national_id || '',
           passport: borrower.passport_no || '',
           tin: borrower.tin || '',
+          secondaryIdType: borrower.secondary_id_type || '',
+          secondaryIdNumber: borrower.secondary_id_number || '',
         };
+
+        // Personal information for individual accounts
+        profileData.personalInfo = {
+          placeOfBirth: borrower.place_of_birth || '',
+          gender: borrower.gender || '',
+          civilStatus: borrower.civil_status || '',
+          nationality: borrower.nationality || '',
+          motherMaidenName: borrower.mother_maiden_name || '',
+          contactEmail: borrower.contact_email || '',
+        };
+
+        // Employment information
+        profileData.employmentInfo = {
+          employerName: borrower.employer_name || '',
+          occupation: borrower.occupation || '',
+          employerAddress: borrower.employer_address || '',
+          sourceOfIncome: borrower.source_of_income || '',
+          monthlyIncome: borrower.monthly_income || null,
+        };
+
+        // Emergency contact
+        profileData.emergencyContact = {
+          name: borrower.emergency_contact_name || '',
+          relationship: borrower.emergency_contact_relationship || '',
+          phone: borrower.emergency_contact_phone || '',
+          address: borrower.emergency_contact_address || '',
+        };
+
+        // Business information (for non-individual accounts)
+        profileData.businessInfo = {
+          entityType: borrower.entity_type || '',
+          businessRegistrationType: borrower.business_registration_type || '',
+          businessRegistrationNumber: borrower.business_registration_number || '',
+          businessRegistrationDate: borrower.business_registration_date || '',
+          corporateTin: borrower.corporate_tin || '',
+          natureOfBusiness: borrower.nature_of_business || '',
+          businessAddress: borrower.business_address || '',
+          gisTotalAssets: borrower.gis_total_assets || null,
+          gisTotalLiabilities: borrower.gis_total_liabilities || null,
+          gisPaidUpCapital: borrower.gis_paid_up_capital || null,
+          gisNumberOfStockholders: borrower.gis_number_of_stockholders || null,
+          gisNumberOfEmployees: borrower.gis_number_of_employees || null,
+        };
+
+        // Principal office address
+        profileData.principalOfficeAddress = {
+          street: borrower.principal_office_street || '',
+          barangay: borrower.principal_office_barangay || '',
+          municipality: borrower.principal_office_municipality || '',
+          province: borrower.principal_office_province || '',
+          country: borrower.principal_office_country || 'Philippines',
+          postalCode: borrower.principal_office_postal_code || '',
+        };
+
+        // Authorized signatory
+        profileData.authorizedSignatory = {
+          name: borrower.authorized_signatory_name || '',
+          position: borrower.authorized_signatory_position || '',
+          idType: borrower.authorized_signatory_id_type || '',
+          idNumber: borrower.authorized_signatory_id_number || '',
+        };
+
+        // PEP status
+        profileData.pepStatus = borrower.is_politically_exposed_person || false;
         
         // Parse stored JSON data if available
         try {
@@ -793,8 +917,73 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           nationalId: investor.national_id || '',
           passport: investor.passport_no || '',
           tin: investor.tin || '',
+          secondaryIdType: investor.secondary_id_type || '',
+          secondaryIdNumber: investor.secondary_id_number || '',
         };
         console.log('✅ Mapped identification data from investor profile:', profileData.identification);
+
+        // Personal information for individual accounts
+        profileData.personalInfo = {
+          placeOfBirth: investor.place_of_birth || '',
+          gender: investor.gender || '',
+          civilStatus: investor.civil_status || '',
+          nationality: investor.nationality || '',
+          motherMaidenName: investor.mother_maiden_name || '',
+          contactEmail: investor.contact_email || '',
+        };
+
+        // Emergency contact
+        profileData.emergencyContact = {
+          name: investor.emergency_contact_name || '',
+          relationship: investor.emergency_contact_relationship || '',
+          phone: investor.emergency_contact_phone || '',
+          address: investor.emergency_contact_address || '',
+        };
+
+        // Business information (for non-individual accounts)
+        profileData.businessInfo = {
+          entityType: investor.entity_type || '',
+          businessRegistrationType: investor.business_registration_type || '',
+          businessRegistrationNumber: investor.business_registration_number || '',
+          businessRegistrationDate: investor.business_registration_date || '',
+          corporateTin: investor.corporate_tin || '',
+          natureOfBusiness: investor.nature_of_business || '',
+          businessAddress: investor.business_address || '',
+          gisTotalAssets: investor.gis_total_assets || null,
+          gisTotalLiabilities: investor.gis_total_liabilities || null,
+          gisPaidUpCapital: investor.gis_paid_up_capital || null,
+          gisNumberOfStockholders: investor.gis_number_of_stockholders || null,
+          gisNumberOfEmployees: investor.gis_number_of_employees || null,
+        };
+
+        // Principal office address
+        profileData.principalOfficeAddress = {
+          street: investor.principal_office_street || '',
+          barangay: investor.principal_office_barangay || '',
+          municipality: investor.principal_office_municipality || '',
+          province: investor.principal_office_province || '',
+          country: investor.principal_office_country || 'Philippines',
+          postalCode: investor.principal_office_postal_code || '',
+        };
+
+        // Authorized signatory
+        profileData.authorizedSignatory = {
+          name: investor.authorized_signatory_name || '',
+          position: investor.authorized_signatory_position || '',
+          idType: investor.authorized_signatory_id_type || '',
+          idNumber: investor.authorized_signatory_id_number || '',
+        };
+
+        // Investment information
+        profileData.investmentInfo = {
+          experience: investor.investment_experience || '',
+          preference: investor.investment_preference || '',
+          riskTolerance: investor.risk_tolerance || '',
+          portfolioValue: parseFloat(investor.portfolio_value) || 0,
+        };
+
+        // PEP status
+        profileData.pepStatus = investor.is_politically_exposed_person || false;
       }
     }
 
