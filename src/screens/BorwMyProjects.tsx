@@ -5,7 +5,7 @@ import { useAccount } from "../contexts/AccountContext";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/button";
 import { Dialog, Transition } from "@headlessui/react";
-import { ChevronLeft as ChevronLeftIcon, X as XIcon, Trash2, Archive } from "lucide-react";
+import { ChevronLeft as ChevronLeftIcon, X as XIcon } from "lucide-react";
 import { useProjects } from "../contexts/ProjectsContext";
 import { toast } from "react-hot-toast";
 
@@ -19,13 +19,14 @@ const projectTabs = [
 
 export const BorrowerMyProjects: React.FC = (): JSX.Element => {
   const { token, user, profile } = useAuth();
-    const { projects, loadProjects, updateProject, deleteProject } = useProjects();
+    const { projects, updateProject, deleteProject } = useProjects();
   const { canCreateNewProject, borrowerProfile } = useAccount();
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [selectedType, setSelectedType] = useState<"equity" | "lending" | "donation" | "rewards" | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'pending' | 'ongoing' | 'completed' | 'default'>('pending');
 
   // Debug logging to see what's happening
   console.log("🔍 Debug - Current user:", user);
@@ -65,6 +66,57 @@ export const BorrowerMyProjects: React.FC = (): JSX.Element => {
   console.log("🔍 Debug - Filtered projects:", projects.filter(p => (p.project_data?.status || (p as any).status) !== "closed" && (p as any).firebase_uid === currentUserId));
 
   if (!token) return <Navigate to="/login" />;
+
+  // Filter projects based on active tab
+  const getFilteredProjects = () => {
+    const userProjects = projects.filter(p => {
+      const projectUserId = (p as any).firebase_uid;
+      const currentUserUid = user?.uid;
+      const currentProfileId = profile?.id;
+      const statusCheck = (p.project_data?.status || (p as any).status) !== "closed";
+      
+      return statusCheck && (projectUserId === currentUserUid || projectUserId === currentProfileId);
+    });
+
+    switch (activeTab) {
+      case 'pending':
+        // Projects that are pending, draft, or waiting for admin approval
+        return userProjects.filter(p => {
+          const status = p.project_data?.status || (p as any).status;
+          const approvalStatus = p.project_data?.approvalStatus || (p as any).approvalStatus;
+          return status === 'pending' || status === 'draft' || 
+                 (status === 'published' && (!approvalStatus || approvalStatus === 'pending'));
+        });
+      
+      case 'ongoing':
+        // Projects that are approved and actively seeking funding
+        return userProjects.filter(p => {
+          const status = p.project_data?.status || (p as any).status;
+          const approvalStatus = p.project_data?.approvalStatus || (p as any).approvalStatus;
+          return approvalStatus === 'approved' && status === 'published';
+        });
+      
+      case 'completed':
+        // Projects that secured successful funding
+        return userProjects.filter(p => {
+          const status = p.project_data?.status || (p as any).status;
+          return status === 'completed' || status === 'successful';
+        });
+      
+      case 'default':
+        // Projects that were rejected or unsuccessful
+        return userProjects.filter(p => {
+          const status = p.project_data?.status || (p as any).status;
+          const approvalStatus = p.project_data?.approvalStatus || (p as any).approvalStatus;
+          return approvalStatus === 'rejected' || status === 'rejected' || status === 'unsuccessful';
+        });
+      
+      default:
+        return userProjects;
+    }
+  };
+
+  const filteredProjects = getFilteredProjects();
 
 const handleContinue = () => {
   setShowModal(false);
@@ -119,29 +171,6 @@ const handleContinue = () => {
   // Add/update this function in your BorwMyProjects component
   const handleViewDetails = (projectId: string) => {
     navigate(`/borrower/project/${projectId}/details`);
-  };
-
-  // Add this function to your BorrowerMyProjects component:
-  const handlePublishProject = async (projectId: string) => {
-    try {
-      console.log(`📢 Publishing project ${projectId}`);
-      await updateProject(projectId, { status: "published" });
-      toast.success("Project published successfully! Investors can now see it.");
-    } catch (error: any) {
-      console.error("Error publishing project:", error);
-      toast.error("Failed to publish project");
-    }
-  };
-
-  const handleCompleteProject = async (projectId: string) => {
-    try {
-      console.log(`✅ Completing project ${projectId}`);
-      await updateProject(projectId, { status: "completed" });
-      toast.success("Project marked as completed!");
-    } catch (error: any) {
-      console.error("Error completing project:", error);
-      toast.error("Failed to complete project");
-    }
   };
 
   return (
@@ -201,8 +230,9 @@ const handleContinue = () => {
               {projectTabs.map(tab => (
                 <button
                   key={tab.value}
-                  className={`py-3 rounded-lg font-medium text-center ${
-                    tab.value === "pending" ? "bg-[#ffc628] text-black" : "bg-gray-100 text-gray-700"
+                  onClick={() => setActiveTab(tab.value as 'pending' | 'ongoing' | 'completed' | 'default')}
+                  className={`py-3 rounded-lg font-medium text-center transition-colors ${
+                    tab.value === activeTab ? "bg-[#ffc628] text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   {tab.label}
@@ -339,153 +369,254 @@ const handleContinue = () => {
               </div>
             )}
 
-            {/* Projects List - to be mapped from actual data */}
-            {projects.filter(p => {
-              const projectUserId = (p as any).firebase_uid;
-              const currentUserUid = user?.uid;
-              const currentProfileId = profile?.id;
-              const statusCheck = (p.project_data?.status || (p as any).status) !== "closed";
-              
-              console.log("🔍 Filtering project:", {
-                projectId: p.id,
-                projectUserId,
-                currentUserUid,
-                currentProfileId,
-                statusCheck,
-                matchesUid: projectUserId === currentUserUid,
-                matchesProfileId: projectUserId === currentProfileId
-              });
-              
-              return statusCheck && (projectUserId === currentUserUid || projectUserId === currentProfileId);
-            }).length > 0 ? (
+            {/* Project count */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">
+                You have {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''} in {activeTab === 'ongoing' ? 'on-going' : activeTab}
+              </p>
+            </div>
+
+            {/* Projects List */}
+            {filteredProjects.length > 0 ? (
   <div>
-    {projects.filter(p => {
-              const projectUserId = (p as any).firebase_uid;
-              const currentUserUid = user?.uid;
-              const currentProfileId = profile?.id;
-              const statusCheck = (p.project_data?.status || (p as any).status) !== "closed";
-              
-              return statusCheck && (projectUserId === currentUserUid || projectUserId === currentProfileId);
-            }).map(project => (
-      <div key={project.id} className="bg-white rounded-lg border border-gray-100 shadow-sm mb-4 p-4 flex">
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-lg">{project.project_data?.details?.product || project.title || "Untitled Project"}</h3>
-            
-            {/* Add approval status badge */}
+    {filteredProjects.map(project => {
+      // Debug logging to see project data structure
+      console.log("🔍 Project data structure:", {
+        id: project.id,
+        project_data: project.project_data,
+        details: project.project_data?.details,
+        legacy_amount: (project as any).amount
+      });
+      
+      const getStatusInfo = () => {
+        if (activeTab === 'pending') {
+          return {
+            icon: '🟡',
+            text: 'Status: Pending Verification',
+            color: 'text-orange-600'
+          };
+        } else if (activeTab === 'ongoing') {
+          return {
+            icon: '🟡',
+            text: 'Status: On-Going',
+            color: 'text-orange-600'
+          };
+        } else if (activeTab === 'completed') {
+          return {
+            icon: '🟢',
+            text: 'Status: Successful Funding',
+            color: 'text-green-600'
+          };
+        } else if (activeTab === 'default') {
+          return {
+            icon: '🔴',
+            text: 'Status: Unsuccessful Funding',
+            color: 'text-red-600'
+          };
+        }
+        return {
+          icon: '🟡',
+          text: 'Status: Pending Verification',
+          color: 'text-orange-600'
+        };
+      };
+
+      const statusInfo = getStatusInfo();
+
+      return (
+        <div key={project.id} className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden">
+          {/* Status Badge */}
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                (project.project_data?.status || (project as any).status) === 'published' 
-                  ? 'bg-green-100 text-green-800' 
-                  : (project.project_data?.status || (project as any).status) === 'draft'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : (project.project_data?.status || (project as any).status) === 'pending'
-                  ? 'bg-orange-100 text-orange-800'
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
-                {(project.project_data?.status || (project as any).status) ? ((project.project_data?.status || (project as any).status) as string).charAt(0).toUpperCase() + ((project.project_data?.status || (project as any).status) as string).slice(1) : 'No Status'}
+              <span className="text-sm">{statusInfo.icon}</span>
+              <span className={`text-sm font-medium ${statusInfo.color}`}>
+                {statusInfo.text}
               </span>
-              
-              {(project.project_data?.approvalStatus || (project as any).approvalStatus) === 'approved' && (
-                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                  Approved
-                </span>
-              )}
-              
-              {(project.project_data?.approvalStatus || (project as any).approvalStatus) === 'rejected' && (
-                <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-800">
-                  Rejected
-                </span>
-              )}
-              
-              {(project.project_data?.approvalStatus || (project as any).approvalStatus) === 'pending' && (project.project_data?.status || (project as any).status) === 'published' && (
-                <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                  Awaiting Approval
-                </span>
-              )}
             </div>
           </div>
-          
-          {/* Project details */}
-          <div className="text-sm text-gray-600 mb-2">Project ID: {project.id}</div>
-          <div className="text-sm text-gray-600 mb-2">Location: {project.project_data?.details?.location || project.borrower_profile?.address || "Not specified"}</div>
-          
-          {/* Approval feedback if rejected */}
-          {(project.project_data?.approvalStatus || (project as any).approvalStatus) === 'rejected' && (project.project_data?.approvalFeedback || (project as any).approvalFeedback) && (
-            <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded">
-              <p className="text-sm font-medium text-red-800">Rejection reason:</p>
-              <p className="text-sm text-red-700">{project.project_data?.approvalFeedback || (project as any).approvalFeedback}</p>
+
+          <div className="p-4">
+            <div className="flex gap-4">
+              {/* Project Image */}
+              <div className="w-48 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                {project.project_data?.details?.image ? (
+                  <img 
+                    src={project.project_data.details.image} 
+                    alt="Project"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
+                    <span className="text-white text-2xl">🌱</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Project Details */}
+              <div className="flex-1">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Project ID:</span>
+                    <div className="font-medium">PFLA{project.id}5N</div>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Funding Requirements:</span>
+                    <div className="font-medium">
+                      {(() => {
+                        const details = project.project_data?.details;
+                        const amount = details?.amount || 
+                                     details?.loanAmount || 
+                                     details?.investmentAmount || 
+                                     details?.projectRequirements ||
+                                     (project as any).amount;
+                        
+                        if (amount) {
+                          const numAmount = Number(amount);
+                          return isNaN(numAmount) ? amount : `PHP ${numAmount.toLocaleString()}`;
+                        }
+                        return 'Not specified';
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Project Location:</span>
+                    <div className="font-medium">
+                      {project.project_data?.details?.location || 
+                       project.project_data?.details?.address || 
+                       'Not specified'}
+                    </div>
+                  </div>
+                  
+                  {/* Funding Progress Bar */}
+                  <div className="col-span-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-gray-600">Funding Progress:</span>
+                      <span className="text-sm font-medium">
+                        {(() => {
+                          const progress = project.project_data?.funding_progress || 
+                                         project.project_data?.details?.fundingProgress ||
+                                         (project as any).funding_progress || 0;
+                          return `${progress}%`;
+                        })()}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-[#ffc628] h-2 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${(() => {
+                            const progress = project.project_data?.funding_progress || 
+                                           project.project_data?.details?.fundingProgress ||
+                                           (project as any).funding_progress || 0;
+                            return Math.min(Math.max(Number(progress) || 0, 0), 100);
+                          })()}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2 w-40">
+                <Button 
+                  onClick={() => handleViewDetails(String(project.id))} 
+                  className="bg-[#ffc628] text-black hover:bg-[#e6b123] text-sm py-2"
+                >
+                  View Project Details
+                </Button>
+                
+                {activeTab === 'pending' && (
+                  <>
+                    <Button 
+                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2"
+                    >
+                      Visit Request
+                    </Button>
+                    <div className="flex gap-1">
+                      <Button 
+                        onClick={() => handleEdit(String(project.id))} 
+                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-1 px-2 flex-1"
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        onClick={() => handleClose(String(project.id))}
+                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-1 px-2 flex-1"
+                      >
+                        Close Project
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 'ongoing' && (
+                  <>
+                    <div className="flex gap-1">
+                      <Button 
+                        onClick={() => handleEdit(String(project.id))} 
+                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-1 px-2 flex-1"
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        onClick={() => handleClose(String(project.id))}
+                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-1 px-2 flex-1"
+                      >
+                        Close Project
+                      </Button>
+                    </div>
+                    <Button 
+                      className="bg-red-500 text-white hover:bg-red-600 text-sm py-2"
+                    >
+                      Pay Back
+                    </Button>
+                  </>
+                )}
+
+                {activeTab === 'default' && (
+                  <>
+                    <Button 
+                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2"
+                    >
+                      Relaunch
+                    </Button>
+                    <Button 
+                      onClick={() => handleDelete(String(project.id))}
+                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2"
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
-        
-        <div className="flex flex-col gap-2">
-          <Button 
-            onClick={() => handleViewDetails(String(project.id))} 
-            className="bg-[#ffc628] text-black"
-          >
-            View Details
-          </Button>
-          
-          <Button 
-            onClick={() => handleEdit(String(project.id))} 
-            variant="outline"
-          >
-            Edit
-          </Button>
-          
-          {((project as any).status === "draft" || (project as any).status === "pending" || !(project as any).status) && (
-            <Button 
-              onClick={() => handlePublishProject(String(project.id))}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              Publish
-            </Button>
-          )}
-          
-          {((project as any).status === "published" || (project as any).status === "ongoing") && (
-            <Button 
-              onClick={() => handleCompleteProject(String(project.id))}
-              className="bg-green-600 text-white hover:bg-green-700"
-            >
-              Complete
-            </Button>
-          )}
-          
-          {(project as any).status !== "closed" && (project as any).status !== "completed" && (
-            <Button 
-              onClick={() => handleClose(String(project.id))}
-              variant="outline" 
-              className="border-orange-500 text-orange-500 hover:bg-orange-50"
-            >
-              Close
-            </Button>
-          )}
-          
-          <Button 
-            onClick={() => handleDelete(String(project.id))}
-            variant="outline" 
-            className="border-red-500 text-red-500 hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Delete
-          </Button>
-        </div>
-      </div>
-    ))}
+      );
+    })}
   </div>
-) : (
-  <div className="flex flex-col items-center justify-center mt-16">
-    <img
-      src="/2.png"
-      alt="No projects"
-      className="w-full max-w-xs md:max-w-md lg:max-w-lg"
-    />
-    <h2 className="mt-6 text-lg md:text-2xl font-semibold text-center">
-      Looks like you don't have any projects yet!
-    </h2>
-  </div>
-)}
+            ) : (
+              <div className="flex flex-col items-center justify-center mt-16">
+                <img
+                  src="/2.png"
+                  alt="No projects"
+                  className="w-full max-w-xs md:max-w-md lg:max-w-lg"
+                />
+                <h2 className="mt-6 text-lg md:text-2xl font-semibold text-center">
+                  {activeTab === 'pending' && "No pending projects yet!"}
+                  {activeTab === 'ongoing' && "No ongoing projects yet!"}
+                  {activeTab === 'completed' && "No completed projects yet!"}
+                  {activeTab === 'default' && "No defaulted projects!"}
+                </h2>
+                <p className="mt-2 text-gray-600 text-center">
+                  {activeTab === 'pending' && "Create a new project to get started."}
+                  {activeTab === 'ongoing' && "Once your projects are approved, they'll appear here."}
+                  {activeTab === 'completed' && "Successfully funded projects will be shown here."}
+                  {activeTab === 'default' && "Rejected or unsuccessful projects appear here."}
+                </p>
+              </div>
+            )}
 
             {/* Delete Confirmation Modal */}
             <Transition appear show={showDeleteModal} as={Fragment}>

@@ -10,7 +10,7 @@ import { BorrowerOccupation } from "../screens/BorrowOcu";
 import { AuthContext } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
 import { BorrowerWallet } from "../screens/BorrowerWallet";
-import { BorrowerCalender } from "../screens/BorrowCalendar";
+import { BorrowerCalender } from "../screens/BorrowCalendarNew";
 import { BorrowerEvent } from "../screens/BorrowEvents";
 import { BorrowerProject } from "../screens/BorrowProject";
 import { BorrowerBankDet } from "../screens/BorrowerBankDet";
