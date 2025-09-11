@@ -139,7 +139,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
               <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
                 <ArrowLeftIcon className="w-6 h-6" />
               </Button>
-              <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
+              <h1 className="ml-4 text-2xl md:text-3xl font-semibold font-poppins">
                 Create New Project
               </h1>
             </div>
@@ -162,13 +162,13 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                     >
                       <ToggleGroupItem
                         value="Under 100000"
-                        className="flex-1 py-3 rounded-2xl bg-[#ffc628] text-center font-medium"
+                        className="flex-1 py-3 rounded-2xl bg-[#ffc628] text-center font-medium font-poppins"
                       >
                        Under 100000
                       </ToggleGroupItem>
                       <ToggleGroupItem
                         value="100000 and Above"
-                        className="flex-1 py-3 rounded-2xl bg-white border text-center font-medium"
+                        className="flex-1 py-3 rounded-2xl bg-white border text-center font-medium font-poppins"
                       >
                         100000 and Above
                       </ToggleGroupItem>
@@ -353,7 +353,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                               <span className="text-base font-medium text-gray-700">Select Time</span>
                             </div>
                             <select 
-                              className="w-full p-3 border border-gray-200 rounded-xl text-base font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#ffc628] focus:border-transparent transition-all shadow-sm"
+                              className="flex h-[58px] w-full rounded-2xl border border-black bg-transparent px-4 py-3 font-poppins text-base transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#ffc00f] focus:border-[#ffc00f]"
                               onChange={(e) => {
                                 if (timeDuration) {
                                   const date = new Date(timeDuration);

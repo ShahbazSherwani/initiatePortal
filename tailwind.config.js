@@ -48,6 +48,7 @@ module.exports = {
       },
       fontFamily: {
         sans: [
+          'Poppins',
           "ui-sans-serif",
           "system-ui",
           "sans-serif",
@@ -55,6 +56,12 @@ module.exports = {
           '"Segoe UI Emoji"',
           '"Segoe UI Symbol"',
           '"Noto Color Emoji"',
+        ],
+        poppins: [
+          'Poppins',
+          'ui-sans-serif',
+          'system-ui',
+          'sans-serif',
         ],
       },
       keyframes: {

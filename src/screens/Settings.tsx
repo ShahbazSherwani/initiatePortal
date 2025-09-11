@@ -38,10 +38,12 @@ import {
   KeyIcon,
   LinkIcon,
   CheckCircleIcon,
+  CameraIcon,
+  UploadIcon,
 } from "lucide-react";
 
 export const Settings = (): JSX.Element => {
-  const { user } = useAuth();
+  const { user, profilePicture, setProfilePicture } = useAuth();
   const navigate = useNavigate();
 
   // Profile Data State
@@ -166,6 +168,7 @@ export const Settings = (): JSX.Element => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingPicture, setIsUploadingPicture] = useState(false);
 
   // Load user data on component mount
   useEffect(() => {
@@ -350,8 +353,52 @@ export const Settings = (): JSX.Element => {
     }
   };
 
+  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setIsUploadingPicture(true);
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setProfilePicture(previewUrl);
+
+      // TODO: Upload to server
+      // const formData = new FormData();
+      // formData.append('profilePicture', file);
+      // const response = await uploadProfilePicture(formData);
+      // setProfilePicture(response.url);
+
+      console.log('Profile picture uploaded:', file.name);
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      alert('Failed to upload profile picture. Please try again.');
+    } finally {
+      setIsUploadingPicture(false);
+    }
+  };
+
+  const handleRemoveProfilePicture = () => {
+    setProfilePicture(null);
+    // TODO: Call API to remove profile picture from server
+    console.log('Profile picture removed');
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
+    <div className="flex flex-col min-h-screen bg-white">
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div className="w-[280px] flex-shrink-0">
@@ -370,7 +417,7 @@ export const Settings = (): JSX.Element => {
             >
               <ArrowLeftIcon className="w-6 h-6" />
             </Button>
-            <h1 className="text-2xl md:text-3xl font-semibold">Profile Settings</h1>
+            <h1 className="text-2xl md:text-3xl font-semibold font-poppins">Profile Settings</h1>
           </div>
 
           <Tabs defaultValue="profile" className="space-y-6">
@@ -406,6 +453,94 @@ export const Settings = (): JSX.Element => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {/* Profile Picture Section */}
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 p-6 bg-gray-50 rounded-lg border">
+                    <div className="flex flex-col items-center gap-4">
+                      {/* Profile Picture Display */}
+                      <div className="relative">
+                        <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 border-4 border-white shadow-lg">
+                          {profilePicture ? (
+                            <img 
+                              src={profilePicture} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-[#ffc00f] flex items-center justify-center">
+                              <UserIcon className="w-12 h-12 text-black" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Camera Icon Overlay */}
+                        <label 
+                          htmlFor="profile-picture-upload"
+                          className="absolute bottom-0 right-0 w-8 h-8 bg-[#ffc00f] rounded-full flex items-center justify-center cursor-pointer hover:bg-[#e6b324] transition-colors shadow-lg border-2 border-white"
+                        >
+                          <CameraIcon className="w-4 h-4 text-black" />
+                          <input
+                            id="profile-picture-upload"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleProfilePictureUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Profile Info and Actions */}
+                    <div className="flex-1 min-w-0">
+                      <div className="mb-4">
+                        <h3 className="text-xl font-semibold font-poppins text-gray-900">
+                          {profileData.fullName || 'Alexa John'}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-medium">Username:</span> alexa_john
+                        </p>
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-medium">Profile Code:</span> 554Xdl
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Issuer Code:</span> 234zQd
+                        </p>
+                      </div>
+
+                      {/* Upload Actions */}
+                      <div className="flex flex-wrap gap-3">
+                        <label 
+                          htmlFor="profile-picture-upload-alt"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#ffc00f] text-black font-medium rounded-lg hover:bg-[#e6b324] transition-colors cursor-pointer"
+                        >
+                          <UploadIcon className="w-4 h-4" />
+                          Upload New Picture
+                          <input
+                            id="profile-picture-upload-alt"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleProfilePictureUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        
+                        {profilePicture && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleRemoveProfilePicture}
+                            className="text-red-600 border-red-300 hover:bg-red-50"
+                          >
+                            Remove Picture
+                          </Button>
+                        )}
+                      </div>
+
+                      {isUploadingPicture && (
+                        <p className="text-sm text-blue-600 mt-2">Uploading...</p>
+                      )}
+                    </div>
+                  </div>
+
                   <form onSubmit={handleProfileUpdate} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Full Name */}
@@ -414,7 +549,6 @@ export const Settings = (): JSX.Element => {
                         <Input
                           value={profileData.fullName}
                           onChange={(e) => setProfileData(prev => ({ ...prev, fullName: e.target.value }))}
-                          className="h-12"
                         />
                       </div>
 
@@ -425,7 +559,6 @@ export const Settings = (): JSX.Element => {
                           type="email"
                           value={profileData.email}
                           onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
-                          className="h-12"
                         />
                       </div>
 
@@ -435,7 +568,6 @@ export const Settings = (): JSX.Element => {
                         <Input
                           value={profileData.phone}
                           onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
-                          className="h-12"
                         />
                       </div>
 
@@ -446,7 +578,6 @@ export const Settings = (): JSX.Element => {
                           type="date"
                           value={profileData.dateOfBirth}
                           onChange={(e) => setProfileData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                          className="h-12"
                         />
                       </div>
 
@@ -455,7 +586,6 @@ export const Settings = (): JSX.Element => {
                         <Label>Account Type</Label>
                         <Input
                           value={profileData.accountType}
-                          className="h-12"
                           disabled
                         />
                       </div>
@@ -465,7 +595,6 @@ export const Settings = (): JSX.Element => {
                         <Label>Profile Type</Label>
                         <Input
                           value={profileData.profileType}
-                          className="h-12"
                           disabled
                         />
                       </div>
@@ -483,7 +612,6 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               address: { ...prev.address, street: e.target.value }
                             }))}
-                            className="h-12"
                           />
                         </div>
                         <div className="space-y-2">
@@ -494,7 +622,6 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               address: { ...prev.address, barangay: e.target.value }
                             }))}
-                            className="h-12"
                           />
                         </div>
                         <div className="space-y-2">
@@ -505,7 +632,6 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               address: { ...prev.address, city: e.target.value }
                             }))}
-                            className="h-12"
                           />
                         </div>
                         <div className="space-y-2">
@@ -516,7 +642,6 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               address: { ...prev.address, state: e.target.value }
                             }))}
-                            className="h-12"
                           />
                         </div>
                         <div className="space-y-2">
@@ -527,7 +652,7 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               address: { ...prev.address, country: e.target.value }
                             }))}
-                            className="h-12"
+                            
                           />
                         </div>
                         <div className="space-y-2">
@@ -538,7 +663,7 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               address: { ...prev.address, postalCode: e.target.value }
                             }))}
-                            className="h-12"
+                            
                           />
                         </div>
                       </div>
@@ -556,7 +681,7 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               identification: { ...prev.identification, nationalId: e.target.value }
                             }))}
-                            className="h-12"
+                            
                           />
                         </div>
                         <div className="space-y-2">
@@ -567,7 +692,7 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               identification: { ...prev.identification, passport: e.target.value }
                             }))}
-                            className="h-12"
+                            
                           />
                         </div>
                         <div className="space-y-2">
@@ -578,7 +703,7 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               identification: { ...prev.identification, tin: e.target.value }
                             }))}
-                            className="h-12"
+                            
                           />
                         </div>
                         <div className="space-y-2">
@@ -590,7 +715,7 @@ export const Settings = (): JSX.Element => {
                               identification: { ...prev.identification, secondaryIdType: value }
                             }))}
                           >
-                            <SelectTrigger className="h-12">
+                            <SelectTrigger >
                               <SelectValue placeholder="Select ID type" />
                             </SelectTrigger>
                             <SelectContent>
@@ -613,7 +738,7 @@ export const Settings = (): JSX.Element => {
                               ...prev, 
                               identification: { ...prev.identification, secondaryIdNumber: e.target.value }
                             }))}
-                            className="h-12"
+                            
                             placeholder="Enter secondary ID number"
                           />
                         </div>
@@ -635,7 +760,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   personalInfo: { ...prev.personalInfo, placeOfBirth: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -647,7 +772,7 @@ export const Settings = (): JSX.Element => {
                                   personalInfo: { ...prev.personalInfo, gender: value }
                                 }))}
                               >
-                                <SelectTrigger className="h-12">
+                                <SelectTrigger >
                                   <SelectValue placeholder="Select gender" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -666,7 +791,7 @@ export const Settings = (): JSX.Element => {
                                   personalInfo: { ...prev.personalInfo, civilStatus: value }
                                 }))}
                               >
-                                <SelectTrigger className="h-12">
+                                <SelectTrigger >
                                   <SelectValue placeholder="Select civil status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -687,7 +812,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   personalInfo: { ...prev.personalInfo, contactEmail: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                                 placeholder="Contact email address"
                               />
                             </div>
@@ -699,7 +824,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   personalInfo: { ...prev.personalInfo, motherMaidenName: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                           </div>
@@ -717,7 +842,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   employmentInfo: { ...prev.employmentInfo, employerName: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -728,7 +853,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   employmentInfo: { ...prev.employmentInfo, occupation: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="md:col-span-2 space-y-2">
@@ -739,7 +864,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   employmentInfo: { ...prev.employmentInfo, employerAddress: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -751,7 +876,7 @@ export const Settings = (): JSX.Element => {
                                   employmentInfo: { ...prev.employmentInfo, sourceOfIncome: value }
                                 }))}
                               >
-                                <SelectTrigger className="h-12">
+                                <SelectTrigger >
                                   <SelectValue placeholder="Select source of income" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -773,7 +898,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   employmentInfo: { ...prev.employmentInfo, monthlyIncome: e.target.value ? parseFloat(e.target.value) : null }
                                 }))}
-                                className="h-12"
+                                
                                 min="0"
                               />
                             </div>
@@ -792,7 +917,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   emergencyContact: { ...prev.emergencyContact, name: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -804,7 +929,7 @@ export const Settings = (): JSX.Element => {
                                   emergencyContact: { ...prev.emergencyContact, relationship: value }
                                 }))}
                               >
-                                <SelectTrigger className="h-12">
+                                <SelectTrigger >
                                   <SelectValue placeholder="Select relationship" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -827,7 +952,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   emergencyContact: { ...prev.emergencyContact, phone: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -838,7 +963,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   emergencyContact: { ...prev.emergencyContact, address: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                           </div>
@@ -862,7 +987,7 @@ export const Settings = (): JSX.Element => {
                                   businessInfo: { ...prev.businessInfo, entityType: value }
                                 }))}
                               >
-                                <SelectTrigger className="h-12">
+                                <SelectTrigger >
                                   <SelectValue placeholder="Select entity type" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -884,7 +1009,7 @@ export const Settings = (): JSX.Element => {
                                   businessInfo: { ...prev.businessInfo, businessRegistrationType: value }
                                 }))}
                               >
-                                <SelectTrigger className="h-12">
+                                <SelectTrigger >
                                   <SelectValue placeholder="Select registration type" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -902,7 +1027,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, businessRegistrationNumber: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -914,7 +1039,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, businessRegistrationDate: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -925,7 +1050,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, corporateTin: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -936,7 +1061,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, natureOfBusiness: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="md:col-span-2 space-y-2">
@@ -947,7 +1072,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, businessAddress: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                           </div>
@@ -966,7 +1091,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, gisTotalAssets: e.target.value ? parseFloat(e.target.value) : null }
                                 }))}
-                                className="h-12"
+                                
                                 min="0"
                                 placeholder="Enter total assets"
                               />
@@ -980,7 +1105,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, gisTotalLiabilities: e.target.value ? parseFloat(e.target.value) : null }
                                 }))}
-                                className="h-12"
+                                
                                 min="0"
                                 placeholder="Enter total liabilities"
                               />
@@ -994,7 +1119,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, gisPaidUpCapital: e.target.value ? parseFloat(e.target.value) : null }
                                 }))}
-                                className="h-12"
+                                
                                 min="0"
                                 placeholder="Enter paid-up capital"
                               />
@@ -1008,7 +1133,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, gisNumberOfStockholders: e.target.value ? parseInt(e.target.value) : null }
                                 }))}
-                                className="h-12"
+                                
                                 min="0"
                                 placeholder="Enter number of stockholders"
                               />
@@ -1022,7 +1147,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   businessInfo: { ...prev.businessInfo, gisNumberOfEmployees: e.target.value ? parseInt(e.target.value) : null }
                                 }))}
-                                className="h-12"
+                                
                                 min="0"
                                 placeholder="Enter number of employees"
                               />
@@ -1042,7 +1167,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   principalOfficeAddress: { ...prev.principalOfficeAddress, street: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                                 placeholder="Street address"
                               />
                             </div>
@@ -1054,7 +1179,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   principalOfficeAddress: { ...prev.principalOfficeAddress, barangay: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                                 placeholder="Barangay"
                               />
                             </div>
@@ -1066,7 +1191,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   principalOfficeAddress: { ...prev.principalOfficeAddress, municipality: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                                 placeholder="Municipality or City"
                               />
                             </div>
@@ -1078,7 +1203,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   principalOfficeAddress: { ...prev.principalOfficeAddress, province: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                                 placeholder="Province"
                               />
                             </div>
@@ -1090,7 +1215,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   principalOfficeAddress: { ...prev.principalOfficeAddress, country: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                                 placeholder="Country"
                               />
                             </div>
@@ -1102,7 +1227,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   principalOfficeAddress: { ...prev.principalOfficeAddress, postalCode: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                                 placeholder="Postal code"
                               />
                             </div>
@@ -1121,7 +1246,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   authorizedSignatory: { ...prev.authorizedSignatory, name: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -1132,7 +1257,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   authorizedSignatory: { ...prev.authorizedSignatory, position: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                             <div className="space-y-2">
@@ -1144,7 +1269,7 @@ export const Settings = (): JSX.Element => {
                                   authorizedSignatory: { ...prev.authorizedSignatory, idType: value }
                                 }))}
                               >
-                                <SelectTrigger className="h-12">
+                                <SelectTrigger >
                                   <SelectValue placeholder="Select ID type" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1166,7 +1291,7 @@ export const Settings = (): JSX.Element => {
                                   ...prev, 
                                   authorizedSignatory: { ...prev.authorizedSignatory, idNumber: e.target.value }
                                 }))}
-                                className="h-12"
+                                
                               />
                             </div>
                           </div>
@@ -1188,7 +1313,7 @@ export const Settings = (): JSX.Element => {
                                 investmentInfo: { ...prev.investmentInfo, experience: value }
                               }))}
                             >
-                              <SelectTrigger className="h-12">
+                              <SelectTrigger >
                                 <SelectValue placeholder="Select experience" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1207,7 +1332,7 @@ export const Settings = (): JSX.Element => {
                                 investmentInfo: { ...prev.investmentInfo, preference: value }
                               }))}
                             >
-                              <SelectTrigger className="h-12">
+                              <SelectTrigger >
                                 <SelectValue placeholder="Select preference" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1226,7 +1351,7 @@ export const Settings = (): JSX.Element => {
                                 investmentInfo: { ...prev.investmentInfo, riskTolerance: value }
                               }))}
                             >
-                              <SelectTrigger className="h-12">
+                              <SelectTrigger >
                                 <SelectValue placeholder="Select risk tolerance" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1245,7 +1370,7 @@ export const Settings = (): JSX.Element => {
                                 ...prev, 
                                 investmentInfo: { ...prev.investmentInfo, portfolioValue: parseFloat(e.target.value) || 0 }
                               }))}
-                              className="h-12"
+                              
                               min="0"
                             />
                           </div>
@@ -1582,7 +1707,7 @@ export const Settings = (): JSX.Element => {
                           value={privacySettings.profileVisibility}
                           onValueChange={(value) => setPrivacySettings(prev => ({ ...prev, profileVisibility: value }))}
                         >
-                          <SelectTrigger className="h-12">
+                          <SelectTrigger >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>

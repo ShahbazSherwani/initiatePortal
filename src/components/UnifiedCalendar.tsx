@@ -112,8 +112,8 @@ export const UnifiedCalendar = () => {
       // Admin view
       navigate(`/admin/project/${projectId}`);
     } else if (profile?.role === 'investor') {
-      // Investor view - navigate to investment page
-      navigate(`/investor/project/${projectId}`);
+      // Investor view - navigate to project details first
+      navigate(`/investor/project/${projectId}/details`);
     } else {
       // Borrower view - navigate to project details/edit
       navigate(`/borrower/project/${projectId}/details`);
@@ -150,10 +150,10 @@ export const UnifiedCalendar = () => {
               className="bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
               onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
-                navigate(`/investor/project/${projectId}`);
+                navigate(`/investor/project/${projectId}/details`);
               }}
             >
-              View
+              View Details
             </Button>
           </div>
         )}

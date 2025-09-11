@@ -16,7 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import "../../src/styles/animations.css";
 
 export const BorrowerHome: React.FC = () => {
-  const { profile, token } = useAuth();
+  const { profile, token, profilePicture } = useAuth();
   const { 
     currentAccountType, 
     borrowerProfile, 
@@ -187,7 +187,7 @@ export const BorrowerHome: React.FC = () => {
                 {/* Profile / iFunds Section */}
                 <section className="flex flex-col md:flex-row items-start md:items-center mb-12 gap-6">
                   <Avatar className="w-[100px] md:w-[123px] h-[100px] md:h-[123px]">
-                    <AvatarImage src="/ellipse-1.png" alt="User profile" />
+                    <AvatarImage src={profilePicture || "/ellipse-1.png"} alt="User profile" />
                     <AvatarFallback>AJ</AvatarFallback>
                   </Avatar>
 

@@ -107,7 +107,7 @@ const BorwCreateNewProjRewards: React.FC = () => {
               <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
                 <ArrowLeftIcon className="w-6 h-6" />
               </Button>
-              <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
+              <h1 className="ml-4 text-2xl md:text-3xl font-semibold font-poppins">
                 Create New Project
               </h1>
             </div>

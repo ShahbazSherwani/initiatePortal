@@ -26,7 +26,7 @@ export interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { token, profile, logout } = useAuth();
+  const { token, profile, logout, profilePicture } = useAuth();
   const { currentAccountType, borrowerProfile, investorProfile } = useAccount();
   const location = useLocation();
   const navigate = useNavigate();
@@ -80,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
         <div className="md:hidden mt-4 space-y-4 overflow-y-auto animate-slideIn">
           {navItems.map((item) => (
             <Link key={item.name} to={item.to}>
-              <span className={`block w-full text-left text-lg py-2 px-3 border-b border-gray-100 font-['Poppins',Helvetica] ${item.color} hover:text-white hover:bg-[#203863] transition-all duration-200 shadow-sm hover:shadow-md ${item.color}`}>
+              <span className={`block w-full text-left text-lg py-2 px-3 border-b border-gray-100 ${item.color} hover:text-white hover:bg-[#203863] transition-all duration-200 shadow-sm hover:shadow-md ${item.color}`}>
                 {item.name}
               </span>
             </Link>
@@ -135,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
             <DropdownMenuContent align="end" className="w-56">
               {navItems.map((item) => (
                 <DropdownMenuItem key={item.name} asChild>
-                  <Link to={item.to} className={`font-['Poppins',Helvetica] ${item.color}`}>
+                  <Link to={item.to} className={`${item.color}`}>
                     {item.name}
                   </Link>
                 </DropdownMenuItem>
@@ -152,7 +152,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
               </div>
 
               <Avatar className="w-10 h-10">
-                <AvatarImage src="/ellipse-1.png" alt="avatar" />
+                <AvatarImage src={profilePicture || "/ellipse-1.png"} alt="avatar" />
                 <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white font-semibold">
                   {getCurrentAccountName().charAt(0).toUpperCase()}
                 </AvatarFallback>

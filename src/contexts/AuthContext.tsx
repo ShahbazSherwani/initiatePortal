@@ -17,8 +17,11 @@ interface AuthContextType {
     hasCompletedRegistration?: boolean; // Add this field
     isAdmin?: boolean; // Add this property
     profileCode?: string; // Add profile code
+    profilePicture?: string | null; // Add profile picture
   } | null;
   setProfile: React.Dispatch<React.SetStateAction<any>>;
+  profilePicture: string | null;
+  setProfilePicture: React.Dispatch<React.SetStateAction<string | null>>;
   loading: boolean;
   logout: () => Promise<void>;
 }
@@ -40,6 +43,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
 
   // Refresh token periodically (every 30 minutes)
   useEffect(() => {
@@ -130,6 +134,8 @@ export const AuthProvider = ({ children }) => {
       token, 
       profile, 
       setProfile,
+      profilePicture,
+      setProfilePicture,
       loading,
       logout
     }}>

@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { getWalletBalance } from "../lib/wallet";
 import { useProjects } from "../contexts/ProjectsContext";
 import { DashboardLayout } from "../layouts/DashboardLayout";
@@ -45,7 +46,7 @@ function generateCalendar(date: Date) {
 }
 
 export const BorrowerCalender: React.FC = () => {
-  const { profile, token } = useContext(AuthContext)!;
+  const { profile, token, profilePicture } = useAuth();
   const { projects } = useProjects();
   const [balance, setBalance] = useState<number | null>(null);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
@@ -149,7 +150,7 @@ export const BorrowerCalender: React.FC = () => {
                   <h2 className="text-2xl font-semibold">Calendar</h2>
                   <div className="flex items-center gap-4">
                     <BellIcon />
-                    <Avatar><AvatarImage src="/ellipse-1.png" alt="User"/><AvatarFallback>U</AvatarFallback></Avatar>
+                    <Avatar><AvatarImage src={profilePicture || "/ellipse-1.png"} alt="User"/><AvatarFallback>U</AvatarFallback></Avatar>
                   </div>
                 </div>
 

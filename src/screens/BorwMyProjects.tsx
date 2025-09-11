@@ -1,6 +1,6 @@
-import React, { Fragment, useContext, useState } from "react";
+import React, { Fragment, useState } from "react";
 import { Navigate, useNavigate, Outlet } from "react-router-dom";
-import { AuthContext } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/button";
 import { Dialog, Transition } from "@headlessui/react";
@@ -16,12 +16,44 @@ const projectTabs = [
 ];
 
 export const BorrowerMyProjects: React.FC = (): JSX.Element => {
-  const { token } = useContext(AuthContext)!;
-  const { projects, updateProject } = useProjects();
+  const { token, user, profile } = useAuth();
+  const { projects } = useProjects();
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [selectedType, setSelectedType] = useState<"equity" | "lending" | "donation" | "rewards" | null>(null);
 
+  // Debug logging to see what's happening
+  console.log("🔍 Debug - Current user:", user);
+  console.log("🔍 Debug - Current profile:", profile);
+  console.log("🔍 Debug - All projects:", projects);
+  console.log("🔍 Debug - Projects with firebase_uid:", projects.map(p => ({ 
+    id: p.id, 
+    firebase_uid: (p as any).firebase_uid, 
+    title: p.title,
+    status: (p as any).status 
+  })));
+  console.log("🔍 Debug - User ID for comparison:", profile?.id);
+  console.log("🔍 Debug - User UID for comparison:", user?.uid);
+  
+  // Show detailed comparison for each project
+  projects.forEach((p, index) => {
+    console.log(`🔍 Debug - Project ${index + 1}:`, {
+      id: p.id,
+      title: p.title,
+      full_project: p,
+      firebase_uid: (p as any).firebase_uid,
+      firebase_uid_type: typeof (p as any).firebase_uid,
+      matches_profile_id: (p as any).firebase_uid === profile?.id,
+      matches_user_uid: (p as any).firebase_uid === user?.uid,
+      status: (p as any).status,
+      status_check: (p as any).status !== "closed"
+    });
+  });
+  
+  // More robust filtering - try multiple user identification methods
+  const currentUserId = profile?.id || user?.uid;
+  console.log("🔍 Debug - Current User ID:", currentUserId);
+  console.log("🔍 Debug - Filtered projects:", projects.filter(p => (p as any).status !== "closed" && (p as any).firebase_uid === currentUserId));
 
   if (!token) return <Navigate to="/login" />;
 
@@ -44,7 +76,7 @@ const handleContinue = () => {
   };
 
   const handleClose = (projectId: string) => {
-    updateProject(projectId, { status: "closed" });
+    // updateProject(projectId, { status: "closed" });
   };
 
   // Add/update this function in your BorwMyProjects component
@@ -55,7 +87,7 @@ const handleContinue = () => {
   // Add this function to your BorrowerMyProjects component:
   const handlePublishProject = (projectId: string) => {
     try {
-      updateProject(projectId, { status: "published" });
+      // updateProject(projectId, { status: "published" });
       // toast.success("Project published successfully! Investors can now see it.");
     } catch (error: any) {
       console.error("Error publishing project:", error);
@@ -212,41 +244,41 @@ const handleContinue = () => {
 </Transition>
 
             {/* Projects List - to be mapped from actual data */}
-            {projects.filter(p => p.status !== "closed").length > 0 ? (
+            {projects.filter(p => (p as any).status !== "closed" && (p as any).firebase_uid === profile?.id).length > 0 ? (
   <div>
-    {projects.filter(p => p.status !== "closed").map(project => (
+    {projects.filter(p => (p as any).status !== "closed" && (p as any).firebase_uid === profile?.id).map(project => (
       <div key={project.id} className="bg-white rounded-lg border border-gray-100 shadow-sm mb-4 p-4 flex">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-lg">{project.details.product || "Untitled Project"}</h3>
+            <h3 className="font-semibold text-lg">{project.title || "Untitled Project"}</h3>
             
             {/* Add approval status badge */}
             <div className="flex items-center gap-2">
               <span className={`text-xs px-2 py-1 rounded-full ${
-                project.status === 'published' 
+                (project as any).status === 'published' 
                   ? 'bg-green-100 text-green-800' 
-                  : project.status === 'draft'
+                  : (project as any).status === 'draft'
                   ? 'bg-yellow-100 text-yellow-800'
-                  : project.status === 'pending'
+                  : (project as any).status === 'pending'
                   ? 'bg-orange-100 text-orange-800'
                   : 'bg-gray-100 text-gray-800'
               }`}>
-                {project.status ? project.status.charAt(0).toUpperCase() + project.status.slice(1) : 'No Status'}
+                {(project as any).status ? (project as any).status.charAt(0).toUpperCase() + (project as any).status.slice(1) : 'No Status'}
               </span>
               
-              {project.approvalStatus === 'approved' && (
+              {(project as any).approvalStatus === 'approved' && (
                 <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
                   Approved
                 </span>
               )}
               
-              {project.approvalStatus === 'rejected' && (
+              {(project as any).approvalStatus === 'rejected' && (
                 <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-800">
                   Rejected
                 </span>
               )}
               
-              {project.approvalStatus === 'pending' && project.status === 'published' && (
+              {(project as any).approvalStatus === 'pending' && (project as any).status === 'published' && (
                 <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
                   Awaiting Approval
                 </span>
@@ -256,7 +288,7 @@ const handleContinue = () => {
           
           {/* Project details */}
           <div className="text-sm text-gray-600 mb-2">Project ID: {project.id}</div>
-          <div className="text-sm text-gray-600 mb-2">Location: {(project.details as any)?.location || "Not specified"}</div>
+          <div className="text-sm text-gray-600 mb-2">Location: {project.borrower_profile?.address || "Not specified"}</div>
           
           {/* Approval feedback if rejected */}
           {(project as any).approvalStatus === 'rejected' && (project as any).approvalFeedback && (
@@ -282,7 +314,7 @@ const handleContinue = () => {
             Edit
           </Button>
           
-          {(project.status === "draft" || project.status === "pending" || !project.status) && (
+          {((project as any).status === "draft" || (project as any).status === "pending" || !(project as any).status) && (
             <Button 
               onClick={() => handlePublishProject(project.id)}
               className="bg-blue-600 text-white hover:bg-blue-700"
@@ -291,7 +323,7 @@ const handleContinue = () => {
             </Button>
           )}
           
-          {project.status !== "closed" && (
+          {(project as any).status !== "closed" && (
             <Button 
               onClick={() => handleClose(project.id)}
               variant="outline" 
