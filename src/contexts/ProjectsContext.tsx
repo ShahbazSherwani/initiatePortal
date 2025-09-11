@@ -4,15 +4,51 @@ import { useAccount } from './AccountContext';
 import { API_BASE_URL } from '../config/environment';
 
 interface Project {
-  id: string;
-  title: string;
-  amount: number;
-  description: string;
-  interest_rate: number;
-  start_date: string;
-  end_date: string;
-  image?: string;
+  id: number;
   firebase_uid: string;
+  project_data: {
+    type?: string;
+    status?: string;
+    approvalStatus?: string;
+    details?: {
+      product?: string;
+      loanAmount?: string;
+      investmentAmount?: string;
+      projectRequirements?: string;
+      investorPercentage?: string;
+      timeDuration?: string;
+      location?: string;
+      overview?: string;
+      image?: string;
+      fundedAmount?: string;
+      [key: string]: any;
+    };
+    milestones?: any[];
+    roi?: {
+      totalAmount?: string;
+      [key: string]: any;
+    };
+    sales?: {
+      totalSales?: string;
+      netIncomeCalc?: string;
+      [key: string]: any;
+    };
+    payout?: any;
+    investorRequests?: any[];
+    interestRequests?: any[];
+    [key: string]: any;
+  };
+  created_at: string;
+  updated_at?: string;
+  full_name?: string;
+  // Legacy fields for backward compatibility
+  title?: string;
+  amount?: number;
+  description?: string;
+  interest_rate?: number;
+  start_date?: string;
+  end_date?: string;
+  image?: string;
   creator_name?: string;
   creator_email?: string;
   borrower_profile?: {
@@ -20,12 +56,27 @@ interface Project {
     phone?: string;
     address?: string;
   };
+  // Additional legacy fields that might exist on project objects
+  status?: string;
+  roi?: any;
+  sales?: any;
+  milestones?: any[];
+  investorRequests?: any[];
+  interestRequests?: any[];
+  fundingProgress?: number;
+  estimatedReturn?: number;
+  timeDuration?: string;
+  createdAt?: string;
+  [key: string]: any;  // Allow any additional properties for flexibility
 }
 
 interface ProjectsContextType {
   projects: Project[];
   loading: boolean;
   loadProjects: () => Promise<void>;
+  updateProject: (id: string, updates: any) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  addProject: (projectData: any) => Promise<void>;
 }
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(undefined);
@@ -103,6 +154,91 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [token, currentAccountType, user]);
 
+  const updateProject = useCallback(async (id: string, updates: any) => {
+    try {
+      console.log(`Updating project ${id} with:`, updates);
+      
+      const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        console.log(`✅ Project ${id} updated successfully`);
+        // Reload projects to get the updated data
+        await loadProjects();
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to update project:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to update project');
+      }
+    } catch (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
+  }, [token, loadProjects]);
+
+  const deleteProject = useCallback(async (id: string) => {
+    try {
+      console.log(`Deleting project ${id}`);
+      
+      const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        console.log(`✅ Project ${id} deleted successfully`);
+        // Reload projects to get the updated list
+        await loadProjects();
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to delete project:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to delete project');
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      throw error;
+    }
+  }, [token, loadProjects]);
+
+  const addProject = useCallback(async (projectData: any) => {
+    try {
+      console.log(`Adding new project:`, projectData);
+      
+      const response = await fetch(`${API_BASE_URL}/projects/create-test`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(projectData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`✅ Project created successfully:`, result);
+        // Reload projects to get the updated list
+        await loadProjects();
+        return result;
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to create project:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to create project');
+      }
+    } catch (error) {
+      console.error('Error creating project:', error);
+      throw error;
+    }
+  }, [token, loadProjects]);
+
   useEffect(() => {
     if (user && token) {
       loadProjects();
@@ -113,6 +249,9 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     projects,
     loading,
     loadProjects,
+    updateProject,
+    deleteProject,
+    addProject,
   };
 
   return (

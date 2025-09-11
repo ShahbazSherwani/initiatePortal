@@ -87,13 +87,6 @@ export const AccountSwitcher: React.FC = () => {
           className="flex items-center space-x-3 px-4 py-3 h-auto"
           disabled={switching}
         >
-          {/* User Avatar */}
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {getCurrentAccountLabel().charAt(0).toUpperCase()}
-            </span>
-          </div>
-          
           {/* Account Info */}
           <div className="flex flex-col items-start">
             <span className="text-sm text-gray-600">Account:</span>

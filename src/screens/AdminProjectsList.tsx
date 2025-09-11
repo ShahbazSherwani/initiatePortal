@@ -233,7 +233,7 @@ export const AdminProjectsList: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <Button 
-                            onClick={() => navigate(`/admin/projects/${project.id}`)}
+                            onClick={() => navigate(`/admin/project/${project.id}`)}
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
                             Review

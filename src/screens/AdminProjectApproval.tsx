@@ -133,9 +133,6 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
     );
   }
   
-  // Debugging line
-  console.log("Project data in approval screen:", displayProject);
-  
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
       <div className="flex flex-1 overflow-hidden">

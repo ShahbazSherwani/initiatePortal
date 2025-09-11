@@ -46,39 +46,12 @@ export const AdminProjectView = () => {
     fetchProject();
   }, [projectId]);
   
-  if (loading) return <div>Loading project details...</div>;
-  if (!project) return <div>Project not found</div>;
+  // Redirect directly to the approval page instead of showing intermediate buttons
+  useEffect(() => {
+    if (projectId) {
+      navigate(`/admin/project/${projectId}`, { replace: true });
+    }
+  }, [projectId, navigate]);
   
-  // Rest of your component to display project details
-  return (
-    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <div className="flex flex-1 overflow-hidden">
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <Sidebar activePage="admin" />
-        </div>
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          {/* Project details */}
-          <h1>Project: {project.project_data?.details?.product || "Untitled Project"}</h1>
-          
-          {/* Admin Actions */}
-          <div className="mt-6 flex gap-4">
-            <Button
-              onClick={() => navigate(`/admin/project/${projectId}`)} // Change from "/admin/projects/${projectId}/approve"
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              Approve Project
-            </Button>
-            
-            <Button
-              onClick={() => navigate(`/admin/project/${projectId}`)} // Change from "/admin/projects/${projectId}/reject"
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Reject Project
-            </Button>
-          </div>
-        </main>
-      </div>
-    </div>
-  );
+  return <div>Redirecting to project review...</div>;
 };

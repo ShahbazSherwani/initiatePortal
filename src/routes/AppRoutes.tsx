@@ -89,13 +89,23 @@ const AccountProtectedRoute: React.FC<{
 
 // A wrapper for project creation routes that checks if user can create new projects
 const ProjectCreationGuard: React.FC<{ children: JSX.Element }> = ({ children }) => {
-  const { canCreateNewProject, currentAccountType } = useAccount();
+  const { canCreateNewProject, currentAccountType, borrowerProfile } = useAccount();
+  
+  console.log('🚦 ProjectCreationGuard:', {
+    canCreateNewProject,
+    currentAccountType,
+    hasActiveProject: borrowerProfile?.hasActiveProject,
+    borrowerProfile: borrowerProfile ? 'exists' : 'missing'
+  });
   
   // Only apply this guard to borrower account
   if (currentAccountType === 'borrower' && !canCreateNewProject) {
+    console.log('❌ Project creation blocked: User has active project or cannot create new project');
+    console.log('   Redirecting to /borwMyProj');
     return <Navigate to="/borwMyProj" replace />;
   }
   
+  console.log('✅ Project creation allowed');
   return children;
 };
 

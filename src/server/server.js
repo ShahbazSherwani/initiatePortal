@@ -79,6 +79,33 @@ try {
   };
 
   testConnection();
+  
+  // Run migration to add profile picture field
+  const runProfilePictureMigration = async () => {
+    try {
+      if (dbConnected) {
+        console.log('🔧 Running profile picture migration...');
+        
+        // Add profile_picture column if it doesn't exist
+        await db.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT;
+        `);
+        
+        // Add username column if it doesn't exist
+        await db.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100) UNIQUE;
+        `);
+        
+        console.log('✅ Profile picture field added to users table');
+        console.log('✅ Username field added to users table');
+      }
+    } catch (err) {
+      console.error('❌ Profile picture migration failed:', err.message);
+    }
+  };
+  
+  // Run migration after a short delay to ensure connection is established
+  setTimeout(runProfilePictureMigration, 3000);
 
 } catch (error) {
   console.error('❌ Database initialization failed:', error);
@@ -219,7 +246,9 @@ profileRouter.get('/', verifyToken, async (req, res) => {
       full_name: rows[0].full_name,
       created_at: rows[0].created_at,
       is_admin: rows[0].is_admin || false,
-      has_completed_registration: rows[0].has_completed_registration || false
+      has_completed_registration: rows[0].has_completed_registration || false,
+      profile_picture: rows[0].profile_picture || null,
+      username: rows[0].username || null
     };
     
     // Only add role if it exists
@@ -310,6 +339,125 @@ app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
     WHERE firebase_uid = $1
   `, [uid, amount]);
   res.json({ success: true });
+});
+
+// Profile picture upload endpoint
+profileRouter.post('/upload-picture', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { profilePicture } = req.body;
+    
+    if (!profilePicture) {
+      return res.status(400).json({ error: 'No profile picture provided' });
+    }
+    
+    // Update user's profile picture in database
+    await db.query(
+      `UPDATE users SET profile_picture = $1, updated_at = CURRENT_TIMESTAMP WHERE firebase_uid = $2`,
+      [profilePicture, firebase_uid]
+    );
+    
+    console.log('✅ Profile picture updated for user:', firebase_uid);
+    res.json({ 
+      success: true, 
+      message: 'Profile picture updated successfully',
+      profilePicture 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error updating profile picture:', err);
+    res.status(500).json({ error: 'Failed to update profile picture' });
+  }
+});
+
+// Get profile picture endpoint
+profileRouter.get('/picture', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    
+    const result = await db.query(
+      `SELECT profile_picture FROM users WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      profilePicture: result.rows[0].profile_picture 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error fetching profile picture:', err);
+    res.status(500).json({ error: 'Failed to fetch profile picture' });
+  }
+});
+
+// Remove profile picture endpoint
+profileRouter.delete('/picture', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    
+    await db.query(
+      `UPDATE users SET profile_picture = NULL, updated_at = CURRENT_TIMESTAMP WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    console.log('✅ Profile picture removed for user:', firebase_uid);
+    res.json({ 
+      success: true, 
+      message: 'Profile picture removed successfully' 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error removing profile picture:', err);
+    res.status(500).json({ error: 'Failed to remove profile picture' });
+  }
+});
+
+// Update username endpoint
+profileRouter.post('/update-username', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { username } = req.body;
+    
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+    
+    // Validate username format (alphanumeric, underscore, and dots allowed)
+    if (!/^[a-zA-Z0-9._]+$/.test(username)) {
+      return res.status(400).json({ error: 'Username can only contain letters, numbers, dots, and underscores' });
+    }
+    
+    // Check if username is already taken
+    const existingUser = await db.query(
+      `SELECT firebase_uid FROM users WHERE username = $1 AND firebase_uid != $2`,
+      [username, firebase_uid]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ error: 'Username is already taken' });
+    }
+    
+    // Update username
+    await db.query(
+      `UPDATE users SET username = $1, updated_at = CURRENT_TIMESTAMP WHERE firebase_uid = $2`,
+      [username, firebase_uid]
+    );
+    
+    console.log('✅ Username updated for user:', firebase_uid, 'to:', username);
+    res.json({ 
+      success: true, 
+      message: 'Username updated successfully',
+      username 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error updating username:', err);
+    res.status(500).json({ error: 'Failed to update username' });
+  }
 });
 
 app.use('/api/profile', profileRouter);
@@ -660,7 +808,7 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
     
     // Get user base info (optimized - only needed columns)
     const userQuery = await db.query(
-      `SELECT firebase_uid, full_name, current_account_type, has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
+      `SELECT firebase_uid, full_name, username, current_account_type, has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
       [firebase_uid]
     );
     
@@ -683,6 +831,7 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
     
     let profileData = {
       fullName: user.full_name,
+      username: user.username || '',
       email: userEmail,
       phone: user.phone_number || '',
       dateOfBirth: user.date_of_birth || '',
@@ -1082,14 +1231,45 @@ app.post('/api/settings', verifyToken, async (req, res) => {
     // Update basic user info first
     if (profileData) {
       console.log('📝 Updating basic user info...');
-      await db.query(
-        `UPDATE users SET 
-         full_name = $1,
-         updated_at = CURRENT_TIMESTAMP
-         WHERE firebase_uid = $2`,
-        [profileData.fullName, firebase_uid]
-      );
-      console.log('✅ Basic user info updated successfully');
+      
+      // Handle username separately if provided
+      if (profileData.username && profileData.username.trim()) {
+        try {
+          // Check if username is already taken by another user
+          const existingUser = await db.query(
+            `SELECT firebase_uid FROM users WHERE username = $1 AND firebase_uid != $2`,
+            [profileData.username.trim(), firebase_uid]
+          );
+          
+          if (existingUser.rows.length > 0) {
+            return res.status(409).json({ error: 'Username is already taken' });
+          }
+          
+          // Update with username
+          await db.query(
+            `UPDATE users SET 
+             full_name = $1,
+             username = $2,
+             updated_at = CURRENT_TIMESTAMP
+             WHERE firebase_uid = $3`,
+            [profileData.fullName, profileData.username.trim(), firebase_uid]
+          );
+          console.log('✅ User info and username updated successfully');
+        } catch (usernameError) {
+          console.error('❌ Error updating username:', usernameError);
+          return res.status(400).json({ error: 'Invalid username format' });
+        }
+      } else {
+        // Update without username
+        await db.query(
+          `UPDATE users SET 
+           full_name = $1,
+           updated_at = CURRENT_TIMESTAMP
+           WHERE firebase_uid = $2`,
+          [profileData.fullName, firebase_uid]
+        );
+        console.log('✅ Basic user info updated successfully');
+      }
       
       // Get user account types to determine which profiles to update
       console.log('🔍 Checking user account types...');
@@ -1947,30 +2127,38 @@ app.post('/api/admin/projects/:projectId/investments/:investorId/review', verify
   const { action, comment } = req.body; // action: 'approve' or 'reject'
   const adminUid = req.uid;
   
+  // Start database transaction for atomic operations
+  const client = await db.connect();
+  
   try {
+    await client.query('BEGIN');
+    
     // Verify admin status
-    const adminResult = await db.query(
+    const adminResult = await client.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
       [adminUid]
     );
     
     if (!adminResult.rows[0]?.is_admin) {
+      await client.query('ROLLBACK');
       return res.status(403).json({ error: "Unauthorized - Admin access required" });
     }
     
     // Get the project
-    const projectResult = await db.query(
+    const projectResult = await client.query(
       `SELECT project_data FROM projects WHERE id = $1`,
       [projectId]
     );
     
     if (projectResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: "Project not found" });
     }
     
     const projectData = projectResult.rows[0].project_data;
     
     if (!projectData.investorRequests) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: "No investment requests found" });
     }
     
@@ -1980,7 +2168,17 @@ app.post('/api/admin/projects/:projectId/investments/:investorId/review', verify
     );
     
     if (investmentIndex === -1) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: "Investment request not found" });
+    }
+    
+    // Check if investment is already processed
+    if (projectData.investorRequests[investmentIndex].status !== 'pending') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: `Investment request is already ${projectData.investorRequests[investmentIndex].status}`,
+        currentStatus: projectData.investorRequests[investmentIndex].status
+      });
     }
     
     // Update the investment request status
@@ -1992,9 +2190,53 @@ app.post('/api/admin/projects/:projectId/investments/:investorId/review', verify
       projectData.investorRequests[investmentIndex].adminComment = comment;
     }
     
-    // If approved, update the funding meter
+    let walletUpdateInfo = null;
+    
+    // If approved, update the funding meter and deduct from investor's wallet
     if (action === 'approve') {
       const approvedAmount = projectData.investorRequests[investmentIndex].amount;
+      
+      // First, check investor's wallet balance to ensure they still have sufficient funds
+      const walletResult = await client.query(
+        'SELECT balance FROM wallets WHERE firebase_uid = $1',
+        [investorId]
+      );
+      
+      const currentBalance = walletResult.rows[0]?.balance || 0;
+      
+      if (currentBalance < approvedAmount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Cannot approve investment. Investor's current wallet balance (₱${currentBalance.toLocaleString()}) is insufficient for the investment amount (₱${approvedAmount.toLocaleString()})`,
+          currentBalance,
+          requiredAmount: approvedAmount,
+          shortfall: approvedAmount - currentBalance
+        });
+      }
+      
+      // Deduct the investment amount from investor's wallet
+      const deductResult = await client.query(
+        `UPDATE wallets 
+         SET balance = balance - $1, updated_at = NOW() 
+         WHERE firebase_uid = $2
+         RETURNING balance`,
+        [approvedAmount, investorId]
+      );
+      
+      if (deductResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: "Failed to update investor wallet. Wallet not found." });
+      }
+      
+      const newBalance = deductResult.rows[0].balance;
+      console.log(`💳 Wallet deduction: Deducted ₱${approvedAmount.toLocaleString()} from investor ${investorId}. New balance: ₱${newBalance.toLocaleString()}`);
+      
+      walletUpdateInfo = {
+        investorId: investorId,
+        amountDeducted: approvedAmount,
+        newBalance: newBalance,
+        deductionProcessed: true
+      };
       
       // Initialize funding tracking if it doesn't exist
       if (!projectData.funding) {
@@ -2024,26 +2266,40 @@ app.post('/api/admin/projects/:projectId/investments/:investorId/review', verify
         });
       }
       
-      console.log(`💰 Investment approved: Added $${approvedAmount} to project ${projectId}. Total funded: $${projectData.funding.totalFunded}`);
+      console.log(`💰 Investment approved: Added ₱${approvedAmount.toLocaleString()} to project ${projectId}. Total funded: ₱${projectData.funding.totalFunded.toLocaleString()}`);
     }
     
     // Update the project in database
-    await db.query(
+    await client.query(
       `UPDATE projects 
        SET project_data = $1, updated_at = NOW()
        WHERE id = $2`,
       [projectData, projectId]
     );
     
-    res.json({ 
+    // Commit the transaction
+    await client.query('COMMIT');
+    
+    // Prepare response object
+    const responseData = { 
       success: true, 
       message: `Investment request ${action}d successfully`,
       investment: projectData.investorRequests[investmentIndex]
-    });
+    };
+    
+    // If approved, include wallet information in response
+    if (action === 'approve' && walletUpdateInfo) {
+      responseData.walletUpdate = walletUpdateInfo;
+    }
+    
+    res.json(responseData);
     
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error("Error reviewing investment request:", err);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: "Database error during investment review" });
+  } finally {
+    client.release();
   }
 });
 
@@ -2800,10 +3056,19 @@ app.get('/api/projects', verifyToken, async (req, res) => {
     const params = [];
     let conditions = [];
     
+    // Always exclude deleted projects unless specifically requested
+    if (status !== 'deleted') {
+      conditions.push(`(p.project_data->>'status' != 'deleted' OR p.project_data->>'status' IS NULL)`);
+    }
+    
     // Handle status parameter
-    if (status) {
+    if (status && status !== 'deleted') {
       conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
       params.push(status);
+    } else if (status === 'deleted') {
+      // Only show deleted projects if explicitly requested
+      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
+      params.push('deleted');
     }
     
     // Check if we need to filter for approved projects
@@ -3009,42 +3274,49 @@ app.post('/api/check-admin', async (req, res) => {
 
 // Add this near your other project-related endpoints
 
-// Create a test project for admin review
+// Create a project from form data
 app.post('/api/projects/create-test', verifyToken, async (req, res) => {
   const uid = req.uid;
+  const projectData = req.body;
   
   try {
-    // Create a test project with pending approval status
-    const testProject = {
-      type: "lending",
-      status: "published",
+    console.log("Creating project for user:", uid);
+    console.log("Project data received:", projectData);
+    
+    // Structure the project data properly
+    const project = {
+      type: projectData.type || "lending",
+      status: "draft", // Start as draft
       approvalStatus: "pending",
-      details: {
-        product: "Test Admin Project",
-        loanAmount: "100000",
-        projectRequirements: "Testing admin review",
-        investorPercentage: "10",
-        timeDuration: "12",
-        location: "Test Location",
-        overview: "This is a test project to verify admin functionality"
-      },
-      createdAt: new Date().toISOString()
+      details: projectData.details || {},
+      milestones: projectData.milestones || [],
+      roi: projectData.roi || {},
+      payout: projectData.payout || {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
     const result = await db.query(
       `INSERT INTO projects (firebase_uid, project_data)
        VALUES ($1, $2) RETURNING id`,
-      [uid, testProject]
+      [uid, project]
     );
+    
+    console.log("Project created successfully with ID:", result.rows[0].id);
     
     res.json({ 
       success: true, 
-      message: "Test project created successfully",
-      projectId: result.rows[0].id
+      message: "Project created successfully",
+      projectId: result.rows[0].id,
+      project: {
+        id: result.rows[0].id,
+        firebase_uid: uid,
+        project_data: project
+      }
     });
   } catch (err) {
-    console.error("Error creating test project:", err);
-    res.status(500).json({ error: "Database error" });
+    console.error("Error creating project:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
   }
 });
 
@@ -3137,6 +3409,7 @@ app.get('/api/calendar/projects', verifyToken, async (req, res) => {
   try {
     // For calendar, we want ALL projects that investors can potentially invest in
     // This includes both published projects AND draft projects (borrowers working on them)
+    // But we exclude deleted projects
     const query = `
       SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
       FROM projects p
@@ -3145,6 +3418,7 @@ app.get('/api/calendar/projects', verifyToken, async (req, res) => {
              OR p.project_data->>'status' = 'draft'
              OR p.project_data->>'status' = 'pending'
              OR p.project_data->>'status' IS NULL)
+      AND (p.project_data->>'status' != 'deleted' OR p.project_data->>'status' IS NULL)
       AND (p.project_data->>'approvalStatus' = 'approved' 
            OR p.project_data->>'approvalStatus' = 'pending'
            OR p.project_data->>'approvalStatus' IS NULL)
@@ -3160,6 +3434,97 @@ app.get('/api/calendar/projects', verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Error fetching calendar projects:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Update project endpoint - for project management (close, complete, delete)
+app.put('/api/projects/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { project_data } = req.body;
+  
+  try {
+    // First verify the project exists and the user owns it or is admin
+    const projectCheck = await db.query(
+      `SELECT p.*, u.is_admin FROM projects p
+       LEFT JOIN users u ON u.firebase_uid = $2
+       WHERE p.id = $1`,
+      [id, req.uid]
+    );
+    
+    if (projectCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const project = projectCheck.rows[0];
+    const isAdmin = project.is_admin;
+    const isOwner = project.firebase_uid === req.uid;
+    
+    // Only owner or admin can update the project
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Unauthorized: You can only update your own projects" });
+    }
+    
+    // Update the project
+    const result = await db.query(
+      `UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [project_data, id]
+    );
+    
+    console.log(`Project ${id} updated successfully by user ${req.uid}`);
+    res.json({
+      success: true,
+      message: "Project updated successfully",
+      project: result.rows[0]
+    });
+  } catch (err) {
+    console.error("Error updating project:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Delete project endpoint - soft delete by setting status to "deleted"
+app.delete('/api/projects/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // First verify the project exists and the user owns it or is admin
+    const projectCheck = await db.query(
+      `SELECT p.*, u.is_admin FROM projects p
+       LEFT JOIN users u ON u.firebase_uid = $2
+       WHERE p.id = $1`,
+      [id, req.uid]
+    );
+    
+    if (projectCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const project = projectCheck.rows[0];
+    const isAdmin = project.is_admin;
+    const isOwner = project.firebase_uid === req.uid;
+    
+    // Only owner or admin can delete the project
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Unauthorized: You can only delete your own projects" });
+    }
+    
+    // Soft delete by updating the status to "deleted"
+    const updatedProjectData = { ...project.project_data, status: 'deleted' };
+    
+    const result = await db.query(
+      `UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [updatedProjectData, id]
+    );
+    
+    console.log(`Project ${id} deleted (soft delete) by user ${req.uid}`);
+    res.json({
+      success: true,
+      message: "Project deleted successfully",
+      project: result.rows[0]
+    });
+  } catch (err) {
+    console.error("Error deleting project:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
   }
 });
 
@@ -3289,6 +3654,58 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
   } catch (err) {
     console.error("Error reviewing top-up request:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Admin endpoint to clear all projects and investment requests
+app.delete('/api/admin/clear-all-data', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Check if user is admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (!adminCheck.rows[0] || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    
+    console.log('🗑️ Admin user initiated database cleanup...');
+    
+    // Delete all projects (this will also remove all investment requests since they're stored in project_data)
+    const projectsResult = await db.query('DELETE FROM projects');
+    console.log(`✅ Deleted ${projectsResult.rowCount} projects`);
+    
+    // Delete all borrow requests
+    const borrowRequestsResult = await db.query('DELETE FROM borrow_requests');
+    console.log(`✅ Deleted ${borrowRequestsResult.rowCount} borrow requests`);
+    
+    // Delete all topup requests
+    const topupRequestsResult = await db.query('DELETE FROM topup_requests');
+    console.log(`✅ Deleted ${topupRequestsResult.rowCount} topup requests`);
+    
+    // Reset all wallet balances to 0 (optional - you can comment this out if you want to keep wallet balances)
+    const walletsResult = await db.query('UPDATE wallets SET balance = 0');
+    console.log(`✅ Reset ${walletsResult.rowCount} wallet balances to 0`);
+    
+    console.log('🎉 Database cleanup completed successfully');
+    
+    res.json({ 
+      success: true, 
+      message: "Database cleaned successfully",
+      deleted: {
+        projects: projectsResult.rowCount,
+        borrowRequests: borrowRequestsResult.rowCount,
+        topupRequests: topupRequestsResult.rowCount,
+        walletsReset: walletsResult.rowCount
+      }
+    });
+    
+  } catch (err) {
+    console.error("Error cleaning database:", err);
+    res.status(500).json({ error: "Database cleanup failed" });
   }
 });
 

@@ -43,12 +43,13 @@ import {
 } from "lucide-react";
 
 export const Settings = (): JSX.Element => {
-  const { user, profilePicture, setProfilePicture } = useAuth();
+  const { user, profilePicture, setProfilePicture, setProfile } = useAuth();
   const navigate = useNavigate();
 
   // Profile Data State
   const [profileData, setProfileData] = useState({
     fullName: "",
+    username: "",
     email: "",
     phone: "",
     dateOfBirth: "",
@@ -199,7 +200,27 @@ export const Settings = (): JSX.Element => {
         if (profile.dateOfBirth) {
           profile.dateOfBirth = formatDateForInput(profile.dateOfBirth);
         }
-        setProfileData(profile);
+        
+        // Merge with existing state to ensure all fields have values
+        setProfileData(prev => ({
+          ...prev,
+          ...profile,
+          // Ensure username is always a string
+          username: profile.username || "",
+          fullName: profile.fullName || "",
+          email: profile.email || "",
+          phone: profile.phone || "",
+          dateOfBirth: profile.dateOfBirth || "",
+          nationality: profile.nationality || "",
+          address: {
+            ...prev.address,
+            ...(profile.address || {})
+          },
+          identification: {
+            ...prev.identification,
+            ...(profile.identification || {})
+          }
+        }));
       }
       
       // Load settings data
@@ -208,6 +229,24 @@ export const Settings = (): JSX.Element => {
         setPrivacySettings(settingsResponse.settings.privacySettings);
         setNotificationSettings(settingsResponse.settings.notificationSettings);
         setSecuritySettings(settingsResponse.settings.securitySettings);
+      }
+      
+      // Load profile picture
+      try {
+        const pictureResponse = await fetch('/api/profile/picture', {
+          headers: {
+            'Authorization': `Bearer ${user?.accessToken}`
+          }
+        });
+        
+        if (pictureResponse.ok) {
+          const pictureData = await pictureResponse.json();
+          if (pictureData.profilePicture) {
+            setProfilePicture(pictureData.profilePicture);
+          }
+        }
+      } catch (error) {
+        console.log('No profile picture found or error loading:', error);
       }
       
     } catch (error) {
@@ -372,29 +411,90 @@ export const Settings = (): JSX.Element => {
     try {
       setIsUploadingPicture(true);
       
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setProfilePicture(previewUrl);
-
-      // TODO: Upload to server
-      // const formData = new FormData();
-      // formData.append('profilePicture', file);
-      // const response = await uploadProfilePicture(formData);
-      // setProfilePicture(response.url);
-
-      console.log('Profile picture uploaded:', file.name);
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64String = e.target?.result as string;
+        
+        try {
+          // Save to server
+          const response = await fetch('/api/profile/upload-picture', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${user?.accessToken}`
+            },
+            body: JSON.stringify({
+              profilePicture: base64String
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (response.ok) {
+            setProfilePicture(base64String);
+            
+            // Update AuthContext with new profile picture
+            if (setProfile) {
+              setProfile(prev => prev ? {
+                ...prev,
+                profilePicture: base64String
+              } : prev);
+            }
+            
+            console.log('✅ Profile picture uploaded successfully');
+          } else {
+            console.error('Failed to upload profile picture:', result.error);
+            alert('Failed to upload profile picture. Please try again.');
+          }
+        } catch (error) {
+          console.error('Error uploading profile picture:', error);
+          alert('Failed to upload profile picture. Please try again.');
+        } finally {
+          setIsUploadingPicture(false);
+        }
+      };
+      
+      reader.readAsDataURL(file);
+      
     } catch (error) {
-      console.error('Error uploading profile picture:', error);
-      alert('Failed to upload profile picture. Please try again.');
-    } finally {
+      console.error('Error processing profile picture:', error);
+      alert('Failed to process profile picture. Please try again.');
       setIsUploadingPicture(false);
     }
   };
 
-  const handleRemoveProfilePicture = () => {
-    setProfilePicture(null);
-    // TODO: Call API to remove profile picture from server
-    console.log('Profile picture removed');
+  const handleRemoveProfilePicture = async () => {
+    try {
+      const response = await fetch('/api/profile/picture', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${user?.accessToken}`
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        setProfilePicture(null);
+        
+        // Update AuthContext
+        if (setProfile) {
+          setProfile(prev => prev ? {
+            ...prev,
+            profilePicture: null
+          } : prev);
+        }
+        
+        console.log('✅ Profile picture removed successfully');
+      } else {
+        console.error('Failed to remove profile picture:', result.error);
+        alert('Failed to remove profile picture. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error removing profile picture:', error);
+      alert('Failed to remove profile picture. Please try again.');
+    }
   };
 
   return (
@@ -496,7 +596,7 @@ export const Settings = (): JSX.Element => {
                           {profileData.fullName || 'Alexa John'}
                         </h3>
                         <p className="text-sm text-gray-600 mb-1">
-                          <span className="font-medium">Username:</span> alexa_john
+                          <span className="font-medium">Username:</span> {profileData.username || 'Not set'}
                         </p>
                         <p className="text-sm text-gray-600 mb-1">
                           <span className="font-medium">Profile Code:</span> 554Xdl
@@ -550,6 +650,19 @@ export const Settings = (): JSX.Element => {
                           value={profileData.fullName}
                           onChange={(e) => setProfileData(prev => ({ ...prev, fullName: e.target.value }))}
                         />
+                      </div>
+
+                      {/* Username */}
+                      <div className="space-y-2">
+                        <Label>Username</Label>
+                        <Input
+                          value={profileData.username || ""}
+                          onChange={(e) => setProfileData(prev => ({ ...prev, username: e.target.value }))}
+                          placeholder="Enter a unique username"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Only letters, numbers, dots, and underscores allowed
+                        </p>
                       </div>
 
                       {/* Email */}

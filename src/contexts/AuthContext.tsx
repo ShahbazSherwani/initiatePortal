@@ -97,8 +97,12 @@ export const AuthProvider = ({ children }) => {
                 joined: profileData.created_at || new Date().toISOString(),
                 hasCompletedRegistration: profileData.has_completed_registration || false,
                 isAdmin: profileData.is_admin || false, // Add this line
-                profileCode: generateProfileCode(user.uid) // Generate profile code for existing users
+                profileCode: generateProfileCode(user.uid), // Generate profile code for existing users
+                profilePicture: profileData.profile_picture || null
               });
+              
+              // Set profile picture in state
+              setProfilePicture(profileData.profile_picture || null);
             }
           } catch (error) {
             console.error("Error fetching profile:", error);

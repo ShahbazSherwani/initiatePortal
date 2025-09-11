@@ -31,9 +31,10 @@ const ProjectDetailsView: React.FC = () => {
 
   console.log("ProjectDetailsView - projectId from URL:", projectId);
   console.log("ProjectDetailsView - projects in context:", projects);
-  console.log("ProjectDetailsView - project IDs in context:", projects.map(p => ({ id: p.id, product: p.details?.product || 'No product' })));
+  console.log("ProjectDetailsView - project IDs in context:", projects.map(p => ({ id: p.id, type: typeof p.id, product: p.details?.product || 'No product' })));
 
-  const project = projects.find(p => p.id === projectId);
+  // Convert projectId to number for comparison since DB IDs are numbers
+  const project = projects.find(p => p.id === parseInt(projectId as string, 10));
   console.log("ProjectDetailsView - found project:", project);
   
   if (!project) return <div>Project not found</div>;
@@ -51,19 +52,19 @@ const ProjectDetailsView: React.FC = () => {
   if (!project) return <div>Project not found</div>;
   
   // Investor requests now come from the project data
-  const investorRequests = project.investorRequests || [];
+  const investorRequests = project.project_data?.investorRequests || project.investorRequests || [];
   
   // Interest requests from investors (new feature)
-  const interestRequests = (project as any).interestRequests || [];
+  const interestRequests = project.project_data?.interestRequests || (project as any).interestRequests || [];
 
   // Calculate total funding requirement (for slider and display) - MOVED FIRST
   const getTotalFundingRequirement = () => {
-    if (!project || !project.details) return 100000;
+    if (!project || !project.project_data?.details) return 100000;
     
     // Parse numeric values from project details
     const amount = parseFloat(String(
-      project.details.loanAmount || 
-      project.details.investmentAmount || 
+      project.project_data.details.loanAmount || 
+      project.project_data.details.investmentAmount || 
       "100000"
     ));
     
@@ -86,9 +87,9 @@ const ProjectDetailsView: React.FC = () => {
     // Try to get funding details from various possible sources (legacy)
     if (project.fundingProgress) {
       return project.fundingProgress;
-    } else if (project.details) {
-      const total = parseFloat(String(project.details.loanAmount || project.details.investmentAmount || "0"));
-      const funded = parseFloat(String(project.details.fundedAmount || "0"));
+    } else if (project.project_data?.details) {
+      const total = parseFloat(String(project.project_data.details.loanAmount || project.project_data.details.investmentAmount || "0"));
+      const funded = parseFloat(String(project.project_data.details.fundedAmount || "0"));
       
       if (total > 0 && funded > 0) {
         return Math.round((funded / total) * 100);
@@ -109,26 +110,26 @@ const ProjectDetailsView: React.FC = () => {
     }
     
     // If we have ROI data in the project
-    if (project.roi && project.sales) {
+    if ((project.project_data?.roi || project.roi) && (project.project_data?.sales || project.sales)) {
       // Calculate from expense and sales data if available
-      const expense = parseFloat(project.roi.totalAmount || "0");
-      const sales = parseFloat(project.sales.totalSales || "0");
+      const expense = parseFloat((project.project_data?.roi || project.roi).totalAmount || "0");
+      const sales = parseFloat((project.project_data?.sales || project.sales).totalSales || "0");
       
       if (expense > 0 && sales > 0) {
         const profit = sales - expense;
         return Math.round((profit / expense) * 100);
       }
-    } else if (project.sales && project.sales.netIncomeCalc) {
+    } else if ((project.project_data?.sales || project.sales) && (project.project_data?.sales?.netIncomeCalc || project.sales?.netIncomeCalc)) {
       // Try to get from net income
-      const netIncome = parseFloat(project.sales.netIncomeCalc);
-      const investment = parseFloat(project.details.loanAmount || project.details.investmentAmount || "0");
+      const netIncome = parseFloat((project.project_data?.sales || project.sales).netIncomeCalc);
+      const investment = parseFloat(project.project_data.details?.loanAmount || project.project_data.details?.investmentAmount || "0");
       
       if (netIncome > 0 && investment > 0) {
         return Math.round((netIncome / investment) * 100);
       }
-    } else if (project.details.investorPercentage) {
+    } else if (project.project_data.details?.investorPercentage) {
       // If investor percentage is directly specified
-      return parseFloat(project.details.investorPercentage);
+      return parseFloat(project.project_data.details.investorPercentage);
     }
     
     // Default to 52% if no data available (for demonstration)
@@ -151,12 +152,12 @@ const ProjectDetailsView: React.FC = () => {
     if (project.timeDuration) {
       // If project has specific end date
       endDate = new Date(project.timeDuration);
-    } else if (project.details && project.details.timeDuration) {
+    } else if (project.project_data?.details && project.project_data.details.timeDuration) {
       // If timeDuration is in the details
-      endDate = new Date(project.details.timeDuration);
-    } else if (project.createdAt) {
+      endDate = new Date(project.project_data.details.timeDuration);
+    } else if (project.created_at) {
       // If we only have creation date, assume 3 month duration
-      const createdAt = new Date(project.createdAt);
+      const createdAt = new Date(project.created_at);
       endDate = new Date(createdAt.getFullYear(), createdAt.getMonth() + 3, createdAt.getDate());
     } else {
       // Fallback to 3 months from now if no dates are available
@@ -183,20 +184,20 @@ const ProjectDetailsView: React.FC = () => {
       netIncome: 3000
     };
     
-    if (!project || !project.details) {
+    if (!project || !project.project_data?.details) {
       return defaultSchedule;
     }
     
     try {
       // Get base investment amount
-      const investmentAmount = parseFloat(project.details.investmentAmount || 
-                                          project.details.loanAmount || 
+      const investmentAmount = parseFloat(project.project_data.details.investmentAmount || 
+                                          project.project_data.details.loanAmount || 
                                           "0");
       
       // Calculate ROI expense (cost)
       let expense = 0;
-      if (project.roi && project.roi.totalAmount) {
-        expense = parseFloat(project.roi.totalAmount);
+      if ((project.project_data?.roi || project.roi) && (project.project_data?.roi?.totalAmount || project.roi?.totalAmount)) {
+        expense = parseFloat((project.project_data?.roi || project.roi).totalAmount);
       } else {
         // Use hardcoded value from ROI Expense tab as fallback
         expense = 3000;
@@ -204,8 +205,8 @@ const ProjectDetailsView: React.FC = () => {
       
       // Calculate ROI sales (revenue)
       let revenue = 0;
-      if (project.sales && project.sales.totalSales) {
-        revenue = parseFloat(project.sales.totalSales);
+      if ((project.project_data?.sales || project.sales) && (project.project_data?.sales?.totalSales || project.sales?.totalSales)) {
+        revenue = parseFloat((project.project_data?.sales || project.sales).totalSales);
       } else {
         // Use hardcoded value from ROI Sales tab as fallback
         revenue = 10500;
@@ -220,8 +221,8 @@ const ProjectDetailsView: React.FC = () => {
       
       // Calculate payout date (assuming 3 months from now or from creation date)
       let payoutDate = new Date();
-      if (project.createdAt) {
-        payoutDate = new Date(project.createdAt);
+      if (project.created_at || project.createdAt) {
+        payoutDate = new Date(project.created_at || project.createdAt || new Date());
       }
       payoutDate.setMonth(payoutDate.getMonth() + 3);
       
@@ -307,12 +308,12 @@ const ProjectDetailsView: React.FC = () => {
           
           {/* Header section - Title, Publish button, Status badge */}
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">{project.details.product || "Project Details"}</h1>
+            <h1 className="text-2xl font-bold">{project.project_data?.details?.product || "Project Details"}</h1>
             
-            {project.status === "draft" && (
+            {(project.project_data?.status || project.status) === "draft" && (
               <Button 
                 onClick={() => {
-                  updateProject(project.id, { status: "published" });
+                  updateProject(String(project.id), { status: "published" });
                   toast.success("Project published! It's now visible to investors.");
                 }}
                 className="bg-[#ffc628] text-black hover:bg-[#e6b324]"
@@ -321,7 +322,7 @@ const ProjectDetailsView: React.FC = () => {
               </Button>
             )}
             
-            {project.status === "published" && (
+            {(project.project_data?.status || project.status) === "published" && (
               <Badge className="bg-green-100 text-green-800">
                 Published
               </Badge>
@@ -365,7 +366,7 @@ const ProjectDetailsView: React.FC = () => {
                 {/* Project image */}
                 <div className="mb-6">
                   <img 
-                    src={project.details.image || "/default-farm.jpg"}
+                    src={project.project_data?.details?.image || "/default-farm.jpg"}
                     alt="Project" 
                     className="w-full h-64 object-cover rounded-lg"
                   />
@@ -373,7 +374,7 @@ const ProjectDetailsView: React.FC = () => {
                 
                 {/* Project title */}
                 <h3 className="text-lg font-bold mb-4">
-                  {project.details.product || "Securing Farming Funding for Growth and Sustainability"}
+                  {project.project_data?.details?.product || "Securing Farming Funding for Growth and Sustainability"}
                 </h3>
                 
                 {/* Project details */}
@@ -545,7 +546,7 @@ const ProjectDetailsView: React.FC = () => {
                   <img 
                     src={
                       // ONLY use milestone image, never fall back to project image
-                      project.milestones?.[0]?.image || 
+                      (project.project_data?.milestones || project.milestones)?.[0]?.image || 
                       // Use a milestone-specific placeholder
                       "https://placehold.co/400x300/ffc628/ffffff?text=Milestone"
                     } 
