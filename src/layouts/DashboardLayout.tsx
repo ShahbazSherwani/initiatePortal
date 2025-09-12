@@ -17,7 +17,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - consistent across all pages */}
         {showSidebar && (
-          <div className="flex-shrink-0">
+          <div className="w-0 md:w-[280px] flex-shrink-0">
             <Sidebar activePage={activePage} />
           </div>
         )}
