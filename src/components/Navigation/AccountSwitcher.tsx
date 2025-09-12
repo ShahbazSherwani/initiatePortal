@@ -235,13 +235,15 @@ export const AccountSwitcher: React.FC = () => {
             </div>
           )}
           
-          {/* Debug Info - Remove this later */}
+          {/* Debug Info - Hidden for now, will check later */}
+          {/* 
           <div className="mt-2 text-xs text-gray-400 bg-gray-50 p-2 rounded">
             <div>Has Borrower: {hasAccount('borrower') ? '✅' : '❌'}</div>
             <div>Has Investor: {hasAccount('investor') ? '✅' : '❌'}</div>
             <div>Current: {currentAccountType}</div>
             <div>Loading: {loading ? '⏳' : '✅'}</div>
           </div>
+          */}
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
