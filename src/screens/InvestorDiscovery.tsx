@@ -4,11 +4,35 @@ import { useNavigate } from "react-router-dom";
 import { authFetch } from '../lib/api'; // Adjust the import based on your project structure
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { API_BASE_URL } from '../config/environment';
+import { Filter, X } from 'lucide-react';
 
 export const InvestorDiscovery: React.FC = () => {
   const [availableProjects, setAvailableProjects] = useState<any[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
+  
+  // Filter state
+  const [filters, setFilters] = useState({
+    radius: 28,
+    projectTypes: {
+      newest: false,
+      topPopular: false,
+      endingSoon: false,
+      individuals: true,
+      msme: false
+    },
+    industries: {
+      agriculture: false,
+      hospitality: true,
+      foodBeverages: false,
+      retail: true,
+      medicalPharmaceutical: false,
+      construction: false,
+      others: false
+    }
+  });
   
   useEffect(() => {
     const fetchProjects = async () => {
@@ -21,6 +45,7 @@ export const InvestorDiscovery: React.FC = () => {
         
         // API returns array directly, not wrapped in projects property
         setAvailableProjects(result || []);
+        setFilteredProjects(result || []);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching projects:", error);
@@ -31,15 +56,262 @@ export const InvestorDiscovery: React.FC = () => {
     fetchProjects();
   }, []);
 
+  // Filter projects based on current filters
+  useEffect(() => {
+    let filtered = [...availableProjects];
+    
+    // Apply industry filters
+    const selectedIndustries = Object.entries(filters.industries)
+      .filter(([_, selected]) => selected)
+      .map(([industry, _]) => industry);
+    
+    if (selectedIndustries.length > 0) {
+      filtered = filtered.filter(project => {
+        const category = project?.project_data?.details?.category?.toLowerCase() || '';
+        return selectedIndustries.some(industry => {
+          switch(industry) {
+            case 'agriculture': return category.includes('agriculture') || category.includes('farming');
+            case 'hospitality': return category.includes('hospitality') || category.includes('hotel') || category.includes('tourism');
+            case 'foodBeverages': return category.includes('food') || category.includes('beverage') || category.includes('restaurant');
+            case 'retail': return category.includes('retail') || category.includes('shop') || category.includes('store');
+            case 'medicalPharmaceutical': return category.includes('medical') || category.includes('health') || category.includes('pharmaceutical');
+            case 'construction': return category.includes('construction') || category.includes('building');
+            default: return true;
+          }
+        });
+      });
+    }
+    
+    setFilteredProjects(filtered);
+  }, [availableProjects, filters]);
+
+  const handleFilterChange = (type: 'projectTypes' | 'industries', key: string, value: boolean) => {
+    setFilters(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [key]: value
+      }
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      radius: 28,
+      projectTypes: {
+        newest: false,
+        topPopular: false,
+        endingSoon: false,
+        individuals: true,
+        msme: false
+      },
+      industries: {
+        agriculture: false,
+        hospitality: true,
+        foodBeverages: false,
+        retail: true,
+        medicalPharmaceutical: false,
+        construction: false,
+        others: false
+      }
+    });
+  };
+
   return (
     <DashboardLayout activePage="investment-opportunities">
       <div className="p-4 md:p-8">
         <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Investment Opportunities</h1>
+          <h1 className="text-2xl font-bold">Investment Opportunities</h1>
+          <div className="flex items-center gap-4">
             <div className="text-sm text-gray-500">
-              Showing {availableProjects.length} published projects
+              Showing {filteredProjects.length} published projects
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              Filters
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="mb-6 bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Filters</h3>
+              <button
+                onClick={() => setShowFilters(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Location Filter */}
+              <div>
+                <h4 className="font-medium mb-3">Select Location:</h4>
+                <div className="mb-2">
+                  <label className="text-sm text-gray-600">Set Radius</label>
+                </div>
+                <div className="relative">
+                  <input
+                    type="range"
+                    min="0"
+                    max="50"
+                    value={filters.radius}
+                    onChange={(e) => setFilters(prev => ({ ...prev, radius: parseInt(e.target.value) }))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>0ml</span>
+                    <span>{filters.radius}ml</span>
+                    <span>50ml</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Type Filter */}
+              <div>
+                <h4 className="font-medium mb-3">Project Type:</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.projectTypes.newest}
+                      onChange={(e) => handleFilterChange('projectTypes', 'newest', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Newest</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.projectTypes.topPopular}
+                      onChange={(e) => handleFilterChange('projectTypes', 'topPopular', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Top Popular</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.projectTypes.endingSoon}
+                      onChange={(e) => handleFilterChange('projectTypes', 'endingSoon', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Ending Soon</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.projectTypes.individuals}
+                      onChange={(e) => handleFilterChange('projectTypes', 'individuals', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Individuals</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.projectTypes.msme}
+                      onChange={(e) => handleFilterChange('projectTypes', 'msme', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">MSME(Company)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Industry Filter */}
+              <div>
+                <h4 className="font-medium mb-3">Industry:</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.industries.agriculture}
+                      onChange={(e) => handleFilterChange('industries', 'agriculture', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Agriculture</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.industries.hospitality}
+                      onChange={(e) => handleFilterChange('industries', 'hospitality', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Hospitality</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.industries.foodBeverages}
+                      onChange={(e) => handleFilterChange('industries', 'foodBeverages', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Food & Beverages</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.industries.retail}
+                      onChange={(e) => handleFilterChange('industries', 'retail', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Retail</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.industries.medicalPharmaceutical}
+                      onChange={(e) => handleFilterChange('industries', 'medicalPharmaceutical', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Medical & Pharmaceutical</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.industries.construction}
+                      onChange={(e) => handleFilterChange('industries', 'construction', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Construction</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.industries.others}
+                      onChange={(e) => handleFilterChange('industries', 'others', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Others</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+              <button
+                onClick={resetFilters}
+                className="text-sm text-gray-600 hover:text-gray-800"
+              >
+                Reset Filters
+              </button>
+              <button
+                onClick={() => setShowFilters(false)}
+                className="bg-[#ffc628] hover:bg-[#e6b324] text-black px-6 py-2 rounded-lg font-medium"
+              >
+                Apply
+              </button>
             </div>
           </div>
+        )}
           
           {/* Debug info */}
           <div className="mb-4 p-4 bg-blue-50 rounded-lg text-sm text-blue-700">
@@ -51,14 +323,14 @@ export const InvestorDiscovery: React.FC = () => {
             <div className="flex justify-center items-center h-64">
               <div className="text-lg text-gray-500">Loading investment opportunities...</div>
             </div>
-          ) : availableProjects.length === 0 ? (
+          ) : filteredProjects.length === 0 ? (
             <div className="flex flex-col justify-center items-center h-64 text-center">
               <div className="text-lg text-gray-500 mb-2">No investment opportunities available</div>
-              <div className="text-sm text-gray-400">Check back later for new projects</div>
+              <div className="text-sm text-gray-400">Try adjusting your filters or check back later for new projects</div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {availableProjects.map((project: any) => {
+              {filteredProjects.map((project: any) => {
                 const projectData = project.project_data || {};
                 const details = projectData.details || {};
                 

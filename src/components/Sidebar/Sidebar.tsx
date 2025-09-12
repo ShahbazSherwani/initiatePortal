@@ -48,6 +48,12 @@ const borrowerNavItems: NavItem[] = [
 const investorNavItems: NavItem[] = [
   { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrowerHome', key: 'home' },
   { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/investor/calendar', key: 'calendar' },
+  {
+    icon: <img src="/group-23.png" alt="Projects" className="w-5 h-5" />,
+    label: "Projects",
+    to: '/investor/discover',
+    key: 'projects'
+  },
   { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/investor/wallet', key: 'wallet' },
   {
     icon: <img src="/investor-1.png" alt="Investment" className="w-5 h-5" />,
