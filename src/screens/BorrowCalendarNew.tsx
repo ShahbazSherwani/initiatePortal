@@ -10,23 +10,25 @@ export const BorrowerCalender: React.FC = () => {
   if (!token) return <Navigate to="/login" />;
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar */}
-      <div className="hidden md:block w-[325px]">
-        <Sidebar activePage="Calendar" />
-      </div>
-
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto bg-[#f0f0f0]">
-        <div className="p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold mb-2">Calendar</h1>
-            <p className="text-gray-600">View approved project events and deadlines</p>
-          </div>
-          
-          <EnhancedCalendar />
+    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <div className="w-0 md:w-[280px] flex-shrink-0">
+          <Sidebar activePage="Calendar" />
         </div>
-      </main>
+
+        {/* Main content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-6">
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold mb-2">Calendar</h1>
+              <p className="text-gray-600">View approved project events and deadlines</p>
+            </div>
+            
+            <EnhancedCalendar />
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

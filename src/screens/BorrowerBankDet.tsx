@@ -53,6 +53,10 @@ export const BorrowerBankDet: React.FC = () => {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
 
+  // Debug logging
+  console.log('🏦 Current bank accounts:', bankAccounts);
+  console.log('🏦 Registration object:', registration);
+
 
 
   if (!token) {
@@ -79,13 +83,19 @@ export const BorrowerBankDet: React.FC = () => {
                     isOpen={showModal}
                     onClose={() => setShowModal(false)}
                     onSubmit={data => {
-                      setRegistration(reg => ({
-                        ...reg,
-                        bankAccounts: [
-                          ...(reg.bankAccounts || []),
-                          { ...data, preferred: false }
-                        ]
-                      }));
+                      console.log('🏦 Adding bank account:', data);
+                      const newAccount = { ...data, preferred: false };
+                      setRegistration(reg => {
+                        const updatedReg = {
+                          ...reg,
+                          bankAccounts: [
+                            ...(reg.bankAccounts || []),
+                            newAccount
+                          ]
+                        };
+                        console.log('🏦 Updated registration:', updatedReg);
+                        return updatedReg;
+                      });
                       setShowModal(false);
                     }}
                 />

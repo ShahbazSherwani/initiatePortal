@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AuthContext } from '../../contexts/AuthContext';
 import { useAccount } from '../../contexts/AccountContext';
+import { AccountSwitcher } from '../Navigation/AccountSwitcher';
 
 interface NavItem {
   icon: ReactNode;
@@ -277,6 +278,10 @@ export const Sidebar: React.FC<SidebarProps> = () => {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
+        {/* Account Switcher at top of mobile menu */}
+        <div className="p-4 border-b border-gray-200">
+          <AccountSwitcher />
+        </div>
         {renderNav(true)}
       </div>
 
