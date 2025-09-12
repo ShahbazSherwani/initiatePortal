@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useProjects } from '../contexts/ProjectsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/Navigation/navbar';
 import { Sidebar } from '../components/Sidebar/Sidebar';
@@ -12,48 +11,76 @@ import { API_BASE_URL } from '../config/environment';
 
 const InvestorProjectDetailsView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const { projects, loadProjects } = useProjects();
-  const { profile, profilePicture } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Details');
   const [creatorInfo, setCreatorInfo] = useState<any>(null);
+  const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Refresh projects when projectId changes to get latest funding data
+  // Fetch project data directly from API instead of relying on ProjectsContext
   React.useEffect(() => {
-    if (projectId) {
-      console.log("🔄 Refreshing project data for ID:", projectId);
-      loadProjects();
-    }
-  }, [projectId, loadProjects]);
+    const fetchProject = async () => {
+      if (projectId) {
+        try {
+          console.log("🔄 Fetching project data directly for ID:", projectId);
+          const projectData = await authFetch(`${API_BASE_URL}/projects/${projectId}`);
+          console.log("InvestorProjectDetailsView - fetched project data:", projectData);
+          setProject(projectData);
+        } catch (error) {
+          console.error("Error fetching project:", error);
+          setProject(null);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    fetchProject();
+  }, [projectId]);
 
-  console.log("InvestorProjectDetailsView - projectId from URL:", projectId);
-  console.log("InvestorProjectDetailsView - projects in context:", projects);
-
-  const project = projects.find(p => p.id === projectId);
-  console.log("InvestorProjectDetailsView - found project:", project);
-  
-  if (!project) return <div>Project not found</div>;
-
-  // Fetch creator information
+  // Fetch creator information - MOVED BEFORE CONDITIONAL RETURNS
   React.useEffect(() => {
     const fetchCreatorInfo = async () => {
       if (project && (project as any).firebase_uid) {
         try {
-          const creatorData = await authFetch(`${API_BASE_URL}/users/${(project as any).firebase_uid}`);
-          setCreatorInfo(creatorData);
+          // Try to fetch from accounts API instead of users API
+          const creatorData = await authFetch(`${API_BASE_URL}/accounts`);
+          // This will return the user's own account data, so we'll use the full_name from project instead
+          console.log("Creator accounts data:", creatorData);
         } catch (error) {
           console.log("Could not fetch creator info:", error);
-          setCreatorInfo({ name: 'Project Creator', email: 'Not available' });
         }
+        // For now, use the full_name from the project data itself
+        setCreatorInfo({ 
+          name: project.full_name || 'Project Creator', 
+          email: 'Not available' 
+        });
       }
     };
 
     fetchCreatorInfo();
   }, [project]);
+
+  console.log("InvestorProjectDetailsView - projectId from URL:", projectId);
+  console.log("InvestorProjectDetailsView - fetched project:", project);
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg text-gray-500">Loading project...</div>
+      </div>
+    );
+  }
+  
+  if (!project) return <div>Project not found</div>;
   
   // Get project creator information
   const projectCreator = (project as any).firebase_uid;
+  const projectData = project?.project_data || {};
+  const projectDetails = projectData?.details || {};
   console.log("Project creator:", projectCreator, "Current user:", profile?.id);
+  console.log("Project data structure:", { projectData, projectDetails });
 
   const handleInvestClick = () => {
     navigate(`/investor/project/${projectId}`);
@@ -85,7 +112,7 @@ const InvestorProjectDetailsView: React.FC = () => {
               {/* Project Image */}
               <div className="mb-6">
                 <img 
-                  src={project.details?.image || "https://placehold.co/600x400/ffc628/ffffff?text=Project"}
+                  src={projectDetails?.image || "https://placehold.co/600x400/ffc628/ffffff?text=Project"}
                   alt="Project" 
                   className="w-full h-64 object-cover rounded-lg"
                 />
@@ -94,20 +121,20 @@ const InvestorProjectDetailsView: React.FC = () => {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h2 className="text-xl font-semibold mb-2">
-                    {project.details?.product || "Untitled Project"}
+                    {projectDetails?.product || "Untitled Project"}
                   </h2>
                   <p className="text-gray-600 mb-2">
-                    <strong>Created by:</strong> {creatorInfo?.name || creatorInfo?.email || `Project Creator (ID: ${projectCreator})`}
+                    <strong>Created by:</strong> {creatorInfo?.name || creatorInfo?.email || project?.full_name || `Project Creator`}
                   </p>
                   <p className="text-gray-600">
-                    {(project as any).details?.description || (project as any).description || "No description available"}
+                    {projectDetails?.overview || projectDetails?.description || "No description available"}
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Badge variant={project.status === 'published' ? 'default' : 'secondary'}>
-                    {project.status ? project.status.charAt(0).toUpperCase() + project.status.slice(1) : 'No Status'}
+                  <Badge variant={projectData.status === 'published' ? 'default' : 'secondary'}>
+                    {projectData.status ? projectData.status.charAt(0).toUpperCase() + projectData.status.slice(1) : 'No Status'}
                   </Badge>
-                  {project.approvalStatus === 'approved' && (
+                  {projectData.approvalStatus === 'approved' && (
                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                       Approved
                     </Badge>
@@ -159,15 +186,15 @@ const InvestorProjectDetailsView: React.FC = () => {
                         <div className="space-y-3">
                           <div>
                             <label className="text-sm font-medium text-gray-500">Product/Service</label>
-                            <p className="text-gray-900">{project.details?.product || 'Not specified'}</p>
+                            <p className="text-gray-900">{projectDetails?.product || 'Not specified'}</p>
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-500">Category</label>
-                            <p className="text-gray-900">{(project as any).details?.category || (project as any).category || 'Not specified'}</p>
+                            <p className="text-gray-900">{projectDetails?.category || projectData?.category || 'Not specified'}</p>
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-500">Target Market</label>
-                            <p className="text-gray-900">{(project as any).details?.targetMarket || (project as any).targetMarket || 'Not specified'}</p>
+                            <p className="text-gray-900">{projectDetails?.targetMarket || projectData?.targetMarket || 'Not specified'}</p>
                           </div>
                         </div>
                       </div>
@@ -177,15 +204,15 @@ const InvestorProjectDetailsView: React.FC = () => {
                         <div className="space-y-3">
                           <div>
                             <label className="text-sm font-medium text-gray-500">Funding Amount</label>
-                            <p className="text-gray-900">₱{(project.details?.loanAmount || project.details?.investmentAmount || (project as any).details?.fundingAmount || (project as any).fundingAmount)?.toLocaleString() || 'Not specified'}</p>
+                            <p className="text-gray-900">₱{(projectDetails?.loanAmount || projectDetails?.investmentAmount || projectDetails?.fundingAmount || projectData?.fundingAmount)?.toLocaleString() || 'Not specified'}</p>
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-500">Project Type</label>
-                            <p className="text-gray-900">{project.type || 'Not specified'}</p>
+                            <p className="text-gray-900">{projectData?.type || 'Not specified'}</p>
                           </div>
                           <div>
                             <label className="text-sm font-medium text-gray-500">Expected Returns</label>
-                            <p className="text-gray-900">{(project as any).details?.expectedReturns || (project as any).expectedReturns || project.details?.investorPercentage ? `${project.details.investorPercentage}%` : 'Not specified'}</p>
+                            <p className="text-gray-900">{projectDetails?.expectedReturns || projectData?.expectedReturns || (projectDetails?.investorPercentage ? `${projectDetails.investorPercentage}%` : 'Not specified')}</p>
                           </div>
                         </div>
                       </div>
@@ -195,7 +222,7 @@ const InvestorProjectDetailsView: React.FC = () => {
                     <div>
                       <h3 className="text-lg font-medium mb-4">Project Description</h3>
                       <p className="text-gray-700 leading-relaxed">
-                        {(project as any).details?.description || (project as any).description || 'No description provided.'}
+                        {projectDetails?.overview || projectDetails?.description || projectData?.description || 'No description provided.'}
                       </p>
                     </div>
                   </div>
