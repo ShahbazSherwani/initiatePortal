@@ -83,37 +83,21 @@ const ProjectDetailsView: React.FC = () => {
     return 0; // No funding requirement found
   };
 
-  // Calculate funding percentage from project data
+  // Calculate funding percentage from project data (robust)
   const calculateFundingPercentage = () => {
     if (!project) return 0;
-    
-    // Check all possible funding fields - they should all be undefined for this project
-    const fundedAmount = project.project_data?.fundedAmount;
-    const funding = project.project_data?.funding;
-    const fundingProgress = project.project_data?.fundingProgress;
-    
-    console.log('📊 Funding percentage calculation:', {
-      fundedAmount,
-      funding, 
-      fundingProgress,
-      allUndefined: fundedAmount === undefined && funding === undefined && fundingProgress === undefined
-    });
-    
-    // Since all funding fields are undefined, this project has 0% funding
-    if (fundedAmount === undefined && funding === undefined && fundingProgress === undefined) {
-      return 0;
-    }
-    
-    // If there is actual funding data, calculate percentage
-    const totalFunding = fundedAmount || funding || 0;
+    // Try all possible fields for funded amount
+    const fundedAmount = Number(project.project_data?.fundedAmount) || 0;
+    const funding = Number(project.project_data?.funding) || 0;
+    const fundingProgress = Number(project.project_data?.fundingProgress) || 0;
+    const fundedAmountDetails = Number(project.project_data?.details?.fundedAmount) || 0;
+    // Use the largest value (in case some are stale)
+    const totalFunding = Math.max(fundedAmount, funding, fundingProgress, fundedAmountDetails);
     const totalRequired = getTotalFundingRequirement();
-    
     if (totalRequired > 0 && totalFunding > 0) {
       const percentage = Math.round((totalFunding / totalRequired) * 100);
-      console.log(`📊 Funding calculation: ${totalFunding} / ${totalRequired} = ${percentage}%`);
       return Math.min(percentage, 100);
     }
-    
     return 0;
   };
 
@@ -309,159 +293,137 @@ const ProjectDetailsView: React.FC = () => {
           {activeTab === 'Milestones' && (
             <div>
               <h2 className="text-xl font-bold mb-4">Project Milestones</h2>
-              
-              {/* Milestone header */}
-              <h3 className="text-lg font-medium mb-6">Milestones 1</h3>
-              
-              {/* Milestone content with image and details */}
-              <div className="flex gap-6 mb-8">
-                {/* Milestone image */}
-                <div className="w-32 h-24">
-                  <img 
-                    src="/default-farm.jpg"
-                    alt="Milestone" 
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                </div>
-                
-                {/* Milestone details */}
-                <div className="flex-1">
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                    <div>
-                      <p className="text-sm text-gray-500">Amount:</p>
-                      <p className="font-medium">PHP 50,000</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Percentage%:</p>
-                      <p className="font-medium">10%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Milestone sub-tabs */}
-              <div className="grid grid-cols-3 gap-2 mb-8">
-                {['ROI (Expense)', 'ROI (Sales)', 'Payout Schedule'].map(tab => (
-                  <button
-                    key={tab}
-                    className={`py-3 rounded-lg font-medium text-center text-sm ${
-                      selectedMilestoneTab === tab ? 'bg-[#ffc628] text-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    onClick={() => setSelectedMilestoneTab(tab)}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-              
-              {/* ROI Expense Content */}
-              {selectedMilestoneTab === 'ROI (Expense)' && (
-                <div>
-                  <h3 className="text-xl font-bold mb-6">ROI (Expense)</h3>
-                  
-                  <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">Description:</p>
-                      <p className="text-sm leading-relaxed">
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor ut labore et dolore magna aliqua.
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Price Per Unit:</p>
-                        <p className="font-medium">200 PHP</p>
+              {Array.isArray(project.project_data?.milestones) && project.project_data.milestones.length > 0 ? (
+                project.project_data.milestones.map((milestone, idx) => (
+                  <div key={idx} className="mb-8 border-b border-gray-100 pb-8">
+                    <h3 className="text-lg font-medium mb-6">Milestone {idx + 1}</h3>
+                    <div className="flex gap-6 mb-8">
+                      <div className="w-32 h-24">
+                        <img 
+                          src={milestone.image || "/default-farm.jpg"}
+                          alt="Milestone" 
+                          className="w-full h-full object-cover rounded-lg"
+                        />
                       </div>
-                      
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Unit of Measure:</p>
-                        <p className="font-medium">3 Kg</p>
+                      <div className="flex-1">
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                          <div>
+                            <p className="text-sm text-gray-500">Amount:</p>
+                            <p className="font-medium">PHP {milestone.amount?.toLocaleString() || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Percentage%:</p>
+                            <p className="font-medium">{milestone.percentage || '-'}%</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Total Amount:</p>
-                    <p className="font-medium text-xl">3000 PHP</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* ROI Sales Content */}
-              {selectedMilestoneTab === 'ROI (Sales)' && (
-                <div>
-                  <h3 className="text-xl font-bold mb-6">ROI (Sales)</h3>
-                  
-                  <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">Description:</p>
-                      <p className="text-sm leading-relaxed">
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor ut labore et dolore magna aliqua.
-                      </p>
+                    {/* Milestone sub-tabs */}
+                    <div className="grid grid-cols-3 gap-2 mb-8">
+                      {['ROI (Expense)', 'ROI (Sales)', 'Payout Schedule'].map(tab => (
+                        <button
+                          key={tab}
+                          className={`py-3 rounded-lg font-medium text-center text-sm ${
+                            selectedMilestoneTab === tab ? 'bg-[#ffc628] text-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          onClick={() => setSelectedMilestoneTab(tab)}
+                        >
+                          {tab}
+                        </button>
+                      ))}
                     </div>
-                    
-                    <div className="space-y-4">
+                    {/* ROI Expense Content */}
+                    {selectedMilestoneTab === 'ROI (Expense)' && (
                       <div>
-                        <p className="text-sm text-gray-500 mb-1">Price Per Unit:</p>
-                        <p className="font-medium">200 PHP</p>
+                        <h3 className="text-xl font-bold mb-6">ROI (Expense)</h3>
+                        <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-2">Description:</p>
+                            <p className="text-sm leading-relaxed">{milestone.expenseDescription || '-'}</p>
+                          </div>
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm text-gray-500 mb-1">Price Per Unit:</p>
+                              <p className="font-medium">{milestone.expensePricePerUnit ? `${milestone.expensePricePerUnit} PHP` : '-'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500 mb-1">Unit of Measure:</p>
+                              <p className="font-medium">{milestone.expenseUnitOfMeasure || '-'}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Total Amount:</p>
+                          <p className="font-medium text-xl">{milestone.expenseTotalAmount ? `${milestone.expenseTotalAmount} PHP` : '-'}</p>
+                        </div>
                       </div>
-                      
+                    )}
+                    {/* ROI Sales Content */}
+                    {selectedMilestoneTab === 'ROI (Sales)' && (
                       <div>
-                        <p className="text-sm text-gray-500 mb-1">Unit of Measure:</p>
-                        <p className="font-medium">3 Kg</p>
+                        <h3 className="text-xl font-bold mb-6">ROI (Sales)</h3>
+                        <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-2">Description:</p>
+                            <p className="text-sm leading-relaxed">{milestone.salesDescription || '-'}</p>
+                          </div>
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm text-gray-500 mb-1">Price Per Unit:</p>
+                              <p className="font-medium">{milestone.salesPricePerUnit ? `${milestone.salesPricePerUnit} PHP` : '-'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500 mb-1">Unit of Measure:</p>
+                              <p className="font-medium">{milestone.salesUnitOfMeasure || '-'}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Total Amount:</p>
+                            <p className="font-medium text-xl">{milestone.salesTotalAmount ? `${milestone.salesTotalAmount} PHP` : '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Net Income Calculation:</p>
+                            <p className="font-medium text-xl">{milestone.netIncomeCalculation ? `${milestone.netIncomeCalculation} PHP` : '-'}</p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    {/* Payout Schedule Content */}
+                    {selectedMilestoneTab === 'Payout Schedule' && (
+                      <div>
+                        <h3 className="text-xl font-bold mb-6">Payout Schedule</h3>
+                        <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Generate Total Payout Required:</p>
+                            <p className="font-medium">{milestone.payoutRequired ? `${milestone.payoutRequired} PHP` : '-'}</p>
+                          </div>
+                          <div></div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">% of Total Payout (Capital +Interest):</p>
+                            <p className="font-medium">{milestone.payoutCapitalInterest ? `${milestone.payoutCapitalInterest} PHP` : '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Payout Date:</p>
+                            <p className="font-medium">{milestone.payoutDate || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Amount:</p>
+                            <p className="font-medium">{milestone.payoutAmount ? `${milestone.payoutAmount} PHP` : '-'}</p>
+                          </div>
+                          <div></div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Generate Net Income Calculation:</p>
+                            <p className="font-medium">{milestone.netIncomeCalculation ? `${milestone.netIncomeCalculation} PHP` : '-'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Total Amount:</p>
-                      <p className="font-medium text-xl">3000 PHP</p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Net Income Calculation:</p>
-                      <p className="font-medium text-xl">3000 PHP</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Payout Schedule Content */}
-              {selectedMilestoneTab === 'Payout Schedule' && (
-                <div>
-                  <h3 className="text-xl font-bold mb-6">Payout Schedule</h3>
-                  
-                  <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Generate Total Payout Required:</p>
-                      <p className="font-medium">50,000 PHP</p>
-                    </div>
-                    <div></div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">% of Total Payout (Capital +Interest):</p>
-                      <p className="font-medium">10,000 PHP</p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Payout Date:</p>
-                      <p className="font-medium">15 Oct, 2023</p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Amount:</p>
-                      <p className="font-medium">10,000 PHP</p>
-                    </div>
-                    
-                    <div></div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Generate Net Income Calculation:</p>
-                      <p className="font-medium">3000 PHP</p>
-                    </div>
-                  </div>
-                </div>
+                ))
+              ) : (
+                <div className="text-gray-500">No milestones available for this project.</div>
               )}
             </div>
           )}

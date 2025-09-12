@@ -176,10 +176,10 @@ const handleContinue = () => {
   return (
     <DashboardLayout activePage="issuer-borrower">
       <div className="p-4 md:p-8">
-        <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+        <div className="w-full max-w-screen-sm mx-auto bg-white rounded-t-[30px] p-4 md:p-8 min-h-screen flex flex-col animate-fadeIn delay-300">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-              <div className="flex items-center mb-4 md:mb-0">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+              <div className="flex items-center">
                 <ChevronLeftIcon
                   className="w-6 h-6 cursor-pointer"
                   onClick={() => navigate(-1)}
@@ -188,7 +188,7 @@ const handleContinue = () => {
                   My Projects
                 </h1>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <Button
                   className={`px-4 py-2 rounded-lg ${
                     canCreateNewProject 
@@ -226,7 +226,7 @@ const handleContinue = () => {
             </div>
 
             {/* Tabs */}
-            <div className="grid grid-cols-4 gap-2 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-8 w-full">
               {projectTabs.map(tab => (
                 <button
                   key={tab.value}
@@ -370,8 +370,8 @@ const handleContinue = () => {
             )}
 
             {/* Project count */}
-            <div className="mb-4">
-              <p className="text-sm text-gray-600">
+            <div className="mb-4 w-full">
+              <p className="text-sm text-gray-600 text-center md:text-left">
                 You have {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''} in {activeTab === 'ongoing' ? 'on-going' : activeTab}
               </p>
             </div>

@@ -19,12 +19,11 @@ export const BorrowerCalender: React.FC = () => {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6">
+          <div className="p-6 bg-white rounded-2xl shadow-md min-h-[80vh]">
             <div className="mb-6">
               <h1 className="text-2xl font-bold mb-2">Calendar</h1>
               <p className="text-gray-600">View approved project events and deadlines</p>
             </div>
-            
             <EnhancedCalendar />
           </div>
         </main>

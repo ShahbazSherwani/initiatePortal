@@ -16,15 +16,13 @@ export const InvestorCalendar: React.FC = () => {
         <div className="w-0 md:w-[280px] flex-shrink-0">
           <Sidebar activePage="Calendar" />
         </div>
-        
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6">
+          <div className="p-6 bg-white rounded-2xl shadow-md min-h-[80vh]">
             <div className="mb-6">
               <h1 className="text-2xl font-bold mb-2">Investor Calendar</h1>
               <p className="text-gray-600">View and invest in available projects</p>
             </div>
-            
             <EnhancedCalendar />
           </div>
         </main>

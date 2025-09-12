@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import { useRegistration } from "../contexts/RegistrationContext";
@@ -37,12 +37,7 @@ import type { BankAccount } from "../types/BankAccount";
 // ];
 
 
-// Payment options data
-const paymentOptions = [
-  { name: "Gcash", image: "/image-3.png", selected: false },
-  { name: "Pay Maya", image: "/image-4.png", selected: false },
-  { name: "Paypal", image: "/image-5.png", selected: true },
-];
+
 
 export const BorrowerBankDet: React.FC = () => {
   const { token } = useContext(AuthContext)!;
@@ -53,6 +48,12 @@ export const BorrowerBankDet: React.FC = () => {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [refreshKey, setRefreshKey] = useState(0); // Force re-render
+
+  // Monitor registration changes
+  useEffect(() => {
+    console.log('🔄 Registration state changed:', registration);
+    console.log('🔄 Bank accounts updated:', registration.bankAccounts);
+  }, [registration]);
 
   // Debug logging
   console.log('🏦 Current bank accounts:', bankAccounts);
@@ -86,21 +87,34 @@ export const BorrowerBankDet: React.FC = () => {
                     onClose={() => setShowModal(false)}
                     onSubmit={data => {
                       console.log('🏦 Adding bank account:', data);
+                      console.log('🏦 Current registration before update:', registration);
+                      
                       const newAccount = { ...data, preferred: false };
-                      setRegistration(reg => {
+                      
+                      // Use functional update with more explicit logging
+                      setRegistration(prevReg => {
+                        console.log('🏦 Previous registration state:', prevReg);
+                        const currentBankAccounts = prevReg.bankAccounts || [];
+                        console.log('🏦 Current bank accounts array:', currentBankAccounts);
+                        
+                        const updatedBankAccounts = [...currentBankAccounts, newAccount];
+                        console.log('🏦 Updated bank accounts array:', updatedBankAccounts);
+                        
                         const updatedReg = {
-                          ...reg,
-                          bankAccounts: [
-                            ...(reg.bankAccounts || []),
-                            newAccount
-                          ]
+                          ...prevReg,
+                          bankAccounts: updatedBankAccounts
                         };
-                        console.log('🏦 Updated registration:', updatedReg);
-                        console.log('🏦 New bank accounts array:', updatedReg.bankAccounts);
+                        
+                        console.log('🏦 Complete updated registration:', updatedReg);
                         return updatedReg;
                       });
-                      // Force component re-render
-                      setRefreshKey(prev => prev + 1);
+                      
+                      // Use setTimeout to force a re-render after state update
+                      setTimeout(() => {
+                        setRefreshKey(prev => prev + 1);
+                        console.log('🏦 Forced re-render triggered');
+                      }, 100);
+                      
                       setShowModal(false);
                     }}
                 />
@@ -174,48 +188,9 @@ setViewModalOpen(false);
             </div>
           </section>
 
-          {/* Connect Crypto-iFunds */}
-          <section className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-xl font-semibold">Connect Crypto-iFunds</h2>
-                <p className="text-sm text-gray-600">Looks like you haven't connected any iFunds.</p>
-              </div>
-              <Button className="bg-[#ffc628] text-black py-2 px-4 rounded-lg">
-                Connect iFunds
-              </Button>
-            </div>
-          </section>
 
-          {/* Other Payment Options */}
-          <section>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Other Payment Options</h2>
-              <div className="flex items-center text-sm text-gray-600">
-                <Checkbox checked /> Connected
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-4">
-              {paymentOptions.map((opt, i) => (
-                <Card
-                  key={i}
-                  className={`flex items-center p-4 rounded-2xl w-full sm:w-auto ${
-                    opt.selected ? "bg-[#ffc628]" : "bg-gray-100"
-                  }`}
-                >
-                  <img src={opt.image} alt={opt.name} className="w-10 h-10" />
-                  <span className="ml-4 font-medium">{opt.name}</span>
-                </Card>
-              ))}
-            </div>
-            {paymentOptions.some((o) => o.selected) && (
-              <div className="mt-4 text-right">
-                <Button variant="outline" className="px-4 py-2 rounded-lg">
-                  Disconnect
-                </Button>
-              </div>
-            )}
-          </section>
+
+
         </div>
 
         {/* Modals */}
