@@ -28,11 +28,21 @@ if (process.env.NODE_ENV === 'production' && process.env.FIREBASE_SERVICE_ACCOUN
   } catch (error) {
     console.error('Firebase service account file not found. Using environment variables...');
     // Fallback to environment variables if file doesn't exist
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (privateKey) {
+      // Handle different private key formats
+      privateKey = privateKey.replace(/\\n/g, '\n');
+      // If it starts with quotes, remove them
+      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        privateKey = privateKey.slice(1, -1);
+      }
+    }
+    
     serviceAccount = {
       type: process.env.FIREBASE_TYPE || 'service_account',
       project_id: process.env.FIREBASE_PROJECT_ID,
       private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      private_key: privateKey,
       client_email: process.env.FIREBASE_CLIENT_EMAIL,
       client_id: process.env.FIREBASE_CLIENT_ID,
       auth_uri: process.env.FIREBASE_AUTH_URI || 'https://accounts.google.com/o/oauth2/auth',
@@ -40,6 +50,17 @@ if (process.env.NODE_ENV === 'production' && process.env.FIREBASE_SERVICE_ACCOUN
       auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL || 'https://www.googleapis.com/oauth2/v1/certs',
       client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
     };
+    
+    // Debug logging for Firebase configuration
+    console.log('🔧 Firebase config debug:', {
+      hasProjectId: !!serviceAccount.project_id,
+      hasPrivateKeyId: !!serviceAccount.private_key_id,
+      hasPrivateKey: !!serviceAccount.private_key,
+      privateKeyLength: serviceAccount.private_key?.length,
+      privateKeyStart: serviceAccount.private_key?.substring(0, 50),
+      hasClientEmail: !!serviceAccount.client_email,
+      clientEmail: serviceAccount.client_email
+    });
   }
 }
 
