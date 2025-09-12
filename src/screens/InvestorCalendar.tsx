@@ -13,7 +13,7 @@ export const InvestorCalendar: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar desktop */}
-        <div className="hidden md:block w-[325px]">
+        <div className="w-0 md:w-[280px] flex-shrink-0">
           <Sidebar activePage="Calendar" />
         </div>
         

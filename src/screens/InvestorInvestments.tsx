@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
+import { DashboardLayout } from '../layouts/DashboardLayout';
 
 interface Investment {
   projectId: string;
@@ -125,7 +126,8 @@ export const InvestorInvestments: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <DashboardLayout activePage="my-investments">
+      <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center mb-6">
         <button 
@@ -319,7 +321,8 @@ export const InvestorInvestments: React.FC = () => {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 

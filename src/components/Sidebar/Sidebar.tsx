@@ -54,7 +54,7 @@ const investorNavItems: NavItem[] = [
     to: '/investor/discover',
     key: 'projects'
   },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/investor/wallet', key: 'wallet' },
+  { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' },
   {
     icon: <img src="/investor-1.png" alt="Investment" className="w-5 h-5" />,
     label: "My Investments",
@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     if (navItem.key === 'my-projects' && location.pathname.startsWith('/borw')) return true;
     if (navItem.key === 'home' && currentAccountType === 'investor' && location.pathname === '/borrowerHome') return true;
     if (navItem.key === 'calendar' && currentAccountType === 'investor' && location.pathname === '/investor/calendar') return true;
-    if (navItem.key === 'wallet' && currentAccountType === 'investor' && location.pathname === '/investor/wallet') return true;
+    if (navItem.key === 'wallet' && currentAccountType === 'investor' && location.pathname === '/borrowBank') return true;
     if (navItem.key === 'my-investments' && location.pathname === '/investor/investments') return true;
     if (navItem.key === 'raise-tickets' && location.pathname === '/request') return true;
     if (navItem.key === 'home' && currentAccountType === 'borrower' && location.pathname === '/borrow') return true;

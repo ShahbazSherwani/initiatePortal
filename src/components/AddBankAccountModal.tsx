@@ -25,6 +25,17 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
   const [agreeRisk, setAgreeRisk] = useState(false);
 
   const handleContinue = () => {
+    // Basic validation
+    if (!accountName || !bankAccount || !accountNumber) {
+      alert('Please fill in all required fields: Account Name, Bank, and Account Number');
+      return;
+    }
+    
+    if (!agreePenalty || !agreeRisk) {
+      alert('Please agree to both terms and conditions to continue');
+      return;
+    }
+
     onSubmit({
       accountName,
       bankAccount,
