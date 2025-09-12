@@ -1,5 +1,4 @@
 // ---------- server.js ----------
-// Force deployment update - v2
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -24,125 +23,135 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// Initialize Postgres client with better error handling
+console.log('Firebase Admin SDK initialized successfully');
+
+// Initialize Postgres client (Supabase) with better connection settings
 let db = null;
 let dbConnected = false;
 
-if (process.env.DATABASE_URL) {
-  try {
-    db = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_URL.includes('localhost') ? false : {
-        rejectUnauthorized: false,  // Supabase requires SSL
-      },
-      // Optional: Configure pool settings for better performance
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
+try {
+  db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false,  // Supabase requires SSL
+    },
+    // Optimized settings for Supabase
+    max: 10,                    // Reduced max connections
+    idleTimeoutMillis: 60000,   // 1 minute idle timeout
+    connectionTimeoutMillis: 10000,  // 10 seconds connection timeout
+    acquireTimeoutMillis: 10000,     // 10 seconds to acquire connection
+    query_timeout: 30000,       // 30 seconds query timeout
+  });
 
-    // Test the connection
-    db.connect()
-      .then(client => {
-        console.log('✅ Database connected successfully');
-        dbConnected = true;
-        client.release();
-      })
-      .catch(err => {
-        console.log('❌ Database connection failed:', err.message);
-        console.log('🔄 API will continue without database functionality');
-        dbConnected = false;
-      });
-  } catch (error) {
-    console.log('❌ Database initialization failed:', error.message);
-    console.log('🔄 API will continue without database functionality');
+  // Add error handling for database connection
+  db.on('error', (err, client) => {
+    console.error('❌ Database pool error:', err);
     dbConnected = false;
-  }
-} else {
-  console.log('⚠️  No DATABASE_URL found in environment variables');
-  console.log('🔄 API will continue without database functionality');
+  });
+
+  db.on('connect', () => {
+    console.log('✅ Database pool connected');
+    dbConnected = true;
+  });
+
+  // Test database connection on startup with retry
+  const testConnection = async () => {
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        const result = await db.query('SELECT NOW() as current_time');
+        console.log('✅ Database connected successfully at:', result.rows[0].current_time);
+        dbConnected = true;
+        break;
+      } catch (err) {
+        retries--;
+        console.error(`❌ Database connection attempt failed (${3-retries}/3):`, err.message);
+        if (retries > 0) {
+          console.log('🔄 Retrying in 2 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          console.error('❌ Database connection failed after 3 attempts');
+          console.log('🔄 Server will continue without database functionality');
+          dbConnected = false;
+        }
+      }
+    }
+  };
+
+  testConnection();
+  
+  // Run migration to add profile picture field
+  const runProfilePictureMigration = async () => {
+    try {
+      if (dbConnected) {
+        console.log('🔧 Running profile picture migration...');
+        
+        // Add profile_picture column if it doesn't exist
+        await db.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT;
+        `);
+        
+        // Add username column if it doesn't exist
+        await db.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100) UNIQUE;
+        `);
+        
+        console.log('✅ Profile picture field added to users table');
+        console.log('✅ Username field added to users table');
+      }
+    } catch (err) {
+      console.error('❌ Profile picture migration failed:', err.message);
+    }
+  };
+  
+  // Run migration after a short delay to ensure connection is established
+  setTimeout(runProfilePictureMigration, 3000);
+
+} catch (error) {
+  console.error('❌ Database initialization failed:', error);
+  console.log('🔄 Server will continue without database functionality');
+  dbConnected = false;
 }
+
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // Don't exit the process in development
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process in development
+});
 
 // After your app definition and before any routes
 const app = express();
-
-// LOG ALL INCOMING REQUESTS FIRST
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Request Origin:', req.headers.origin);
-  console.log('Request Headers:', Object.keys(req.headers));
-  next();
-});
-
-// CORS configuration - MUST BE FIRST MIDDLEWARE
-const corsOptions = {
-  origin: (origin, callback) => {
-    console.log('🌍 CORS ORIGIN CHECK:', origin);
-    console.log('🌍 NODE_ENV:', process.env.NODE_ENV);
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      console.log('🌍 No origin, allowing');
-      return callback(null, true);
-    }
-    
-    // Allow all origins for debugging
-    console.log('🌍 Allowing all origins for debugging');
-    return callback(null, true);
-  },
-  credentials: true,
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'x-edit-mode',
-    'Accept',
-    'X-Requested-With',
-    'Access-Control-Allow-Headers',
-    'Origin'
-  ],
-  exposedHeaders: ['Content-Type', 'Authorization', 'x-edit-mode'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
-  preflightContinue: false,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
-
-// MANUAL CORS HEADERS - AGGRESSIVE APPROACH
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  console.log('🔧 Manual CORS headers for origin:', origin);
-  
-  res.header('Access-Control-Allow-Origin', origin || '*');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-edit-mode,Accept,X-Requested-With,Origin');
-  res.header('Access-Control-Expose-Headers', 'Content-Type,Authorization,x-edit-mode');
-  
-  if (req.method === 'OPTIONS') {
-    console.log('🔧 OPTIONS request - responding with 200');
-    return res.status(200).end();
-  }
-  
-  next();
-});
 
 // Increase body size limit to 50MB
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// CORS configuration for production
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [
+        process.env.FRONTEND_URL, 
+        'https://initiate-portal-git-deployment-mvp-shahbazsherwanis-projects.vercel.app',
+        'https://initiate-portal-git-deployment-mvp-shahbazsherwanis-projects.vercel.app/',
+        /\.vercel\.app$/
+      ]
+    : true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   // Serve static files from the dist directory
   app.use(express.static(path.join(__dirname, '../../dist')));
-  
-  // Handle client-side routing
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) {
-      return next(); // Skip static file serving for API routes
-    }
-    res.sendFile(path.join(__dirname, '../../dist/index.html'));
-  });
 }
 
 app.get('/', (req, res) => {
@@ -157,16 +166,36 @@ app.get('/', (req, res) => {
 async function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  
+  console.log('🔐 Token verification request:', {
+    url: req.url,
+    method: req.method,
+    hasAuthHeader: !!authHeader,
+    tokenLength: idToken?.length || 0,
+    tokenStart: idToken?.substring(0, 20) + '...'
+  });
+  
   if (!idToken) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    console.log('❌ No token provided');
+    return res.status(401).json({ error: 'No authentication token provided' });
   }
+  
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);
+    console.log('✅ Token verified successfully for user:', decoded.uid);
     req.uid = decoded.uid;
     next();
   } catch (err) {
-    console.error('Token verification error:', err);
-    res.status(401).json({ error: 'Unauthorized' });
+    console.error('❌ Token verification failed:', {
+      error: err.message,
+      code: err.code,
+      tokenLength: idToken?.length,
+      tokenStart: idToken?.substring(0, 20) + '...'
+    });
+    res.status(401).json({ 
+      error: 'Invalid or expired authentication token',
+      details: err.message 
+    });
   }
 }
 
@@ -196,18 +225,6 @@ profileRouter.get('/', verifyToken, async (req, res) => {
   console.log("Profile request for user:", req.uid);
   
   try {
-    // Check if database is connected
-    if (!dbConnected || !db) {
-      console.log('Database not connected, returning default profile');
-      return res.json({
-        full_name: null,
-        role: null,
-        created_at: null,
-        is_admin: false,
-        has_completed_registration: false
-      });
-    }
-
     // Try a simpler query first
     const query = 'SELECT * FROM users WHERE firebase_uid = $1';
     console.log("Executing query:", query);
@@ -220,9 +237,7 @@ profileRouter.get('/', verifyToken, async (req, res) => {
       return res.json({
         full_name: null,
         role: null,
-        created_at: null,
-        is_admin: false,
-        has_completed_registration: false
+        created_at: null
       });
     }
     
@@ -231,7 +246,9 @@ profileRouter.get('/', verifyToken, async (req, res) => {
       full_name: rows[0].full_name,
       created_at: rows[0].created_at,
       is_admin: rows[0].is_admin || false,
-      has_completed_registration: rows[0].has_completed_registration || false
+      has_completed_registration: rows[0].has_completed_registration || false,
+      profile_picture: rows[0].profile_picture || null,
+      username: rows[0].username || null
     };
     
     // Only add role if it exists
@@ -251,9 +268,7 @@ profileRouter.get('/', verifyToken, async (req, res) => {
       // Default profile
       full_name: null,
       role: null,
-      created_at: null,
-      is_admin: false,
-      has_completed_registration: false 
+      created_at: null 
     });
   }
 });
@@ -288,6 +303,160 @@ profileRouter.post('/set-role', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('DB error:', err);
     res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Get wallet balance
+app.get('/api/wallet', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { rows } = await db.query(
+    'SELECT balance FROM wallets WHERE firebase_uid = $1',
+    [uid]
+  );
+  res.json({ balance: rows[0]?.balance || 0 });
+});
+
+// Top-up
+app.post('/api/wallet/topup', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { amount } = req.body;
+  await db.query(`
+    INSERT INTO wallets(firebase_uid, balance)
+    VALUES($1,$2)
+    ON CONFLICT(firebase_uid) DO UPDATE
+      SET balance = wallets.balance + $2, updated_at = NOW()
+  `, [uid, amount]);
+  res.json({ success: true });
+});
+
+// Withdraw
+app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { amount } = req.body;
+  await db.query(`
+    UPDATE wallets 
+    SET balance = balance - $2, updated_at = NOW()
+    WHERE firebase_uid = $1
+  `, [uid, amount]);
+  res.json({ success: true });
+});
+
+// Profile picture upload endpoint
+profileRouter.post('/upload-picture', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { profilePicture } = req.body;
+    
+    if (!profilePicture) {
+      return res.status(400).json({ error: 'No profile picture provided' });
+    }
+    
+    // Update user's profile picture in database
+    await db.query(
+      `UPDATE users SET profile_picture = $1, updated_at = CURRENT_TIMESTAMP WHERE firebase_uid = $2`,
+      [profilePicture, firebase_uid]
+    );
+    
+    console.log('✅ Profile picture updated for user:', firebase_uid);
+    res.json({ 
+      success: true, 
+      message: 'Profile picture updated successfully',
+      profilePicture 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error updating profile picture:', err);
+    res.status(500).json({ error: 'Failed to update profile picture' });
+  }
+});
+
+// Get profile picture endpoint
+profileRouter.get('/picture', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    
+    const result = await db.query(
+      `SELECT profile_picture FROM users WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      profilePicture: result.rows[0].profile_picture 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error fetching profile picture:', err);
+    res.status(500).json({ error: 'Failed to fetch profile picture' });
+  }
+});
+
+// Remove profile picture endpoint
+profileRouter.delete('/picture', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    
+    await db.query(
+      `UPDATE users SET profile_picture = NULL, updated_at = CURRENT_TIMESTAMP WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    console.log('✅ Profile picture removed for user:', firebase_uid);
+    res.json({ 
+      success: true, 
+      message: 'Profile picture removed successfully' 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error removing profile picture:', err);
+    res.status(500).json({ error: 'Failed to remove profile picture' });
+  }
+});
+
+// Update username endpoint
+profileRouter.post('/update-username', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { username } = req.body;
+    
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+    
+    // Validate username format (alphanumeric, underscore, and dots allowed)
+    if (!/^[a-zA-Z0-9._]+$/.test(username)) {
+      return res.status(400).json({ error: 'Username can only contain letters, numbers, dots, and underscores' });
+    }
+    
+    // Check if username is already taken
+    const existingUser = await db.query(
+      `SELECT firebase_uid FROM users WHERE username = $1 AND firebase_uid != $2`,
+      [username, firebase_uid]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ error: 'Username is already taken' });
+    }
+    
+    // Update username
+    await db.query(
+      `UPDATE users SET username = $1, updated_at = CURRENT_TIMESTAMP WHERE firebase_uid = $2`,
+      [username, firebase_uid]
+    );
+    
+    console.log('✅ Username updated for user:', firebase_uid, 'to:', username);
+    res.json({ 
+      success: true, 
+      message: 'Username updated successfully',
+      username 
+    });
+    
+  } catch (err) {
+    console.error('❌ Error updating username:', err);
+    res.status(500).json({ error: 'Failed to update username' });
   }
 });
 
@@ -362,281 +531,1086 @@ profileRouter.post('/update-group-type', verifyToken, async (req, res) => {
   }
 });
 
-// Get wallet balance
-app.get('/api/wallet', verifyToken, async (req, res) => {
-  const uid = req.uid;
-  const { rows } = await db.query(
-    'SELECT balance FROM wallets WHERE firebase_uid = $1',
-    [uid]
-  );
-  res.json({ balance: rows[0]?.balance || 0 });
-});
-
-// Top-up
-app.post('/api/wallet/topup', verifyToken, async (req, res) => {
-  const uid = req.uid;
-  const { amount } = req.body;
-  await db.query(`
-    INSERT INTO wallets(firebase_uid, balance)
-    VALUES($1,$2)
-    ON CONFLICT(firebase_uid) DO UPDATE
-      SET balance = wallets.balance + $2, updated_at = NOW()
-  `, [uid, amount]);
-  res.json({ success: true });
-});
-
-// Withdraw
-app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
-  const uid = req.uid;
-  const { amount } = req.body;
-  await db.query(`
-    UPDATE wallets 
-    SET balance = balance - $2, updated_at = NOW()
-    WHERE firebase_uid = $1
-  `, [uid, amount]);
-  res.json({ success: true });
+// Add endpoint to save borrower/investor code and industry information
+profileRouter.post('/update-borrower-info', verifyToken, async (req, res) => {
+  const { industryType, borrowerCode, industryKey } = req.body;
+  
+  // Validate input
+  if (!industryType || !borrowerCode || !industryKey) {
+    return res.status(400).json({ error: 'Missing required fields: industryType, borrowerCode, industryKey' });
+  }
+  
+  try {
+    // First get the user's role to determine which table to update
+    const userResult = await db.query(
+      'SELECT role FROM users WHERE firebase_uid = $1',
+      [req.uid]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userRole = userResult.rows[0].role;
+    
+    // Add borrower_code and industry_type columns if they don't exist
+    if (userRole === 'borrower') {
+      await db.query(`
+        ALTER TABLE borrower_profiles 
+        ADD COLUMN IF NOT EXISTS borrower_code VARCHAR(20),
+        ADD COLUMN IF NOT EXISTS industry_type VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS industry_key VARCHAR(20)
+      `);
+      
+      // Update borrower profile
+      await db.query(`
+        UPDATE borrower_profiles 
+        SET borrower_code = $1, industry_type = $2, industry_key = $3, updated_at = NOW()
+        WHERE firebase_uid = $4
+      `, [borrowerCode, industryType, industryKey, req.uid]);
+      
+    } else if (userRole === 'investor') {
+      await db.query(`
+        ALTER TABLE investor_profiles 
+        ADD COLUMN IF NOT EXISTS investor_code VARCHAR(20),
+        ADD COLUMN IF NOT EXISTS industry_type VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS industry_key VARCHAR(20)
+      `);
+      
+      // Update investor profile (use investor_code instead of borrower_code)
+      await db.query(`
+        UPDATE investor_profiles 
+        SET investor_code = $1, industry_type = $2, industry_key = $3, updated_at = NOW()
+        WHERE firebase_uid = $4
+      `, [borrowerCode, industryType, industryKey, req.uid]);
+    } else {
+      return res.status(400).json({ error: 'Invalid user role. Must be borrower or investor.' });
+    }
+    
+    console.log(`✅ Updated ${userRole} profile with code: ${borrowerCode}, industry: ${industryType}`);
+    res.json({ 
+      success: true, 
+      message: 'Borrower/Investor information saved successfully',
+      code: borrowerCode,
+      industryType,
+      userRole
+    });
+    
+  } catch (err) {
+    console.error('Error updating borrower info:', err);
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
 });
 
 app.use('/api/profile', profileRouter);
 
-// Settings routes
-const settingsRouter = express.Router();
-
-// Get user settings/profile (extended version)
-settingsRouter.get('/', verifyToken, async (req, res) => {
+// Dual Account Management Routes
+// Get all account profiles for a user
+app.get('/api/accounts', verifyToken, async (req, res) => {
   try {
+    const { uid: firebase_uid } = req;
+    console.log('🔍 GET /api/accounts called for user:', firebase_uid);
+    
+    // Get user base info and account flags
+    const userQuery = await db.query(
+      `SELECT full_name, has_borrower_account, has_investor_account, current_account_type 
+       FROM users WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userQuery.rows[0];
+    console.log('👤 User account flags:', { 
+      has_borrower: user.has_borrower_account, 
+      has_investor: user.has_investor_account 
+    });
+    
+    const accounts = {};
+    
+    // Get borrower profile if exists
+    if (user.has_borrower_account) {
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      console.log('👤 Borrower query result:', borrowerQuery.rows.length, 'profiles found');
+      
+      if (borrowerQuery.rows.length > 0) {
+        accounts.borrower = {
+          type: 'borrower',
+          profile: borrowerQuery.rows[0],
+          isComplete: borrowerQuery.rows[0].is_complete,
+          hasActiveProject: borrowerQuery.rows[0].has_active_project
+        };
+      } else {
+        console.log('⚠️  User has borrower flag but no borrower profile - creating fallback');
+        // Create a basic fallback borrower profile
+        accounts.borrower = {
+          type: 'borrower',
+          profile: {
+            id: firebase_uid,
+            firebase_uid: firebase_uid,
+            full_name: user.full_name,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          isComplete: true,
+          hasActiveProject: false
+        };
+      }
+    }
+    
+    // Get investor profile if exists
+    if (user.has_investor_account) {
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      console.log('👤 Investor query result:', investorQuery.rows.length, 'profiles found');
+      
+      if (investorQuery.rows.length > 0) {
+        accounts.investor = {
+          type: 'investor',
+          profile: investorQuery.rows[0],
+          isComplete: investorQuery.rows[0].is_complete,
+          portfolioValue: parseFloat(investorQuery.rows[0].portfolio_value || 0)
+        };
+      } else {
+        console.log('⚠️  User has investor flag but no investor profile - creating fallback');
+        // Create a basic fallback investor profile
+        accounts.investor = {
+          type: 'investor',
+          profile: {
+            id: firebase_uid,
+            firebase_uid: firebase_uid,
+            full_name: user.full_name,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          isComplete: true,
+          portfolioValue: 0
+        };
+      }
+    }
+    
+    console.log('📤 Returning accounts:', { accounts, currentAccountType: user.current_account_type });
+    res.json({
+      user: {
+        full_name: user.full_name,
+        currentAccountType: user.current_account_type
+      },
+      accounts
+    });
+    
+  } catch (err) {
+    console.error('Error fetching accounts:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Create a new account profile
+app.post('/api/accounts/create', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { accountType, profileData } = req.body;
+    
+    if (!accountType || !['borrower', 'investor'].includes(accountType)) {
+      return res.status(400).json({ error: 'Invalid account type' });
+    }
+    
+    const client = await db.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      if (accountType === 'borrower') {
+        // Check if borrower profile already exists
+        const existingBorrower = await client.query(
+          `SELECT id FROM borrower_profiles WHERE firebase_uid = $1`,
+          [firebase_uid]
+        );
+        
+        if (existingBorrower.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'Borrower account already exists' });
+        }
+        
+        // Create borrower profile
+        const borrowerResult = await client.query(
+          `INSERT INTO borrower_profiles (
+            firebase_uid, full_name, occupation, business_type, location,
+            phone_number, date_of_birth, experience, is_complete
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          [
+            firebase_uid,
+            profileData.fullName || null,
+            profileData.occupation || null,
+            profileData.businessType || null,
+            profileData.location || null,
+            profileData.phoneNumber || null,
+            profileData.dateOfBirth || null,
+            profileData.experience || null,
+            false
+          ]
+        );
+        
+        // Update user account flags
+        await client.query(
+          `UPDATE users SET has_borrower_account = TRUE WHERE firebase_uid = $1`,
+          [firebase_uid]
+        );
+        
+        await client.query('COMMIT');
+        
+        res.json({
+          success: true,
+          account: {
+            type: 'borrower',
+            profile: borrowerResult.rows[0],
+            isComplete: false
+          }
+        });
+        
+      } else if (accountType === 'investor') {
+        // Check if investor profile already exists
+        const existingInvestor = await client.query(
+          `SELECT id FROM investor_profiles WHERE firebase_uid = $1`,
+          [firebase_uid]
+        );
+        
+        if (existingInvestor.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'Investor account already exists' });
+        }
+        
+        // Create investor profile
+        const investorResult = await client.query(
+          `INSERT INTO investor_profiles (
+            firebase_uid, full_name, location, phone_number, date_of_birth,
+            investment_experience, investment_preference, risk_tolerance, is_complete
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          [
+            firebase_uid,
+            profileData.fullName || null,
+            profileData.location || null,
+            profileData.phoneNumber || null,
+            profileData.dateOfBirth || null,
+            profileData.investmentExperience || null,
+            profileData.investmentPreference || 'both',
+            profileData.riskTolerance || 'moderate',
+            false
+          ]
+        );
+        
+        // Update user account flags
+        await client.query(
+          `UPDATE users SET has_investor_account = TRUE WHERE firebase_uid = $1`,
+          [firebase_uid]
+        );
+        
+        await client.query('COMMIT');
+        
+        res.json({
+          success: true,
+          account: {
+            type: 'investor',
+            profile: investorResult.rows[0],
+            isComplete: false
+          }
+        });
+      }
+      
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    
+  } catch (err) {
+    console.error('Error creating account:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Switch current account type
+app.post('/api/accounts/switch', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { accountType } = req.body;
+    
+    console.log('🔄 Account switch request:', { firebase_uid, accountType });
+    
+    if (!accountType || !['borrower', 'investor'].includes(accountType)) {
+      return res.status(400).json({ error: 'Invalid account type' });
+    }
+    
+    // Check if user has the requested account type
+    const userQuery = await db.query(
+      `SELECT has_borrower_account, has_investor_account, current_account_type FROM users WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userQuery.rows[0];
+    console.log('👤 Current user state:', user);
+    
+    if (accountType === 'borrower' && !user.has_borrower_account) {
+      return res.status(400).json({ error: 'User does not have a borrower account' });
+    }
+    
+    if (accountType === 'investor' && !user.has_investor_account) {
+      return res.status(400).json({ error: 'User does not have an investor account' });
+    }
+    
+    // Update current account type
+    await db.query(
+      `UPDATE users SET current_account_type = $1 WHERE firebase_uid = $2`,
+      [accountType, firebase_uid]
+    );
+    
+    console.log('✅ Account switched successfully to:', accountType);
+    res.json({ success: true, currentAccountType: accountType });
+    
+  } catch (err) {
+    console.error('Error switching account:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// at top, after profileRouter…
+const borrowRouter = express.Router();
+
+// Create a borrow request
+borrowRouter.post("/", verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const {
+    nationalId, passport, tin,
+    street, barangay, municipality,
+    province, country, postalCode
+  } = req.body;
+
+  try {
+    await db.query(
+      `INSERT INTO borrow_requests
+         (firebase_uid,national_id,passport_no,tin,
+          street,barangay,municipality,province,country,postal_code)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [uid,nationalId,passport,tin,
+       street,barangay,municipality,province,country,postalCode]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DB error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+app.use("/api/borrow-requests", borrowRouter);
+
+// Settings Routes
+// Get user profile with detailed information
+app.get('/api/settings/profile', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    console.log('🔍 Settings profile request for user:', firebase_uid);
+    
+    // Check if database is connected
     if (!dbConnected || !db) {
-      // Return default settings when database is not available
-      console.log('Database not connected, returning default settings');
-      return res.json({
-        fullName: '',
-        email: req.user?.email || '',
+      console.log('⚠️ Database not connected, returning default profile');
+      
+      // Try to get basic info from Firebase
+      let defaultProfile = {
+        firebase_uid,
+        full_name: '',
+        email: '',
+        current_account_type: 'individual',
+        has_borrower_account: false,
+        has_investor_account: false
+      };
+      
+      try {
+        const firebaseUser = await admin.auth().getUser(firebase_uid);
+        defaultProfile.full_name = firebaseUser.displayName || '';
+        defaultProfile.email = firebaseUser.email || '';
+      } catch (e) {
+        console.log('Could not get Firebase user data:', e.message);
+      }
+      
+      return res.json(defaultProfile);
+    }
+    
+    // Get user base info (optimized - only needed columns)
+    const userQuery = await db.query(
+      `SELECT firebase_uid, full_name, username, current_account_type, has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    console.log('📊 User query result:', userQuery.rows);
+    
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userQuery.rows[0];
+    
+    // Get email from Firebase since it's not stored in the database
+    let userEmail = '';
+    try {
+      const firebaseUser = await admin.auth().getUser(firebase_uid);
+      userEmail = firebaseUser.email || '';
+    } catch (e) {
+      console.log('Could not get email from Firebase:', e.message);
+    }
+    
+    let profileData = {
+      fullName: user.full_name,
+      username: user.username || '',
+      email: userEmail,
+      phone: user.phone_number || '',
+      dateOfBirth: user.date_of_birth || '',
+      nationality: user.nationality || '',
+      accountType: user.current_account_type || 'individual',
+      profileType: user.has_borrower_account && user.has_investor_account ? 'Both' : 
+                  user.has_borrower_account ? 'Borrower' : 
+                  user.has_investor_account ? 'Investor' : 'None',
+      address: {
+        street: '',
+        barangay: '',
+        city: '',
+        state: '',
+        country: '',
+        postalCode: '',
+      },
+      identification: {
+        nationalId: '',
+        passport: '',
+        tin: '',
+        secondaryIdType: '',
+        secondaryIdNumber: '',
+      },
+      personalInfo: {
+        placeOfBirth: '',
+        gender: '',
+        civilStatus: '',
+        nationality: '',
+        motherMaidenName: '',
+        contactEmail: '',
+      },
+      employmentInfo: {
+        employerName: '',
+        occupation: '',
+        employerAddress: '',
+        sourceOfIncome: '',
+        monthlyIncome: null,
+      },
+      emergencyContact: {
+        name: '',
+        relationship: '',
         phone: '',
-        personalInfo: {},
-        accountType: 'individual'
-      });
+        address: '',
+      },
+      businessInfo: {
+        entityType: '',
+        businessRegistrationType: '',
+        businessRegistrationNumber: '',
+        businessRegistrationDate: '',
+        corporateTin: '',
+        natureOfBusiness: '',
+        businessAddress: '',
+        gisTotalAssets: null,
+        gisTotalLiabilities: null,
+        gisPaidUpCapital: null,
+        gisNumberOfStockholders: null,
+        gisNumberOfEmployees: null,
+      },
+      principalOfficeAddress: {
+        street: '',
+        barangay: '',
+        municipality: '',
+        province: '',
+        country: 'Philippines',
+        postalCode: '',
+      },
+      authorizedSignatory: {
+        name: '',
+        position: '',
+        idType: '',
+        idNumber: '',
+      },
+      investmentInfo: {
+        experience: '',
+        preference: '',
+        riskTolerance: '',
+        portfolioValue: 0,
+      },
+      pepStatus: false,
+    };
+
+    console.log('📋 Initial profile data:', profileData);
+
+    // Get detailed profile data based on account type
+    if (user.has_borrower_account) {
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      console.log('👤 Borrower profile query result:', borrowerQuery.rows);
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        profileData.phone = borrower.phone_number || profileData.phone;
+        profileData.dateOfBirth = borrower.date_of_birth || profileData.dateOfBirth;
+        profileData.nationality = borrower.nationality || profileData.nationality;
+        
+        // Always map borrower address fields (handle null values)
+        profileData.address = {
+          street: borrower.street || '',
+          barangay: borrower.barangay || '',
+          city: borrower.municipality || '',
+          state: borrower.province || '',
+          country: borrower.country || '',
+          postalCode: borrower.postal_code || '',
+        };
+        
+        // Always map borrower identification fields (handle null values)
+        profileData.identification = {
+          nationalId: borrower.national_id || '',
+          passport: borrower.passport_no || '',
+          tin: borrower.tin || '',
+          secondaryIdType: borrower.secondary_id_type || '',
+          secondaryIdNumber: borrower.secondary_id_number || '',
+        };
+
+        // Personal information for individual accounts
+        profileData.personalInfo = {
+          placeOfBirth: borrower.place_of_birth || '',
+          gender: borrower.gender || '',
+          civilStatus: borrower.civil_status || '',
+          nationality: borrower.nationality || '',
+          motherMaidenName: borrower.mother_maiden_name || '',
+          contactEmail: borrower.contact_email || '',
+        };
+
+        // Employment information
+        profileData.employmentInfo = {
+          employerName: borrower.employer_name || '',
+          occupation: borrower.occupation || '',
+          employerAddress: borrower.employer_address || '',
+          sourceOfIncome: borrower.source_of_income || '',
+          monthlyIncome: borrower.monthly_income || null,
+        };
+
+        // Emergency contact
+        profileData.emergencyContact = {
+          name: borrower.emergency_contact_name || '',
+          relationship: borrower.emergency_contact_relationship || '',
+          phone: borrower.emergency_contact_phone || '',
+          address: borrower.emergency_contact_address || '',
+        };
+
+        // Business information (for non-individual accounts)
+        profileData.businessInfo = {
+          entityType: borrower.entity_type || '',
+          businessRegistrationType: borrower.business_registration_type || '',
+          businessRegistrationNumber: borrower.business_registration_number || '',
+          businessRegistrationDate: borrower.business_registration_date || '',
+          corporateTin: borrower.corporate_tin || '',
+          natureOfBusiness: borrower.nature_of_business || '',
+          businessAddress: borrower.business_address || '',
+          gisTotalAssets: borrower.gis_total_assets || null,
+          gisTotalLiabilities: borrower.gis_total_liabilities || null,
+          gisPaidUpCapital: borrower.gis_paid_up_capital || null,
+          gisNumberOfStockholders: borrower.gis_number_of_stockholders || null,
+          gisNumberOfEmployees: borrower.gis_number_of_employees || null,
+        };
+
+        // Principal office address
+        profileData.principalOfficeAddress = {
+          street: borrower.principal_office_street || '',
+          barangay: borrower.principal_office_barangay || '',
+          municipality: borrower.principal_office_municipality || '',
+          province: borrower.principal_office_province || '',
+          country: borrower.principal_office_country || 'Philippines',
+          postalCode: borrower.principal_office_postal_code || '',
+        };
+
+        // Authorized signatory
+        profileData.authorizedSignatory = {
+          name: borrower.authorized_signatory_name || '',
+          position: borrower.authorized_signatory_position || '',
+          idType: borrower.authorized_signatory_id_type || '',
+          idNumber: borrower.authorized_signatory_id_number || '',
+        };
+
+        // PEP status
+        profileData.pepStatus = borrower.is_politically_exposed_person || false;
+        
+        // Parse stored JSON data if available
+        try {
+          if (borrower.address_data) {
+            profileData.address = JSON.parse(borrower.address_data);
+          }
+          if (borrower.identification_data) {
+            profileData.identification = JSON.parse(borrower.identification_data);
+          }
+        } catch (e) {
+          console.log('Could not parse JSON data:', e.message);
+        }
+      }
+    }
+    
+    if (user.has_investor_account) {
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      console.log('💼 Investor profile query result:', investorQuery.rows);
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        console.log('🔍 Investor profile columns:', Object.keys(investor));
+        console.log('🔍 Checking for address fields:', {
+          street: investor.street,
+          barangay: investor.barangay,
+          municipality: investor.municipality,
+          province: investor.province,
+          country: investor.country,
+          postal_code: investor.postal_code
+        });
+        
+        profileData.phone = investor.phone_number || profileData.phone;
+        profileData.dateOfBirth = investor.date_of_birth || profileData.dateOfBirth;
+        
+        // Always map investor address fields (handle null values)
+        profileData.address = {
+          street: investor.street || '',
+          barangay: investor.barangay || '',
+          city: investor.municipality || '',
+          state: investor.province || '',
+          country: investor.country || '',
+          postalCode: investor.postal_code || '',
+        };
+        console.log('✅ Mapped address data from investor profile:', profileData.address);
+        
+        // Always map investor identification fields (handle null values)
+        profileData.identification = {
+          nationalId: investor.national_id || '',
+          passport: investor.passport_no || '',
+          tin: investor.tin || '',
+          secondaryIdType: investor.secondary_id_type || '',
+          secondaryIdNumber: investor.secondary_id_number || '',
+        };
+        console.log('✅ Mapped identification data from investor profile:', profileData.identification);
+
+        // Personal information for individual accounts
+        profileData.personalInfo = {
+          placeOfBirth: investor.place_of_birth || '',
+          gender: investor.gender || '',
+          civilStatus: investor.civil_status || '',
+          nationality: investor.nationality || '',
+          motherMaidenName: investor.mother_maiden_name || '',
+          contactEmail: investor.contact_email || '',
+        };
+
+        // Emergency contact
+        profileData.emergencyContact = {
+          name: investor.emergency_contact_name || '',
+          relationship: investor.emergency_contact_relationship || '',
+          phone: investor.emergency_contact_phone || '',
+          address: investor.emergency_contact_address || '',
+        };
+
+        // Business information (for non-individual accounts)
+        profileData.businessInfo = {
+          entityType: investor.entity_type || '',
+          businessRegistrationType: investor.business_registration_type || '',
+          businessRegistrationNumber: investor.business_registration_number || '',
+          businessRegistrationDate: investor.business_registration_date || '',
+          corporateTin: investor.corporate_tin || '',
+          natureOfBusiness: investor.nature_of_business || '',
+          businessAddress: investor.business_address || '',
+          gisTotalAssets: investor.gis_total_assets || null,
+          gisTotalLiabilities: investor.gis_total_liabilities || null,
+          gisPaidUpCapital: investor.gis_paid_up_capital || null,
+          gisNumberOfStockholders: investor.gis_number_of_stockholders || null,
+          gisNumberOfEmployees: investor.gis_number_of_employees || null,
+        };
+
+        // Principal office address
+        profileData.principalOfficeAddress = {
+          street: investor.principal_office_street || '',
+          barangay: investor.principal_office_barangay || '',
+          municipality: investor.principal_office_municipality || '',
+          province: investor.principal_office_province || '',
+          country: investor.principal_office_country || 'Philippines',
+          postalCode: investor.principal_office_postal_code || '',
+        };
+
+        // Authorized signatory
+        profileData.authorizedSignatory = {
+          name: investor.authorized_signatory_name || '',
+          position: investor.authorized_signatory_position || '',
+          idType: investor.authorized_signatory_id_type || '',
+          idNumber: investor.authorized_signatory_id_number || '',
+        };
+
+        // Investment information
+        profileData.investmentInfo = {
+          experience: investor.investment_experience || '',
+          preference: investor.investment_preference || '',
+          riskTolerance: investor.risk_tolerance || '',
+          portfolioValue: parseFloat(investor.portfolio_value) || 0,
+        };
+
+        // PEP status
+        profileData.pepStatus = investor.is_politically_exposed_person || false;
+      }
     }
 
-    const uid = req.uid;
-    console.log("Settings request for user:", uid);
+    console.log('📤 Final profile data being returned:', profileData);
+
+    res.json({
+      success: true,
+      profile: profileData
+    });
     
-    // Get user profile data from Firebase
-    const userRecord = await admin.auth().getUser(uid);
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Get user settings
+app.get('/api/settings', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
     
-    // Try to get additional data from database
-    let dbUserData = null;
-    try {
-      const { rows } = await db.query(
-        'SELECT * FROM users WHERE firebase_uid = $1',
-        [uid]
-      );
-      dbUserData = rows[0];
-    } catch (dbError) {
-      console.log('Database query failed, using Firebase data only:', dbError.message);
-    }
+    // Create user_settings table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS user_settings (
+        id SERIAL PRIMARY KEY,
+        firebase_uid VARCHAR(255) UNIQUE NOT NULL,
+        privacy_settings JSONB DEFAULT '{}',
+        notification_settings JSONB DEFAULT '{}',
+        security_settings JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
     
-    // Combine Firebase and database data
-    const settings = {
-      fullName: dbUserData?.full_name || userRecord.displayName || '',
-      email: userRecord.email || '',
-      phone: dbUserData?.phone || userRecord.phoneNumber || '',
-      accountType: dbUserData?.account_type || 'individual',
-      // Include all KYC fields
-      personalInfo: {
-        // Individual fields
-        firstName: dbUserData?.first_name || '',
-        lastName: dbUserData?.last_name || '',
-        middleName: dbUserData?.middle_name || '',
-        dateOfBirth: dbUserData?.date_of_birth || '',
-        placeOfBirth: dbUserData?.place_of_birth || '',
-        nationality: dbUserData?.nationality || '',
-        gender: dbUserData?.gender || '',
-        maritalStatus: dbUserData?.marital_status || '',
-        
-        // Contact Information
-        emailAddress: dbUserData?.email_address || userRecord.email || '',
-        phoneNumber: dbUserData?.phone_number || '',
-        mobileNumber: dbUserData?.mobile_number || '',
-        
-        // Address Information
-        presentAddress: dbUserData?.present_address || '',
-        permanentAddress: dbUserData?.permanent_address || '',
-        city: dbUserData?.city || '',
-        state: dbUserData?.state || '',
-        postalCode: dbUserData?.postal_code || '',
-        country: dbUserData?.country || '',
-        
-        // Identification
-        nationalId: dbUserData?.national_id || '',
-        passport: dbUserData?.passport || '',
-        driversLicense: dbUserData?.drivers_license || '',
-        tinNumber: dbUserData?.tin_number || '',
-        
-        // Employment Information
-        employmentStatus: dbUserData?.employment_status || '',
-        occupation: dbUserData?.occupation || '',
-        employerName: dbUserData?.employer_name || '',
-        employerAddress: dbUserData?.employer_address || '',
-        monthlyIncome: dbUserData?.monthly_income || '',
-        incomeSource: dbUserData?.income_source || '',
-        
-        // Non-Individual specific fields
-        companyName: dbUserData?.company_name || '',
-        businessType: dbUserData?.business_type || '',
-        businessRegistrationNumber: dbUserData?.business_registration_number || '',
-        taxIdentificationNumber: dbUserData?.tax_identification_number || '',
-        businessAddress: dbUserData?.business_address || '',
-        authorizedPersonName: dbUserData?.authorized_person_name || '',
-        authorizedPersonPosition: dbUserData?.authorized_person_position || '',
-        
-        // Investment Information
-        investmentExperience: dbUserData?.investment_experience || '',
-        riskTolerance: dbUserData?.risk_tolerance || '',
-        investmentGoals: dbUserData?.investment_goals || '',
-        liquidNetWorth: dbUserData?.liquid_net_worth || '',
-        annualIncome: dbUserData?.annual_income || '',
-        investmentHorizon: dbUserData?.investment_horizon || '',
-        
-        // PEP (Politically Exposed Person) Information
-        pepStatus: dbUserData?.pep_status || 'no',
-        pepDetails: dbUserData?.pep_details || '',
-        pepCountry: dbUserData?.pep_country || '',
-        pepPosition: dbUserData?.pep_position || '',
-        
-        // Related Persons PEP Information
-        relatedPepStatus: dbUserData?.related_pep_status || 'no',
-        relatedPepDetails: dbUserData?.related_pep_details || '',
-        relatedPepRelationship: dbUserData?.related_pep_relationship || '',
-        relatedPepCountry: dbUserData?.related_pep_country || '',
-        relatedPepPosition: dbUserData?.related_pep_position || ''
+    const settingsQuery = await db.query(
+      `SELECT * FROM user_settings WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    let settings = {
+      privacySettings: {
+        profileVisibility: "private",
+        showEmail: false,
+        showPhone: false,
+        allowMessaging: true,
+        showInvestments: false,
+      },
+      notificationSettings: {
+        emailNotifications: true,
+        pushNotifications: true,
+        smsNotifications: false,
+        marketingEmails: false,
+        projectUpdates: true,
+        paymentAlerts: true,
+        systemAnnouncements: true,
+      },
+      securitySettings: {
+        twoFactorEnabled: false,
+        loginNotifications: true,
+        securityAlerts: true,
       }
     };
     
-    console.log("Returning settings for user:", uid);
-    res.json(settings);
+    if (settingsQuery.rows.length > 0) {
+      const userSettings = settingsQuery.rows[0];
+      settings = {
+        privacySettings: { ...settings.privacySettings, ...userSettings.privacy_settings },
+        notificationSettings: { ...settings.notificationSettings, ...userSettings.notification_settings },
+        securitySettings: { ...settings.securitySettings, ...userSettings.security_settings }
+      };
+    }
+    
+    res.json({
+      success: true,
+      settings
+    });
     
   } catch (error) {
-    console.error("Error getting user settings:", error);
-    res.status(500).json({ error: "Database error" });
+    console.error('Error fetching user settings:', error);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
 // Update user settings
-settingsRouter.put('/', verifyToken, async (req, res) => {
+app.post('/api/settings', verifyToken, async (req, res) => {
   try {
-    if (!dbConnected || !db) {
-      console.log('Database not connected, cannot update settings');
-      return res.status(503).json({ error: "Database not available" });
-    }
-
-    const uid = req.uid;
-    const settingsData = req.body;
+    const { uid: firebase_uid } = req;
+    const { profileData, privacySettings, notificationSettings, securitySettings } = req.body;
     
-    console.log("Updating settings for user:", uid);
-    console.log("Settings data:", settingsData);
+    console.log('🔄 Updating settings for user:', firebase_uid);
+    console.log('📋 Profile data received:', JSON.stringify(profileData, null, 2));
+    console.log('🔐 Privacy settings:', JSON.stringify(privacySettings, null, 2));
+    console.log('🔔 Notification settings:', JSON.stringify(notificationSettings, null, 2));
+    console.log('🔒 Security settings:', JSON.stringify(securitySettings, null, 2));
     
-    // Update user data in database
-    const updateFields = [];
-    const updateValues = [];
-    let paramCounter = 1;
-    
-    // Map frontend fields to database columns
-    const fieldMapping = {
-      'personalInfo.firstName': 'first_name',
-      'personalInfo.lastName': 'last_name',
-      'personalInfo.middleName': 'middle_name',
-      'personalInfo.dateOfBirth': 'date_of_birth',
-      'personalInfo.placeOfBirth': 'place_of_birth',
-      'personalInfo.nationality': 'nationality',
-      'personalInfo.gender': 'gender',
-      'personalInfo.maritalStatus': 'marital_status',
-      'personalInfo.emailAddress': 'email_address',
-      'personalInfo.phoneNumber': 'phone_number',
-      'personalInfo.mobileNumber': 'mobile_number',
-      'personalInfo.presentAddress': 'present_address',
-      'personalInfo.permanentAddress': 'permanent_address',
-      'personalInfo.city': 'city',
-      'personalInfo.state': 'state',
-      'personalInfo.postalCode': 'postal_code',
-      'personalInfo.country': 'country',
-      'personalInfo.nationalId': 'national_id',
-      'personalInfo.passport': 'passport',
-      'personalInfo.driversLicense': 'drivers_license',
-      'personalInfo.tinNumber': 'tin_number',
-      'personalInfo.employmentStatus': 'employment_status',
-      'personalInfo.occupation': 'occupation',
-      'personalInfo.employerName': 'employer_name',
-      'personalInfo.employerAddress': 'employer_address',
-      'personalInfo.monthlyIncome': 'monthly_income',
-      'personalInfo.incomeSource': 'income_source',
-      'personalInfo.companyName': 'company_name',
-      'personalInfo.businessType': 'business_type',
-      'personalInfo.businessRegistrationNumber': 'business_registration_number',
-      'personalInfo.taxIdentificationNumber': 'tax_identification_number',
-      'personalInfo.businessAddress': 'business_address',
-      'personalInfo.authorizedPersonName': 'authorized_person_name',
-      'personalInfo.authorizedPersonPosition': 'authorized_person_position',
-      'personalInfo.investmentExperience': 'investment_experience',
-      'personalInfo.riskTolerance': 'risk_tolerance',
-      'personalInfo.investmentGoals': 'investment_goals',
-      'personalInfo.liquidNetWorth': 'liquid_net_worth',
-      'personalInfo.annualIncome': 'annual_income',
-      'personalInfo.investmentHorizon': 'investment_horizon',
-      'personalInfo.pepStatus': 'pep_status',
-      'personalInfo.pepDetails': 'pep_details',
-      'personalInfo.pepCountry': 'pep_country',
-      'personalInfo.pepPosition': 'pep_position',
-      'personalInfo.relatedPepStatus': 'related_pep_status',
-      'personalInfo.relatedPepDetails': 'related_pep_details',
-      'personalInfo.relatedPepRelationship': 'related_pep_relationship',
-      'personalInfo.relatedPepCountry': 'related_pep_country',
-      'personalInfo.relatedPepPosition': 'related_pep_position',
-      'fullName': 'full_name',
-      'phone': 'phone_number',
-      'accountType': 'account_type'
-    };
-    
-    // Build update query
-    for (const [frontendField, dbField] of Object.entries(fieldMapping)) {
-      const value = frontendField.includes('.') ? 
-        settingsData[frontendField.split('.')[0]]?.[frontendField.split('.')[1]] :
-        settingsData[frontendField];
-        
-      if (value !== undefined) {
-        updateFields.push(`${dbField} = $${paramCounter}`);
-        updateValues.push(value);
-        paramCounter++;
+    // Update basic user info first
+    if (profileData) {
+      console.log('📝 Updating basic user info...');
+      
+      // Handle username separately if provided
+      if (profileData.username && profileData.username.trim()) {
+        try {
+          // Check if username is already taken by another user
+          const existingUser = await db.query(
+            `SELECT firebase_uid FROM users WHERE username = $1 AND firebase_uid != $2`,
+            [profileData.username.trim(), firebase_uid]
+          );
+          
+          if (existingUser.rows.length > 0) {
+            return res.status(409).json({ error: 'Username is already taken' });
+          }
+          
+          // Update with username
+          await db.query(
+            `UPDATE users SET 
+             full_name = $1,
+             username = $2,
+             updated_at = CURRENT_TIMESTAMP
+             WHERE firebase_uid = $3`,
+            [profileData.fullName, profileData.username.trim(), firebase_uid]
+          );
+          console.log('✅ User info and username updated successfully');
+        } catch (usernameError) {
+          console.error('❌ Error updating username:', usernameError);
+          return res.status(400).json({ error: 'Invalid username format' });
+        }
+      } else {
+        // Update without username
+        await db.query(
+          `UPDATE users SET 
+           full_name = $1,
+           updated_at = CURRENT_TIMESTAMP
+           WHERE firebase_uid = $2`,
+          [profileData.fullName, firebase_uid]
+        );
+        console.log('✅ Basic user info updated successfully');
       }
-    }
-    
-    if (updateFields.length > 0) {
-      updateFields.push(`updated_at = NOW()`);
-      updateValues.push(uid);
       
-      const query = `
-        UPDATE users 
-        SET ${updateFields.join(', ')}
-        WHERE firebase_uid = $${paramCounter}
-      `;
+      // Get user account types to determine which profiles to update
+      console.log('🔍 Checking user account types...');
+      const userQuery = await db.query(
+        `SELECT has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
       
-      await db.query(query, updateValues);
+      if (userQuery.rows.length > 0) {
+        const user = userQuery.rows[0];
+        
+        // Update borrower profile if user has borrower account
+        if (user.has_borrower_account) {
+          try {
+            // Only update confirmed existing fields
+            await db.query(`
+              UPDATE borrower_profiles SET
+                phone_number = $1,
+                date_of_birth = $2,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE firebase_uid = $3
+            `, [
+              profileData.phone || null,
+              profileData.dateOfBirth || null,
+              firebase_uid
+            ]);
+            console.log('✅ Updated borrower profile basic info');
+            
+            // Try to update address fields separately with error handling
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  street = $1,
+                  barangay = $2,
+                  municipality = $3,
+                  province = $4,
+                  country = $5,
+                  postal_code = $6
+                WHERE firebase_uid = $7
+              `, [
+                profileData.address?.street || null,
+                profileData.address?.barangay || null,
+                profileData.address?.city || null,
+                profileData.address?.state || null,
+                profileData.address?.country || null,
+                profileData.address?.postalCode || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower address info');
+            } catch (addressError) {
+              console.log('⚠️ Address fields may not exist in borrower_profiles:', addressError.message);
+            }
+            
+            // Try to update identification fields separately
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  national_id = $1,
+                  passport_no = $2,
+                  tin = $3
+                WHERE firebase_uid = $4
+              `, [
+                profileData.identification?.nationalId || null,
+                profileData.identification?.passport || null,
+                profileData.identification?.tin || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower identification info');
+            } catch (idError) {
+              console.log('⚠️ ID fields may not exist in borrower_profiles:', idError.message);
+            }
+            
+          } catch (error) {
+            console.error('❌ Error updating borrower profile:', error);
+            // Don't throw error, continue with other updates
+          }
+        }
+        
+        // Update investor profile if user has investor account
+        if (user.has_investor_account) {
+          try {
+            // Update basic info
+            await db.query(`
+              UPDATE investor_profiles SET
+                phone_number = $1,
+                date_of_birth = $2,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE firebase_uid = $3
+            `, [
+              profileData.phone || null,
+              profileData.dateOfBirth || null,
+              firebase_uid
+            ]);
+            console.log('✅ Updated investor profile basic info');
+
+            // Update address fields
+            try {
+              await db.query(`
+                UPDATE investor_profiles SET
+                  street = $1,
+                  barangay = $2,
+                  municipality = $3,
+                  province = $4,
+                  country = $5,
+                  postal_code = $6
+                WHERE firebase_uid = $7
+              `, [
+                profileData.address?.street || null,
+                profileData.address?.barangay || null,
+                profileData.address?.city || null,
+                profileData.address?.state || null,
+                profileData.address?.country || null,
+                profileData.address?.postalCode || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated investor address info');
+            } catch (addressError) {
+              console.log('⚠️ Address fields may not exist in investor_profiles:', addressError.message);
+            }
+
+            // Update identification fields
+            try {
+              await db.query(`
+                UPDATE investor_profiles SET
+                  national_id = $1,
+                  passport_no = $2,
+                  tin = $3
+                WHERE firebase_uid = $4
+              `, [
+                profileData.identification?.nationalId || null,
+                profileData.identification?.passport || null,
+                profileData.identification?.tin || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated investor identification info');
+            } catch (idError) {
+              console.log('⚠️ ID fields may not exist in investor_profiles:', idError.message);
+            }
+
+          } catch (error) {
+            console.error('❌ Error updating investor profile:', error);
+            // Don't throw error, continue with other updates
+          }
+        }
+      }
+      
+      // Create user_settings table if it doesn't exist
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS user_settings (
+          id SERIAL PRIMARY KEY,
+          firebase_uid VARCHAR(255) UNIQUE NOT NULL,
+          privacy_settings JSONB DEFAULT '{}',
+          notification_settings JSONB DEFAULT '{}',
+          security_settings JSONB DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Upsert settings
+      await db.query(`
+        INSERT INTO user_settings (firebase_uid, privacy_settings, notification_settings, security_settings)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (firebase_uid) 
+        DO UPDATE SET 
+          privacy_settings = EXCLUDED.privacy_settings,
+          notification_settings = EXCLUDED.notification_settings,
+          security_settings = EXCLUDED.security_settings,
+          updated_at = CURRENT_TIMESTAMP
+      `, [
+        firebase_uid,
+        JSON.stringify(privacySettings || {}),
+        JSON.stringify(notificationSettings || {}),
+        JSON.stringify(securitySettings || {})
+      ]);
     }
-    
-    res.json({ success: true });
-    
+      
+    console.log('✅ Profile and settings updated successfully');
+    res.json({ success: true, message: 'Settings updated successfully' });
+      
   } catch (error) {
-    console.error("Error updating user settings:", error);
-    res.status(500).json({ error: "Database error" });
+    console.error('❌ Error updating user settings:', error);
+    console.error('🔍 Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      detail: error.detail
+    });
+    res.status(500).json({ error: 'Database error', details: error.message });
   }
 });
 
-// Change password
-settingsRouter.post('/change-password', verifyToken, async (req, res) => {
+// Change password endpoint
+app.post('/api/settings/change-password', verifyToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const uid = req.uid;
     
-    console.log("Password change request for user:", uid);
+    console.log('Password change request for user:', uid);
     
     // Validate input
     if (!currentPassword || !newPassword) {
@@ -662,16 +1636,16 @@ settingsRouter.post('/change-password', verifyToken, async (req, res) => {
     res.json({ success: true });
     
   } catch (error) {
-    console.error("Error changing password:", error);
+    console.error('Error changing password:', error);
     res.status(500).json({ 
       success: false, 
-      error: "Failed to change password" 
+      error: 'Failed to change password' 
     });
   }
 });
 
-// Forgot password
-settingsRouter.post('/forgot-password', async (req, res) => {
+// Forgot password route
+app.post('/api/settings/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     
@@ -724,38 +1698,6 @@ settingsRouter.post('/forgot-password', async (req, res) => {
     });
   }
 });
-
-app.use('/api/settings', settingsRouter);
-
-// at top, after profileRouter…
-const borrowRouter = express.Router();
-
-// Create a borrow request
-borrowRouter.post("/", verifyToken, async (req, res) => {
-  const uid = req.uid;
-  const {
-    nationalId, passport, tin,
-    street, barangay, municipality,
-    province, country, postalCode
-  } = req.body;
-
-  try {
-    await db.query(
-      `INSERT INTO borrow_requests
-         (firebase_uid,national_id,passport_no,tin,
-          street,barangay,municipality,province,country,postal_code)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [uid,nationalId,passport,tin,
-       street,barangay,municipality,province,country,postalCode]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error("DB error:", err);
-    res.status(500).json({ error: "Database error" });
-  }
-});
-
-app.use("/api/borrow-requests", borrowRouter);
 
 // Top-up routes
 const topupRouter = express.Router();
@@ -897,43 +1839,43 @@ projectsRouter.post("/", verifyToken, async (req, res) => {
   }
 });
 
-// Get all projects (with optional filters)
-projectsRouter.get("/", async (req, res) => {
-  const { status } = req.query;
-  
-  try {
-    console.log("=== PROJECTS API CALL ===");
-    console.log("Status filter:", status);
-    
-    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
-                FROM projects p
-                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid`;
-    
-    const params = [];
-    if (status) {
-      query += ` WHERE p.project_data->>'status' = $1`;
-      params.push(status);
-      console.log("Filtering for status:", status);
-    }
-    
-    console.log("Executing query:", query);
-    console.log("With params:", params);
-    
-    const { rows } = await db.query(query, params);
-    console.log(`Found ${rows.length} projects`);
-    
-    // Log project statuses for debugging
-    rows.forEach((project, index) => {
-      const projectData = project.project_data || {};
-      console.log(`Project ${index + 1}: ID=${project.id}, Status="${projectData.status || 'no status'}", Product="${projectData.details?.product || 'no product'}"`);
-    });
-    
-    res.json(rows);
-  } catch (err) {
-    console.error("DB error:", err);
-    res.status(500).json({ error: "Database error" });
-  }
-});
+// Get all projects (with optional filters) - MOVED TO MAIN APP ROUTE WITH AUTH
+// projectsRouter.get("/", async (req, res) => {
+//   const { status } = req.query;
+//   
+//   try {
+//     console.log("=== PROJECTS API CALL ===");
+//     console.log("Status filter:", status);
+//     
+//     let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+//                 FROM projects p
+//                 LEFT JOIN users u ON p.firebase_uid = u.firebase_uid`;
+//     
+//     const params = [];
+//     if (status) {
+//       query += ` WHERE p.project_data->>'status' = $1`;
+//       params.push(status);
+//       console.log("Filtering for status:", status);
+//     }
+//     
+//     console.log("Executing query:", query);
+//     console.log("With params:", params);
+//     
+//     const { rows } = await db.query(query, params);
+//     console.log(`Found ${rows.length} projects`);
+//     
+//     // Log project statuses for debugging
+//     rows.forEach((project, index) => {
+//       const projectData = project.project_data || {};
+//       console.log(`Project ${index + 1}: ID=${project.id}, Status="${projectData.status || 'no status'}", Product="${projectData.details?.product || 'no product'}"`);
+//     });
+//     
+//     res.json(rows);
+//   } catch (err) {
+//     console.error("DB error:", err);
+//     res.status(500).json({ error: "Database error" });
+//   }
+// });
 
 // Get projects by creator
 projectsRouter.get("/my-projects", verifyToken, async (req, res) => {
@@ -1075,21 +2017,201 @@ projectsRouter.get("/:id", verifyToken, async (req, res) => {
   }
 });
 
+// Test endpoint to verify investment endpoint is accessible
+app.get('/api/test-investment-endpoint', (req, res) => {
+  console.log("🧪 Test investment endpoint called");
+  res.json({ status: "Investment endpoint is accessible", timestamp: new Date().toISOString() });
+});
+
+app.get('/api/debug/test-investment/:projectId', async (req, res) => {
+  const { projectId } = req.params;
+  console.log(`🧪 Testing investment for project ${projectId}`);
+  
+  try {
+    // Simulate the investment request logic without requiring auth
+    const projectResult = await db.query(
+      `SELECT project_data FROM projects WHERE id = $1`,
+      [projectId]
+    );
+    
+    if (projectResult.rows.length === 0) {
+      console.log(`❌ Project ${projectId} not found`);
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const projectData = projectResult.rows[0].project_data;
+    
+    console.log(`📝 Adding test investment request to project ${projectId}`);
+    
+    if (!projectData.investorRequests) {
+      projectData.investorRequests = [];
+    }
+    
+    projectData.investorRequests.push({
+      investorId: "test-investor-123",
+      name: "Test Investor",
+      amount: 10000,
+      date: new Date().toISOString(),
+      status: "pending"
+    });
+    
+    await db.query(
+      `UPDATE projects 
+       SET project_data = $1, updated_at = NOW()
+       WHERE id = $2`,
+      [projectData, projectId]
+    );
+    
+    console.log(`✅ Test investment request added successfully`);
+    res.json({ 
+      success: true, 
+      message: "Test investment request added",
+      investorRequests: projectData.investorRequests 
+    });
+  } catch (err) {
+    console.error("❌ DB error during test investment:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+app.get('/api/debug/check-investments', (req, res) => {
+  console.log("🔍 Checking for existing investment requests in database...");
+  
+  db.query(
+    `SELECT id, firebase_uid, project_data->>'investorRequests' as investor_requests 
+     FROM projects 
+     WHERE project_data->>'investorRequests' IS NOT NULL 
+     AND project_data->>'investorRequests' != '[]'`
+  ).then(result => {
+    console.log("📊 Found projects with investment requests:", result.rows.length);
+    result.rows.forEach(project => {
+      console.log(`Project ${project.id}: ${project.investor_requests}`);
+    });
+    res.json({
+      message: "Investment requests found",
+      count: result.rows.length,
+      projects: result.rows
+    });
+  }).catch(err => {
+    console.error("❌ Database error:", err);
+    res.status(500).json({ error: "Database error" });
+  });
+});
+
 // Add investment request to a project
 projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
   const { id } = req.params;
   const uid = req.uid;
   const { amount } = req.body;
   
+  console.log(`💰 Investment request received - Project: ${id}, Investor: ${uid}, Amount: ${amount}`);
+  
   try {
+    // First, check wallet balance
+    const walletResult = await db.query(
+      'SELECT balance FROM wallets WHERE firebase_uid = $1',
+      [uid]
+    );
+    
+    const walletBalance = walletResult.rows[0]?.balance || 0;
+    const investmentAmount = parseFloat(amount);
+    
+    console.log(`💳 Checking wallet balance: ₱${walletBalance.toLocaleString()} vs Required: ₱${investmentAmount.toLocaleString()}`);
+    
+    // Check if user has sufficient funds
+    if (walletBalance < investmentAmount) {
+      console.log(`❌ Insufficient wallet balance: ₱${walletBalance.toLocaleString()} < ₱${investmentAmount.toLocaleString()}`);
+      return res.status(400).json({ 
+        error: `Insufficient wallet balance. Your current balance is ₱${walletBalance.toLocaleString()}, but you need ₱${investmentAmount.toLocaleString()} to make this investment.`,
+        currentBalance: walletBalance,
+        requiredAmount: investmentAmount,
+        shortfall: investmentAmount - walletBalance
+      });
+    }
+    
     // Get the project and user data
     const projectResult = await db.query(
-      `SELECT project_data FROM projects WHERE id = $1`,
+      `SELECT project_data, firebase_uid FROM projects WHERE id = $1`,
       [id]
     );
     
     if (projectResult.rows.length === 0) {
+      console.log(`❌ Project ${id} not found for investment`);
       return res.status(404).json({ error: "Project not found" });
+    }
+    
+    // Check if user is trying to invest in their own project
+    const project = projectResult.rows[0];
+    if (project.firebase_uid === uid) {
+      console.log(`🚫 User ${uid} attempted to invest in their own project ${id}`);
+      return res.status(400).json({ error: "You cannot invest in your own project" });
+    }
+    
+    // Get investor profile to check annual income and existing investments
+    // For now, use default values since annual_income column may not exist
+    let investorIncome = 1000000; // Default 1M PHP for testing
+    let verificationStatus = 'verified'; // Default verified for testing
+    
+    try {
+      const investorResult = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [uid]
+      );
+      
+      if (investorResult.rows.length > 0) {
+        const profile = investorResult.rows[0];
+        // Check if annual_income column exists
+        if ('annual_income' in profile) {
+          investorIncome = profile.annual_income || 1000000;
+        }
+        if ('verification_status' in profile) {
+          verificationStatus = profile.verification_status || 'verified';
+        }
+        console.log(`📊 Investor profile found:`, profile);
+      }
+    } catch (dbError) {
+      console.log(`⚠️ Using default investor values due to DB error:`, dbError.message);
+    }
+    
+    // Calculate investment limits based on annual income
+    let maxInvestmentPercentage = 0;
+    let maxInvestmentAmount = 0;
+    
+    if (investorIncome >= 2000000) { // 2M PHP or above
+      maxInvestmentPercentage = 10;
+    } else { // Below 2M PHP
+      maxInvestmentPercentage = 5;
+    }
+    
+    maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
+    
+    console.log(`📊 Investment limits for user ${uid}: Income: ₱${investorIncome.toLocaleString()}, Max %: ${maxInvestmentPercentage}%, Max Amount: ₱${maxInvestmentAmount.toLocaleString()}`);
+    
+    // Check if requested amount exceeds limit
+    if (parseFloat(amount) > maxInvestmentAmount) {
+      console.log(`❌ Investment amount ₱${parseFloat(amount).toLocaleString()} exceeds limit of ₱${maxInvestmentAmount.toLocaleString()}`);
+      return res.status(400).json({ 
+        error: `Investment amount exceeds your limit of ₱${maxInvestmentAmount.toLocaleString()} (${maxInvestmentPercentage}% of annual income of ₱${investorIncome.toLocaleString()})`,
+        maxAmount: maxInvestmentAmount,
+        userIncome: investorIncome,
+        limitPercentage: maxInvestmentPercentage
+      });
+    }
+    
+    // Check for existing investments by this user in this project
+    const projectData = project.project_data;
+    const existingInvestments = projectData.investorRequests?.filter(req => req.investorId === uid) || [];
+    
+    if (existingInvestments.length > 0) {
+      console.log(`🚫 User ${uid} already has ${existingInvestments.length} investment(s) in project ${id}`);
+      return res.status(400).json({ 
+        error: "You already have an investment request for this project. Multiple investments per project are not allowed.",
+        existingInvestments: existingInvestments.map(inv => ({
+          amount: inv.amount,
+          date: inv.date,
+          status: inv.status
+        }))
+      });
     }
     
     const userResult = await db.query(
@@ -1098,8 +2220,9 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
     );
     
     // Update the project with the investment request
-    const projectData = projectResult.rows[0].project_data;
     const investorName = userResult.rows[0]?.full_name || "Investor";
+    
+    console.log(`📝 Adding investment request from ${investorName} to project ${id}`);
     
     if (!projectData.investorRequests) {
       projectData.investorRequests = [];
@@ -1110,7 +2233,10 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
       name: investorName,
       amount: parseFloat(amount),
       date: new Date().toISOString(),
-      status: "pending"
+      status: "pending",
+      investorIncome: investorIncome,
+      investmentLimit: maxInvestmentAmount,
+      limitPercentage: maxInvestmentPercentage
     });
     
     await db.query(
@@ -1120,10 +2246,309 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
       [projectData, id]
     );
     
-    res.json({ success: true });
+    console.log(`✅ Investment request added successfully for project ${id}`);
+    res.json({ 
+      success: true,
+      investmentInfo: {
+        amount: parseFloat(amount),
+        userIncome: investorIncome,
+        maxAmount: maxInvestmentAmount,
+        limitPercentage: maxInvestmentPercentage,
+        withinLimit: true
+      }
+    });
   } catch (err) {
-    console.error("DB error:", err);
+    console.error("❌ DB error during investment:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Admin endpoint to approve/reject investment requests
+app.post('/api/admin/projects/:projectId/investments/:investorId/review', verifyToken, async (req, res) => {
+  const { projectId, investorId } = req.params;
+  const { action, comment } = req.body; // action: 'approve' or 'reject'
+  const adminUid = req.uid;
+  
+  // Start database transaction for atomic operations
+  const client = await db.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Verify admin status
+    const adminResult = await client.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [adminUid]
+    );
+    
+    if (!adminResult.rows[0]?.is_admin) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: "Unauthorized - Admin access required" });
+    }
+    
+    // Get the project
+    const projectResult = await client.query(
+      `SELECT project_data FROM projects WHERE id = $1`,
+      [projectId]
+    );
+    
+    if (projectResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const projectData = projectResult.rows[0].project_data;
+    
+    if (!projectData.investorRequests) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: "No investment requests found" });
+    }
+    
+    // Find and update the specific investment request
+    const investmentIndex = projectData.investorRequests.findIndex(
+      req => req.investorId === investorId
+    );
+    
+    if (investmentIndex === -1) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: "Investment request not found" });
+    }
+    
+    // Check if investment is already processed
+    if (projectData.investorRequests[investmentIndex].status !== 'pending') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: `Investment request is already ${projectData.investorRequests[investmentIndex].status}`,
+        currentStatus: projectData.investorRequests[investmentIndex].status
+      });
+    }
+    
+    // Update the investment request status
+    projectData.investorRequests[investmentIndex].status = action === 'approve' ? 'approved' : 'rejected';
+    projectData.investorRequests[investmentIndex].reviewedAt = new Date().toISOString();
+    projectData.investorRequests[investmentIndex].reviewedBy = adminUid;
+    
+    if (comment) {
+      projectData.investorRequests[investmentIndex].adminComment = comment;
+    }
+    
+    let walletUpdateInfo = null;
+    
+    // If approved, update the funding meter and deduct from investor's wallet
+    if (action === 'approve') {
+      const approvedAmount = projectData.investorRequests[investmentIndex].amount;
+      
+      // First, check investor's wallet balance to ensure they still have sufficient funds
+      const walletResult = await client.query(
+        'SELECT balance FROM wallets WHERE firebase_uid = $1',
+        [investorId]
+      );
+      
+      const currentBalance = walletResult.rows[0]?.balance || 0;
+      
+      if (currentBalance < approvedAmount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Cannot approve investment. Investor's current wallet balance (₱${currentBalance.toLocaleString()}) is insufficient for the investment amount (₱${approvedAmount.toLocaleString()})`,
+          currentBalance,
+          requiredAmount: approvedAmount,
+          shortfall: approvedAmount - currentBalance
+        });
+      }
+      
+      // Deduct the investment amount from investor's wallet
+      const deductResult = await client.query(
+        `UPDATE wallets 
+         SET balance = balance - $1, updated_at = NOW() 
+         WHERE firebase_uid = $2
+         RETURNING balance`,
+        [approvedAmount, investorId]
+      );
+      
+      if (deductResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: "Failed to update investor wallet. Wallet not found." });
+      }
+      
+      const newBalance = deductResult.rows[0].balance;
+      console.log(`💳 Wallet deduction: Deducted ₱${approvedAmount.toLocaleString()} from investor ${investorId}. New balance: ₱${newBalance.toLocaleString()}`);
+      
+      walletUpdateInfo = {
+        investorId: investorId,
+        amountDeducted: approvedAmount,
+        newBalance: newBalance,
+        deductionProcessed: true
+      };
+      
+      // Initialize funding tracking if it doesn't exist
+      if (!projectData.funding) {
+        projectData.funding = {
+          totalFunded: 0,
+          investors: []
+        };
+      }
+      
+      // Add to total funded amount
+      projectData.funding.totalFunded += approvedAmount;
+      
+      // Add investor to the list if not already there
+      const existingInvestorIndex = projectData.funding.investors.findIndex(
+        inv => inv.investorId === investorId
+      );
+      
+      if (existingInvestorIndex >= 0) {
+        // Update existing investor amount
+        projectData.funding.investors[existingInvestorIndex].amount += approvedAmount;
+      } else {
+        // Add new investor
+        projectData.funding.investors.push({
+          investorId: investorId,
+          amount: approvedAmount,
+          approvedAt: new Date().toISOString()
+        });
+      }
+      
+      console.log(`💰 Investment approved: Added ₱${approvedAmount.toLocaleString()} to project ${projectId}. Total funded: ₱${projectData.funding.totalFunded.toLocaleString()}`);
+    }
+    
+    // Update the project in database
+    await client.query(
+      `UPDATE projects 
+       SET project_data = $1, updated_at = NOW()
+       WHERE id = $2`,
+      [projectData, projectId]
+    );
+    
+    // Commit the transaction
+    await client.query('COMMIT');
+    
+    // Prepare response object
+    const responseData = { 
+      success: true, 
+      message: `Investment request ${action}d successfully`,
+      investment: projectData.investorRequests[investmentIndex]
+    };
+    
+    // If approved, include wallet information in response
+    if (action === 'approve' && walletUpdateInfo) {
+      responseData.walletUpdate = walletUpdateInfo;
+    }
+    
+    res.json(responseData);
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error("Error reviewing investment request:", err);
+    res.status(500).json({ error: "Database error during investment review" });
+  } finally {
+    client.release();
+  }
+});
+
+// Get all pending investment requests for admin review
+app.get('/api/admin/investment-requests', verifyToken, async (req, res) => {
+  const adminUid = req.uid;
+  
+  console.log(`🔍 Admin investment requests called by user: ${adminUid}`);
+  
+  try {
+    // Verify admin status
+    const adminResult = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [adminUid]
+    );
+    
+    if (!adminResult.rows[0]?.is_admin) {
+      console.log(`❌ User ${adminUid} is not an admin`);
+      return res.status(403).json({ error: "Unauthorized - Admin access required" });
+    }
+    
+    console.log(`✅ Admin access verified for user: ${adminUid}`);
+    
+    // Get all projects that have investment requests (we'll filter for pending ones in the processing step)
+    console.log(`🔍 Searching for projects with investment requests...`);
+    const result = await db.query(`
+      SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name as borrower_name
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      WHERE p.project_data::text LIKE '%investorRequests%'
+    `);
+    
+    console.log(`📊 Found ${result.rows.length} projects with potential investment requests`);
+    
+    // Process results to extract pending investment requests
+    const pendingInvestments = [];
+    
+    for (const row of result.rows) {
+      const projectData = row.project_data;
+      const pendingRequests = projectData.investorRequests?.filter(req => req.status === 'pending') || [];
+      
+      console.log(`📋 Project ${row.id} has ${pendingRequests.length} pending investment requests`);
+      
+      for (const request of pendingRequests) {
+        // Get investor details
+        const investorResult = await db.query(
+          `SELECT full_name FROM users WHERE firebase_uid = $1`,
+          [request.investorId]
+        );
+        
+        pendingInvestments.push({
+          projectId: row.id,
+          projectTitle: projectData.details?.projectTitle || 'Untitled Project',
+          borrowerName: row.borrower_name,
+          borrowerUid: row.firebase_uid,
+          investorId: request.investorId,
+          investorName: investorResult.rows[0]?.full_name || 'Unknown Investor',
+          amount: request.amount,
+          date: request.date,
+          status: request.status,
+          projectData: projectData
+        });
+      }
+    }
+    
+    console.log(`📤 Returning ${pendingInvestments.length} pending investment requests to admin`);
+    res.json(pendingInvestments);
+    
+  } catch (err) {
+    console.error("Error fetching pending investment requests:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Debug endpoint to check investment requests
+app.get('/api/debug/investments', verifyToken, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT p.id, p.firebase_uid, p.project_data->>'details'->>'projectTitle' as title, 
+             p.project_data->'investorRequests' as investor_requests
+      FROM projects p 
+      WHERE p.project_data->'investorRequests' IS NOT NULL
+      AND jsonb_array_length(p.project_data->'investorRequests') > 0
+    `);
+    
+    console.log('🔍 Investment requests in database:', result.rows.length);
+    res.json({
+      total: result.rows.length,
+      projects: result.rows
+    });
+  } catch (err) {
+    console.error('Error fetching investment requests:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Debug endpoint to make user admin
+app.post('/api/debug/make-admin/:userId', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  try {
+    await db.query('UPDATE users SET is_admin = true WHERE firebase_uid = $1', [userId]);
+    const result = await db.query('SELECT firebase_uid, full_name, is_admin FROM users WHERE firebase_uid = $1', [userId]);
+    console.log(`✅ Made user admin: ${result.rows[0]?.full_name}`);
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error('Error making user admin:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1136,12 +2561,19 @@ projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
   try {
     // Get the project and user data
     const projectResult = await db.query(
-      `SELECT project_data FROM projects WHERE id = $1`,
+      `SELECT project_data, firebase_uid FROM projects WHERE id = $1`,
       [id]
     );
     
     if (projectResult.rows.length === 0) {
       return res.status(404).json({ error: "Project not found" });
+    }
+    
+    // Check if user is trying to express interest in their own project
+    const project = projectResult.rows[0];
+    if (project.firebase_uid === uid) {
+      console.log(`🚫 User ${uid} attempted to express interest in their own project ${id}`);
+      return res.status(400).json({ error: "You cannot express interest in your own project" });
     }
     
     const userResult = await db.query(
@@ -1150,7 +2582,7 @@ projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
     );
     
     // Update the project with the interest request
-    const projectData = projectResult.rows[0].project_data;
+    const projectData = project.project_data;
     const investorName = userResult.rows[0]?.full_name || "Investor";
     
     if (!projectData.interestRequests) {
@@ -1189,9 +2621,10 @@ projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
 });
 
 // Approve interest request
-projectsRouter.post('/:id/interest/:investorId/approve', verifyToken, async (req, res) => {
+projectsRouter.post('/:id/interest-approve', verifyToken, async (req, res) => {
   try {
-    const { id, investorId } = req.params;
+    const { id } = req.params;
+    const { investorId } = req.body;
     const { uid } = req.user;
     
     // Get the project
@@ -1243,9 +2676,10 @@ projectsRouter.post('/:id/interest/:investorId/approve', verifyToken, async (req
 });
 
 // Reject interest request
-projectsRouter.post('/:id/interest/:investorId/reject', verifyToken, async (req, res) => {
+projectsRouter.post('/:id/interest-reject', verifyToken, async (req, res) => {
   try {
-    const { id, investorId } = req.params;
+    const { id } = req.params;
+    const { investorId } = req.body;
     const { uid } = req.user;
     
     // Get the project
@@ -1365,10 +2799,6 @@ app.get('/api/debug/calendar', verifyToken, async (req, res) => {
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`API listening on port ${PORT}`));
-
 // Create top-up requests table on startup
 async function createTopUpTable() {
   try {
@@ -1445,6 +2875,220 @@ app.post('/api/profile/complete-registration', verifyToken, async (req, res) => 
     res.json({ success: true });
   } catch (err) {
     console.error("Error completing registration:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Complete KYC registration
+app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
+  try {
+    const uid = req.uid;
+    const { accountType, kycData } = req.body;
+    
+    console.log('🔥 COMPLETE-KYC ENDPOINT CALLED');
+    console.log('📝 User ID:', uid);
+    console.log('📋 Account Type:', accountType);
+    console.log('🗂️ KYC Data:', JSON.stringify(kycData, null, 2));
+    
+    if (!accountType || !kycData) {
+      console.log('❌ Missing required fields - accountType:', accountType, 'kycData:', !!kycData);
+      return res.status(400).json({ error: "Missing required fields: accountType and kycData" });
+    }
+    
+    // Validate account type selection
+    if (kycData.isIndividualAccount === undefined || kycData.isIndividualAccount === null) {
+      return res.status(400).json({ 
+        error: "Account type selection is required", 
+        details: "Please specify if this is an Individual or Business/Corporate account" 
+      });
+    }
+    
+    if (typeof kycData.isIndividualAccount !== 'boolean') {
+      return res.status(400).json({ 
+        error: "Invalid account type value", 
+        details: "isIndividualAccount must be true (Individual) or false (Business/Corporate)" 
+      });
+    }
+    
+    // Begin transaction
+    await db.query('BEGIN');
+    
+    try {
+      // Update user role and registration status
+      await db.query(
+        `UPDATE users 
+         SET role = $1, 
+             has_completed_registration = true,
+             updated_at = NOW()
+         WHERE firebase_uid = $2`,
+        [accountType, uid]
+      );
+      
+      // Set account flags
+      const hasBorowrAccount = accountType === 'borrower';
+      const hasInvestorAccount = accountType === 'investor';
+      
+      await db.query(
+        `UPDATE users 
+         SET has_borrower_account = $1,
+             has_investor_account = $2,
+             current_account_type = $3,
+             updated_at = NOW()
+         WHERE firebase_uid = $4`,
+        [hasBorowrAccount, hasInvestorAccount, accountType, uid]
+      );
+      
+      // Insert into appropriate profile table
+      if (accountType === 'borrower') {
+        console.log('💾 Inserting borrower profile data...');
+        console.log('🔢 Parameters for borrower insert:');
+        console.log('uid:', uid);
+        console.log('isIndividualAccount:', kycData.isIndividualAccount);
+        console.log('placeOfBirth:', kycData.placeOfBirth);
+        console.log('gender:', kycData.gender);
+        console.log('civilStatus:', kycData.civilStatus);
+        console.log('nationality:', kycData.nationality);
+        console.log('contactEmail:', kycData.contactEmail);
+        
+        // Update existing borrower profile with KYC data
+        await db.query(`
+          UPDATE borrower_profiles SET
+            is_individual_account = $2,
+            place_of_birth = $3,
+            gender = $4,
+            civil_status = $5,
+            nationality = $6,
+            contact_email = $7,
+            secondary_id_type = $8,
+            secondary_id_number = $9,
+            emergency_contact_name = $10,
+            emergency_contact_relationship = $11,
+            emergency_contact_phone = $12,
+            emergency_contact_email = $13,
+            business_registration_type = $14,
+            business_registration_number = $15,
+            business_registration_date = $16,
+            corporate_tin = $17,
+            nature_of_business = $18,
+            principal_office_street = $19,
+            principal_office_barangay = $20,
+            principal_office_municipality = $21,
+            principal_office_province = $22,
+            principal_office_country = $23,
+            principal_office_postal_code = $24,
+            gis_total_assets = $25,
+            gis_total_liabilities = $26,
+            gis_paid_up_capital = $27,
+            gis_number_of_stockholders = $28,
+            gis_number_of_employees = $29,
+            is_politically_exposed_person = $30,
+            pep_details = $31,
+            authorized_signatory_name = $32,
+            authorized_signatory_position = $33,
+            authorized_signatory_id_type = $34,
+            authorized_signatory_id_number = $35,
+            is_complete = TRUE,
+            updated_at = NOW()
+          WHERE firebase_uid = $1
+        `, [
+          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.gender, 
+          kycData.civilStatus, kycData.nationality, kycData.contactEmail, 
+          kycData.secondaryIdType, kycData.secondaryIdNumber, kycData.emergencyContactName,
+          kycData.emergencyContactRelationship, kycData.emergencyContactPhone, 
+          kycData.emergencyContactEmail, kycData.businessRegistrationType, 
+          kycData.businessRegistrationNumber, kycData.businessRegistrationDate,
+          kycData.corporateTin, kycData.natureOfBusiness, kycData.principalOfficeStreet,
+          kycData.principalOfficeBarangay, kycData.principalOfficeMunicipality,
+          kycData.principalOfficeProvince, kycData.principalOfficeCountry,
+          kycData.principalOfficePostalCode, kycData.gisTotalAssets,
+          kycData.gisTotalLiabilities, kycData.gisPaidUpCapital, 
+          kycData.gisNumberOfStockholders, kycData.gisNumberOfEmployees,
+          kycData.isPoliticallyExposedPerson, kycData.pepDetails,
+          kycData.authorizedSignatoryName, kycData.authorizedSignatoryPosition,
+          kycData.authorizedSignatoryIdType, kycData.authorizedSignatoryIdNumber
+        ]);
+      } else {
+        // Update existing investor profile with KYC data
+        await db.query(`
+          UPDATE investor_profiles SET
+            is_individual_account = $2,
+            place_of_birth = $3,
+            gender = $4,
+            civil_status = $5,
+            nationality = $6,
+            contact_email = $7,
+            secondary_id_type = $8,
+            secondary_id_number = $9,
+            emergency_contact_name = $10,
+            emergency_contact_relationship = $11,
+            emergency_contact_phone = $12,
+            emergency_contact_email = $13,
+            business_registration_type = $14,
+            business_registration_number = $15,
+            business_registration_date = $16,
+            corporate_tin = $17,
+            nature_of_business = $18,
+            principal_office_street = $19,
+            principal_office_barangay = $20,
+            principal_office_municipality = $21,
+            principal_office_province = $22,
+            principal_office_country = $23,
+            principal_office_postal_code = $24,
+            gis_total_assets = $25,
+            gis_total_liabilities = $26,
+            gis_paid_up_capital = $27,
+            gis_number_of_stockholders = $28,
+            gis_number_of_employees = $29,
+            is_politically_exposed_person = $30,
+            pep_details = $31,
+            authorized_signatory_name = $32,
+            authorized_signatory_position = $33,
+            authorized_signatory_id_type = $34,
+            authorized_signatory_id_number = $35,
+            is_complete = TRUE,
+            updated_at = NOW()
+          WHERE firebase_uid = $1
+        `, [
+          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.gender, 
+          kycData.civilStatus, kycData.nationality, kycData.contactEmail, 
+          kycData.secondaryIdType, kycData.secondaryIdNumber, kycData.emergencyContactName,
+          kycData.emergencyContactRelationship, kycData.emergencyContactPhone, 
+          kycData.emergencyContactEmail, kycData.businessRegistrationType, 
+          kycData.businessRegistrationNumber, kycData.businessRegistrationDate,
+          kycData.corporateTin, kycData.natureOfBusiness, kycData.principalOfficeStreet,
+          kycData.principalOfficeBarangay, kycData.principalOfficeMunicipality,
+          kycData.principalOfficeProvince, kycData.principalOfficeCountry,
+          kycData.principalOfficePostalCode, kycData.gisTotalAssets,
+          kycData.gisTotalLiabilities, kycData.gisPaidUpCapital, 
+          kycData.gisNumberOfStockholders, kycData.gisNumberOfEmployees,
+          kycData.isPoliticallyExposedPerson, kycData.pepDetails,
+          kycData.authorizedSignatoryName, kycData.authorizedSignatoryPosition,
+          kycData.authorizedSignatoryIdType, kycData.authorizedSignatoryIdNumber
+        ]);
+      }
+      
+      // Commit transaction
+      await db.query('COMMIT');
+      
+      console.log('✅ KYC data successfully saved to database');
+      console.log('📊 Account type:', accountType);
+      console.log('👤 User ID:', uid);
+      
+      res.json({ 
+        success: true, 
+        message: 'KYC information submitted successfully',
+        accountType: accountType
+      });
+      
+    } catch (innerErr) {
+      await db.query('ROLLBACK');
+      throw innerErr;
+    }
+    
+  } catch (err) {
+    console.error("❌ Error completing KYC:", err);
+    console.error("🔍 Error details:", err.message);
+    console.error("📊 Stack trace:", err.stack);
     res.status(500).json({ error: "Database error", details: err.message });
   }
 });
@@ -1550,15 +3194,32 @@ app.post('/api/admin/projects/:id/review', verifyToken, async (req, res) => {
 
 // Modify the existing GET projects endpoint to filter by approval
 app.get('/api/projects', verifyToken, async (req, res) => {
-  const { approved } = req.query;
+  const { approved, status } = req.query;
   
   try {
-    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name, 
+                        bp.is_individual_account as creator_is_individual
                 FROM projects p
-                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid`;
+                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+                LEFT JOIN borrower_profiles bp ON p.firebase_uid = bp.firebase_uid`;
     
     const params = [];
     let conditions = [];
+    
+    // Always exclude deleted projects unless specifically requested
+    if (status !== 'deleted') {
+      conditions.push(`(p.project_data->>'status' != 'deleted' OR p.project_data->>'status' IS NULL)`);
+    }
+    
+    // Handle status parameter
+    if (status && status !== 'deleted') {
+      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
+      params.push(status);
+    } else if (status === 'deleted') {
+      // Only show deleted projects if explicitly requested
+      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
+      params.push('deleted');
+    }
     
     // Check if we need to filter for approved projects
     if (approved === 'true') {
@@ -1590,6 +3251,157 @@ app.get('/api/projects', verifyToken, async (req, res) => {
   }
 });
 
+// Get investment eligibility and limits for a user
+app.get('/api/user/investment-eligibility', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  
+  try {
+    // Get investor profile with error handling for missing columns
+    let investorIncome = 1000000; // Default 1M PHP
+    let verificationStatus = 'verified'; // Default verified
+    
+    try {
+      const investorResult = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [uid]
+      );
+      
+      if (investorResult.rows.length > 0) {
+        const profile = investorResult.rows[0];
+        if ('annual_income' in profile) {
+          investorIncome = profile.annual_income || 1000000;
+        }
+        if ('verification_status' in profile) {
+          verificationStatus = profile.verification_status || 'verified';
+        }
+      }
+    } catch (dbError) {
+      console.log(`⚠️ Using default investor values:`, dbError.message);
+    }
+    
+    // Calculate investment limits
+    let maxInvestmentPercentage = 0;
+    let maxInvestmentAmount = 0;
+    
+    if (investorIncome >= 2000000) { // 2M PHP or above
+      maxInvestmentPercentage = 10;
+    } else { // Below 2M PHP
+      maxInvestmentPercentage = 5;
+    }
+    
+    maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
+    
+    // Get user's current total investments
+    const projectsResult = await db.query(`
+      SELECT p.id, p.project_data 
+      FROM projects p
+      WHERE p.project_data ? 'investorRequests'
+    `);
+    
+    let totalInvestments = 0;
+    let activeInvestments = [];
+    
+    projectsResult.rows.forEach(row => {
+      const investorRequests = row.project_data?.investorRequests || [];
+      const userInvestments = investorRequests.filter(req => req.investorId === uid);
+      
+      userInvestments.forEach(investment => {
+        if (investment.status === 'approved' || investment.status === 'pending') {
+          totalInvestments += investment.amount;
+          activeInvestments.push({
+            projectId: row.id,
+            amount: investment.amount,
+            status: investment.status,
+            date: investment.date
+          });
+        }
+      });
+    });
+    
+    const remainingCapacity = maxInvestmentAmount - totalInvestments;
+    
+    res.json({
+      annualIncome: investorIncome,
+      verificationStatus,
+      maxInvestmentPercentage,
+      maxInvestmentAmount,
+      totalInvestments,
+      remainingCapacity: Math.max(0, remainingCapacity),
+      activeInvestments,
+      isEligible: verificationStatus === 'verified' && investorIncome > 0,
+      investmentTiers: {
+        retail: { minIncome: 0, maxIncome: 1999999, maxPercentage: 5 },
+        individual: { minIncome: 2000000, maxIncome: Infinity, maxPercentage: 10 }
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching investment eligibility:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Get user's investments
+app.get('/api/user/investments', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  
+  try {
+    console.log("Fetching investments for user:", uid);
+    
+    // Get ALL projects with investorRequests and filter in Node.js for better reliability
+    const result = await db.query(`
+      SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name as borrower_name
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      WHERE p.project_data ? 'investorRequests'
+    `);
+    
+    console.log("� Found projects with investorRequests:", result.rows.length);
+    
+    // Process the results to extract investment details
+    const investments = result.rows
+      .filter(row => {
+        const investorRequests = row.project_data?.investorRequests || [];
+        const hasUserInvestment = investorRequests.some(req => req.investorId === uid);
+        if (hasUserInvestment) {
+          console.log(`✅ Project ${row.id}: Found user investment`);
+        }
+        return hasUserInvestment;
+      })
+      .map(row => {
+        const projectData = row.project_data;
+        const userInvestments = projectData.investorRequests?.filter(req => req.investorId === uid) || [];
+        
+        // Return all investments for this project by this user
+        return userInvestments.map(investment => ({
+          projectId: row.id,
+          borrowerUid: row.firebase_uid,
+          borrowerName: row.borrower_name,
+          projectTitle: projectData.details?.projectTitle || 'Untitled Project',
+          projectImage: projectData.details?.projectImage || null,
+          fundingRequirement: projectData.details?.fundingRequirement || 0,
+          location: projectData.details?.location || 'Not specified',
+          investmentAmount: investment.amount || 0,
+          investmentDate: investment.date || null,
+          status: investment.status || 'pending',
+          projectStatus: projectData.status || 'draft',
+          approvalStatus: projectData.approvalStatus || 'pending',
+          fundingProgress: projectData.details?.fundingProgress || '0%',
+          adminComment: investment.adminComment || null,
+          reviewedBy: investment.reviewedBy || null,
+          reviewedAt: investment.reviewedAt || null,
+          projectData: projectData
+        }));
+      })
+      .flat(); // Flatten array since we're mapping to arrays
+    
+    console.log("📈 Total processed investments:", investments.length);
+    res.json(investments);
+  } catch (err) {
+    console.error("Error fetching user investments:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // Add this endpoint for debugging
 
 app.post('/api/check-admin', async (req, res) => {
@@ -1612,42 +3424,49 @@ app.post('/api/check-admin', async (req, res) => {
 
 // Add this near your other project-related endpoints
 
-// Create a test project for admin review
+// Create a project from form data
 app.post('/api/projects/create-test', verifyToken, async (req, res) => {
   const uid = req.uid;
+  const projectData = req.body;
   
   try {
-    // Create a test project with pending approval status
-    const testProject = {
-      type: "lending",
-      status: "published",
+    console.log("Creating project for user:", uid);
+    console.log("Project data received:", projectData);
+    
+    // Structure the project data properly
+    const project = {
+      type: projectData.type || "lending",
+      status: "draft", // Start as draft
       approvalStatus: "pending",
-      details: {
-        product: "Test Admin Project",
-        loanAmount: "100000",
-        projectRequirements: "Testing admin review",
-        investorPercentage: "10",
-        timeDuration: "12",
-        location: "Test Location",
-        overview: "This is a test project to verify admin functionality"
-      },
-      createdAt: new Date().toISOString()
+      details: projectData.details || {},
+      milestones: projectData.milestones || [],
+      roi: projectData.roi || {},
+      payout: projectData.payout || {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
     const result = await db.query(
       `INSERT INTO projects (firebase_uid, project_data)
        VALUES ($1, $2) RETURNING id`,
-      [uid, testProject]
+      [uid, project]
     );
+    
+    console.log("Project created successfully with ID:", result.rows[0].id);
     
     res.json({ 
       success: true, 
-      message: "Test project created successfully",
-      projectId: result.rows[0].id
+      message: "Project created successfully",
+      projectId: result.rows[0].id,
+      project: {
+        id: result.rows[0].id,
+        firebase_uid: uid,
+        project_data: project
+      }
     });
   } catch (err) {
-    console.error("Error creating test project:", err);
-    res.status(500).json({ error: "Database error" });
+    console.error("Error creating project:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
   }
 });
 
@@ -1740,6 +3559,7 @@ app.get('/api/calendar/projects', verifyToken, async (req, res) => {
   try {
     // For calendar, we want ALL projects that investors can potentially invest in
     // This includes both published projects AND draft projects (borrowers working on them)
+    // But we exclude deleted projects
     const query = `
       SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
       FROM projects p
@@ -1748,6 +3568,7 @@ app.get('/api/calendar/projects', verifyToken, async (req, res) => {
              OR p.project_data->>'status' = 'draft'
              OR p.project_data->>'status' = 'pending'
              OR p.project_data->>'status' IS NULL)
+      AND (p.project_data->>'status' != 'deleted' OR p.project_data->>'status' IS NULL)
       AND (p.project_data->>'approvalStatus' = 'approved' 
            OR p.project_data->>'approvalStatus' = 'pending'
            OR p.project_data->>'approvalStatus' IS NULL)
@@ -1984,4 +3805,111 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
     console.error("Error reviewing top-up request:", err);
     res.status(500).json({ error: "Database error" });
   }
+});
+
+// Admin endpoint to clear all projects and investment requests
+app.delete('/api/admin/clear-all-data', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Check if user is admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (!adminCheck.rows[0] || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    
+    console.log('🗑️ Admin user initiated database cleanup...');
+    
+    // Delete all projects (this will also remove all investment requests since they're stored in project_data)
+    const projectsResult = await db.query('DELETE FROM projects');
+    console.log(`✅ Deleted ${projectsResult.rowCount} projects`);
+    
+    // Delete all borrow requests
+    const borrowRequestsResult = await db.query('DELETE FROM borrow_requests');
+    console.log(`✅ Deleted ${borrowRequestsResult.rowCount} borrow requests`);
+    
+    // Delete all topup requests
+    const topupRequestsResult = await db.query('DELETE FROM topup_requests');
+    console.log(`✅ Deleted ${topupRequestsResult.rowCount} topup requests`);
+    
+    // Reset all wallet balances to 0 (optional - you can comment this out if you want to keep wallet balances)
+    const walletsResult = await db.query('UPDATE wallets SET balance = 0');
+    console.log(`✅ Reset ${walletsResult.rowCount} wallet balances to 0`);
+    
+    console.log('🎉 Database cleanup completed successfully');
+    
+    res.json({ 
+      success: true, 
+      message: "Database cleaned successfully",
+      deleted: {
+        projects: projectsResult.rowCount,
+        borrowRequests: borrowRequestsResult.rowCount,
+        topupRequests: topupRequestsResult.rowCount,
+        walletsReset: walletsResult.rowCount
+      }
+    });
+    
+  } catch (err) {
+    console.error("Error cleaning database:", err);
+    res.status(500).json({ error: "Database cleanup failed" });
+  }
+});
+
+const PORT = process.env.PORT || 3001;
+
+// Set up admin user before starting server
+(async () => {
+  try {
+    console.log('🔧 Setting up admin user...');
+    
+    // Remove admin status from all users first
+    await db.query('UPDATE users SET is_admin = false');
+    console.log('✅ Removed admin status from all users');
+    
+    // Get Firebase user by email to find the correct UID
+    let adminUID = null;
+    try {
+      const userRecord = await admin.auth().getUserByEmail('m.shahbazsherwani@gmail.com');
+      adminUID = userRecord.uid;
+      console.log(`🔍 Found Firebase UID for admin email: ${adminUID}`);
+    } catch (firebaseError) {
+      console.log('⚠️ Could not find Firebase user with email m.shahbazsherwani@gmail.com');
+      console.log('Will check database for existing users...');
+    }
+    
+    if (adminUID) {
+      // Set the specific Firebase UID as admin
+      const adminResult = await db.query(
+        'UPDATE users SET is_admin = true WHERE firebase_uid = $1',
+        [adminUID]
+      );
+      
+      if (adminResult.rowCount > 0) {
+        console.log('✅ Set user with UID', adminUID, 'as admin');
+      } else {
+        console.log('⚠️ Firebase UID not found in database - user needs to sign in first');
+      }
+    }
+    
+    // Show current admin users
+    const adminCheck = await db.query('SELECT firebase_uid, full_name, is_admin FROM users WHERE is_admin = true');
+    console.log('📋 Current admin users:', adminCheck.rows);
+    
+  } catch (err) {
+    console.error('❌ Error updating admin status:', err);
+  }
+})();
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log('🚀 Server is ready to accept connections');
+  
+  // Keep the process alive
+  setInterval(() => {
+    // This empty interval keeps the process running
+  }, 30000); // Every 30 seconds
 });
