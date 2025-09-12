@@ -202,6 +202,11 @@ export const Settings = (): JSX.Element => {
           profile.dateOfBirth = formatDateForInput(profile.dateOfBirth);
         }
         
+        // Load profile picture if available
+        if (profile.profilePicture || profile.profile_picture) {
+          setProfilePicture(profile.profilePicture || profile.profile_picture);
+        }
+        
         // Merge with existing state to ensure all fields have values
         setProfileData(prev => ({
           ...prev,
@@ -230,24 +235,6 @@ export const Settings = (): JSX.Element => {
         setPrivacySettings(settingsResponse.settings.privacySettings);
         setNotificationSettings(settingsResponse.settings.notificationSettings);
         setSecuritySettings(settingsResponse.settings.securitySettings);
-      }
-      
-      // Load profile picture
-      try {
-        const pictureResponse = await fetch('/api/profile/picture', {
-          headers: {
-            'Authorization': `Bearer ${user?.accessToken}`
-          }
-        });
-        
-        if (pictureResponse.ok) {
-          const pictureData = await pictureResponse.json();
-          if (pictureData.profilePicture) {
-            setProfilePicture(pictureData.profilePicture);
-          }
-        }
-      } catch (error) {
-        console.log('No profile picture found or error loading:', error);
       }
       
     } catch (error) {
