@@ -6,6 +6,7 @@ import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ArrowLeftIcon } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -44,6 +45,9 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
   const [principalOfficeCity, setPrincipalOfficeCity] = useState("");
   const [principalOfficePostalCode, setPrincipalOfficePostalCode] = useState("");
   const [pepStatus, setPepStatus] = useState<boolean>(false);
+
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
 
   // File uploads
   const [registrationCertFile, setRegistrationCertFile] = useState<File | null>(null);
@@ -117,6 +121,67 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation for mandatory fields
+    const requiredFields = [
+      { field: entityType, name: "entityType" },
+      { field: entityName, name: "entityName" },
+      { field: registrationNumber, name: "registrationNumber" },
+      { field: tin, name: "tin" },
+      { field: contactPersonName, name: "contactPersonName" },
+      { field: contactPersonPosition, name: "contactPersonPosition" },
+      { field: contactPersonEmail, name: "contactPersonEmail" },
+      { field: contactPersonPhone, name: "contactPersonPhone" },
+      { field: street, name: "street" },
+      { field: barangay, name: "barangay" },
+      { field: countryIso, name: "countryIso" },
+      { field: stateIso, name: "stateIso" },
+      { field: cityName, name: "cityName" },
+      { field: postalCode, name: "postalCode" },
+      { field: businessDescription, name: "businessDescription" },
+      { field: yearEstablished, name: "yearEstablished" },
+      { field: numberOfEmployees, name: "numberOfEmployees" },
+      { field: annualRevenue, name: "annualRevenue" },
+      { field: sourceOfFunds, name: "sourceOfFunds" },
+      { field: purposeOfAccount, name: "purposeOfAccount" },
+    ];
+
+    // Check for empty required fields and create error object
+    const errors: Record<string, boolean> = {};
+    let hasErrors = false;
+
+    requiredFields.forEach(item => {
+      if (!item.field || item.field.trim() === "") {
+        errors[item.name] = true;
+        hasErrors = true;
+      }
+    });
+
+    // Check file uploads
+    if (!secFile) {
+      errors["secFile"] = true;
+      hasErrors = true;
+    }
+
+    if (!birFile) {
+      errors["birFile"] = true;
+      hasErrors = true;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (contactPersonEmail && !emailRegex.test(contactPersonEmail)) {
+      errors["contactPersonEmail"] = true;
+      hasErrors = true;
+    }
+
+    // Update validation errors state
+    setValidationErrors(errors);
+
+    // If there are errors, don't submit
+    if (hasErrors) {
+      return;
+    }
+
     // Save registration data with all KYC fields
     setRegistration(reg => ({
       ...reg,
@@ -174,6 +239,17 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
           className="md:w-2/4 overflow-y-auto pr-4 space-y-8"
           noValidate
         >
+          {/* Back Button */}
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeftIcon className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+
           {/* Header */}
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">
@@ -186,13 +262,15 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
           <section className="space-y-4">
             <h3 className="text-xl md:text-2xl font-semibold">Entity Type</h3>
             <div className="space-y-2">
-              <Label>Select Entity Type*</Label>
+              <Label className={validationErrors.entityType ? "text-red-500" : ""}>
+                Select Entity Type*
+              </Label>
               <Select
                 required
                 value={entityType}
                 onValueChange={setEntityType}
               >
-                <SelectTrigger className="h-14 rounded-2xl">
+                <SelectTrigger className={`h-14 rounded-2xl ${validationErrors.entityType ? "border-red-500" : ""}`}>
                   <SelectValue placeholder="Select entity type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -212,13 +290,15 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Entity Name */}
               <div className="sm:col-span-2 space-y-2">
-                <Label>Entity Name*</Label>
+                <Label className={validationErrors.entityName ? "text-red-500" : ""}>
+                  Entity Name*
+                </Label>
                 <Input
                   required
                   value={entityName}
                   onChange={e => setEntityName(e.target.value)}
                   placeholder="Enter entity name"
-                  className="h-14 rounded-2xl"
+                  className={`h-14 rounded-2xl ${validationErrors.entityName ? "border-red-500 focus:border-red-500" : ""}`}
                 />
               </div>
               

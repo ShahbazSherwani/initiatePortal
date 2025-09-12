@@ -4,6 +4,20 @@ import type { BankAccount } from "../types/BankAccount";
 export interface RegistrationData {
   accountType: string;
   details: Record<string, any>;
+  incomeDetails?: {
+    grossAnnualIncome: string;
+    sourcesOfIncome: {
+      business: string | null;
+      investments: string | null;
+      employment: boolean;
+      farming: boolean;
+      realEstate: boolean;
+      others: boolean;
+    };
+    confirmationAccepted: boolean;
+  };
+  lendingCriteria?: Record<string, any>;
+  bankDetails?: Record<string, any>;
   bankAccounts?: BankAccount[];
   files?: {
     nationalIdFile?: File | null;

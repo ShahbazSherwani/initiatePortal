@@ -3,14 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
+import { ValidatedSelect } from "../components/ValidatedFormFields";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
   SelectItem,
 } from "../components/ui/select";
 import { ArrowLeftIcon } from "lucide-react";
@@ -32,6 +29,28 @@ export const InvestorRegIncomeDetails = (): JSX.Element => {
   // Confirmation
   const [confirmationChecked, setConfirmationChecked] = useState(false);
 
+  // Validation state
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+
+  const validateForm = () => {
+    const newErrors: Record<string, boolean> = {};
+    let hasErrors = false;
+
+    // Required fields validation
+    if (!grossAnnualIncome || grossAnnualIncome.trim() === "") {
+      newErrors["grossAnnualIncome"] = true;
+      hasErrors = true;
+    }
+    
+    if (!confirmationChecked) {
+      newErrors["confirmationChecked"] = true;
+      hasErrors = true;
+    }
+
+    setErrors(newErrors);
+    return !hasErrors;
+  };
+
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
 
@@ -46,6 +65,11 @@ export const InvestorRegIncomeDetails = (): JSX.Element => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate the form
+    if (!validateForm()) {
+      return;
+    }
     
     // Save income details
     setRegistration(reg => ({
@@ -102,21 +126,20 @@ export const InvestorRegIncomeDetails = (): JSX.Element => {
             <h3 className="text-xl md:text-2xl font-semibold">Income Details</h3>
             <div className="space-y-4">
               {/* Gross Annual Income */}
-              <div className="space-y-2">
-                <Label>Gross Annual Income*</Label>
-                <Select value={grossAnnualIncome} onValueChange={setGrossAnnualIncome}>
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select Range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {incomeRanges.map((range) => (
-                      <SelectItem key={range} value={range}>
-                        {range}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <ValidatedSelect
+                label="Gross Annual Income"
+                required
+                hasError={errors.grossAnnualIncome}
+                value={grossAnnualIncome}
+                onValueChange={setGrossAnnualIncome}
+                placeholder="Select Range"
+              >
+                {incomeRanges.map((range) => (
+                  <SelectItem key={range} value={range}>
+                    {range}
+                  </SelectItem>
+                ))}
+              </ValidatedSelect>
             </div>
           </section>
 
@@ -210,14 +233,17 @@ export const InvestorRegIncomeDetails = (): JSX.Element => {
               <Checkbox
                 checked={confirmationChecked}
                 onCheckedChange={(checked) => setConfirmationChecked(checked as boolean)}
-                className="mt-1"
+                className={`mt-1 ${errors.confirmationChecked ? "border-red-500" : ""}`}
                 required
               />
-              <Label className="text-sm leading-relaxed">
+              <Label className={`text-sm leading-relaxed ${errors.confirmationChecked ? "text-red-500" : ""}`}>
                 I confirm that the details above are true and Investie will not be held 
-                liable for false information, either intentional or not.
+                liable for false information, either intentional or not.*
               </Label>
             </div>
+            {errors.confirmationChecked && (
+              <p className="text-sm text-red-500 ml-7">Confirmation is required</p>
+            )}
           </section>
 
           {/* Next Button */}

@@ -5,6 +5,7 @@ import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ArrowLeftIcon } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -35,6 +36,30 @@ export const BorrowerBankDetailsNonIndividual = (): JSX.Element => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation for mandatory fields
+    const requiredFields = [
+      { field: bankName, name: "Bank Name" },
+      { field: accountNumber, name: "Account Number" },
+      { field: accountName, name: "Account Name" },
+      { field: accountType, name: "Account Type" },
+      { field: branchCode, name: "Branch Code" },
+      { field: branchName, name: "Branch Name" },
+    ];
+
+    // Check for empty required fields
+    const emptyFields = requiredFields.filter(item => !item.field || item.field.trim() === "");
+    
+    if (emptyFields.length > 0) {
+      alert(`Please fill in the following required fields:\n${emptyFields.map(item => item.name).join('\n')}`);
+      return;
+    }
+
+    // Validate account number format (basic validation)
+    if (accountNumber.length < 5) {
+      alert("Please enter a valid account number (minimum 5 digits).");
+      return;
+    }
+
     // Save bank details to registration data
     setRegistration(reg => ({
       ...reg,
@@ -61,6 +86,17 @@ export const BorrowerBankDetailsNonIndividual = (): JSX.Element => {
           className="md:w-2/4 overflow-y-auto pr-4 space-y-8"
           noValidate
         >
+          {/* Back Button */}
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeftIcon className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+
           {/* Header */}
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">

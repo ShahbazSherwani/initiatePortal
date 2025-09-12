@@ -291,6 +291,77 @@ profileRouter.post('/set-role', verifyToken, async (req, res) => {
   }
 });
 
+// Add endpoint to save group type and unique code
+profileRouter.post('/update-group-type', verifyToken, async (req, res) => {
+  const { groupType, uniqueCode, groupKey } = req.body;
+  
+  // Validate input
+  if (!groupType || !uniqueCode || !groupKey) {
+    return res.status(400).json({ error: 'Missing required fields: groupType, uniqueCode, groupKey' });
+  }
+  
+  try {
+    // First get the user's role to determine which table to update
+    const userResult = await db.query(
+      'SELECT role FROM users WHERE firebase_uid = $1',
+      [req.uid]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userRole = userResult.rows[0].role;
+    
+    // Add group_type and unique_code columns if they don't exist
+    if (userRole === 'borrower') {
+      await db.query(`
+        ALTER TABLE borrower_profiles 
+        ADD COLUMN IF NOT EXISTS group_type VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS unique_code VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS group_key VARCHAR(20)
+      `);
+      
+      // Update borrower profile
+      await db.query(`
+        UPDATE borrower_profiles 
+        SET group_type = $1, unique_code = $2, group_key = $3, updated_at = NOW()
+        WHERE firebase_uid = $4
+      `, [groupType, uniqueCode, groupKey, req.uid]);
+      
+    } else if (userRole === 'investor') {
+      await db.query(`
+        ALTER TABLE investor_profiles 
+        ADD COLUMN IF NOT EXISTS group_type VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS unique_code VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS group_key VARCHAR(20)
+      `);
+      
+      // Update investor profile
+      await db.query(`
+        UPDATE investor_profiles 
+        SET group_type = $1, unique_code = $2, group_key = $3, updated_at = NOW()
+        WHERE firebase_uid = $4
+      `, [groupType, uniqueCode, groupKey, req.uid]);
+    } else {
+      return res.status(400).json({ error: 'Invalid user role. Must be borrower or investor.' });
+    }
+    
+    console.log(`✅ Updated ${userRole} profile with group type: ${groupType}, code: ${uniqueCode}`);
+    res.json({ 
+      success: true, 
+      message: 'Group type and unique code saved successfully',
+      groupType,
+      uniqueCode,
+      userRole
+    });
+    
+  } catch (err) {
+    console.error('Error updating group type:', err);
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
 // Get wallet balance
 app.get('/api/wallet', verifyToken, async (req, res) => {
   const uid = req.uid;
@@ -1692,6 +1763,97 @@ app.get('/api/calendar/projects', verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Error fetching calendar projects:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Update project endpoint - for project management (close, complete, delete)
+app.put('/api/projects/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { project_data } = req.body;
+  
+  try {
+    // First verify the project exists and the user owns it or is admin
+    const projectCheck = await db.query(
+      `SELECT p.*, u.is_admin FROM projects p
+       LEFT JOIN users u ON u.firebase_uid = $2
+       WHERE p.id = $1`,
+      [id, req.uid]
+    );
+    
+    if (projectCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const project = projectCheck.rows[0];
+    const isAdmin = project.is_admin;
+    const isOwner = project.firebase_uid === req.uid;
+    
+    // Only owner or admin can update the project
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Unauthorized: You can only update your own projects" });
+    }
+    
+    // Update the project
+    const result = await db.query(
+      `UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [project_data, id]
+    );
+    
+    console.log(`Project ${id} updated successfully by user ${req.uid}`);
+    res.json({
+      success: true,
+      message: "Project updated successfully",
+      project: result.rows[0]
+    });
+  } catch (err) {
+    console.error("Error updating project:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Delete project endpoint - soft delete by setting status to "deleted"
+app.delete('/api/projects/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // First verify the project exists and the user owns it or is admin
+    const projectCheck = await db.query(
+      `SELECT p.*, u.is_admin FROM projects p
+       LEFT JOIN users u ON u.firebase_uid = $2
+       WHERE p.id = $1`,
+      [id, req.uid]
+    );
+    
+    if (projectCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const project = projectCheck.rows[0];
+    const isAdmin = project.is_admin;
+    const isOwner = project.firebase_uid === req.uid;
+    
+    // Only owner or admin can delete the project
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Unauthorized: You can only delete your own projects" });
+    }
+    
+    // Soft delete by updating the status to "deleted"
+    const updatedProjectData = { ...project.project_data, status: 'deleted' };
+    
+    const result = await db.query(
+      `UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [updatedProjectData, id]
+    );
+    
+    console.log(`Project ${id} deleted (soft delete) by user ${req.uid}`);
+    res.json({
+      success: true,
+      message: "Project deleted successfully",
+      project: result.rows[0]
+    });
+  } catch (err) {
+    console.error("Error deleting project:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
   }
 });
 

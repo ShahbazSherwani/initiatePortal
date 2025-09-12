@@ -6,6 +6,7 @@ import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ArrowLeftIcon } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -44,6 +45,9 @@ export const BorrowerReg = (): JSX.Element => {
   const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
   const [emergencyContactAddress, setEmergencyContactAddress] = useState("");
   const [pepStatus, setPepStatus] = useState<boolean>(false);
+
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
 
   // Address
   const [street, setStreet] = useState("");
@@ -104,6 +108,57 @@ export const BorrowerReg = (): JSX.Element => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation for mandatory fields
+    const requiredFields = [
+      { field: nationalId, name: "nationalId" },
+      { field: tin, name: "tin" },
+      { field: street, name: "street" },
+      { field: barangay, name: "barangay" },
+      { field: countryIso, name: "countryIso" },
+      { field: stateIso, name: "stateIso" },
+      { field: cityName, name: "cityName" },
+      { field: postalCode, name: "postalCode" },
+      { field: placeOfBirth, name: "placeOfBirth" },
+      { field: gender, name: "gender" },
+      { field: civilStatus, name: "civilStatus" },
+      { field: nationality, name: "nationality" },
+      { field: motherMaidenName, name: "motherMaidenName" },
+      { field: employerName, name: "employerName" },
+      { field: occupation, name: "occupation" },
+      { field: employerAddress, name: "employerAddress" },
+      { field: sourceOfIncome, name: "sourceOfIncome" },
+      { field: monthlyIncome, name: "monthlyIncome" },
+      { field: emergencyContactName, name: "emergencyContactName" },
+      { field: emergencyContactRelationship, name: "emergencyContactRelationship" },
+      { field: emergencyContactPhone, name: "emergencyContactPhone" },
+      { field: emergencyContactAddress, name: "emergencyContactAddress" },
+    ];
+
+    // Check for empty required fields and create error object
+    const errors: Record<string, boolean> = {};
+    let hasErrors = false;
+
+    requiredFields.forEach(item => {
+      if (!item.field || item.field.trim() === "") {
+        errors[item.name] = true;
+        hasErrors = true;
+      }
+    });
+
+    // Check file uploads
+    if (!nationalIdFile) {
+      errors["nationalIdFile"] = true;
+      hasErrors = true;
+    }
+
+    // Update validation errors state
+    setValidationErrors(errors);
+
+    // If there are errors, don't submit
+    if (hasErrors) {
+      return;
+    }
+
     // Save registration data with all KYC fields
     setRegistration(reg => ({
       ...reg,
@@ -157,6 +212,17 @@ export const BorrowerReg = (): JSX.Element => {
       <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] px-4 md:px-20 py-10">
         {/* ─── CONTENT ─── */}
         <div className="md:w-2/4 overflow-y-auto pr-4 space-y-8">
+          {/* Back Button */}
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeftIcon className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+
           {/* Header */}
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">
@@ -214,13 +280,15 @@ export const BorrowerReg = (): JSX.Element => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* National ID */}
               <div className="space-y-2">
-                <Label>National/Government ID No.*</Label>
+                <Label className={validationErrors.nationalId ? "text-red-500" : ""}>
+                  National/Government ID No.*
+                </Label>
                 <Input
                   required
                   value={nationalId}
                   onChange={e => setNationalId(e.target.value)}
                   placeholder="Enter here"
-                  className="h-14 rounded-2xl"
+                  className={`h-14 rounded-2xl ${validationErrors.nationalId ? "border-red-500 focus:border-red-500" : ""}`}
                 />
               </div>
               {/* Upload ID Copy */}
@@ -277,13 +345,13 @@ export const BorrowerReg = (): JSX.Element => {
               </div>
               {/* TIN */}
               <div className="sm:col-span-2 space-y-2">
-                <Label>TIN*</Label>
+                <Label className={validationErrors.tin ? "text-red-500" : ""}>TIN*</Label>
                 <Input
                   required
                   value={tin}
                   onChange={e => setTin(e.target.value)}
                   placeholder="Enter here"
-                  className="h-14 rounded-2xl"
+                  className={`h-14 rounded-2xl ${validationErrors.tin ? "border-red-500 focus:border-red-500" : ""}`}
                 />
               </div>
             </div>
@@ -297,24 +365,26 @@ export const BorrowerReg = (): JSX.Element => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Place of Birth */}
               <div className="space-y-2">
-                <Label>Place of Birth*</Label>
+                <Label className={validationErrors.placeOfBirth ? "text-red-500" : ""}>
+                  Place of Birth*
+                </Label>
                 <Input
                   required
                   value={placeOfBirth}
                   onChange={e => setPlaceOfBirth(e.target.value)}
                   placeholder="Enter place of birth"
-                  className="h-14 rounded-2xl"
+                  className={`h-14 rounded-2xl ${validationErrors.placeOfBirth ? "border-red-500 focus:border-red-500" : ""}`}
                 />
               </div>
               {/* Gender */}
               <div className="space-y-2">
-                <Label>Gender*</Label>
+                <Label className={validationErrors.gender ? "text-red-500" : ""}>Gender*</Label>
                 <Select
                   required
                   value={gender}
                   onValueChange={setGender}
                 >
-                  <SelectTrigger className="h-14 rounded-2xl">
+                  <SelectTrigger className={`h-14 rounded-2xl ${validationErrors.gender ? "border-red-500" : ""}`}>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>

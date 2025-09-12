@@ -1,16 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { Country, State, City } from "country-state-city";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
+import { ValidatedInput, ValidatedSelect, ValidatedFileUpload } from "../components/ValidatedFormFields";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
   SelectItem,
 } from "../components/ui/select";
 import { ArrowLeftIcon } from "lucide-react";
@@ -37,17 +32,13 @@ export const InvestorRegDirectLender = (): JSX.Element => {
   // File uploads for ID
   const [nationalIdFile, setNationalIdFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
-  const nationalIdFileRef = useRef<HTMLInputElement>(null);
-  const passportFileRef = useRef<HTMLInputElement>(null);
 
   // Direct Lender Specific Fields
   const [requirementsCriteria, setRequirementsCriteria] = useState("");
   const [requirementsCriteriaFile, setRequirementsCriteriaFile] = useState<File | null>(null);
-  const requirementsCriteriaFileRef = useRef<HTMLInputElement>(null);
 
   const [docReq, setDocReq] = useState("");
   const [docReqFile, setDocReqFile] = useState<File | null>(null);
-  const docReqFileRef = useRef<HTMLInputElement>(null);
 
   const [maxFacility, setMaxFacility] = useState("");
   const [interestRate, setInterestRate] = useState("");
@@ -62,6 +53,56 @@ export const InvestorRegDirectLender = (): JSX.Element => {
   const [cityName, setCityName] = useState("");
   const [postalCode, setPostalCode] = useState("");
 
+  // Validation state
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+
+  const validateForm = () => {
+    const newErrors: Record<string, boolean> = {};
+    let hasErrors = false;
+
+    // Required fields validation
+    const requiredFields = [
+      { value: firstName, name: "firstName" },
+      { value: lastName, name: "lastName" },
+      { value: nationalId, name: "nationalId" },
+      { value: tin, name: "tin" },
+      { value: requirementsCriteria, name: "requirementsCriteria" },
+      { value: docReq, name: "docReq" },
+      { value: maxFacility, name: "maxFacility" },
+      { value: interestRate, name: "interestRate" },
+      { value: street, name: "street" },
+      { value: barangay, name: "barangay" },
+      { value: countryIso, name: "countryIso" },
+      { value: stateIso, name: "stateIso" },
+      { value: cityName, name: "cityName" },
+      { value: postalCode, name: "postalCode" },
+    ];
+
+    requiredFields.forEach(({ value, name }) => {
+      if (!value || value.trim() === "") {
+        newErrors[name] = true;
+        hasErrors = true;
+      }
+    });
+
+    // File uploads validation
+    if (!nationalIdFile) {
+      newErrors["nationalIdFile"] = true;
+      hasErrors = true;
+    }
+    if (!requirementsCriteriaFile) {
+      newErrors["requirementsCriteriaFile"] = true;
+      hasErrors = true;
+    }
+    if (!docReqFile) {
+      newErrors["docReqFile"] = true;
+      hasErrors = true;
+    }
+
+    setErrors(newErrors);
+    return !hasErrors;
+  };
+
   const countries = Country.getAllCountries();
   const states = countryIso ? State.getStatesOfCountry(countryIso) : [];
   const cities = stateIso ? City.getCitiesOfState(countryIso, stateIso) : [];
@@ -69,57 +110,17 @@ export const InvestorRegDirectLender = (): JSX.Element => {
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
 
-  // File upload handlers
-  const handleNationalIdUpload = () => {
-    nationalIdFileRef.current?.click();
-  };
-
-  const handlePassportUpload = () => {
-    passportFileRef.current?.click();
-  };
-
-  const handleRequirementsCriteriaUpload = () => {
-    requirementsCriteriaFileRef.current?.click();
-  };
-
-  const handleDocReqUpload = () => {
-    docReqFileRef.current?.click();
-  };
-
-  const handleNationalIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setNationalIdFile(file);
-    }
-  };
-
-  const handlePassportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPassportFile(file);
-    }
-  };
-
-  const handleRequirementsCriteriaFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setRequirementsCriteriaFile(file);
-    }
-  };
-
-  const handleDocReqFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setDocReqFile(file);
-    }
-  };
-
   const handleLenderTypeSelect = (type: string) => {
     setLenderType(type);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate the form
+    if (!validateForm()) {
+      return;
+    }
     
     // Save registration data
     setRegistration(reg => ({
@@ -231,50 +232,42 @@ export const InvestorRegDirectLender = (): JSX.Element => {
             <h3 className="text-xl md:text-2xl font-semibold">Personal Profile</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* First Name */}
-              <div className="space-y-2">
-                <Label>First Name*</Label>
-                <Input
-                  required
-                  value={firstName}
-                  onChange={e => setFirstName(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="First Name"
+                required
+                hasError={errors.firstName}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Middle Name */}
-              <div className="space-y-2">
-                <Label>Middle Name</Label>
-                <Input
-                  value={middleName}
-                  onChange={e => setMiddleName(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Middle Name"
+                hasError={false}
+                value={middleName}
+                onChange={(e) => setMiddleName(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Last Name */}
-              <div className="space-y-2">
-                <Label>Last Name*</Label>
-                <Input
-                  required
-                  value={lastName}
-                  onChange={e => setLastName(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Last Name"
+                required
+                hasError={errors.lastName}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Suffix Name */}
-              <div className="space-y-2">
-                <Label>Suffix Name</Label>
-                <Input
-                  value={suffixName}
-                  onChange={e => setSuffixName(e.target.value)}
-                  placeholder="Jr, Sr, III"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Suffix Name"
+                hasError={false}
+                value={suffixName}
+                onChange={(e) => setSuffixName(e.target.value)}
+                placeholder="Jr, Sr, III"
+              />
             </div>
           </section>
 
@@ -285,78 +278,55 @@ export const InvestorRegDirectLender = (): JSX.Element => {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* National ID */}
-              <div className="space-y-2">
-                <Label>National/Government ID No.*</Label>
-                <Input
-                  required
-                  value={nationalId}
-                  onChange={e => setNationalId(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="National/Government ID No."
+                required
+                hasError={errors.nationalId}
+                value={nationalId}
+                onChange={(e) => setNationalId(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Upload ID Copy */}
-              <div className="space-y-2">
-                <Label>Upload ID Copy</Label>
-                <input
-                  type="file"
-                  ref={nationalIdFileRef}
-                  onChange={handleNationalIdFileChange}
-                  accept="image/*,.pdf"
-                  className="hidden"
-                />
-                <Button 
-                  type="button"
-                  onClick={handleNationalIdUpload}
-                  className="w-full h-14 bg-[#ffc00f] hover:bg-[#ffc00f]/90 rounded-2xl flex items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">⚠️</span> 
-                  {nationalIdFile ? `Selected: ${nationalIdFile.name}` : 'Upload'}
-                </Button>
-              </div>
+              <ValidatedFileUpload
+                label="Upload ID Copy"
+                required
+                hasError={errors.nationalIdFile}
+                file={nationalIdFile}
+                onFileChange={setNationalIdFile}
+                buttonText="Upload ID"
+              />
 
               {/* Passport */}
               <div className="space-y-2">
-                <Label>Passport No.*</Label>
-                <Input
-                  required
+                <ValidatedInput
+                  label="Passport No."
+                  hasError={false}
                   value={passport}
-                  onChange={e => setPassport(e.target.value)}
+                  onChange={(e) => setPassport(e.target.value)}
                   placeholder="Enter here"
-                  className="h-14 rounded-2xl"
                 />
                 <p className="text-sm text-gray-600">(required for funding of &gt;Php100,000)</p>
               </div>
 
               {/* Upload Passport Copy */}
-              <div className="space-y-2">
-                <Label>Upload Passport Copy</Label>
-                <input
-                  type="file"
-                  ref={passportFileRef}
-                  onChange={handlePassportFileChange}
-                  accept="image/*,.pdf"
-                  className="hidden"
-                />
-                <Button 
-                  type="button"
-                  onClick={handlePassportUpload}
-                  className="w-full h-14 bg-[#ffc00f] hover:bg-[#ffc00f]/90 rounded-2xl flex items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">⚠️</span> 
-                  {passportFile ? `Selected: ${passportFile.name}` : 'Upload'}
-                </Button>
-              </div>
+              <ValidatedFileUpload
+                label="Upload Passport Copy"
+                hasError={false}
+                file={passportFile}
+                onFileChange={setPassportFile}
+                buttonText="Upload Passport"
+              />
 
               {/* TIN */}
-              <div className="sm:col-span-2 space-y-2">
-                <Label>TIN</Label>
-                <Input
+              <div className="sm:col-span-2">
+                <ValidatedInput
+                  label="TIN (Tax Identification Number)"
+                  required
+                  hasError={errors.tin}
                   value={tin}
-                  onChange={e => setTin(e.target.value)}
+                  onChange={(e) => setTin(e.target.value)}
                   placeholder="Enter here"
-                  className="h-14 rounded-2xl"
                 />
                 <p className="text-sm text-gray-600">(required for funding of &gt;Php100,000)</p>
               </div>
@@ -368,94 +338,68 @@ export const InvestorRegDirectLender = (): JSX.Element => {
             <h3 className="text-xl md:text-2xl font-semibold">Direct Lender Criteria</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Requirements Criteria */}
-              <div className="space-y-2">
-                <Label>Requirements (Criteria)*</Label>
-                <Input
-                  required
-                  value={requirementsCriteria}
-                  onChange={e => setRequirementsCriteria(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Requirements (Criteria)"
+                required
+                hasError={errors.requirementsCriteria}
+                value={requirementsCriteria}
+                onChange={(e) => setRequirementsCriteria(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Add Criteria Upload */}
-              <div className="space-y-2">
-                <Label>Add Criteria</Label>
-                <input
-                  type="file"
-                  ref={requirementsCriteriaFileRef}
-                  onChange={handleRequirementsCriteriaFileChange}
-                  accept="image/*,.pdf,.doc,.docx"
-                  className="hidden"
-                />
-                <Button 
-                  type="button"
-                  onClick={handleRequirementsCriteriaUpload}
-                  className="w-full h-14 bg-[#ffc00f] hover:bg-[#ffc00f]/90 rounded-2xl flex items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">⚠️</span> 
-                  {requirementsCriteriaFile ? `Selected: ${requirementsCriteriaFile.name}` : 'Upload'}
-                </Button>
-              </div>
+              <ValidatedFileUpload
+                label="Add Criteria"
+                required
+                hasError={errors.requirementsCriteriaFile}
+                file={requirementsCriteriaFile}
+                onFileChange={setRequirementsCriteriaFile}
+                buttonText="Upload Criteria"
+                accept="image/*,.pdf,.doc,.docx"
+              />
 
               {/* Requirements Doc Req */}
-              <div className="space-y-2">
-                <Label>Requirements (Criteria)*</Label>
-                <Input
-                  required
-                  value={docReq}
-                  onChange={e => setDocReq(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Document Requirements"
+                required
+                hasError={errors.docReq}
+                value={docReq}
+                onChange={(e) => setDocReq(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Upload Doc Req */}
-              <div className="space-y-2">
-                <Label>Upload Doc Req</Label>
-                <input
-                  type="file"
-                  ref={docReqFileRef}
-                  onChange={handleDocReqFileChange}
-                  accept="image/*,.pdf,.doc,.docx"
-                  className="hidden"
-                />
-                <Button 
-                  type="button"
-                  onClick={handleDocReqUpload}
-                  className="w-full h-14 bg-[#ffc00f] hover:bg-[#ffc00f]/90 rounded-2xl flex items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">⚠️</span> 
-                  {docReqFile ? `Selected: ${docReqFile.name}` : 'Upload'}
-                </Button>
-              </div>
+              <ValidatedFileUpload
+                label="Upload Doc Requirements"
+                required
+                hasError={errors.docReqFile}
+                file={docReqFile}
+                onFileChange={setDocReqFile}
+                buttonText="Upload Documents"
+                accept="image/*,.pdf,.doc,.docx"
+              />
 
               {/* Maximum Facility per Lending */}
-              <div className="space-y-2">
-                <Label>Maximum Facility per Lending*</Label>
-                <Input
-                  required
-                  value={maxFacility}
-                  onChange={e => setMaxFacility(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Maximum Facility per Lending"
+                required
+                hasError={errors.maxFacility}
+                value={maxFacility}
+                onChange={(e) => setMaxFacility(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Interest % per month */}
-              <div className="space-y-2">
-                <Label>Interest % per month*</Label>
-                <Input
-                  required
-                  type="number"
-                  step="0.01"
-                  value={interestRate}
-                  onChange={e => setInterestRate(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Interest % per month"
+                required
+                hasError={errors.interestRate}
+                type="number"
+                step="0.01"
+                value={interestRate}
+                onChange={(e) => setInterestRate(e.target.value)}
+                placeholder="Enter here"
+              />
             </div>
           </section>
 
@@ -464,90 +408,91 @@ export const InvestorRegDirectLender = (): JSX.Element => {
             <h3 className="text-xl md:text-2xl font-semibold">Home Address</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Street */}
-              <div className="sm:col-span-2 space-y-2">
-                <Label>Street*</Label>
-                <Input
+              <div className="sm:col-span-2">
+                <ValidatedInput
+                  label="Street"
                   required
+                  hasError={errors.street}
                   value={street}
-                  onChange={e => setStreet(e.target.value)}
+                  onChange={(e) => setStreet(e.target.value)}
                   placeholder="Enter here"
-                  className="h-14 rounded-2xl"
                 />
               </div>
 
               {/* Barangay */}
-              <div className="space-y-2">
-                <Label>Barangay*</Label>
-                <Input
-                  required
-                  value={barangay}
-                  onChange={e => setBarangay(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Barangay"
+                required
+                hasError={errors.barangay}
+                value={barangay}
+                onChange={(e) => setBarangay(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Country */}
-              <div className="space-y-2">
-                <Label>Country*</Label>
-                <Select value={countryIso} onValueChange={setCountryIso}>
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map((country) => (
-                      <SelectItem key={country.isoCode} value={country.isoCode}>
-                        {country.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <ValidatedSelect
+                label="Country"
+                required
+                hasError={errors.countryIso}
+                value={countryIso}
+                onValueChange={(value) => {
+                  setCountryIso(value);
+                  setStateIso("");
+                  setCityName("");
+                }}
+                placeholder="Select country"
+              >
+                {countries.map((country) => (
+                  <SelectItem key={country.isoCode} value={country.isoCode}>
+                    {country.name}
+                  </SelectItem>
+                ))}
+              </ValidatedSelect>
 
               {/* State */}
-              <div className="space-y-2">
-                <Label>State/Province*</Label>
-                <Select value={stateIso} onValueChange={setStateIso}>
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {states.map((state) => (
-                      <SelectItem key={state.isoCode} value={state.isoCode}>
-                        {state.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <ValidatedSelect
+                label="State/Province"
+                required
+                hasError={errors.stateIso}
+                value={stateIso}
+                onValueChange={(value) => {
+                  setStateIso(value);
+                  setCityName("");
+                }}
+                placeholder="Select state"
+              >
+                {states.map((state) => (
+                  <SelectItem key={state.isoCode} value={state.isoCode}>
+                    {state.name}
+                  </SelectItem>
+                ))}
+              </ValidatedSelect>
 
               {/* City */}
-              <div className="space-y-2">
-                <Label>City*</Label>
-                <Select value={cityName} onValueChange={setCityName}>
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select city" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((city) => (
-                      <SelectItem key={city.name} value={city.name}>
-                        {city.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <ValidatedSelect
+                label="City"
+                required
+                hasError={errors.cityName}
+                value={cityName}
+                onValueChange={setCityName}
+                placeholder="Select city"
+              >
+                {cities.map((city) => (
+                  <SelectItem key={city.name} value={city.name}>
+                    {city.name}
+                  </SelectItem>
+                ))}
+              </ValidatedSelect>
 
               {/* Postal Code */}
-              <div className="space-y-2">
-                <Label>Postal Code</Label>
-                <Input
-                  value={postalCode}
-                  onChange={e => setPostalCode(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Postal Code"
+                required
+                hasError={errors.postalCode}
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                placeholder="Enter here"
+              />
             </div>
           </section>
 

@@ -460,6 +460,148 @@ profileRouter.post('/update-username', verifyToken, async (req, res) => {
   }
 });
 
+// Add endpoint to save group type and unique code
+profileRouter.post('/update-group-type', verifyToken, async (req, res) => {
+  const { groupType, uniqueCode, groupKey } = req.body;
+  
+  // Validate input
+  if (!groupType || !uniqueCode || !groupKey) {
+    return res.status(400).json({ error: 'Missing required fields: groupType, uniqueCode, groupKey' });
+  }
+  
+  try {
+    // First get the user's role to determine which table to update
+    const userResult = await db.query(
+      'SELECT role FROM users WHERE firebase_uid = $1',
+      [req.uid]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userRole = userResult.rows[0].role;
+    
+    // Add group_type and unique_code columns if they don't exist
+    if (userRole === 'borrower') {
+      await db.query(`
+        ALTER TABLE borrower_profiles 
+        ADD COLUMN IF NOT EXISTS group_type VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS unique_code VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS group_key VARCHAR(20)
+      `);
+      
+      // Update borrower profile
+      await db.query(`
+        UPDATE borrower_profiles 
+        SET group_type = $1, unique_code = $2, group_key = $3, updated_at = NOW()
+        WHERE firebase_uid = $4
+      `, [groupType, uniqueCode, groupKey, req.uid]);
+      
+    } else if (userRole === 'investor') {
+      await db.query(`
+        ALTER TABLE investor_profiles 
+        ADD COLUMN IF NOT EXISTS group_type VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS unique_code VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS group_key VARCHAR(20)
+      `);
+      
+      // Update investor profile
+      await db.query(`
+        UPDATE investor_profiles 
+        SET group_type = $1, unique_code = $2, group_key = $3, updated_at = NOW()
+        WHERE firebase_uid = $4
+      `, [groupType, uniqueCode, groupKey, req.uid]);
+    } else {
+      return res.status(400).json({ error: 'Invalid user role. Must be borrower or investor.' });
+    }
+    
+    console.log(`✅ Updated ${userRole} profile with group type: ${groupType}, code: ${uniqueCode}`);
+    res.json({ 
+      success: true, 
+      message: 'Group type and unique code saved successfully',
+      groupType,
+      uniqueCode,
+      userRole
+    });
+    
+  } catch (err) {
+    console.error('Error updating group type:', err);
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
+// Add endpoint to save borrower/investor code and industry information
+profileRouter.post('/update-borrower-info', verifyToken, async (req, res) => {
+  const { industryType, borrowerCode, industryKey } = req.body;
+  
+  // Validate input
+  if (!industryType || !borrowerCode || !industryKey) {
+    return res.status(400).json({ error: 'Missing required fields: industryType, borrowerCode, industryKey' });
+  }
+  
+  try {
+    // First get the user's role to determine which table to update
+    const userResult = await db.query(
+      'SELECT role FROM users WHERE firebase_uid = $1',
+      [req.uid]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userRole = userResult.rows[0].role;
+    
+    // Add borrower_code and industry_type columns if they don't exist
+    if (userRole === 'borrower') {
+      await db.query(`
+        ALTER TABLE borrower_profiles 
+        ADD COLUMN IF NOT EXISTS borrower_code VARCHAR(20),
+        ADD COLUMN IF NOT EXISTS industry_type VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS industry_key VARCHAR(20)
+      `);
+      
+      // Update borrower profile
+      await db.query(`
+        UPDATE borrower_profiles 
+        SET borrower_code = $1, industry_type = $2, industry_key = $3, updated_at = NOW()
+        WHERE firebase_uid = $4
+      `, [borrowerCode, industryType, industryKey, req.uid]);
+      
+    } else if (userRole === 'investor') {
+      await db.query(`
+        ALTER TABLE investor_profiles 
+        ADD COLUMN IF NOT EXISTS investor_code VARCHAR(20),
+        ADD COLUMN IF NOT EXISTS industry_type VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS industry_key VARCHAR(20)
+      `);
+      
+      // Update investor profile (use investor_code instead of borrower_code)
+      await db.query(`
+        UPDATE investor_profiles 
+        SET investor_code = $1, industry_type = $2, industry_key = $3, updated_at = NOW()
+        WHERE firebase_uid = $4
+      `, [borrowerCode, industryType, industryKey, req.uid]);
+    } else {
+      return res.status(400).json({ error: 'Invalid user role. Must be borrower or investor.' });
+    }
+    
+    console.log(`✅ Updated ${userRole} profile with code: ${borrowerCode}, industry: ${industryType}`);
+    res.json({ 
+      success: true, 
+      message: 'Borrower/Investor information saved successfully',
+      code: borrowerCode,
+      industryType,
+      userRole
+    });
+    
+  } catch (err) {
+    console.error('Error updating borrower info:', err);
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
 app.use('/api/profile', profileRouter);
 
 // Dual Account Management Routes
@@ -2743,8 +2885,29 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
     const uid = req.uid;
     const { accountType, kycData } = req.body;
     
+    console.log('🔥 COMPLETE-KYC ENDPOINT CALLED');
+    console.log('📝 User ID:', uid);
+    console.log('📋 Account Type:', accountType);
+    console.log('🗂️ KYC Data:', JSON.stringify(kycData, null, 2));
+    
     if (!accountType || !kycData) {
+      console.log('❌ Missing required fields - accountType:', accountType, 'kycData:', !!kycData);
       return res.status(400).json({ error: "Missing required fields: accountType and kycData" });
+    }
+    
+    // Validate account type selection
+    if (kycData.isIndividualAccount === undefined || kycData.isIndividualAccount === null) {
+      return res.status(400).json({ 
+        error: "Account type selection is required", 
+        details: "Please specify if this is an Individual or Business/Corporate account" 
+      });
+    }
+    
+    if (typeof kycData.isIndividualAccount !== 'boolean') {
+      return res.status(400).json({ 
+        error: "Invalid account type value", 
+        details: "isIndividualAccount must be true (Individual) or false (Business/Corporate)" 
+      });
     }
     
     // Begin transaction
@@ -2777,61 +2940,56 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
       
       // Insert into appropriate profile table
       if (accountType === 'borrower') {
+        console.log('💾 Inserting borrower profile data...');
+        console.log('🔢 Parameters for borrower insert:');
+        console.log('uid:', uid);
+        console.log('isIndividualAccount:', kycData.isIndividualAccount);
+        console.log('placeOfBirth:', kycData.placeOfBirth);
+        console.log('gender:', kycData.gender);
+        console.log('civilStatus:', kycData.civilStatus);
+        console.log('nationality:', kycData.nationality);
+        console.log('contactEmail:', kycData.contactEmail);
+        
+        // Update existing borrower profile with KYC data
         await db.query(`
-          INSERT INTO borrower_profiles (
-            firebase_uid, is_individual_account, place_of_birth, gender, civil_status, 
-            nationality, contact_email, secondary_id_type, secondary_id_number,
-            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, 
-            emergency_contact_email, business_registration_type, business_registration_number,
-            business_registration_date, corporate_tin, nature_of_business, principal_office_street,
-            principal_office_barangay, principal_office_municipality, principal_office_province,
-            principal_office_country, principal_office_postal_code, gis_total_assets,
-            gis_total_liabilities, gis_paid_up_capital, gis_number_of_stockholders,
-            gis_number_of_employees, is_politically_exposed_person, pep_details,
-            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_type,
-            authorized_signatory_id_number, is_complete, created_at, updated_at
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 
-            $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, 
-            TRUE, NOW(), NOW()
-          )
-          ON CONFLICT (firebase_uid) DO UPDATE SET
-            is_individual_account = EXCLUDED.is_individual_account,
-            place_of_birth = EXCLUDED.place_of_birth,
-            gender = EXCLUDED.gender,
-            civil_status = EXCLUDED.civil_status,
-            nationality = EXCLUDED.nationality,
-            contact_email = EXCLUDED.contact_email,
-            secondary_id_type = EXCLUDED.secondary_id_type,
-            secondary_id_number = EXCLUDED.secondary_id_number,
-            emergency_contact_name = EXCLUDED.emergency_contact_name,
-            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
-            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
-            emergency_contact_email = EXCLUDED.emergency_contact_email,
-            business_registration_type = EXCLUDED.business_registration_type,
-            business_registration_number = EXCLUDED.business_registration_number,
-            business_registration_date = EXCLUDED.business_registration_date,
-            corporate_tin = EXCLUDED.corporate_tin,
-            nature_of_business = EXCLUDED.nature_of_business,
-            principal_office_street = EXCLUDED.principal_office_street,
-            principal_office_barangay = EXCLUDED.principal_office_barangay,
-            principal_office_municipality = EXCLUDED.principal_office_municipality,
-            principal_office_province = EXCLUDED.principal_office_province,
-            principal_office_country = EXCLUDED.principal_office_country,
-            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
-            gis_total_assets = EXCLUDED.gis_total_assets,
-            gis_total_liabilities = EXCLUDED.gis_total_liabilities,
-            gis_paid_up_capital = EXCLUDED.gis_paid_up_capital,
-            gis_number_of_stockholders = EXCLUDED.gis_number_of_stockholders,
-            gis_number_of_employees = EXCLUDED.gis_number_of_employees,
-            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
-            pep_details = EXCLUDED.pep_details,
-            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
-            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
-            authorized_signatory_id_type = EXCLUDED.authorized_signatory_id_type,
-            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+          UPDATE borrower_profiles SET
+            is_individual_account = $2,
+            place_of_birth = $3,
+            gender = $4,
+            civil_status = $5,
+            nationality = $6,
+            contact_email = $7,
+            secondary_id_type = $8,
+            secondary_id_number = $9,
+            emergency_contact_name = $10,
+            emergency_contact_relationship = $11,
+            emergency_contact_phone = $12,
+            emergency_contact_email = $13,
+            business_registration_type = $14,
+            business_registration_number = $15,
+            business_registration_date = $16,
+            corporate_tin = $17,
+            nature_of_business = $18,
+            principal_office_street = $19,
+            principal_office_barangay = $20,
+            principal_office_municipality = $21,
+            principal_office_province = $22,
+            principal_office_country = $23,
+            principal_office_postal_code = $24,
+            gis_total_assets = $25,
+            gis_total_liabilities = $26,
+            gis_paid_up_capital = $27,
+            gis_number_of_stockholders = $28,
+            gis_number_of_employees = $29,
+            is_politically_exposed_person = $30,
+            pep_details = $31,
+            authorized_signatory_name = $32,
+            authorized_signatory_position = $33,
+            authorized_signatory_id_type = $34,
+            authorized_signatory_id_number = $35,
             is_complete = TRUE,
             updated_at = NOW()
+          WHERE firebase_uid = $1
         `, [
           uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.gender, 
           kycData.civilStatus, kycData.nationality, kycData.contactEmail, 
@@ -2850,62 +3008,46 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.authorizedSignatoryIdType, kycData.authorizedSignatoryIdNumber
         ]);
       } else {
-        // Similar for investor_profiles
+        // Update existing investor profile with KYC data
         await db.query(`
-          INSERT INTO investor_profiles (
-            firebase_uid, is_individual_account, place_of_birth, gender, civil_status, 
-            nationality, contact_email, secondary_id_type, secondary_id_number,
-            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, 
-            emergency_contact_email, business_registration_type, business_registration_number,
-            business_registration_date, corporate_tin, nature_of_business, principal_office_street,
-            principal_office_barangay, principal_office_municipality, principal_office_province,
-            principal_office_country, principal_office_postal_code, gis_total_assets,
-            gis_total_liabilities, gis_paid_up_capital, gis_number_of_stockholders,
-            gis_number_of_employees, is_politically_exposed_person, pep_details,
-            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_type,
-            authorized_signatory_id_number, is_complete, created_at, updated_at
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 
-            $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, 
-            TRUE, NOW(), NOW()
-          )
-          ON CONFLICT (firebase_uid) DO UPDATE SET
-            is_individual_account = EXCLUDED.is_individual_account,
-            place_of_birth = EXCLUDED.place_of_birth,
-            gender = EXCLUDED.gender,
-            civil_status = EXCLUDED.civil_status,
-            nationality = EXCLUDED.nationality,
-            contact_email = EXCLUDED.contact_email,
-            secondary_id_type = EXCLUDED.secondary_id_type,
-            secondary_id_number = EXCLUDED.secondary_id_number,
-            emergency_contact_name = EXCLUDED.emergency_contact_name,
-            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
-            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
-            emergency_contact_email = EXCLUDED.emergency_contact_email,
-            business_registration_type = EXCLUDED.business_registration_type,
-            business_registration_number = EXCLUDED.business_registration_number,
-            business_registration_date = EXCLUDED.business_registration_date,
-            corporate_tin = EXCLUDED.corporate_tin,
-            nature_of_business = EXCLUDED.nature_of_business,
-            principal_office_street = EXCLUDED.principal_office_street,
-            principal_office_barangay = EXCLUDED.principal_office_barangay,
-            principal_office_municipality = EXCLUDED.principal_office_municipality,
-            principal_office_province = EXCLUDED.principal_office_province,
-            principal_office_country = EXCLUDED.principal_office_country,
-            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
-            gis_total_assets = EXCLUDED.gis_total_assets,
-            gis_total_liabilities = EXCLUDED.gis_total_liabilities,
-            gis_paid_up_capital = EXCLUDED.gis_paid_up_capital,
-            gis_number_of_stockholders = EXCLUDED.gis_number_of_stockholders,
-            gis_number_of_employees = EXCLUDED.gis_number_of_employees,
-            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
-            pep_details = EXCLUDED.pep_details,
-            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
-            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
-            authorized_signatory_id_type = EXCLUDED.authorized_signatory_id_type,
-            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+          UPDATE investor_profiles SET
+            is_individual_account = $2,
+            place_of_birth = $3,
+            gender = $4,
+            civil_status = $5,
+            nationality = $6,
+            contact_email = $7,
+            secondary_id_type = $8,
+            secondary_id_number = $9,
+            emergency_contact_name = $10,
+            emergency_contact_relationship = $11,
+            emergency_contact_phone = $12,
+            emergency_contact_email = $13,
+            business_registration_type = $14,
+            business_registration_number = $15,
+            business_registration_date = $16,
+            corporate_tin = $17,
+            nature_of_business = $18,
+            principal_office_street = $19,
+            principal_office_barangay = $20,
+            principal_office_municipality = $21,
+            principal_office_province = $22,
+            principal_office_country = $23,
+            principal_office_postal_code = $24,
+            gis_total_assets = $25,
+            gis_total_liabilities = $26,
+            gis_paid_up_capital = $27,
+            gis_number_of_stockholders = $28,
+            gis_number_of_employees = $29,
+            is_politically_exposed_person = $30,
+            pep_details = $31,
+            authorized_signatory_name = $32,
+            authorized_signatory_position = $33,
+            authorized_signatory_id_type = $34,
+            authorized_signatory_id_number = $35,
             is_complete = TRUE,
             updated_at = NOW()
+          WHERE firebase_uid = $1
         `, [
           uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.gender, 
           kycData.civilStatus, kycData.nationality, kycData.contactEmail, 
@@ -2928,6 +3070,10 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
       // Commit transaction
       await db.query('COMMIT');
       
+      console.log('✅ KYC data successfully saved to database');
+      console.log('📊 Account type:', accountType);
+      console.log('👤 User ID:', uid);
+      
       res.json({ 
         success: true, 
         message: 'KYC information submitted successfully',
@@ -2940,7 +3086,9 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
     }
     
   } catch (err) {
-    console.error("Error completing KYC:", err);
+    console.error("❌ Error completing KYC:", err);
+    console.error("🔍 Error details:", err.message);
+    console.error("📊 Stack trace:", err.stack);
     res.status(500).json({ error: "Database error", details: err.message });
   }
 });
@@ -3049,9 +3197,11 @@ app.get('/api/projects', verifyToken, async (req, res) => {
   const { approved, status } = req.query;
   
   try {
-    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
+    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name, 
+                        bp.is_individual_account as creator_is_individual
                 FROM projects p
-                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid`;
+                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+                LEFT JOIN borrower_profiles bp ON p.firebase_uid = bp.firebase_uid`;
     
     const params = [];
     let conditions = [];

@@ -207,7 +207,9 @@ export const RegisterStep = (): JSX.Element => {
         isAdmin: prof.is_admin || false,
         profileCode: generateProfileCode(cred.user.uid)
       });
-      navigate("/borrow");
+      
+      // Navigate to KYC form instead of directly to borrow page
+      navigate("/register-kyc");
     } catch (err: any) {
       // Handle Firebase authentication errors with user-friendly messages
       if (err.code === "auth/email-already-in-use") {
@@ -243,7 +245,7 @@ export const RegisterStep = (): JSX.Element => {
           <ArrowLeftIcon className="h-6 w-6" />
         </Button>
 
-        <h1 className="text-3xl font-bold mb-2">Register a New Account</h1>
+        <h1 className="text-3xl font-bold font-poppins mb-2">Register a New Account</h1>
         <p className="text-sm mb-6">
           Enter your details to create your account
         </p>

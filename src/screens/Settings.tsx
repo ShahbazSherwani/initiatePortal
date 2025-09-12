@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getUserProfile, getUserSettings, updateUserSettings, changePassword } from "../lib/api";
+import { generateProfileCode, generateIssuerCode, generateBorrowerCode } from "../lib/profileUtils";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -599,10 +600,13 @@ export const Settings = (): JSX.Element => {
                           <span className="font-medium">Username:</span> {profileData.username || 'Not set'}
                         </p>
                         <p className="text-sm text-gray-600 mb-1">
-                          <span className="font-medium">Profile Code:</span> 554Xdl
+                          <span className="font-medium">Profile Code:</span> {user?.uid ? generateProfileCode(user.uid) : 'Not available'}
+                        </p>
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-medium">Issuer Code:</span> {user?.uid ? generateIssuerCode(user.uid, profileData.accountType) : 'Not available'}
                         </p>
                         <p className="text-sm text-gray-600">
-                          <span className="font-medium">Issuer Code:</span> 234zQd
+                          <span className="font-medium">Borrower Code:</span> {user?.uid ? generateBorrowerCode(user.uid, profileData.accountType) : 'Not available'}
                         </p>
                       </div>
 

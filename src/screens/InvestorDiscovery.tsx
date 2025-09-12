@@ -60,6 +60,17 @@ export const InvestorDiscovery: React.FC = () => {
   useEffect(() => {
     let filtered = [...availableProjects];
     
+    // Apply project type filters for account types (Individual vs MSME)
+    if (filters.projectTypes.individuals || filters.projectTypes.msme) {
+      filtered = filtered.filter(project => {
+        const isIndividualProject = project.creator_is_individual === true;
+        const isMSMEProject = project.creator_is_individual === false;
+        
+        return (filters.projectTypes.individuals && isIndividualProject) ||
+               (filters.projectTypes.msme && isMSMEProject);
+      });
+    }
+    
     // Apply industry filters
     const selectedIndustries = Object.entries(filters.industries)
       .filter(([_, selected]) => selected)

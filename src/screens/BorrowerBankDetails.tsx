@@ -5,6 +5,7 @@ import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ArrowLeftIcon } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -21,6 +22,9 @@ export const BorrowerBankDetails = (): JSX.Element => {
   const [branchCode, setBranchCode] = useState("");
   const [branchName, setBranchName] = useState("");
 
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
 
@@ -34,6 +38,41 @@ export const BorrowerBankDetails = (): JSX.Element => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation for mandatory fields
+    const requiredFields = [
+      { field: bankName, name: "bankName" },
+      { field: accountNumber, name: "accountNumber" },
+      { field: accountName, name: "accountName" },
+      { field: accountType, name: "accountType" },
+      { field: branchCode, name: "branchCode" },
+      { field: branchName, name: "branchName" },
+    ];
+
+    // Check for empty required fields and create error object
+    const errors: Record<string, boolean> = {};
+    let hasErrors = false;
+
+    requiredFields.forEach(item => {
+      if (!item.field || item.field.trim() === "") {
+        errors[item.name] = true;
+        hasErrors = true;
+      }
+    });
+
+    // Validate account number format (basic validation)
+    if (accountNumber && accountNumber.length < 5) {
+      errors["accountNumber"] = true;
+      hasErrors = true;
+    }
+
+    // Update validation errors state
+    setValidationErrors(errors);
+
+    // If there are errors, don't submit
+    if (hasErrors) {
+      return;
+    }
+
     // Save bank details to registration data
     setRegistration(reg => ({
       ...reg,
@@ -60,6 +99,17 @@ export const BorrowerBankDetails = (): JSX.Element => {
           className="md:w-2/4 overflow-y-auto pr-4 space-y-8"
           noValidate
         >
+          {/* Back Button */}
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeftIcon className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+
           {/* Header */}
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">

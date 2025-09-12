@@ -4,13 +4,8 @@ import { useRegistration } from "../contexts/RegistrationContext";
 import { createAccount } from "../lib/api";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
+import { ValidatedInput, ValidatedSelect } from "../components/ValidatedFormFields";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
   SelectItem,
 } from "../components/ui/select";
 import { ArrowLeftIcon } from "lucide-react";
@@ -22,6 +17,39 @@ export const InvestorRegBankDetails = (): JSX.Element => {
   const [iban, setIban] = useState("");
   const [swiftCode, setSwiftCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Validation state
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+
+  const validateForm = () => {
+    const newErrors: Record<string, boolean> = {};
+    let hasErrors = false;
+
+    // Required fields validation
+    const requiredFields = [
+      { value: accountName, name: "accountName" },
+      { value: bankAccount, name: "bankAccount" },
+      { value: accountNumber, name: "accountNumber" },
+      { value: iban, name: "iban" },
+      { value: swiftCode, name: "swiftCode" },
+    ];
+
+    requiredFields.forEach(({ value, name }) => {
+      if (!value || value.trim() === "") {
+        newErrors[name] = true;
+        hasErrors = true;
+      }
+    });
+
+    // Account number format validation
+    if (accountNumber && accountNumber.length < 5) {
+      newErrors["accountNumber"] = true;
+      hasErrors = true;
+    }
+
+    setErrors(newErrors);
+    return !hasErrors;
+  };
 
   const { registration, setRegistration } = useRegistration();
   const navigate = useNavigate();
@@ -38,6 +66,12 @@ export const InvestorRegBankDetails = (): JSX.Element => {
     setIsSubmitting(true);
     
     try {
+      // Validate the form
+      if (!validateForm()) {
+        setIsSubmitting(false);
+        return;
+      }
+
       // Save bank details to context first
       const updatedRegistration = {
         ...registration,
@@ -116,67 +150,61 @@ export const InvestorRegBankDetails = (): JSX.Element => {
             <h3 className="text-xl md:text-2xl font-semibold">Bank Details</h3>
             <div className="space-y-4">
               {/* Account Name */}
-              <div className="space-y-2">
-                <Label>Account Name*</Label>
-                <Input
-                  required
-                  value={accountName}
-                  onChange={e => setAccountName(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Account Name"
+                required
+                hasError={errors.accountName}
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* Bank Account Type */}
-              <div className="space-y-2">
-                <Label>Bank Account*</Label>
-                <Select value={bankAccount} onValueChange={setBankAccount}>
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Please select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankAccountTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <ValidatedSelect
+                label="Bank Account"
+                required
+                hasError={errors.bankAccount}
+                value={bankAccount}
+                onValueChange={setBankAccount}
+                placeholder="Please select"
+              >
+                {bankAccountTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </ValidatedSelect>
 
               {/* Account Number */}
-              <div className="space-y-2">
-                <Label>Account Number*</Label>
-                <Input
-                  required
-                  value={accountNumber}
-                  onChange={e => setAccountNumber(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Account Number"
+                required
+                hasError={errors.accountNumber}
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder="Enter here"
+                errorMessage={errors.accountNumber && accountNumber.length > 0 && accountNumber.length < 5 ? "Minimum 5 digits required" : undefined}
+              />
 
               {/* IBAN */}
-              <div className="space-y-2">
-                <Label>IBAN</Label>
-                <Input
-                  value={iban}
-                  onChange={e => setIban(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="IBAN"
+                required
+                hasError={errors.iban}
+                value={iban}
+                onChange={(e) => setIban(e.target.value)}
+                placeholder="Enter here"
+              />
 
               {/* SWIFT Code */}
-              <div className="space-y-2">
-                <Label>SWIFT Code</Label>
-                <Input
-                  value={swiftCode}
-                  onChange={e => setSwiftCode(e.target.value)}
-                  placeholder="Enter here"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="SWIFT Code"
+                required
+                hasError={errors.swiftCode}
+                value={swiftCode}
+                onChange={(e) => setSwiftCode(e.target.value)}
+                placeholder="Enter here"
+              />
             </div>
           </section>
 

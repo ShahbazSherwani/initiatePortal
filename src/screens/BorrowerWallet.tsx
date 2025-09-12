@@ -132,15 +132,65 @@ export const BorrowerWallet = (): JSX.Element => {
         hasCompletedRegistration: true
       }));
       
-      // Update the database that registration is complete
-      await authFetch(`${API_BASE_URL}/profile/complete-registration`, {
+      // Prepare registration data for complete-kyc endpoint
+      const isIndividual = registration.accountType === 'individual';
+      const kycData = {
+        isIndividualAccount: isIndividual,
+        // Individual account fields
+        placeOfBirth: isIndividual ? registration.details?.placeOfBirth || null : null,
+        gender: isIndividual ? registration.details?.gender || null : null,
+        civilStatus: isIndividual ? registration.details?.civilStatus || null : null,
+        nationality: isIndividual ? registration.details?.nationality || null : null,
+        contactEmail: profile?.email || registration.details?.contactPersonEmail || null,
+        secondaryIdType: registration.details?.passport ? 'passport' : (registration.details?.tin ? 'tin' : null),
+        secondaryIdNumber: registration.details?.passport || registration.details?.tin || null,
+        emergencyContactName: registration.details?.emergencyContactName || null,
+        emergencyContactRelationship: registration.details?.emergencyContactRelationship || null,
+        emergencyContactPhone: registration.details?.emergencyContactPhone || null,
+        emergencyContactEmail: registration.details?.emergencyContactAddress || null,
+        // Business/Corporate account fields
+        businessRegistrationType: !isIndividual ? registration.details?.businessRegistrationType || registration.details?.entityType : null,
+        businessRegistrationNumber: !isIndividual ? registration.details?.registrationNumber : null,
+        businessRegistrationDate: !isIndividual ? registration.details?.businessRegistrationDate : null,
+        corporateTin: registration.details?.tin || registration.details?.corporateTin || null,
+        natureOfBusiness: registration.details?.occupation || registration.details?.natureOfBusiness || null,
+        principalOfficeStreet: registration.details?.principalOfficeStreet || registration.details?.street || null,
+        principalOfficeBarangay: registration.details?.principalOfficeBarangay || registration.details?.barangay || null,
+        principalOfficeMunicipality: registration.details?.principalOfficeCity || registration.details?.cityName || null,
+        principalOfficeProvince: registration.details?.principalOfficeState || registration.details?.stateIso || null,
+        principalOfficeCountry: registration.details?.principalOfficeCountry || registration.details?.countryIso || null,
+        principalOfficePostalCode: registration.details?.principalOfficePostalCode || registration.details?.postalCode || null,
+        // GIS fields (for larger corporations)
+        gisTotalAssets: registration.details?.gisTotalAssets || null,
+        gisTotalLiabilities: registration.details?.gisTotalLiabilities || null,
+        gisPaidUpCapital: registration.details?.gisPaidUpCapital || null,
+        gisNumberOfStockholders: registration.details?.gisNumberOfStockholders || null,
+        gisNumberOfEmployees: registration.details?.gisNumberOfEmployees || null,
+        // PEP status
+        isPoliticallyExposedPerson: registration.details?.pepStatus === 'yes',
+        pepDetails: registration.details?.pepStatus === 'yes' ? 'PEP status confirmed during registration' : null,
+        // Authorized signatory (for corporate accounts)
+        authorizedSignatoryName: !isIndividual ? registration.details?.authorizedSignatoryName || registration.details?.contactPersonName : null,
+        authorizedSignatoryPosition: !isIndividual ? registration.details?.authorizedSignatoryPosition || registration.details?.contactPersonPosition : null,
+        authorizedSignatoryIdType: !isIndividual ? 'corporate_id' : null,
+        authorizedSignatoryIdNumber: !isIndividual ? registration.details?.authorizedSignatoryIdNumber : null
+      };
+      
+      console.log('📝 Sending complete registration data to database:', kycData);
+      
+      // Send registration data to complete-kyc endpoint
+      await authFetch(`${API_BASE_URL}/profile/complete-kyc`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          accountType: 'borrower',
+          kycData: kycData
+        })
       });
       
-      console.log('✅ Registration marked as complete');
+      console.log('✅ Registration data saved to database');
       
       // Refresh accounts to get the new borrower account
       await refreshAccounts();
@@ -198,7 +248,11 @@ export const BorrowerWallet = (): JSX.Element => {
         <div className="w-full md:w-2/4 overflow-y-auto p-4 md:p-8 md:pr-40 h-full">
           {/* Back-button */}
           <div className="mb-6">
-            <Button variant="ghost" className="p-2 rounded-full hover:bg-gray-100">
+            <Button 
+              variant="ghost" 
+              className="p-2 rounded-full hover:bg-gray-100"
+              onClick={() => navigate(-1)}
+            >
               <ArrowLeftIcon className="w-6 h-6" />
             </Button>
           </div>

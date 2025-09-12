@@ -95,7 +95,6 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
         // Transform the new API response to match our existing interface
         if (data.accounts?.borrower) {
           const borrower = data.accounts.borrower;
-          console.log('👤 Setting borrower profile:', borrower);
           setBorrowerProfile({
             id: borrower.profile.id.toString(),
             type: 'borrower',
@@ -124,7 +123,6 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
 
         if (data.accounts?.investor) {
           const investor = data.accounts.investor;
-          console.log('💼 Setting investor profile:', investor);
           setInvestorProfile({
             id: investor.profile.id.toString(),
             type: 'investor',
