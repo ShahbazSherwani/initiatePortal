@@ -488,8 +488,8 @@ export const Settings = (): JSX.Element => {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-[280px] flex-shrink-0">
+        {/* Sidebar - Hidden on mobile */}
+        <div className="hidden md:block w-[280px] flex-shrink-0">
           <Sidebar activePage="settings" />
         </div>
         

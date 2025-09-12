@@ -140,9 +140,9 @@ export const BorrowerHome: React.FC = () => {
       ) : (
         <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
           <div className="flex flex-1 overflow-hidden">
-            {/* Show sidebar for all screen sizes when not in new user mode */}
+            {/* Show sidebar for desktop only when not in new user mode */}
             {!isNewUser && (
-              <div className="w-[280px] flex-shrink-0">
+              <div className="hidden md:block w-[280px] flex-shrink-0">
                 <Sidebar activePage="home" />
               </div>
             )}
