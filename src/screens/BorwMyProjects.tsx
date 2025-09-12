@@ -424,7 +424,7 @@ const handleContinue = () => {
       const statusInfo = getStatusInfo();
 
       return (
-        <div key={project.id} className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden">
+  <div key={project.id} className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden w-full max-w-md mx-auto md:max-w-full">
           {/* Status Badge */}
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center gap-2">
@@ -436,9 +436,9 @@ const handleContinue = () => {
           </div>
 
           <div className="p-4">
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               {/* Project Image */}
-              <div className="w-48 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+              <div className="w-full sm:w-48 h-32 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 mx-auto sm:mx-0 mb-4 sm:mb-0">
                 {project.project_data?.details?.image ? (
                   <img 
                     src={project.project_data.details.image} 
@@ -454,7 +454,7 @@ const handleContinue = () => {
 
               {/* Project Details */}
               <div className="flex-1">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">Project ID:</span>
                     <div className="font-medium">PFLA{project.id}5N</div>
@@ -493,10 +493,16 @@ const handleContinue = () => {
                       <span className="text-gray-600">Funding Progress:</span>
                       <span className="text-sm font-medium">
                         {(() => {
-                          const progress = project.project_data?.funding_progress || 
-                                         project.project_data?.details?.fundingProgress ||
-                                         (project as any).funding_progress || 0;
-                          return `${progress}%`;
+                          // Use all possible fields for funded amount
+                          const fundedAmount = Number(project.project_data?.fundedAmount) || 0;
+                          const funding = Number(project.project_data?.funding) || 0;
+                          const fundingProgress = Number(project.project_data?.fundingProgress) || 0;
+                          const fundedAmountDetails = Number(project.project_data?.details?.fundedAmount) || 0;
+                          const totalFunding = Math.max(fundedAmount, funding, fundingProgress, fundedAmountDetails);
+                          const details = project.project_data?.details;
+                          const amount = Number(details?.amount || details?.loanAmount || details?.investmentAmount || details?.projectRequirements || (project as any).amount || 0);
+                          const percent = amount > 0 ? Math.round((totalFunding / amount) * 100) : 0;
+                          return `${percent}%`;
                         })()}
                       </span>
                     </div>
@@ -505,10 +511,15 @@ const handleContinue = () => {
                         className="bg-[#ffc628] h-2 rounded-full transition-all duration-300"
                         style={{
                           width: `${(() => {
-                            const progress = project.project_data?.funding_progress || 
-                                           project.project_data?.details?.fundingProgress ||
-                                           (project as any).funding_progress || 0;
-                            return Math.min(Math.max(Number(progress) || 0, 0), 100);
+                            const fundedAmount = Number(project.project_data?.fundedAmount) || 0;
+                            const funding = Number(project.project_data?.funding) || 0;
+                            const fundingProgress = Number(project.project_data?.fundingProgress) || 0;
+                            const fundedAmountDetails = Number(project.project_data?.details?.fundedAmount) || 0;
+                            const totalFunding = Math.max(fundedAmount, funding, fundingProgress, fundedAmountDetails);
+                            const details = project.project_data?.details;
+                            const amount = Number(details?.amount || details?.loanAmount || details?.investmentAmount || details?.projectRequirements || (project as any).amount || 0);
+                            const percent = amount > 0 ? Math.round((totalFunding / amount) * 100) : 0;
+                            return Math.min(Math.max(percent, 0), 100);
                           })()}%`
                         }}
                       ></div>
