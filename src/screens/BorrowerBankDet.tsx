@@ -52,10 +52,12 @@ export const BorrowerBankDet: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render
 
   // Debug logging
   console.log('🏦 Current bank accounts:', bankAccounts);
   console.log('🏦 Registration object:', registration);
+  console.log('🏦 Refresh key:', refreshKey);
 
 
 
@@ -94,8 +96,11 @@ export const BorrowerBankDet: React.FC = () => {
                           ]
                         };
                         console.log('🏦 Updated registration:', updatedReg);
+                        console.log('🏦 New bank accounts array:', updatedReg.bankAccounts);
                         return updatedReg;
                       });
+                      // Force component re-render
+                      setRefreshKey(prev => prev + 1);
                       setShowModal(false);
                     }}
                 />

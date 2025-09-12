@@ -23,6 +23,25 @@ export const InvestorProjectView: React.FC = () => {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
+  // Helper function to format duration
+  const formatDuration = (duration: string) => {
+    if (!duration) return "N/A";
+    
+    try {
+      const date = new Date(duration);
+      if (isNaN(date.getTime())) return duration; // Return original if not a valid date
+      
+      // Format as user-friendly date
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return duration; // Return original if formatting fails
+    }
+  };
+  
   // Check if user is trying to invest in their own project
   const isOwnProject = project?.firebase_uid === profile?.id;
   
@@ -111,7 +130,7 @@ export const InvestorProjectView: React.FC = () => {
       {/* <Navbar activePage="invest" showAuthButtons={false} /> */}
       
       <div className="flex flex-1 overflow-hidden">
-        <div className="hidden md:block w-[325px]">
+        <div className="w-0 md:w-[280px] flex-shrink-0">
           <Sidebar activePage="Investment Opportunities" />
         </div>
         
@@ -144,7 +163,7 @@ export const InvestorProjectView: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Duration</p>
-                    <p className="font-bold text-lg">{details.timeDuration || "N/A"}</p>
+                    <p className="font-bold text-lg">{formatDuration(details.timeDuration)}</p>
                   </div>
                 </div>
                 
