@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 
 // Read the service account JSON file
 const serviceAccount = JSON.parse(
-  readFileSync(new URL('./firebase-service-account.json', import.meta.url))
+  readFileSync(new URL('../../backend/firebase-service-account.json', import.meta.url))
 );
 
 // Initialize Firebase Admin SDK
