@@ -185,16 +185,16 @@ export const BorrowerHome: React.FC = () => {
               /* RETURNING USER EXPERIENCE */
               <div className="w-full max-w-none">
                 {/* Profile / iFunds Section */}
-                <section className="flex flex-col md:flex-row items-start md:items-center mb-12 gap-6">
-                  <Avatar className="w-[100px] md:w-[123px] h-[100px] md:h-[123px]">
+                <section className="flex flex-col md:flex-row items-center md:items-start justify-center md:justify-start mb-12 gap-6 text-center md:text-left">
+                  <Avatar className="w-[100px] md:w-[123px] h-[100px] md:h-[123px] mx-auto md:mx-0">
                     <AvatarImage src={profilePicture || "/ellipse-1.png"} alt="User profile" />
                     <AvatarFallback>AJ</AvatarFallback>
                   </Avatar>
 
-                  <div className="flex flex-col flex-1 w-full">
-                    <div className="flex justify-between items-center w-full">
+                  <div className="flex flex-col flex-1 w-full items-center md:items-start">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center w-full space-y-6 md:space-y-0">
                       {/* Legal Name */}
-                      <div>
+                      <div className="text-center md:text-left">
                         <h2 className="text-xl opacity-70">Account Name:</h2>
                         <p className="text-2xl font-semibold">{profile?.name}</p>
                         <p className="mt-1 text-sm opacity-60">
@@ -206,7 +206,7 @@ export const BorrowerHome: React.FC = () => {
                           {currentAccountType === 'borrower' ? 'Issue/Borrow Account' : 'Invest/Lender Account'}
                         </p>
                         {profile?.profileCode && (
-                          <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center justify-center md:justify-start gap-2 mt-2">
                             <span className="text-sm text-gray-600">
                               Profile Code: {showProfileCode ? profile.profileCode : '••••••'}
                             </span>
@@ -223,12 +223,12 @@ export const BorrowerHome: React.FC = () => {
                       </div>
 
                       {/* iFunds Balance & Actions */}
-                      <div className="ml-auto text-right">
+                      <div className="text-center md:text-right md:ml-auto">
                         <h2 className="text-xl opacity-70">iFunds Balance:</h2>
                         <p className="text-2xl font-semibold">
                           {balance !== null ? balance.toFixed(2) : "—"}
                         </p>
-                        <div className="mt-4 flex gap-4">
+                        <div className="mt-4 flex gap-4 justify-center md:justify-end">
                           <button 
                             onClick={() => setShowTopUpModal(true)}
                             className="px-6 py-3 rounded-xl border hover:bg-gray-50 transition-colors"
@@ -243,8 +243,8 @@ export const BorrowerHome: React.FC = () => {
                     </div>
 
                     {/* Username & Profile Code */}
-                    <div className="mt-4 flex flex-col sm:flex-row gap-4">
-                      <div>
+                    <div className="mt-6 flex flex-col sm:flex-row gap-6 justify-center md:justify-start w-full">
+                      <div className="text-center md:text-left">
                         <div className="opacity-70 font-poppins font-medium text-black text-base md:text-xl">
                           Username:
                         </div>
@@ -253,11 +253,11 @@ export const BorrowerHome: React.FC = () => {
                         </div>
                       </div>
 
-                      <div>
+                      <div className="text-center md:text-left">
                         <div className="opacity-70 font-poppins font-medium text-black text-base md:text-xl">
                           Profile Code:
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center md:justify-start gap-2">
                           <div className="font-poppins font-medium text-black text-base md:text-xl">
                             {showProfileCode 
                               ? (profile?.profileCode || generateProfileCode(profile?.id || ''))
@@ -280,10 +280,10 @@ export const BorrowerHome: React.FC = () => {
 
                 {/* Account Type Selectors - Show current account highlighted and others as switchable */}
                 <section className="mt-12">
-                  <h3 className="font-poppins font-semibold text-black text-xl md:text-[26px] mb-6">
+                  <h3 className="font-poppins font-semibold text-black text-xl md:text-[26px] mb-6 text-center md:text-left">
                     Account type
                   </h3>
-                  <div className="flex flex-wrap gap-6">
+                  <div className="flex flex-wrap gap-6 justify-center md:justify-start">
                     {accountTypes.map((type) => {
                       const accountType = type.key as 'borrower' | 'investor';
                       const isCurrentAccount = currentAccountType === accountType;
