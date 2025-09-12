@@ -423,7 +423,9 @@ const handleContinue = () => {
 
       const statusInfo = getStatusInfo();
 
-      return (
+  // Debug: Log the full project object to inspect funding fields
+  console.log('🪙 Project Card Debug:', project);
+  return (
   <div key={project.id} className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden w-full max-w-md mx-auto md:max-w-full">
           {/* Status Badge */}
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
@@ -528,73 +530,70 @@ const handleContinue = () => {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2 w-40">
+              {/* Action Buttons - Centered and Full Width on Mobile */}
+              <div className="flex flex-col gap-2 w-full items-center mt-4">
                 <Button 
                   onClick={() => handleViewDetails(String(project.id))} 
-                  className="bg-[#ffc628] text-black hover:bg-[#e6b123] text-sm py-2"
+                  className="bg-[#ffc628] text-black hover:bg-[#e6b123] text-sm py-2 w-full"
                 >
                   View Project Details
                 </Button>
-                
                 {activeTab === 'pending' && (
                   <>
                     <Button 
-                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2"
+                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2 w-full"
                     >
                       Visit Request
                     </Button>
-                    <div className="flex gap-1">
+                    <div className="flex gap-2 w-full">
                       <Button 
                         onClick={() => handleEdit(String(project.id))} 
-                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-1 px-2 flex-1"
+                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-2 flex-1 w-full"
                       >
                         Edit
                       </Button>
                       <Button 
                         onClick={() => handleClose(String(project.id))}
-                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-1 px-2 flex-1"
+                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-2 flex-1 w-full"
                       >
                         Close Project
                       </Button>
                     </div>
                   </>
                 )}
-
                 {activeTab === 'ongoing' && (
                   <>
-                    <div className="flex gap-1">
+                    <div className="flex gap-2 w-full">
                       <Button 
                         onClick={() => handleEdit(String(project.id))} 
-                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-1 px-2 flex-1"
+                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-2 flex-1 w-full"
                       >
                         Edit
                       </Button>
                       <Button 
                         onClick={() => handleClose(String(project.id))}
-                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-1 px-2 flex-1"
+                        className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-xs py-2 flex-1 w-full"
                       >
                         Close Project
                       </Button>
                     </div>
                     <Button 
-                      className="bg-red-500 text-white hover:bg-red-600 text-sm py-2"
+                      className="bg-red-500 text-white hover:bg-red-600 text-sm py-2 w-full"
                     >
                       Pay Back
                     </Button>
                   </>
                 )}
-
                 {activeTab === 'default' && (
                   <>
                     <Button 
-                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2"
+                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2 w-full"
                     >
                       Relaunch
                     </Button>
                     <Button 
                       onClick={() => handleDelete(String(project.id))}
-                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2"
+                      className="bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm py-2 w-full"
                     >
                       Delete
                     </Button>
