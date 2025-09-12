@@ -36,6 +36,10 @@ if (process.env.NODE_ENV === 'production' && process.env.FIREBASE_SERVICE_ACCOUN
       if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
         privateKey = privateKey.slice(1, -1);
       }
+      // Remove any extra characters at the beginning (like = from base64 encoding)
+      privateKey = privateKey.replace(/^[^-]*(-+BEGIN PRIVATE KEY-+)/, '$1');
+      // Ensure proper line endings
+      privateKey = privateKey.replace(/\\n/g, '\n');
     }
     
     serviceAccount = {
