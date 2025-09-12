@@ -426,7 +426,7 @@ const handleContinue = () => {
   // Debug: Log the full project object to inspect funding fields
   console.log('🪙 Project Card Debug:', project);
   return (
-  <div key={project.id} className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden w-full max-w-md mx-auto md:max-w-full">
+  <div key={project.id} className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden w-full sm:max-w-md sm:mx-auto md:max-w-full md:w-auto">
           {/* Status Badge */}
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center gap-2">
@@ -495,15 +495,11 @@ const handleContinue = () => {
                       <span className="text-gray-600">Funding Progress:</span>
                       <span className="text-sm font-medium">
                         {(() => {
-                          // Use all possible fields for funded amount
-                          const fundedAmount = Number(project.project_data?.fundedAmount) || 0;
-                          const funding = Number(project.project_data?.funding) || 0;
-                          const fundingProgress = Number(project.project_data?.fundingProgress) || 0;
-                          const fundedAmountDetails = Number(project.project_data?.details?.fundedAmount) || 0;
-                          const totalFunding = Math.max(fundedAmount, funding, fundingProgress, fundedAmountDetails);
+                          // Use funding.totalFunded if available
+                          const totalFunded = Number(project.project_data?.funding?.totalFunded) || 0;
                           const details = project.project_data?.details;
                           const amount = Number(details?.amount || details?.loanAmount || details?.investmentAmount || details?.projectRequirements || (project as any).amount || 0);
-                          const percent = amount > 0 ? Math.round((totalFunding / amount) * 100) : 0;
+                          const percent = amount > 0 ? Math.round((totalFunded / amount) * 100) : 0;
                           return `${percent}%`;
                         })()}
                       </span>
@@ -513,14 +509,10 @@ const handleContinue = () => {
                         className="bg-[#ffc628] h-2 rounded-full transition-all duration-300"
                         style={{
                           width: `${(() => {
-                            const fundedAmount = Number(project.project_data?.fundedAmount) || 0;
-                            const funding = Number(project.project_data?.funding) || 0;
-                            const fundingProgress = Number(project.project_data?.fundingProgress) || 0;
-                            const fundedAmountDetails = Number(project.project_data?.details?.fundedAmount) || 0;
-                            const totalFunding = Math.max(fundedAmount, funding, fundingProgress, fundedAmountDetails);
+                            const totalFunded = Number(project.project_data?.funding?.totalFunded) || 0;
                             const details = project.project_data?.details;
                             const amount = Number(details?.amount || details?.loanAmount || details?.investmentAmount || details?.projectRequirements || (project as any).amount || 0);
-                            const percent = amount > 0 ? Math.round((totalFunding / amount) * 100) : 0;
+                            const percent = amount > 0 ? Math.round((totalFunded / amount) * 100) : 0;
                             return Math.min(Math.max(percent, 0), 100);
                           })()}%`
                         }}
