@@ -494,7 +494,8 @@ export const Settings = (): JSX.Element => {
         </div>
         
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center">
+          <div className="w-full max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex items-center mb-6">
             <Button
@@ -1921,6 +1922,7 @@ export const Settings = (): JSX.Element => {
               </Card>
             </TabsContent>
           </Tabs>
+          </div>
         </main>
       </div>
     </div>

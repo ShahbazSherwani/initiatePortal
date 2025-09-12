@@ -148,7 +148,7 @@ export const BorrowerHome: React.FC = () => {
             )}
 
           {/* Main content - use full width */}
-          <main className={`flex-1 overflow-y-auto p-4 md:p-8 w-full ${isNewUser ? 'flex justify-center items-center' : ''}`}>
+          <main className={`flex-1 overflow-y-auto p-4 md:p-8 w-full ${isNewUser ? 'flex justify-center items-center' : 'flex justify-center'}`}>
             {isNewUser ? (
               /* NEW USER EXPERIENCE - ACCOUNT CREATION */
               <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg p-8 animate-fadeIn">
@@ -183,7 +183,7 @@ export const BorrowerHome: React.FC = () => {
               </div>
             ) : (
               /* RETURNING USER EXPERIENCE */
-              <div className="w-full max-w-none">
+              <div className="w-full max-w-4xl mx-auto">
                 {/* Profile / iFunds Section */}
                 <section className="flex flex-col md:flex-row items-center md:items-start justify-center md:justify-start mb-12 gap-6 text-center md:text-left">
                   <Avatar className="w-[100px] md:w-[123px] h-[100px] md:h-[123px] mx-auto md:mx-0">
