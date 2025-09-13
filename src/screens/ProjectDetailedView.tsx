@@ -215,7 +215,7 @@ const ProjectDetailsView: React.FC = () => {
                     className={`
                       aspect-square flex items-center justify-center text-sm rounded-full
                       ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-                      ${day.day === 3 ? 'bg-[#ffc628]' : ''} 
+                      ${day.day === 3 ? 'bg-[#0C4B20]' : ''} 
                     `}
                   >
                     {day.day}

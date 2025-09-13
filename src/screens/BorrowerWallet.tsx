@@ -227,7 +227,7 @@ export const BorrowerWallet = (): JSX.Element => {
       {showThankYou && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-2xl p-10 flex flex-col items-center shadow-xl">
-            <div className="bg-[#ffc00f] rounded-full p-4 mb-4">
+            <div className="bg-[#0C4B20] rounded-full p-4 mb-4">
               <svg width="48" height="48" fill="none" viewBox="0 0 24 24">
                 <path d="M5 13l4 4L19 7" stroke="#222" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -259,7 +259,7 @@ export const BorrowerWallet = (): JSX.Element => {
 
           {/* “Issue/Borrow” Title with Icon */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#0C4B20] rounded-lg flex items-center justify-center">
               <img className="w-6 h-6" src="/debt-1.png" alt="Debt" />
             </div>
             <h1 className="text-2xl md:text-3xl font-bold">Issue/Borrow</h1>
@@ -365,7 +365,7 @@ export const BorrowerWallet = (): JSX.Element => {
           {/* ── Next Button ── */}
           <div className="mb-12">
             <Button
-              className="w-full md:w-1/2 h-14 bg-[#ffc00f] rounded-2xl font-medium text-base"
+              className="w-full md:w-1/2 h-14 bg-[#0C4B20] rounded-2xl font-medium text-base"
               onClick={handleNext}
             >
               Next

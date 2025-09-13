@@ -112,7 +112,7 @@ export const BorrowerBankDetails = (): JSX.Element => {
 
           {/* Header */}
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#0C4B20] rounded-lg flex items-center justify-center">
               <img className="w-10 h-10" src="/debt-1.png" alt="Debt" />
             </div>
             <h2 className="text-2xl md:text-3xl font-bold">Bank Account Details</h2>
@@ -226,7 +226,7 @@ export const BorrowerBankDetails = (): JSX.Element => {
             >
               Back
             </Button>
-            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#ffc00f] rounded-2xl font-medium">
+            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#0C4B20] rounded-2xl font-medium">
               Next
             </Button>
           </div>

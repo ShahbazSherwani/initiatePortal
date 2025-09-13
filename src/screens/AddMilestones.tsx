@@ -146,7 +146,7 @@ export const AddMilestones: React.FC = () => {
               <Button
                 onClick={addMilestone}
                 disabled={milestones.length >= 4}
-                className="bg-[#ffc628] text-black"
+                className="bg-[#0C4B20] text-black"
               >
                 Add Milestone
               </Button>
@@ -248,7 +248,7 @@ export const AddMilestones: React.FC = () => {
             {/* Continue */}
             <div className="mt-8">
               <Button
-                className="bg-[#ffc628] text-black w-full"
+                className="bg-[#0C4B20] text-black w-full"
                 onClick={handleContinue}
               >
                 Continue

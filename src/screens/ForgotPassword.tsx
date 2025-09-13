@@ -91,7 +91,7 @@ export const ForgotPassword: React.FC = () => {
                 
                 <Button 
                   onClick={() => navigate("/login")}
-                  className="w-full bg-[#ffc628] hover:bg-[#ffc628]/90 text-black"
+                  className="w-full bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-black"
                 >
                   Back to Login
                 </Button>
@@ -144,7 +144,7 @@ export const ForgotPassword: React.FC = () => {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 bg-[#ffc628] hover:bg-[#ffc628]/90 text-black font-semibold"
+                className="w-full h-12 bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-black font-semibold"
               >
                 {isLoading ? "Sending..." : "Send Reset Link"}
               </Button>

@@ -327,8 +327,8 @@ export const RegisterStep = (): JSX.Element => {
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ${
-                    passwordValidation.strength >= 7 ? 'bg-green-600' :
-                    passwordValidation.strength >= 6 ? 'bg-green-500' :
+                    passwordValidation.strength >= 7 ? 'bg-[#0C4B20]' :
+                    passwordValidation.strength >= 6 ? 'bg-[#98B813]' :
                     passwordValidation.strength >= 4 ? 'bg-yellow-500' :
                     passwordValidation.strength >= 2 ? 'bg-orange-500' : 'bg-red-600'
                   }`}
@@ -339,9 +339,9 @@ export const RegisterStep = (): JSX.Element => {
           )}
 
           {/* Password Requirements - Always Visible */}
-          <div className="mt-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
-            <h4 className="font-medium text-blue-900 mb-2">Password Security Requirements:</h4>
-            <div className="grid grid-cols-1 gap-1 text-sm">
+          <div className="mt-3 p-4 bg-white-50 rounded-xl border border-[#0C4B20]">
+            <h4 className="font-medium text-[#0C4B20] mb-2">Password Security Requirements:</h4>
+            <div className="grid grid-cols-1 gap-1 text-sm ">
               {[
                 { key: 'length', text: 'At least 12 characters long' },
                 { key: 'uppercase', text: 'Contains uppercase letters (A-Z)' },
@@ -353,11 +353,11 @@ export const RegisterStep = (): JSX.Element => {
               ].map(({ key, text }) => (
                 <div key={key} className="flex items-center gap-2">
                   {passwordValidation.checks[key as keyof typeof passwordValidation.checks] ? (
-                    <CheckIcon className="w-4 h-4 text-green-600" />
+                    <CheckIcon className="w-4 h-4 text-[#0C4B20]" />
                   ) : (
                     <XIcon className="w-4 h-4 text-red-500" />
                   )}
-                  <span className={passwordValidation.checks[key as keyof typeof passwordValidation.checks] ? 'text-green-700' : 'text-gray-600'}>
+                  <span className={passwordValidation.checks[key as keyof typeof passwordValidation.checks] ? 'text-[#0C4B20]' : 'text-red-500'}>
                     {text}
                   </span>
                 </div>
@@ -368,7 +368,7 @@ export const RegisterStep = (): JSX.Element => {
               <Button
                 type="button"
                 onClick={handleGeneratePassword}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"
+                className="w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white py-2 rounded-lg flex items-center justify-center gap-2"
               >
                 <RefreshCwIcon className="w-4 h-4" />
                 Generate Secure Password
@@ -429,7 +429,7 @@ export const RegisterStep = (): JSX.Element => {
             <p className="text-red-500 text-sm mt-1">Passwords do not match</p>
           )}
           {confirm && password && password === confirm && (
-            <p className="text-green-600 text-sm mt-1">Passwords match</p>
+            <p className="text-[#0C4B20] text-sm mt-1">Passwords match</p>
           )}
         </div>
 
@@ -459,17 +459,17 @@ export const RegisterStep = (): JSX.Element => {
           <div className="mb-4 p-3 rounded-lg border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">Security Requirements:</span>
-              <span className={`text-sm ${passwordValidation.strength >= 6 ? 'text-green-600' : 'text-red-500'}`}>
+              <span className={`text-sm ${passwordValidation.strength >= 6 ? 'text-[#0C4B20]' : 'text-red-500'}`}>
                 {passwordValidation.strength}/7 met
               </span>
             </div>
             {passwordValidation.strength < 6 && (
               <p className="text-sm text-amber-600">
-                ⚠️ Complete at least 6 requirements to register with a secure password.
+                Complete at least 6 requirements to register with a secure password.
               </p>
             )}
             {passwordValidation.strength >= 6 && (
-              <p className="text-sm text-green-600">
+              <p className="text-sm text-[#0C4B20]">
                 ✅ Password meets security requirements!
               </p>
             )}
@@ -481,9 +481,9 @@ export const RegisterStep = (): JSX.Element => {
           <Button
             type="submit"
             disabled={!password || !confirm || password !== confirm || passwordValidation.strength < 6 || !termsChecked}
-            className={`w-full md:w-[266px] h-[58px] rounded-2xl text-black font-medium transition-all ${
+            className={`w-full md:w-[266px] h-[58px] rounded-2xl text-white font-medium transition-all ${
               password && confirm && password === confirm && passwordValidation.strength >= 6 && termsChecked
-                ? 'bg-[#ffc00f] hover:bg-[#e6b324]'
+                ? 'bg-[#0C4B20] hover:bg-[#8FB200]'
                 : 'bg-gray-300 cursor-not-allowed'
             }`}
           >
@@ -519,7 +519,7 @@ export const RegisterStep = (): JSX.Element => {
 
         <p className="text-center md:text-right text-sm mt-6">
           Already a member?{" "}
-          <Link to="/" className="text-[#ffc628] font-semibold">
+          <Link to="/" className="text-[#0C4B20] font-semibold">
             Sign In
           </Link>
         </p>

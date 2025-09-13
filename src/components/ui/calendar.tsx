@@ -43,7 +43,7 @@ function Calendar({
           "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
         ),
         day_selected:
-          "bg-[#ffc628] text-black hover:bg-[#ffc628] hover:text-black focus:bg-[#ffc628] focus:text-black",
+          "bg-[#0C4B20] text-black hover:bg-[#0C4B20] hover:text-black focus:bg-[#0C4B20] focus:text-black",
         day_today: "bg-accent text-accent-foreground",
         day_outside: "text-muted-foreground opacity-50",
         day_disabled: "text-muted-foreground opacity-50",

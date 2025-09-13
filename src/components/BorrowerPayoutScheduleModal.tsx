@@ -181,7 +181,7 @@ export const BorrowerPayoutScheduleModal: React.FC<BorrowerPayoutScheduleModalPr
               {/* footer */}
               <div className="mt-6">
                 <Button
-                  className="w-full bg-[#ffc628] text-black"
+                  className="w-full bg-[#0C4B20] text-black"
                   onClick={handleSubmit}
                   disabled={!guarantorCode || !agreedTOS || !agreedRisk}
                 >

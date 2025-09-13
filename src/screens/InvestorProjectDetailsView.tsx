@@ -240,7 +240,7 @@ const InvestorProjectDetailsView: React.FC = () => {
                   onClick={() => setActiveTab(tab)}
                   className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
                     activeTab === tab 
-                      ? 'bg-[#ffc628] text-black' 
+                      ? 'bg-[#0C4B20] text-black' 
                       : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-300'
                   }`}
                 >
@@ -299,7 +299,7 @@ const InvestorProjectDetailsView: React.FC = () => {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div 
-                        className="bg-[#ffc628] h-3 rounded-full transition-all duration-500 ease-out"
+                        className="bg-[#0C4B20] h-3 rounded-full transition-all duration-500 ease-out"
                         style={{ 
                           width: `${fundingProgress}%` 
                         }}
@@ -356,7 +356,7 @@ const InvestorProjectDetailsView: React.FC = () => {
                   <div className="mt-6 pt-4 border-t border-gray-200">
                     <Button 
                       onClick={handleInvestClick}
-                      className="bg-[#ffc628] hover:bg-[#e6b324] text-black px-6 py-2 font-medium"
+                      className="bg-[#0C4B20] hover:bg-[#8FB200] text-black px-6 py-2 font-medium"
                     >
                       Invest in This Project
                     </Button>
@@ -468,7 +468,7 @@ const InvestorProjectDetailsView: React.FC = () => {
                             onClick={() => setActiveMilestoneTab(tab)}
                             className={`px-4 py-2 rounded font-medium ${
                               activeMilestoneTab === tab 
-                                ? 'bg-[#ffc628] text-black' 
+                                ? 'bg-[#0C4B20] text-black' 
                                 : 'bg-gray-100 text-gray-600'
                             }`}
                           >

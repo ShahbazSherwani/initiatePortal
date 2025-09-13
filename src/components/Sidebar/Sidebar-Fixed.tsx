@@ -164,7 +164,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
               className={
                 `flex items-center justify-start w-full gap-3 text-left ` +
                 (isSelected
-                  ? "bg-[#ffc628] rounded-[12.49px] h-[49px]"
+                  ? "bg-[#0C4B20] rounded-[12.49px] h-[49px]"
                   : "bg-transparent opacity-70 p-2")
               }
             >

@@ -187,7 +187,7 @@ export const BorrowerCalender: React.FC = () => {
                             
                             <div className="flex gap-4 flex-wrap">
                               <Button 
-                                className="bg-[#ffc628] text-black hover:bg-[#e6b324] px-[70px] py-[18px] rounded-[10px] font-medium"
+                                className="bg-[#0C4B20] text-black hover:bg-[#8FB200] px-[70px] py-[18px] rounded-[10px] font-medium"
                                 onClick={() => navigate(`/borrower/project/${ev.projectId}/details`)}
                               >
                                 View Project
@@ -207,7 +207,7 @@ export const BorrowerCalender: React.FC = () => {
                         <div className="text-center py-10">
                           <p className="text-gray-500 mb-4">No events in this month.</p>
                           <Button 
-                            className="bg-[#ffc628] text-black hover:bg-[#e6b324]"
+                            className="bg-[#0C4B20] text-black hover:bg-[#8FB200]"
                             onClick={() => navigate('/borwMyProj')}
                           >
                             Manage Projects
@@ -252,7 +252,7 @@ export const BorrowerCalender: React.FC = () => {
                                 key={di}
                                 className={`h-[42px] flex items-center justify-center rounded-full cursor-pointer
                                   ${!isCurrent ? 'text-[#00000066]' : 'text-black'}
-                                  ${hasEvent ? 'bg-[#ffc628] hover:bg-[#e6b324]' : 'hover:bg-gray-100'}`}
+                                  ${hasEvent ? 'bg-[#0C4B20] hover:bg-[#8FB200]' : 'hover:bg-gray-100'}`}
                                 onClick={() => {
                                   if (hasEvent && dayEvents[0].projectId) {
                                     navigate(`/borrower/project/${dayEvents[0].projectId}/details`);

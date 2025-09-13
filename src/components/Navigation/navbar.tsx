@@ -38,9 +38,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   };
 
   const navItems = [
-    { name: "Borrow", to: "/borrow", color: "text-[#ffc00f]" },
-    ...(profile?.role === 'admin' ? [{ name: "Invest", to: "/invest", color: "text-[#ffc00f]" }] : []),
-    { name: "Donate", to: "/donate", color: "text-[#ffc00f]" },
+    { name: "Borrow", to: "/borrow", color: "text-[#0C4B20]" },
+    ...(profile?.role === 'admin' ? [{ name: "Invest", to: "/invest", color: "text-[#0C4B20]" }] : []),
+    { name: "Donate", to: "/donate", color: "text-[#0C4B20]" },
     { name: "About us", to: "/about", color: "text-black" },
     { name: "Farming & Livestock", to: "/farming", color: "text-black" },
     { name: "MSME", to: "/msme", color: "text-black" },
@@ -165,7 +165,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
               {profile?.isAdmin && (
                 <Button 
                   onClick={() => navigate('/admin/projects')}
-                  className="bg-[#ffc628] text-black ml-4"
+                  className="bg-[#0C4B20] text-white ml-4"
                 >
                   Admin Panel
                 </Button>

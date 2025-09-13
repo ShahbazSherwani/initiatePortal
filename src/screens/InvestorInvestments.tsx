@@ -155,7 +155,7 @@ export const InvestorInvestments: React.FC = () => {
             onClick={() => setActiveFilter(key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
               activeFilter === key
-                ? 'bg-yellow-400 text-black'
+                ? 'bg-[#0C4B20] text-white'
                 : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -272,11 +272,11 @@ export const InvestorInvestments: React.FC = () => {
                             PHP {(investment.investmentAmount * 1.05).toLocaleString()} {/* Assuming 5% return */}
                           </div>
                         </div>
-
+{/* 
                         <div>
                           <div className="text-sm text-gray-500 mb-1">Guarantor:</div>
                           <div className="font-medium">{investment.borrowerName}</div>
-                        </div>
+                        </div> */}
 
                         <div>
                           <div className="text-sm text-gray-500 mb-1">{investment.fundingProgress} Funding Progress:</div>
@@ -289,7 +289,7 @@ export const InvestorInvestments: React.FC = () => {
                     <div className="flex flex-col gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleViewProject(investment.projectId)}
-                        className="bg-yellow-400 text-black px-4 py-2 rounded text-sm hover:bg-yellow-500 transition-colors"
+                        className="bg-[#0C4B20] text-white px-4 py-2 rounded text-sm hover:bg-yellow-500 transition-colors"
                       >
                         View Project Details
                       </button>

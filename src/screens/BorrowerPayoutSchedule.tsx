@@ -139,7 +139,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
                   Payout Schedule
                 </h1>
               </div>
-              <Button className="bg-[#ffc628]">Add Payout Schedule</Button>
+              <Button className="bg-[#0C4B20]">Add Payout Schedule</Button>
             </div>
 
             {/* Generate Total Payout */}
@@ -239,7 +239,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
             {/* Continue */}
             <div>
               <Button
-                className="bg-[#ffc628] text-black w-full"
+                className="bg-[#0C4B20] text-black w-full"
                 onClick={() => setShowGuarantorModal(true)}
               >
                 Add Payout Schedule

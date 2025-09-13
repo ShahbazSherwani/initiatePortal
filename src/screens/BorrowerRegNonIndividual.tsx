@@ -252,7 +252,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
 
           {/* Header */}
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#0C4B20] rounded-lg flex items-center justify-center">
               <img className="w-10 h-10" src="/debt-1.png" alt="Debt" />
             </div>
             <h2 className="text-2xl md:text-3xl font-bold">Issue/Borrow - Entity Registration</h2>
@@ -327,7 +327,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                 <Button 
                   type="button"
                   onClick={handleRegistrationCertUpload}
-                  className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-[#0C4B20] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
                   {registrationCertFile ? `Selected: ${registrationCertFile.name}` : 'Upload'}
@@ -359,7 +359,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                 <Button 
                   type="button"
                   onClick={handleTinCertUpload}
-                  className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-[#0C4B20] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
                   {tinCertFile ? `Selected: ${tinCertFile.name}` : 'Upload'}
@@ -435,7 +435,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                 <Button 
                   type="button"
                   onClick={handleAuthorizationUpload}
-                  className="w-full h-14 bg-[#ffc00f] rounded-2xl flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-[#0C4B20] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
                   {authorizationFile ? `Selected: ${authorizationFile.name}` : 'Upload'}
@@ -794,7 +794,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
 
           {/* Next */}
           <div className="pt-4">
-            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#ffc00f] rounded-2xl font-medium">
+            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#0C4B20] rounded-2xl font-medium">
               Next
             </Button>
           </div>

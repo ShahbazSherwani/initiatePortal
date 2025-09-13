@@ -169,7 +169,7 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
 
           {/* Header */}
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#0C4B20] rounded-lg flex items-center justify-center">
               <img className="w-10 h-10" src="/investor-1.png" alt="Investor" />
             </div>
             <h2 className="text-2xl md:text-3xl font-bold">Invest/Lender - Entity Registration</h2>
@@ -414,7 +414,7 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
           <div className="flex justify-end pt-6">
             <Button
               type="submit"
-              className="w-full sm:w-auto bg-[#ffc00f] hover:bg-[#ffc00f]/90 text-black font-semibold px-8 py-3 rounded-2xl h-14"
+              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-black font-semibold px-8 py-3 rounded-2xl h-14"
             >
               Continue to Income Details
             </Button>

@@ -192,7 +192,7 @@ const handleContinue = () => {
                 <Button
                   className={`px-4 py-2 rounded-lg ${
                     canCreateNewProject 
-                      ? "bg-[#ffc628] text-black" 
+                      ? "bg-[#0C4B20] text-white" 
                       : "bg-gray-400 text-white cursor-not-allowed"
                   }`}
                   onClick={() => {
@@ -232,7 +232,7 @@ const handleContinue = () => {
                   key={tab.value}
                   onClick={() => setActiveTab(tab.value as 'pending' | 'ongoing' | 'completed' | 'default')}
                   className={`py-3 rounded-lg font-medium text-center transition-colors ${
-                    tab.value === activeTab ? "bg-[#ffc628] text-black" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    tab.value === activeTab ? "bg-[#0C4B20] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   {tab.label}
@@ -304,7 +304,7 @@ const handleContinue = () => {
             <button
               onClick={() => setSelectedType("equity")}
               className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "equity" ? "bg-[#ffc628] text-black" : "bg-white"
+                selectedType === "equity" ? "bg-[#0C4B20] text-black" : "bg-white"
               }`}
             >
               Equity
@@ -312,7 +312,7 @@ const handleContinue = () => {
             <button
               onClick={() => setSelectedType("lending")}
               className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "lending" ? "bg-[#ffc628] text-black" : "bg-white"
+                selectedType === "lending" ? "bg-[#0C4B20] text-black" : "bg-white"
               }`}
             >
               Lending
@@ -320,7 +320,7 @@ const handleContinue = () => {
             <button
               onClick={() => setSelectedType("donation")}
               className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "donation" ? "bg-[#ffc628] text-black" : "bg-white"
+                selectedType === "donation" ? "bg-[#0C4B20] text-black" : "bg-white"
               }`}
             >
               Donation
@@ -328,7 +328,7 @@ const handleContinue = () => {
             <button
               onClick={() => setSelectedType("rewards")}
               className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "rewards" ? "bg-[#ffc628] text-black" : "bg-white"
+                selectedType === "rewards" ? "bg-[#0C4B20] text-black" : "bg-white"
               }`}
             >
               Rewards
@@ -338,7 +338,7 @@ const handleContinue = () => {
           {/* continue */}
           <div className="mt-6">
             <Button
-              className="w-full bg-[#ffc628] text-black py-2 rounded-lg"
+              className="w-full bg-[#0C4B20] text-black py-2 rounded-lg"
               onClick={handleContinue}
               disabled={!selectedType}
             >
@@ -506,7 +506,7 @@ const handleContinue = () => {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
-                        className="bg-[#ffc628] h-2 rounded-full transition-all duration-300"
+                        className="bg-[#0C4B20] h-2 rounded-full transition-all duration-300"
                         style={{
                           width: `${(() => {
                             const totalFunded = Number(project.project_data?.funding?.totalFunded) || 0;
@@ -526,7 +526,7 @@ const handleContinue = () => {
               <div className="flex flex-col gap-2  w-50 items-center mt-4">
                 <Button 
                   onClick={() => handleViewDetails(String(project.id))} 
-                  className="bg-[#ffc628] text-black hover:bg-[#e6b123] text-sm py-2 w-full"
+                  className="bg-[#0C4B20] text-black hover:bg-[#e6b123] text-sm py-2 w-full"
                 >
                   View Project Details
                 </Button>

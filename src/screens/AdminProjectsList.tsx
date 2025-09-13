@@ -144,7 +144,7 @@ export const AdminProjectsList: React.FC = () => {
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold">Admin Project Management</h1>
-              <Button onClick={() => navigate('/calendar')} className="bg-[#ffc628] text-black">
+              <Button onClick={() => navigate('/calendar')} className="bg-[#0C4B20] text-white">
                 View Calendar
               </Button>
             </div>

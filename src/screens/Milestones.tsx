@@ -158,7 +158,7 @@ export const Milestones: React.FC = (): JSX.Element => {
                 </div>
 
                   <Button
-                    className="w-full bg-[#ffc628] text-black py-3 rounded-lg font-medium"
+                    className="w-full bg-[#0C4B20] text-black py-3 rounded-lg font-medium"
                     onClick={() => {
                       // TODO: actually submit/save the project data…
                       // then:

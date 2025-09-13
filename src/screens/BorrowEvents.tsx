@@ -115,7 +115,7 @@ export const BorrowerEvent: React.FC = (): JSX.Element => {
                       <span>{event.details.type}</span>
                     </div>
                   </div>
-                  <Button className="bg-[#ffc628] hover:bg-[#e6b324] text-black px-8 py-3 rounded-lg">
+                  <Button className="bg-[#0C4B20] hover:bg-[#8FB200] text-black px-8 py-3 rounded-lg">
                     Interested
                   </Button>
                 </div>
@@ -142,7 +142,7 @@ export const BorrowerEvent: React.FC = (): JSX.Element => {
                             key={i}
                             className={`h-10 flex items-center justify-center rounded-full
                               ${!isSameMonth(day,currentMonth)?'text-gray-400':''}
-                              ${hasEventOn(day)?'bg-[#ffc628]':''}`}
+                              ${hasEventOn(day)?'bg-[#0C4B20]':''}`}
                           >{format(day,'d')}</div>
                         ))}
                       </div>

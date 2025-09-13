@@ -12,6 +12,10 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   TrendingUpIcon,
+  MessageCircle,
+  PanelsTopLeft,
+  HandCoins,
+  Database
 } from "lucide-react";
 import { AuthContext } from '../../contexts/AuthContext';
 import { useAccount } from '../../contexts/AccountContext';
@@ -31,14 +35,14 @@ const borrowerNavItems: NavItem[] = [
   { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/borrowCalendar', key: 'calendar' },
   { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' },
   {
-    icon: <img src="/group-23.png" alt="Issuer" className="w-5 h-5" />,
+    icon: <PanelsTopLeft className="w-5 h-5" />,
     label: "My Projects",
     to: '/borwMyProj',
     subItems: ["My Projects", "Create New Project"],
     key: 'my-projects',
   },
   {
-    icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
+    icon:<MessageCircle className="w-5 h-5" />,
     label: "Raise Tickets",
     to: '/request',
     key: 'initiate-request'
@@ -50,30 +54,30 @@ const investorNavItems: NavItem[] = [
   { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrowerHome', key: 'home' },
   { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/investor/calendar', key: 'calendar' },
   {
-    icon: <img src="/group-23.png" alt="Projects" className="w-5 h-5" />,
+    icon: <PanelsTopLeft className="w-5 h-5" />,
     label: "Projects",
     to: '/investor/discover',
     key: 'projects'
   },
   { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' },
   {
-    icon: <img src="/investor-1.png" alt="Investment" className="w-5 h-5" />,
+    icon:<HandCoins className="w-5 h-5" />,
     label: "My Investments",
     to: '/investor/investments',
     key: 'my-investments'
   },
   {
-    icon: <img src="/vector-2.svg" alt="Request" className="w-5 h-5" />,
+    icon:<MessageCircle className="w-5 h-5" />,
     label: "Raise Tickets",
     to: '/request',
-    key: 'raise-tickets'
+    key: 'initiate-request'
   },
 ];
 
 // Common navigation items for borrowers
 const borrowerCommonNavItems: NavItem[] = [
   {
-    icon: <img src="/group-26.png" alt="Donation" className="w-3.5 h-5" />,
+    icon: <Database className="w-5 h-5" />,
     label: "Donation",
     to: '/donation',
     key: 'donation'
@@ -185,27 +189,32 @@ export const Sidebar: React.FC<SidebarProps> = () => {
         const isSelected = idx === selectedIdx;
         return (
           <div key={item.key}>
-            <Button
-              variant={isSelected ? "default" : "ghost"}
-              onClick={() => {
-                if (item.to) {
-                  navigate(item.to);
-                  if (isMobile) setMobileOpen(false);
-                }
-              }}
-              className={
-                `flex items-center justify-start w-full gap-3 text-left ` +
-                (isSelected
-                  ? "bg-[#ffc628] rounded-[12.49px] h-[49px]"
-                  : "bg-transparent opacity-70 p-2")
+          <Button
+            variant={isSelected ? "default" : "ghost"}
+            onClick={() => {
+              if (item.to) {
+                navigate(item.to);
+                if (isMobile) setMobileOpen(false);
+              }
+            }}
+            className={
+              `flex items-center justify-start w-full gap-3 text-left ` +
+              (isSelected
+                ? "bg-[#0C4B20] rounded-[12.49px] h-[49px] text-white" // ✅ Green background + white text
+                : "bg-transparent opacity-100 p-2 text-[#0C4B20]")     // ✅ Non-selected gets #8FB200
+            }
+          >
+            {item.icon}
+            <span
+              className={`font-poppins font-medium text-[17.8px] ${
+                isSelected ? "text-white" : "text-[#0C4B20]"}`
               }
             >
-              {item.icon}
-              <span className="font-poppins font-medium text-black text-[17.8px]">
-                {item.label}
-              </span>
-              {item.subItems && <ChevronDownIcon className="w-4 h-4 ml-auto" />}
-            </Button>
+              {item.label}
+            </span>
+            {item.subItems && <ChevronDownIcon className="w-4 h-4 ml-auto" />}
+          </Button>
+
 
             {item.subItems && isSelected && (
               <div className={`ml-10 mt-2 space-y-2 ${isMobile ? "ml-6" : ""}`}>
@@ -213,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
                   <Button
                     key={subIdx}
                     variant="ghost"
-                    className="opacity-70 p-0 h-auto flex justify-start"
+                    className="bg-[#0C4B20] opacity-50 p-0 h-auto flex justify-start"
                     onClick={() => {
                       // Add navigation for sub-items based on account type and permissions
                       if (currentAccountType === 'borrower') {
@@ -226,7 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
                       if (isMobile) setMobileOpen(false);
                     }}
                   >
-                    <span className={`font-poppins font-medium text-black text-[14.8px] ${
+                    <span className={`font-poppins font-medium text-white text-[14.8px] ${
                       subItem === "Create New Project" && !canCreateNewProject 
                         ? "opacity-50 cursor-not-allowed" 
                         : ""

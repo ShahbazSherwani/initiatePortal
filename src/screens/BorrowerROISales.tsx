@@ -96,7 +96,7 @@ export const BorrowerROISales: React.FC = () => {
                   ROI (Return On Investment)
                 </h1>
               </div>
-              <Button className="bg-[#ffc628] flex items-center gap-2">
+              <Button className="bg-[#0C4B20] flex items-center gap-2">
                 <PlusIcon className="w-5 h-5" /> Add Income
               </Button>
             </div>
@@ -208,7 +208,7 @@ export const BorrowerROISales: React.FC = () => {
 
             {/* Continue */}
             <Button
-              className="w-full bg-[#ffc628] py-3 rounded-lg font-medium"
+              className="w-full bg-[#0C4B20] py-3 rounded-lg font-medium"
               onClick={handleContinue}
             >
               Continue

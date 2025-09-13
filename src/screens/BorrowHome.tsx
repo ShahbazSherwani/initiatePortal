@@ -71,7 +71,7 @@ export const BorrowHome = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
                   onClick={() => handleRoleSelection('investor')}
-                  className="p-4 border-2 border-[#ffc628] rounded-lg hover:bg-[#fff8e6] transition-colors"
+                  className="p-4 border-2 border-[#0C4B20] rounded-lg hover:bg-[#fff8e6] transition-colors"
                 >
                   <h3 className="font-bold text-lg mb-2">Invest/Lender</h3>
                   <img src="/investor-1.png" alt="Investor" className="w-20 h-20 mx-auto" />
@@ -82,7 +82,7 @@ export const BorrowHome = () => {
                 
                 <button
                   onClick={() => handleRoleSelection('borrower')}
-                  className="p-4 border-2 border-[#ffc628] rounded-lg hover:bg-[#fff8e6] transition-colors"
+                  className="p-4 border-2 border-[#0C4B20] rounded-lg hover:bg-[#fff8e6] transition-colors"
                 >
                   <h3 className="font-bold text-lg mb-2">Issue/Borrower</h3>
                   <img src="/debt-1.png" alt="Borrower" className="w-20 h-20 mx-auto" />
@@ -94,7 +94,7 @@ export const BorrowHome = () => {
                 {/* Hidden Guarantee option */}
                 {/* <button
                   onClick={() => handleRoleSelection('guarantor')}
-                  className="p-4 border-2 border-[#ffc628] rounded-lg hover:bg-[#fff8e6] transition-colors"
+                  className="p-4 border-2 border-[#0C4B20] rounded-lg hover:bg-[#fff8e6] transition-colors"
                 >
                   <h3 className="font-bold text-lg mb-2">Guarantee</h3>
                   <img src="/cashback-1.png" alt="Guarantee" className="w-20 h-20 mx-auto" />

@@ -162,7 +162,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                     >
                       <ToggleGroupItem
                         value="Under 100000"
-                        className="flex-1 py-3 rounded-2xl bg-[#ffc628] text-center font-medium font-poppins"
+                        className="flex-1 py-3 rounded-2xl bg-[#0C4B20] text-center font-medium font-poppins"
                       >
                        Under 100000
                       </ToggleGroupItem>
@@ -259,7 +259,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full py-3 px-4 rounded-2xl border border-gray-200 flex justify-between items-center bg-white hover:bg-gray-50 focus:ring-2 focus:ring-[#ffc628] focus:border-transparent transition-all text-left font-normal text-gray-700"
+                          className="w-full py-3 px-4 rounded-2xl border border-gray-200 flex justify-between items-center bg-white hover:bg-gray-50 focus:ring-2 focus:ring-[#0C4B20] focus:border-transparent transition-all text-left font-normal text-gray-700"
                         >
                           <span>
                             {timeDuration ? format(new Date(timeDuration), "PPP 'at' p") : "Select project end date and time"}
@@ -326,7 +326,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                                           !isCurrentMonth 
                                             ? 'text-gray-400 opacity-50 hover:bg-gray-100' 
                                             : isSelected
-                                            ? 'bg-[#ffc628] text-black font-medium shadow-sm'
+                                            ? 'bg-[#0C4B20] text-black font-medium shadow-sm'
                                             : isToday 
                                             ? 'bg-blue-100 text-blue-700 font-medium' 
                                             : 'text-gray-700 hover:bg-gray-100'
@@ -353,7 +353,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                               <span className="text-base font-medium text-gray-700">Select Time</span>
                             </div>
                             <select 
-                              className="flex h-[58px] w-full rounded-2xl border border-black bg-transparent px-4 py-3 font-poppins text-base transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#ffc00f] focus:border-[#ffc00f]"
+                              className="flex h-[58px] w-full rounded-2xl border border-black bg-transparent px-4 py-3 font-poppins text-base transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#0C4B20] focus:border-[#0C4B20]"
                               onChange={(e) => {
                                 if (timeDuration) {
                                   const date = new Date(timeDuration);
@@ -406,7 +406,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                   </div>
 
                   <Button
-                    className="w-full bg-[#ffc628] text-black py-3 rounded-lg font-medium"
+                    className="w-full bg-[#0C4B20] text-black py-3 rounded-lg font-medium"
                     onClick={onSubmit}
                   >
                     Continue

@@ -79,7 +79,7 @@ export const BorrowerBankDet: React.FC = () => {
               <ChevronLeftIcon className="w-6 h-6 text-black" />
             </button>
             <h1 className="ml-4 text-2xl md:text-3xl font-bold">iFunds</h1>
-            <Button onClick={() => setShowModal(true)} className="ml-auto bg-[#ffc628] text-black px-4 py-2 rounded-lg">
+            <Button onClick={() => setShowModal(true)} className="ml-auto bg-[#0C4B20] text-white px-4 py-2 rounded-lg">
               Add Another Bank Account
             </Button>
                 <AddBankAccountModal
@@ -153,7 +153,7 @@ onClick={() => {
 setSelectedAccount(acct);
 setViewModalOpen(true);
 }}
-className="flex-1 bg-[#ffc628] text-black py-2 rounded-lg"
+className="flex-1 bg-[#0C4B20] text-black py-2 rounded-lg"
 >
 View Details
 </Button>

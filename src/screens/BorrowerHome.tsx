@@ -162,7 +162,7 @@ export const BorrowerHome: React.FC = () => {
                     <button
                       key={type.key}
                       onClick={() => handleAccountCreation(type.key as 'borrower' | 'investor')}
-                      className="flex flex-col items-center p-6 border-2 border-[#ffc628] rounded-xl hover:bg-[#fff8e6] transition-all transform hover:scale-105"
+                      className="flex flex-col items-center p-6 border-2 border-[#0C4B20] rounded-xl hover:bg-[#fff8e6] transition-all transform hover:scale-105"
                     >
                       <h3 className="text-xl font-bold mb-4">{type.title}</h3>
                       <img
@@ -235,7 +235,7 @@ export const BorrowerHome: React.FC = () => {
                           >
                             Top-up
                           </button>
-                          <button className="px-6 py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 transition-colors">
+                          <button className="px-6 py-3 rounded-xl bg-[#0C4B20] text-white hover:bg-yellow-500 transition-colors">
                             Withdraw
                           </button>
                         </div>
@@ -321,7 +321,7 @@ export const BorrowerHome: React.FC = () => {
                           >
                             <Card className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition ${
                               isCurrentAccount 
-                                ? 'bg-[#ffc628] border-[#ffc628] border-2 shadow-lg' 
+                                ? 'bg-[#0C4B20] border-[#0C4B20] border-2 shadow-lg' 
                                 : 'bg-white border border-black hover:shadow-md'
                             }`}>
                               <CardContent className="p-0 flex items-center justify-center">
@@ -334,7 +334,7 @@ export const BorrowerHome: React.FC = () => {
                             </Card>
                             <span className={`mt-2 font-poppins font-medium text-base md:text-lg ${
                               isCurrentAccount 
-                                ? 'text-[#ffc628] font-bold' 
+                                ? 'text-[#0C4B20] font-bold' 
                                 : 'text-black opacity-70'
                             }`}>
                               {type.title}
@@ -344,7 +344,7 @@ export const BorrowerHome: React.FC = () => {
                           {/* Status and Action Button */}
                           <div className="mt-2 text-center">
                             {isCurrentAccount ? (
-                              <span className="inline-block px-3 py-1 bg-[#ffc628] text-black text-xs font-semibold rounded-full">
+                              <span className="inline-block px-3 py-1 bg-[#0C4B20] text-black text-xs font-semibold rounded-full">
                                 Current Account
                               </span>
                             ) : hasThisAccount ? (
@@ -384,7 +384,7 @@ export const BorrowerHome: React.FC = () => {
                           handleAccountSwitch('investor');
                         }
                       }}
-                      className="bg-[#ffc628] text-black px-8 py-4 text-lg font-semibold rounded-xl hover:bg-[#e6b324] transition-colors"
+                      className="bg-[#0C4B20] text-white px-8 py-4 text-lg font-semibold rounded-xl hover:bg-[#8FB200] transition-colors"
                       disabled={switching}
                     >
                       🎯 {currentAccountType === 'investor' ? 'Start Investing' : 'Switch & Start Investing'}

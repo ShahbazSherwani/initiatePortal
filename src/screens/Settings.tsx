@@ -555,8 +555,8 @@ export const Settings = (): JSX.Element => {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full bg-[#ffc00f] flex items-center justify-center">
-                              <UserIcon className="w-12 h-12 text-black" />
+                            <div className="w-full h-full bg-[#0C4B20] flex items-center justify-center">
+                              <UserIcon className="w-12 h-12 text-white" />
                             </div>
                           )}
                         </div>
@@ -564,9 +564,9 @@ export const Settings = (): JSX.Element => {
                         {/* Camera Icon Overlay */}
                         <label 
                           htmlFor="profile-picture-upload"
-                          className="absolute bottom-0 right-0 w-8 h-8 bg-[#ffc00f] rounded-full flex items-center justify-center cursor-pointer hover:bg-[#e6b324] transition-colors shadow-lg border-2 border-white"
+                          className="absolute bottom-0 right-0 w-8 h-8 bg-[#0C4B20] rounded-full flex items-center justify-center cursor-pointer hover:bg-[#8FB200] transition-colors shadow-lg border-2 border-white"
                         >
-                          <CameraIcon className="w-4 h-4 text-black" />
+                          <CameraIcon className="w-4 h-4 text-white" />
                           <input
                             id="profile-picture-upload"
                             type="file"
@@ -602,9 +602,9 @@ export const Settings = (): JSX.Element => {
                       <div className="flex flex-wrap gap-3">
                         <label 
                           htmlFor="profile-picture-upload-alt"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#ffc00f] text-black font-medium rounded-lg hover:bg-[#e6b324] transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#0C4B20] text-white font-medium rounded-lg hover:bg-[#8FB200] transition-colors cursor-pointer"
                         >
-                          <UploadIcon className="w-4 h-4" />
+                          <UploadIcon className="w-4 h-4 text-white" />
                           Upload New Picture
                           <input
                             id="profile-picture-upload-alt"
@@ -1513,7 +1513,7 @@ export const Settings = (): JSX.Element => {
                       <Button
                         type="submit"
                         disabled={isLoading}
-                        className="bg-[#ffc00f] hover:bg-[#ffc00f]/90 text-black font-semibold px-8"
+                        className="bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-white font-semibold px-8"
                       >
                         {isLoading ? "Updating..." : "Save Changes"}
                       </Button>
@@ -1607,7 +1607,7 @@ export const Settings = (): JSX.Element => {
                     <Button
                       type="submit"
                       disabled={isLoading}
-                      className="bg-[#ffc00f] hover:bg-[#ffc00f]/90 text-black font-semibold"
+                      className="bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-white font-semibold"
                     >
                       {isLoading ? "Changing..." : "Change Password"}
                     </Button>

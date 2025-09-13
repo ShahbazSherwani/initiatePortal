@@ -193,7 +193,7 @@ const ProjectDetailsView: React.FC = () => {
                 key={tab}
                 className={`py-3 px-6 text-center font-medium ${
                   activeTab === tab 
-                    ? 'bg-[#ffc628] text-black rounded-lg' 
+                    ? 'bg-[#0C4B20] text-black rounded-lg' 
                     : 'bg-white text-gray-700 border border-gray-200'
                 }`}
                 onClick={() => setActiveTab(tab)}
@@ -319,7 +319,7 @@ const ProjectDetailsView: React.FC = () => {
                         <button
                           key={tab}
                           className={`py-3 rounded-lg font-medium text-center text-sm ${
-                            selectedMilestoneTab === tab ? 'bg-[#ffc628] text-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            selectedMilestoneTab === tab ? 'bg-[#0C4B20] text-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                           onClick={() => setSelectedMilestoneTab(tab)}
                         >

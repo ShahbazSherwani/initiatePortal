@@ -91,7 +91,7 @@ export const LogIn = (): JSX.Element => {
             <ArrowLeftIcon className="h-6 w-6" />
           </Button>
 
-          <h1 className="text-3xl font-bold mb-2 font-poppins">Log In</h1>
+          <h1 className="text-3xl text-[#0C4B20] font-bold mb-2 font-poppins">Log In</h1>
           <p className="text-sm text-[#505050] mb-6">Enter your details to log in your account</p>
 
           <div className="space-y-5">
@@ -131,13 +131,13 @@ export const LogIn = (): JSX.Element => {
           </div>
 
           <div className="text-right text-sm mt-2 mb-6 font-medium text-black w-full md:max-w-[65%]">
-            <Link to="/forgot-password" className="hover:text-[#ffc00f] transition-colors">
+            <Link to="/forgot-password" className="hover:text-[#0C4B20] transition-colors">
               Forgot Password?
             </Link>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center md:gap-4 md:max-w-[65%]">
-            <Button type="submit" className="w-full md:w-[266px] h-[58px] bg-[#0C4B20] rounded-2xl text-white hover:text-[#8FB200] font-medium">
+            <Button type="submit" className="w-full md:w-[266px] h-[58px] bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl text-white hover:text-white font-medium">
               Log In
             </Button>
             <span>or</span>
@@ -155,7 +155,7 @@ export const LogIn = (): JSX.Element => {
 
           <p className="text-center text-sm mt-6">
             Don’t have an account?{' '}
-            <Link to="/register" className="text-[#ffc628] font-semibold">
+            <Link to="/register" className="text-[#0C4B20] font-semibold">
               Join Now!
             </Link>
           </p>

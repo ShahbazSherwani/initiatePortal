@@ -183,7 +183,7 @@ export const InvestorRegDirectLender = (): JSX.Element => {
 
           {/* Header */}
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#ffc00f] rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-[#0C4B20] rounded-lg flex items-center justify-center">
               <img className="w-10 h-10" src="/leader-1.png" alt="Direct Lender" />
             </div>
             <h2 className="text-2xl md:text-3xl font-bold">Direct Lender</h2>
@@ -203,8 +203,8 @@ export const InvestorRegDirectLender = (): JSX.Element => {
                   className={`
                     flex items-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-all
                     ${lenderType === option.value
-                      ? "bg-[#ffc00f] border-[#ffc00f] text-black font-semibold"
-                      : "bg-white border-gray-300 hover:border-[#ffc00f]"}
+                      ? "bg-[#0C4B20] border-[#0C4B20] text-black font-semibold"
+                      : "bg-white border-gray-300 hover:border-[#0C4B20]"}
                   `}
                   onClick={(e) => {
                     e.preventDefault();
@@ -500,7 +500,7 @@ export const InvestorRegDirectLender = (): JSX.Element => {
           <div className="flex justify-end pt-6">
             <Button
               type="submit"
-              className="w-full sm:w-auto bg-[#ffc00f] hover:bg-[#ffc00f]/90 text-black font-semibold px-8 py-3 rounded-2xl h-14"
+              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-black font-semibold px-8 py-3 rounded-2xl h-14"
             >
               Next
             </Button>

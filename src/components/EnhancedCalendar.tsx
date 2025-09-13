@@ -205,7 +205,7 @@ export const EnhancedCalendar: React.FC = () => {
                       className={`
                         h-10 flex items-center justify-center text-sm cursor-pointer rounded-lg
                         ${isCurrentMonth ? 'text-black' : 'text-gray-400'}
-                        ${hasEvents ? 'bg-[#ffc628] text-black font-medium' : 'hover:bg-gray-100'}
+                        ${hasEvents ? 'bg-[#0C4B20] text-white font-medium' : 'hover:bg-gray-100'}
                         ${isToday && !hasEvents ? 'bg-blue-100 text-blue-600' : ''}
                         ${hasEvents ? 'relative' : ''}
                       `}
@@ -308,7 +308,7 @@ export const EnhancedCalendar: React.FC = () => {
                         return (
                           <>
                             <Button 
-                              className="bg-[#ffc628] hover:bg-[#e6b324] text-black px-8 py-2 w-full sm:w-auto"
+                              className="bg-[#0C4B20] hover:bg-[#8FB200] text-white px-8 py-2 w-full sm:w-auto"
                               onClick={() => handleInvest(event.project.id)}
                             >
                               Invest
@@ -345,7 +345,7 @@ export const EnhancedCalendar: React.FC = () => {
             <CardContent className="p-8 text-center">
               <p className="text-gray-500 mb-4">No events in this month.</p>
               <Button 
-                className="bg-[#ffc628] hover:bg-[#e6b324] text-black"
+                className="bg-[#0C4B20] hover:bg-[#8FB200] text-white"
                 onClick={() => navigate(currentUserType === 'investor' ? '/projects' : '/borwMyProj')}
               >
                 {currentUserType === 'investor' ? 'Browse Projects' : 'My Projects'}
