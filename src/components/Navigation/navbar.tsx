@@ -68,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
               ←
             </Button>
           )}
-          <img src="/initiate_logo.png" alt="Initiate PH Logo" className="w-[132px]" />
+          <img src="/Initiate_Logo_full.png" alt="Initiate PH Logo" className="w-[200px]" />
         </div>
         <Button variant="ghost" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <XIcon className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
@@ -120,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
               ←
             </Button>
           )}
-          <img src="/initiate_logo.png" alt="Initiate PH Logo" className="w-[132px]" />
+          <img src="/Initiate_Logo_full.png" alt="Initiate PH Logo" className="w-[300px]" />
         </div>
 
         {/* Right side: Nav dropdown + Auth/Profile */}

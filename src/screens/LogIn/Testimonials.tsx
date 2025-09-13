@@ -14,12 +14,12 @@ export const Testimonials = () => {
       {/* ─── Background Shapes ─── */}
       <div className="absolute inset-0 z-0">
         <img
-          src="/rectangle-2.svg"
+          src="/rectangle-green.png"
           alt="bg"
           className="w-full h-full object-cover rounded-[59px] animate-fadeIn"
         />
         <img
-          src="/mask-group.png"
+          src="/mask-group-green.png"
           alt="mask"
           className="absolute inset-0 object-cover rounded-[59px] animate-fadeIn delay-200"
         />
@@ -27,7 +27,7 @@ export const Testimonials = () => {
           className="
             absolute w-[942px] h-[509px]
             top-[625px] right-0
-            bg-[#203863] rounded-[59px]
+            bg-[#98B813] rounded-[59px]
             rotate-[-29.6deg] opacity-60
             animate-slideIn delay-300
           "
@@ -36,7 +36,7 @@ export const Testimonials = () => {
           className="
             absolute w-[942px] h-[509px]
             top-[825px] right-0
-            bg-[#27406d] rounded-[59px]
+            bg-[#0C4B20] rounded-[59px]
             rotate-[-45.88deg] opacity-40
             animate-slideIn delay-500
           "
@@ -49,7 +49,7 @@ export const Testimonials = () => {
         <img
           src="/arrow-2.svg"
           alt="arrow"
-          className="absolute z-20 top-[15%] right-[32%] w-20 h-auto animate-fadeIn"
+          className="absolute z-20 top-[16%] right-[35%] w-20 h-auto animate-fadeIn"
         />
 
         {/* Floating Image */}
@@ -99,7 +99,7 @@ export const Testimonials = () => {
       {/* ─── Bottom Testimonial ─── */}
       <div className="relative z-10 h-1/2 flex items-end group">
         {/* Arrow */}
-  <div className="absolute bottom-[26%] right-[60%] w-20 h-auto transform -scale-x-100">
+  <div className="absolute bottom-[28%] right-[50%] w-20 h-auto transform -scale-x-100">
     <img
       src="/arrow-2.svg"
       alt="arrow"
@@ -113,7 +113,7 @@ export const Testimonials = () => {
           src="/rectangle-13.svg"
           alt="Bottom testimonial"
           className="
-            absolute bottom-[20%] right-0
+            absolute bottom-[20%] right-[10%]
             transform translate-x-4
             rounded-xl shadow-lg
             animate-fadeIn delay-300
@@ -123,7 +123,7 @@ export const Testimonials = () => {
         {/* Testimonial Card */}
         <div
           className="
-            absolute bottom-[0%] right-[45%]
+            absolute bottom-[10%] right-[45%]
             w-2/4
             transform transition duration-500
             group-hover:translate-x-6

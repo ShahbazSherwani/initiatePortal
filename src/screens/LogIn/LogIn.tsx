@@ -137,7 +137,7 @@ export const LogIn = (): JSX.Element => {
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center md:gap-4 md:max-w-[65%]">
-            <Button type="submit" className="w-full md:w-[266px] h-[58px] bg-[#ffc00f] rounded-2xl text-black hover:text-[#ffffff] font-medium">
+            <Button type="submit" className="w-full md:w-[266px] h-[58px] bg-[#0C4B20] rounded-2xl text-white hover:text-[#8FB200] font-medium">
               Log In
             </Button>
             <span>or</span>
