@@ -183,7 +183,7 @@ export const BorrowerHome: React.FC = () => {
               </div>
             ) : (
               /* RETURNING USER EXPERIENCE */
-              <div className="w-full max-w-4xl mx-auto">
+              <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8 animate-fadeIn">
                 {/* Profile / iFunds Section */}
                 <section className="flex flex-col md:flex-row items-center md:items-start justify-center md:justify-start mb-12 gap-6 text-center md:text-left">
                   <Avatar className="w-[100px] md:w-[123px] h-[100px] md:h-[123px] mx-auto md:mx-0">
@@ -235,7 +235,7 @@ export const BorrowerHome: React.FC = () => {
                           >
                             Top-up
                           </button>
-                          <button className="px-6 py-3 rounded-xl bg-[#0C4B20] text-white hover:bg-yellow-500 transition-colors">
+                          <button className="px-6 py-3 rounded-xl bg-[#0C4B20] text-white hover:bg-[#90B200] transition-colors">
                             Withdraw
                           </button>
                         </div>
@@ -344,7 +344,7 @@ export const BorrowerHome: React.FC = () => {
                           {/* Status and Action Button */}
                           <div className="mt-2 text-center">
                             {isCurrentAccount ? (
-                              <span className="inline-block px-3 py-1 bg-[#0C4B20] text-black text-xs font-semibold rounded-full">
+                              <span className="inline-block px-3 py-1 bg-[#0C4B20] text-white text-xs font-semibold rounded-full">
                                 Current Account
                               </span>
                             ) : hasThisAccount ? (
@@ -387,7 +387,7 @@ export const BorrowerHome: React.FC = () => {
                       className="bg-[#0C4B20] text-white px-8 py-4 text-lg font-semibold rounded-xl hover:bg-[#8FB200] transition-colors"
                       disabled={switching}
                     >
-                      🎯 {currentAccountType === 'investor' ? 'Start Investing' : 'Switch & Start Investing'}
+                      {currentAccountType === 'investor' ? 'Start Investing' : 'Switch & Start Investing'}
                     </Button>
                   </section>
                 )}

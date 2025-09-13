@@ -304,7 +304,7 @@ const handleContinue = () => {
             <button
               onClick={() => setSelectedType("equity")}
               className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "equity" ? "bg-[#0C4B20] text-black" : "bg-white"
+                selectedType === "equity" ? "bg-[#0C4B20] text-white" : "bg-white"
               }`}
             >
               Equity
@@ -312,7 +312,7 @@ const handleContinue = () => {
             <button
               onClick={() => setSelectedType("lending")}
               className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "lending" ? "bg-[#0C4B20] text-black" : "bg-white"
+                selectedType === "lending" ? "bg-[#0C4B20] text-white" : "bg-white"
               }`}
             >
               Lending
@@ -320,7 +320,7 @@ const handleContinue = () => {
             <button
               onClick={() => setSelectedType("donation")}
               className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "donation" ? "bg-[#0C4B20] text-black" : "bg-white"
+                selectedType === "donation" ? "bg-[#0C4B20] text-white" : "bg-white"
               }`}
             >
               Donation
@@ -328,7 +328,7 @@ const handleContinue = () => {
             <button
               onClick={() => setSelectedType("rewards")}
               className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "rewards" ? "bg-[#0C4B20] text-black" : "bg-white"
+                selectedType === "rewards" ? "bg-[#0C4B20] text-white" : "bg-white"
               }`}
             >
               Rewards
@@ -338,7 +338,7 @@ const handleContinue = () => {
           {/* continue */}
           <div className="mt-6">
             <Button
-              className="w-full bg-[#0C4B20] text-black py-2 rounded-lg"
+              className="w-full bg-[#0C4B20] text-white py-2 rounded-lg"
               onClick={handleContinue}
               disabled={!selectedType}
             >
@@ -526,7 +526,7 @@ const handleContinue = () => {
               <div className="flex flex-col gap-2  w-50 items-center mt-4">
                 <Button 
                   onClick={() => handleViewDetails(String(project.id))} 
-                  className="bg-[#0C4B20] text-black hover:bg-[#e6b123] text-sm py-2 w-full"
+                  className="bg-[#0C4B20] text-white hover:bg-[#e6b123] text-sm py-2 w-full"
                 >
                   View Project Details
                 </Button>

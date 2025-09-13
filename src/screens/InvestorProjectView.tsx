@@ -236,7 +236,7 @@ export const InvestorProjectView: React.FC = () => {
                     <div className="flex gap-4">
                       <Button 
                         onClick={handleInvest}
-                        className="bg-[#0C4B20] text-black hover:bg-[#8FB200]"
+                        className="bg-[#0C4B20] text-white hover:bg-[#8FB200]"
                       >
                         Confirm Investment
                       </Button>

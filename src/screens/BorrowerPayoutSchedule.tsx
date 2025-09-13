@@ -239,7 +239,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
             {/* Continue */}
             <div>
               <Button
-                className="bg-[#0C4B20] text-black w-full"
+                className="bg-[#0C4B20] text-white w-full"
                 onClick={() => setShowGuarantorModal(true)}
               >
                 Add Payout Schedule

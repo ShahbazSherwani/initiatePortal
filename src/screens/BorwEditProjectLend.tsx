@@ -397,7 +397,7 @@ const BorwEditProjectLend: React.FC = () => {
               {TABS.map(tab => (
                 <button
                   key={tab}
-                  className={`px-4 py-2 rounded-lg font-semibold ${activeTab === tab ? "bg-[#0C4B20] text-black" : "bg-gray-200"}`}
+                  className={`px-4 py-2 rounded-lg font-semibold ${activeTab === tab ? "bg-[#0C4B20] text-white" : "bg-gray-200"}`}
                   onClick={() => setActiveTab(tab)}
                 >
                   {tab}
@@ -433,7 +433,7 @@ const BorwEditProjectLend: React.FC = () => {
                   <label className="block mt-4 mb-2 font-medium">Video Attestation</label>
                   <input className="input" value={videoLink} onChange={e => setVideoLink(e.target.value)} />
                 </div>
-                <Button className="mt-8 w-full bg-[#0C4B20] text-black" onClick={handleSaveDetails}>
+                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSaveDetails}>
                   Save & Continue
                 </Button>
               </div>
@@ -458,7 +458,7 @@ const BorwEditProjectLend: React.FC = () => {
                   <input type="file" accept="image/*" onChange={handleMilestoneImageUpload} />
                   {milestoneImage && <img src={milestoneImage} alt="Milestone" className="w-40 h-40 object-cover mt-4 rounded-lg" />}
                 </div>
-                <Button className="mt-8 w-full bg-[#0C4B20] text-black" onClick={handleSaveMilestone}>
+                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSaveMilestone}>
                   Save & Continue
                 </Button>
               </div>
@@ -501,7 +501,7 @@ const BorwEditProjectLend: React.FC = () => {
                   </div>
                 </div>
 
-                <Button className="mt-8 w-full bg-[#0C4B20] text-black" onClick={handleSaveExpense}>
+                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSaveExpense}>
                   Save & Continue
                 </Button>
               </div>
@@ -553,7 +553,7 @@ const BorwEditProjectLend: React.FC = () => {
                   />
                 </div>
 
-                <Button className="mt-8 w-full bg-[#0C4B20] text-black" onClick={handleSaveSales}>
+                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSaveSales}>
                   Save & Continue
                 </Button>
               </div>
@@ -636,7 +636,7 @@ const BorwEditProjectLend: React.FC = () => {
                   </div>
                 </div>
 
-                <Button className="mt-8 w-full bg-[#0C4B20] text-black" onClick={handleSavePayoutSchedule}>
+                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSavePayoutSchedule}>
                   Save & Continue
                 </Button>
               </div>

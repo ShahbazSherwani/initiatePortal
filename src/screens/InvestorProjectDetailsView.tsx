@@ -240,7 +240,7 @@ const InvestorProjectDetailsView: React.FC = () => {
                   onClick={() => setActiveTab(tab)}
                   className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
                     activeTab === tab 
-                      ? 'bg-[#0C4B20] text-black' 
+                      ? 'bg-[#0C4B20] text-white' 
                       : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-300'
                   }`}
                 >
@@ -468,7 +468,7 @@ const InvestorProjectDetailsView: React.FC = () => {
                             onClick={() => setActiveMilestoneTab(tab)}
                             className={`px-4 py-2 rounded font-medium ${
                               activeMilestoneTab === tab 
-                                ? 'bg-[#0C4B20] text-black' 
+                                ? 'bg-[#0C4B20] text-white' 
                                 : 'bg-gray-100 text-gray-600'
                             }`}
                           >

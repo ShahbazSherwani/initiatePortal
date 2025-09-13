@@ -153,7 +153,7 @@ onClick={() => {
 setSelectedAccount(acct);
 setViewModalOpen(true);
 }}
-className="flex-1 bg-[#0C4B20] text-black py-2 rounded-lg"
+className="flex-1 bg-[#0C4B20] text-white py-2 rounded-lg"
 >
 View Details
 </Button>

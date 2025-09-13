@@ -278,7 +278,7 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                                         !isCurrentMonth 
                                           ? 'text-gray-400 opacity-50 hover:bg-gray-100' 
                                           : isSelected
-                                          ? 'bg-[#0C4B20] text-black font-medium shadow-sm'
+                                          ? 'bg-[#0C4B20] text-white font-medium shadow-sm'
                                           : isToday 
                                           ? 'bg-blue-100 text-blue-700 font-medium' 
                                           : 'text-gray-700 hover:bg-gray-100'
@@ -371,7 +371,7 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                 </div>
 
                 <Button
-                  className="w-full bg-[#0C4B20] text-black py-3 rounded-lg font-medium"
+                  className="w-full bg-[#0C4B20] text-white py-3 rounded-lg font-medium"
                   onClick={onSubmit}
                 >
                   Continue

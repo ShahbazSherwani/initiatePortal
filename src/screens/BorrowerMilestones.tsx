@@ -86,7 +86,7 @@ export const BorrowerMilestones: React.FC = () => {
                 Looks like you don’t have any milestones yet!
               </h2>
               <Button
-                className="mt-8 bg-[#0C4B20] text-black px-6 py-3 rounded-lg flex items-center gap-2"
+                className="mt-8 bg-[#0C4B20] text-white px-6 py-3 rounded-lg flex items-center gap-2"
                 onClick={() => {navigate("/addMilestones");}}
               >
                 <PlusIcon className="w-5 h-5" /> Add Milestone

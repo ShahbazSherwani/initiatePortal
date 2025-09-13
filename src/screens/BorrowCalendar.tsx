@@ -187,7 +187,7 @@ export const BorrowerCalender: React.FC = () => {
                             
                             <div className="flex gap-4 flex-wrap">
                               <Button 
-                                className="bg-[#0C4B20] text-black hover:bg-[#8FB200] px-[70px] py-[18px] rounded-[10px] font-medium"
+                                className="bg-[#0C4B20] text-white hover:bg-[#8FB200] px-[70px] py-[18px] rounded-[10px] font-medium"
                                 onClick={() => navigate(`/borrower/project/${ev.projectId}/details`)}
                               >
                                 View Project
@@ -207,7 +207,7 @@ export const BorrowerCalender: React.FC = () => {
                         <div className="text-center py-10">
                           <p className="text-gray-500 mb-4">No events in this month.</p>
                           <Button 
-                            className="bg-[#0C4B20] text-black hover:bg-[#8FB200]"
+                            className="bg-[#0C4B20] text-white hover:bg-[#8FB200]"
                             onClick={() => navigate('/borwMyProj')}
                           >
                             Manage Projects

@@ -96,7 +96,7 @@ export const BorrowerROISales: React.FC = () => {
                   ROI (Return On Investment)
                 </h1>
               </div>
-              <Button className="bg-[#0C4B20] flex items-center gap-2">
+              <Button className="bg-[#0C4B20] hover:bg-[#8FB200] flex items-center gap-2">
                 <PlusIcon className="w-5 h-5" /> Add Income
               </Button>
             </div>
@@ -200,7 +200,7 @@ export const BorrowerROISales: React.FC = () => {
                   readOnly
                   className="flex-1 rounded-2xl border"
                 />
-                <Button onClick={handleGenerateNetIncome} className="whitespace-nowrap">
+                <Button onClick={handleGenerateNetIncome} className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200]">
                   Generate Net Income Calculation
                 </Button>
               </div>
@@ -208,7 +208,7 @@ export const BorrowerROISales: React.FC = () => {
 
             {/* Continue */}
             <Button
-              className="w-full bg-[#0C4B20] py-3 rounded-lg font-medium"
+              className="w-full bg-[#0C4B20] hover:bg-[#8FB200] py-3 rounded-lg font-medium"
               onClick={handleContinue}
             >
               Continue

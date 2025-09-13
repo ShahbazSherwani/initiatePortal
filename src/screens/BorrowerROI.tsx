@@ -138,7 +138,7 @@ export const BorrowerROI: React.FC = (): JSX.Element => {
                   ROI (Return On Investment)
                 </h1>
               </div>
-              <Button className="bg-[#0C4B20] text-black">
+              <Button className="bg-[#0C4B20] text-white">
                 Add Expense
               </Button>
             </div>
@@ -212,7 +212,7 @@ export const BorrowerROI: React.FC = (): JSX.Element => {
               {/* continue */}
               <div className="pt-4">
                 <Button
-                  className="w-full bg-[#0C4B20] text-black py-3 rounded-lg"
+                  className="w-full bg-[#0C4B20] text-white py-3 rounded-lg"
                   onClick={handleContinue}
                 >
                   Continue

@@ -184,7 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   };
 
   const renderNav = (isMobile = false) => (
-    <nav className={`flex flex-col ${isMobile ? "space-y-4 px-6 pt-20" : "space-y-4"}`}>
+    <nav className={`flex flex-col  ${isMobile ? "space-y-4 px-6 pt-20" : "space-y-4"}`}>
       {currentNavItems.map((item, idx) => {
         const isSelected = idx === selectedIdx;
         return (
@@ -200,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
             className={
               `flex items-center justify-start w-full gap-3 text-left ` +
               (isSelected
-                ? "bg-[#0C4B20] rounded-[12.49px] h-[49px] text-white" // ✅ Green background + white text
+                ? "bg-[#0C4B20] hover:bg-[#8FB200] rounded-[12.49px] h-[49px] text-white" // ✅ Green background + white text
                 : "bg-transparent opacity-100 p-2 text-[#0C4B20]")     // ✅ Non-selected gets #8FB200
             }
           >

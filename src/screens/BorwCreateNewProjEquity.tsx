@@ -150,31 +150,47 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                 {/* Left column */}
                 <div className="space-y-6">
                   {/* Please Select */}
-                  <div>
-                    <label className="font-medium text-black text-base block mb-2">
-                      Please Select
-                    </label>
-                    <ToggleGroup
-                      type="single"
-                      className="flex gap-3"
-                      value={investmentAmount}
-                      onValueChange={setInvestmentAmount}
-                    >
-                      <ToggleGroupItem
-                        value="Under 100000"
-                        className="flex-1 py-3 rounded-2xl bg-[#0C4B20] text-center font-medium font-poppins"
-                      >
-                       Under 100000
-                      </ToggleGroupItem>
-                      <ToggleGroupItem
-                        value="100000 and Above"
-                        className="flex-1 py-3 rounded-2xl bg-white border text-center font-medium font-poppins"
-                      >
-                        100000 and Above
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                  </div>
+                    <div>
+                      <label className="font-medium text-black text-base block mb-2">
+                        Please Select
+                      </label>
 
+                      <ToggleGroup
+                        type="single"
+                        value={investmentAmount}
+                        onValueChange={(v) => {
+                          // Radix passes undefined if clicking the already-selected item
+                          if (v) setInvestmentAmount(v);
+                        }}
+                        className="flex gap-3"
+                      >
+                        <ToggleGroupItem
+                          value="Under 100000"
+                          className="
+                            flex-1 py-3 rounded-2xl border text-center font-medium font-poppins
+                            bg-white text-[#0C4B20] 
+                            hover:bg-[#90B200]
+                            data-[state=on]:bg-[#0C4B20] data-[state=on]:text-white data-[state=on]:border-transparent
+                            transition-colors
+                          "
+                        >
+                          Under 100000
+                        </ToggleGroupItem>
+
+                        <ToggleGroupItem
+                          value="100000 and Above"
+                          className="
+                            flex-1 py-3 rounded-2xl border text-center font-medium font-poppins
+                            bg-white text-[#0C4B20]
+                            hover:bg-[#90B200]
+                            data-[state=on]:bg-[#0C4B20] data-[state=on]:text-white data-[state=on]:border-transparent
+                            transition-colors
+                          "
+                        >
+                          100000 and Above
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
                   {/* Project Requirements */}
                   <div>
                     <label className="font-medium text-black text-base block mb-2">
@@ -326,7 +342,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                                           !isCurrentMonth 
                                             ? 'text-gray-400 opacity-50 hover:bg-gray-100' 
                                             : isSelected
-                                            ? 'bg-[#0C4B20] text-black font-medium shadow-sm'
+                                            ? 'bg-[#0C4B20] text-white font-medium shadow-sm'
                                             : isToday 
                                             ? 'bg-blue-100 text-blue-700 font-medium' 
                                             : 'text-gray-700 hover:bg-gray-100'
@@ -406,7 +422,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                   </div>
 
                   <Button
-                    className="w-full bg-[#0C4B20] text-black py-3 rounded-lg font-medium"
+                    className="w-full bg-[#0C4B20] text-white py-3 rounded-lg font-medium"
                     onClick={onSubmit}
                   >
                     Continue

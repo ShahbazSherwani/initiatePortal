@@ -142,7 +142,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
             </label>
           </div>
 
-          <Button type="button" onClick={handleContinue} className="w-full mt-4 bg-yellow-400">
+          <Button type="button" onClick={handleContinue} className="w-full mt-4 bg-[#0C4B20] hover:bg-[#8FB200]">
             Continue
           </Button>
         </form>
