@@ -86,16 +86,11 @@ const ProjectDetailsView: React.FC = () => {
   // Calculate funding percentage from project data (robust)
   const calculateFundingPercentage = () => {
     if (!project) return 0;
-    // Try all possible fields for funded amount
-    const fundedAmount = Number(project.project_data?.fundedAmount) || 0;
-    const funding = Number(project.project_data?.funding) || 0;
-    const fundingProgress = Number(project.project_data?.fundingProgress) || 0;
-    const fundedAmountDetails = Number(project.project_data?.details?.fundedAmount) || 0;
-    // Use the largest value (in case some are stale)
-    const totalFunding = Math.max(fundedAmount, funding, fundingProgress, fundedAmountDetails);
+    // Use funding.totalFunded if available
+    const totalFunded = Number(project.project_data?.funding?.totalFunded) || 0;
     const totalRequired = getTotalFundingRequirement();
-    if (totalRequired > 0 && totalFunding > 0) {
-      const percentage = Math.round((totalFunding / totalRequired) * 100);
+    if (totalRequired > 0 && totalFunded > 0) {
+      const percentage = Math.round((totalFunded / totalRequired) * 100);
       return Math.min(percentage, 100);
     }
     return 0;

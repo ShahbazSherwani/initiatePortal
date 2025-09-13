@@ -176,7 +176,7 @@ const handleContinue = () => {
   return (
     <DashboardLayout activePage="issuer-borrower">
       <div className="p-4 md:p-8">
-        <div className="w-full max-w-screen-sm mx-auto bg-white rounded-t-[30px] p-4 md:p-8 min-h-screen flex flex-col animate-fadeIn delay-300">
+        <div className="w-full  mx-auto bg-white rounded-t-[30px] p-4 md:p-8 min-h-screen flex flex-col animate-fadeIn delay-300">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
               <div className="flex items-center">
@@ -523,7 +523,7 @@ const handleContinue = () => {
               </div>
 
               {/* Action Buttons - Centered and Full Width on Mobile */}
-              <div className="flex flex-col gap-2 w-full items-center mt-4">
+              <div className="flex flex-col gap-2  w-50 items-center mt-4">
                 <Button 
                   onClick={() => handleViewDetails(String(project.id))} 
                   className="bg-[#ffc628] text-black hover:bg-[#e6b123] text-sm py-2 w-full"
