@@ -12,7 +12,7 @@ export const Testimonials = () => {
       "
     >
       {/* ─── Background Shapes ─── */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 left-[150px]">
         <img
           src="/rectangle-green.png"
           alt="bg"
@@ -23,24 +23,18 @@ export const Testimonials = () => {
           alt="mask"
           className="absolute inset-0 object-cover rounded-[59px] animate-fadeIn delay-200"
         />
-        <div
-          className="
-            absolute w-[942px] h-[509px]
-            top-[625px] right-0
-            bg-[#98B813] rounded-[59px]
-            rotate-[-29.6deg] opacity-60
-            animate-slideIn delay-300
-          "
-        />
-        <div
-          className="
-            absolute w-[942px] h-[509px]
-            top-[825px] right-0
-            bg-[#0C4B20] rounded-[59px]
-            rotate-[-45.88deg] opacity-40
-            animate-slideIn delay-500
-          "
-        />
+        {/* Decorative rotated shapes: keep rotation on the wrapper and animate only the inner element */}
+        <div className="absolute w-[942px] h-[509px] top-[625px] right-0 pointer-events-none">
+          <div style={{ transform: 'rotate(-30deg)' }} className="w-full h-full">
+            <div className="w-full h-full bg-[#98B813] rounded-[59px] animate-slideIn delay-300" />
+          </div>
+        </div>
+
+        <div className="absolute w-[942px] h-[509px] top-[925px] right-0 pointer-events-none">
+          <div style={{ transform: 'rotate(-30deg)' }} className="w-full h-full">
+            <div className="w-full h-full bg-[#0C4B20] rounded-[59px] animate-slideIn delay-500" />
+          </div>
+        </div>
       </div>
 
       {/* ─── Top Testimonial ─── */}
@@ -169,8 +163,9 @@ export const Testimonials = () => {
         }
 
         @keyframes slideIn {
-          from { transform: translateX(100px) rotate(-30deg); opacity: 0; }
-          to   { transform: translateX(0) rotate(-30deg); opacity: 1; }
+          /* Removed rotate to avoid tilting parent/nav elements on mobile */
+          from { transform: translateX(100px); opacity: 0; }
+          to   { transform: translateX(0); opacity: 1; }
         }
         .animate-slideIn {
           animation: slideIn 1s ease-out forwards;

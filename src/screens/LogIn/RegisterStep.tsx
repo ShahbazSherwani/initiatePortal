@@ -539,8 +539,9 @@ export const RegisterStep = (): JSX.Element => {
           animation: fadeIn 0.8s ease forwards;
         }
         @keyframes slideIn {
-          from { transform: translateX(100px) rotate(-30deg); opacity: 0; }
-          to { transform: translateX(0) rotate(-30deg); opacity: 1; }
+          /* Removed rotate to avoid tilting parent/nav elements on mobile */
+          from { transform: translateX(100px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
         .animate-slideIn {
           animation: slideIn 1s ease-out forwards;
