@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { getUserProfile, getUserSettings, updateUserSettings, changePassword } from "../lib/api";
+import { getUserProfile, getUserSettings, updateUserSettings, changePassword, authFetch } from "../lib/api";
+import { API_BASE_URL } from '../config/environment';
 import { generateProfileCode, generateIssuerCode, generateBorrowerCode } from "../lib/profileUtils";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
@@ -405,23 +406,15 @@ export const Settings = (): JSX.Element => {
         const base64String = e.target?.result as string;
         
         try {
-          // Save to server
-          const response = await fetch('/api/profile/upload-picture', {
+          // Save to server using absolute API URL and authenticated wrapper
+          const result = await authFetch(`${API_BASE_URL}/profile/upload-picture`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${user?.accessToken}`
-            },
-            body: JSON.stringify({
-              profilePicture: base64String
-            })
+            body: JSON.stringify({ profilePicture: base64String })
           });
-          
-          const result = await response.json();
-          
-          if (response.ok) {
+
+          if (result && result.success) {
             setProfilePicture(base64String);
-            
+
             // Update AuthContext with new profile picture
             if (setProfile) {
               setProfile(prev => prev ? {
@@ -429,10 +422,10 @@ export const Settings = (): JSX.Element => {
                 profilePicture: base64String
               } : prev);
             }
-            
+
             console.log('✅ Profile picture uploaded successfully');
           } else {
-            console.error('Failed to upload profile picture:', result.error);
+            console.error('Failed to upload profile picture:', result?.error || result);
             alert('Failed to upload profile picture. Please try again.');
           }
         } catch (error) {
@@ -454,18 +447,13 @@ export const Settings = (): JSX.Element => {
 
   const handleRemoveProfilePicture = async () => {
     try {
-      const response = await fetch('/api/profile/picture', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user?.accessToken}`
-        }
+      const result = await authFetch(`${API_BASE_URL}/profile/picture`, {
+        method: 'DELETE'
       });
-      
-      const result = await response.json();
-      
-      if (response.ok) {
+
+      if (result && result.success) {
         setProfilePicture(null);
-        
+
         // Update AuthContext
         if (setProfile) {
           setProfile(prev => prev ? {
@@ -473,10 +461,10 @@ export const Settings = (): JSX.Element => {
             profilePicture: null
           } : prev);
         }
-        
+
         console.log('✅ Profile picture removed successfully');
       } else {
-        console.error('Failed to remove profile picture:', result.error);
+        console.error('Failed to remove profile picture:', result?.error || result);
         alert('Failed to remove profile picture. Please try again.');
       }
     } catch (error) {
