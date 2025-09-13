@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
+// Select replaced with a text input for bank name
 import { Checkbox } from './ui/checkbox';
 import type { BankAccount } from '../types/BankAccount';
 
@@ -77,17 +77,14 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
           </div>
 
           <div>
-            <label className="block font-medium mb-1">Bank Account</label>
-            <Select value={bankAccount} onValueChange={setBankAccount}>
-              <SelectTrigger className="w-full h-10">
-                <SelectValue placeholder="Please select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bank1">Bank 1</SelectItem>
-                <SelectItem value="bank2">Bank 2</SelectItem>
-                <SelectItem value="bank3">Bank 3</SelectItem>
-              </SelectContent>
-            </Select>
+            <label className="block font-medium mb-1">Bank</label>
+            <Input
+              value={bankAccount}
+              onChange={e => setBankAccount(e.target.value)}
+              placeholder="Enter bank name"
+              className="w-full"
+              aria-label="bank-name"
+            />
           </div>
 
           <div>

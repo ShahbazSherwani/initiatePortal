@@ -193,29 +193,7 @@ setViewModalOpen(false);
 
         </div>
 
-        {/* Modals */}
-        <AddBankAccountModal 
-          isOpen={showModal} 
-          onClose={() => setShowModal(false)}
-          onSubmit={(data) => {
-            // Handle bank account submission
-            console.log('Bank account added:', data);
-            setShowModal(false);
-          }}
-        />
-        
-        {selectedAccount && (
-          <ViewBankAccountModal 
-            isOpen={viewModalOpen} 
-            onClose={() => setViewModalOpen(false)} 
-            account={selectedAccount}
-            onRemove={() => {
-              // Handle account removal
-              console.log('Remove account:', selectedAccount);
-              setViewModalOpen(false);
-            }}
-          />
-        )}
+        {/* Modals are rendered inline where they are used above (Add modal in the header, View modal inside each card) */}
     </DashboardLayout>
   );
 };
