@@ -8,7 +8,7 @@ import { ArrowLeftIcon } from "lucide-react";
 export const InvestorRegSelection = (): JSX.Element => {
   const location = useLocation();
   const initialAccountType = location.state?.accountType || "individual";
-  const [accountType, setAccountType] = useState("individual"); // Default to individual
+  const [accountType, setAccountType] = useState(initialAccountType); // seed from navigation state
 
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();

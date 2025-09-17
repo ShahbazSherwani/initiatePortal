@@ -304,7 +304,7 @@ export const BorrowerReg = (): JSX.Element => {
                 <Button 
                   type="button"
                   onClick={handleNationalIdUpload}
-                  className="w-full h-14 bg-[#0C4B20] rounded-2xl flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
                   {nationalIdFile ? `Selected: ${nationalIdFile.name}` : 'Upload'}
@@ -337,7 +337,7 @@ export const BorrowerReg = (): JSX.Element => {
                 <Button 
                   type="button"
                   onClick={handlePassportUpload}
-                  className="w-full h-14 bg-[#0C4B20] rounded-2xl flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
                   {passportFile ? `Selected: ${passportFile.name}` : 'Upload'}

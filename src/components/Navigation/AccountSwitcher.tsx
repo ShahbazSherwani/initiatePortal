@@ -1,5 +1,5 @@
 // src/components/Navigation/AccountSwitcher.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAccount, AccountType } from "../../contexts/AccountContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { ChevronDownIcon, UserIcon, TrendingUpIcon, EyeIcon, EyeOffIcon } from "lucide-react";
@@ -24,6 +24,36 @@ export const AccountSwitcher: React.FC = () => {
   const navigate = useNavigate();
   const [switching, setSwitching] = useState(false);
   const [showProfileCode, setShowProfileCode] = useState(false);
+  const [displayAccountType, setDisplayAccountType] = useState<AccountType>(() => {
+    try {
+      const stored = localStorage.getItem('currentAccountType');
+      if (stored === 'investor' || stored === 'borrower') return stored as AccountType;
+    } catch (e) {
+      // ignore
+    }
+    return currentAccountType;
+  });
+
+  useEffect(() => {
+    const syncPreview = () => {
+      try {
+        const stored = localStorage.getItem('currentAccountType');
+        if (stored === 'investor' || stored === 'borrower') {
+          setDisplayAccountType(stored as AccountType);
+        } else {
+          setDisplayAccountType(currentAccountType);
+        }
+      } catch (e) {
+        setDisplayAccountType(currentAccountType);
+      }
+    };
+
+    // run once to initialize
+    syncPreview();
+    // listen for external updates
+    window.addEventListener('account-switched', syncPreview);
+    return () => window.removeEventListener('account-switched', syncPreview);
+  }, [currentAccountType]);
 
   const handleAccountSwitch = async (accountType: AccountType) => {
     if (accountType === currentAccountType) return;
@@ -51,11 +81,19 @@ export const AccountSwitcher: React.FC = () => {
   };
 
   const handleCreateAccount = (accountType: AccountType) => {
+    // Persist preview so unauthenticated registration pages show the intended role
+    try {
+      localStorage.setItem('currentAccountType', accountType);
+      setDisplayAccountType(accountType);
+      window.dispatchEvent(new Event('account-switched'));
+    } catch (e) {
+      console.warn('Failed to persist preview account type', e);
+    }
     // Navigate to account creation flow
     if (accountType === 'borrower') {
-      navigate('/borrowreg');
+      navigate('/borrowreg', { state: { accountType: 'borrower' } });
     } else {
-      navigate('/investor/register');
+      navigate('/investor/register', { state: { accountType: 'investor' } });
     }
   };
 
@@ -91,7 +129,7 @@ export const AccountSwitcher: React.FC = () => {
           <div className="flex flex-col items-start">
             <span className="text-sm text-gray-600">Account:</span>
             <span className="text-sm font-semibold text-gray-900">
-              {currentAccountType === 'borrower' ? 'Issue/Borrow' : 'Invest/Lender'}
+              {(displayAccountType || currentAccountType) === 'borrower' ? 'Issue/Borrow' : 'Invest/Lender'}
             </span>
           </div>
           
@@ -249,3 +287,5 @@ export const AccountSwitcher: React.FC = () => {
     </DropdownMenu>
   );
 };
+
+// (no default export) - component exported above

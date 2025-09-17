@@ -327,7 +327,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                 <Button 
                   type="button"
                   onClick={handleRegistrationCertUpload}
-                  className="w-full h-14 bg-[#0C4B20] rounded-2xl flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
                   {registrationCertFile ? `Selected: ${registrationCertFile.name}` : 'Upload'}
@@ -359,7 +359,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                 <Button 
                   type="button"
                   onClick={handleTinCertUpload}
-                  className="w-full h-14 bg-[#0C4B20] rounded-2xl flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
                   {tinCertFile ? `Selected: ${tinCertFile.name}` : 'Upload'}
@@ -435,7 +435,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                 <Button 
                   type="button"
                   onClick={handleAuthorizationUpload}
-                  className="w-full h-14 bg-[#0C4B20] rounded-2xl flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl flex items-center justify-center gap-2"
                 >
                   <span className="text-2xl">+</span> 
                   {authorizationFile ? `Selected: ${authorizationFile.name}` : 'Upload'}
@@ -794,7 +794,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
 
           {/* Next */}
           <div className="pt-4">
-            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#0C4B20] rounded-2xl font-medium">
+            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl font-medium">
               Next
             </Button>
           </div>

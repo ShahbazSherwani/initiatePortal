@@ -67,15 +67,11 @@ export const BorrowerHome: React.FC = () => {
     setProfileLoaded(true);
 
     // If user has any account (borrower or investor), treat them as a returning user
-    const userHasAnyAccount = hasAccount('borrower') || hasAccount('investor');
+    const userHasAnyAccount = Boolean(borrowerProfile) || Boolean(investorProfile);
 
     // Consider user a new user only if they haven't completed registration AND they have no accounts
-    if (!profile?.hasCompletedRegistration && !userHasAnyAccount) {
-      setIsNewUser(true);
-    } else {
-      setIsNewUser(false);
-    }
-  }, [profile, navigate]);
+    setIsNewUser(!profile?.hasCompletedRegistration && !userHasAnyAccount);
+  }, [profile, accountLoading, borrowerProfile, investorProfile]);
 
   // fetch wallet balance on mount
   useEffect(() => {
@@ -100,11 +96,20 @@ export const BorrowerHome: React.FC = () => {
   const handleAccountCreation = async (accountType: 'borrower' | 'investor') => {
     try {
       console.log(`🏗️ Creating ${accountType} account`);
-      
+      // Preview the requested account type in the UI by storing it locally.
+      // This makes the navbar / account indicator reflect the intended flow during registration.
+      try {
+        localStorage.setItem('currentAccountType', accountType);
+        // notify any listeners
+        window.dispatchEvent(new Event('account-switched'));
+      } catch (e) {
+        console.warn('Failed to persist preview account type', e);
+      }
+
       if (accountType === 'borrower') {
-        navigate('/borrowreg');
+        navigate('/borrowreg', { state: { accountType: 'borrower' } });
       } else {
-        navigate('/investor/register');
+        navigate('/investor/register', { state: { accountType: 'investor' } });
       }
     } catch (error) {
       console.error(`Error initiating ${accountType} account creation:`, error);

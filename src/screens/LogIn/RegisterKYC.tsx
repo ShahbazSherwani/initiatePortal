@@ -1,6 +1,6 @@
 // src/screens/LogIn/RegisterKYC.tsx
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeftIcon, CheckIcon } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Navbar } from "../../components/Navigation/navbar";
@@ -9,8 +9,10 @@ import { API_BASE_URL } from '../../config/environment';
 
 export const RegisterKYC = (): JSX.Element => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
-  const [accountType, setAccountType] = useState<'borrower' | 'investor'>('borrower');
+  const initialAccountType = (location?.state && (location.state as any).accountType) ? (location.state as any).accountType : 'borrower';
+  const [accountType, setAccountType] = useState<'borrower' | 'investor'>(initialAccountType);
   const [error, setError] = useState<string | null>(null);
   
   const [kycData, setKycData] = useState<KYCFormData>({
@@ -117,6 +119,18 @@ export const RegisterKYC = (): JSX.Element => {
         return;
       }
 
+      // Sanitize kycData: convert empty strings to null and remove undefined
+      const sanitizedKyc: any = {};
+      Object.entries(kycData).forEach(([key, value]) => {
+        if (value === undefined) return;
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          sanitizedKyc[key] = trimmed === '' ? null : trimmed;
+        } else {
+          sanitizedKyc[key] = value;
+        }
+      });
+
       // Submit KYC data to the backend
       const response = await fetch(`${API_BASE_URL}/profile/complete-kyc`, {
         method: 'POST',
@@ -126,7 +140,7 @@ export const RegisterKYC = (): JSX.Element => {
         },
         body: JSON.stringify({
           accountType,
-          kycData
+          kycData: sanitizedKyc
         })
       });
 

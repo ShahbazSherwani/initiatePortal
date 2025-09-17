@@ -810,8 +810,8 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
         
         // Update user account flags
         await client.query(
-          `UPDATE users SET has_borrower_account = TRUE WHERE firebase_uid = $1`,
-          [firebase_uid]
+          `UPDATE users SET has_borrower_account = TRUE, current_account_type = $2 WHERE firebase_uid = $1`,
+          [firebase_uid, accountType]
         );
         
         await client.query('COMMIT');
@@ -858,8 +858,8 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
         
         // Update user account flags
         await client.query(
-          `UPDATE users SET has_investor_account = TRUE WHERE firebase_uid = $1`,
-          [firebase_uid]
+          `UPDATE users SET has_investor_account = TRUE, current_account_type = $2 WHERE firebase_uid = $1`,
+          [firebase_uid, accountType]
         );
         
         await client.query('COMMIT');

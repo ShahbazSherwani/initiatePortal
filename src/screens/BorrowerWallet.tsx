@@ -176,8 +176,20 @@ export const BorrowerWallet = (): JSX.Element => {
         authorizedSignatoryIdNumber: !isIndividual ? registration.details?.authorizedSignatoryIdNumber : null
       };
       
-      console.log('📝 Sending complete registration data to database:', kycData);
-      
+      // Sanitize KYC payload: convert empty strings to null and remove undefined properties
+      const sanitizedKyc: any = {};
+      Object.entries(kycData).forEach(([key, value]) => {
+        if (value === undefined) return; // skip undefined
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          sanitizedKyc[key] = trimmed === '' ? null : trimmed;
+        } else {
+          sanitizedKyc[key] = value;
+        }
+      });
+
+      console.log('📝 Sending sanitized complete registration data to database:', sanitizedKyc);
+
       // Send registration data to complete-kyc endpoint
       await authFetch(`${API_BASE_URL}/profile/complete-kyc`, {
         method: 'POST',
@@ -186,7 +198,7 @@ export const BorrowerWallet = (): JSX.Element => {
         },
         body: JSON.stringify({
           accountType: 'borrower',
-          kycData: kycData
+          kycData: sanitizedKyc
         })
       });
       
@@ -300,7 +312,7 @@ export const BorrowerWallet = (): JSX.Element => {
           </section>
 
           {/* ── Crypto-Wallet Section ── */}
-          <section className="mb-12">
+          {/* <section className="mb-12">
             <h2 className="text-xl font-semibold mb-6">Crypto-iFunds Address</h2>
             {cryptoFields.map((field) => (
               <div key={field.id} className="mb-6">
@@ -329,10 +341,10 @@ export const BorrowerWallet = (): JSX.Element => {
                 )}
               </div>
             ))}
-          </section>
+          </section> */}
 
           {/* ── Other Payment Options ── */}
-          <section className="mb-12">
+          {/* <section className="mb-12">
             <h2 className="text-xl font-semibold mb-6">Other Payment Options</h2>
             <div className="flex flex-wrap gap-4">
               {paymentOptions.map((option) => (
@@ -348,7 +360,7 @@ export const BorrowerWallet = (): JSX.Element => {
                 </div>
               ))}
             </div>
-          </section>
+          </section> */}
 
           {/* ── Confirmations ── */}
           <section className="mb-12">
@@ -365,7 +377,7 @@ export const BorrowerWallet = (): JSX.Element => {
           {/* ── Next Button ── */}
           <div className="mb-12">
             <Button
-              className="w-full md:w-1/2 h-14 bg-[#0C4B20] rounded-2xl font-medium text-base"
+              className="w-full md:w-1/2 h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl font-medium text-base"
               onClick={handleNext}
             >
               Next

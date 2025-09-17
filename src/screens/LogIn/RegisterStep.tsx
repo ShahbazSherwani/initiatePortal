@@ -209,7 +209,7 @@ export const RegisterStep = (): JSX.Element => {
       });
       
       // Navigate to KYC form instead of directly to borrow page
-      navigate("/register-kyc");
+      navigate("/register-kyc", { state: { accountType: 'borrower' } });
     } catch (err: any) {
       // Handle Firebase authentication errors with user-friendly messages
       if (err.code === "auth/email-already-in-use") {
