@@ -316,11 +316,20 @@ export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children })
         updatedAt: newAccount.profile.updated_at,
       };
 
+      // Update local state with transformed account
       if (accountType === 'borrower') {
         setBorrowerProfile(transformedAccount);
         setCanCreateNewProject(!newAccount.hasActiveProject);
       } else {
         setInvestorProfile(transformedAccount);
+      }
+
+      // Immediately refresh accounts from server to ensure we have canonical state
+      try {
+        console.log('🔁 Refreshing accounts after create to ensure UI is up-to-date');
+        await fetchAccounts();
+      } catch (err) {
+        console.warn('⚠️ Failed to refresh accounts after create:', err);
       }
 
       return transformedAccount;
