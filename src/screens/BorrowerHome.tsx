@@ -56,14 +56,23 @@ export const BorrowerHome: React.FC = () => {
       setProfileLoaded(false);
       return;
     }
-    
+
+    // Wait until account data has loaded so we can determine whether the user has any account
+    if (accountLoading) {
+      // keep profileLoaded false until we have account info
+      setProfileLoaded(false);
+      return;
+    }
+
     setProfileLoaded(true);
-    
-    // Check if user has a role and has completed registration
-    if (!profile?.role || !profile?.hasCompletedRegistration) {
+
+    // If user has any account (borrower or investor), treat them as a returning user
+    const userHasAnyAccount = hasAccount('borrower') || hasAccount('investor');
+
+    // Consider user a new user only if they haven't completed registration AND they have no accounts
+    if (!profile?.hasCompletedRegistration && !userHasAnyAccount) {
       setIsNewUser(true);
     } else {
-      // User has role and completed registration - show returning user experience
       setIsNewUser(false);
     }
   }, [profile, navigate]);
