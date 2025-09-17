@@ -30,7 +30,7 @@ import ProjectDetailsView from "../screens/ProjectDetailsView";
 import { InvestorReg } from "../screens/InvestorReg";
 import { InvestorDiscovery } from "../screens/InvestorDiscovery";
 import { InvestorProjectView } from "../screens/InvestorProjectView";
-import InvestorProjectDetailsView from "../screens/InvestorProjectDetailsView";
+// import InvestorProjectDetailsView from "../screens/InvestorProjectDetailsView";
 import { InvestorCalendar } from "../screens/InvestorCalendar";
 import { InvestorInvestments } from "../screens/InvestorInvestments";
 import { useAuth } from '../contexts/AuthContext';
@@ -467,14 +467,14 @@ export const AppRoutes: React.FC = () => {
                   </PrivateRoute>
                 } 
               />
-              <Route 
+              {/* <Route 
                 path="/investor/project/:projectId/details" 
                 element={
                   <PrivateRoute>
                     <InvestorProjectDetailsView />
                   </PrivateRoute>
                 } 
-              />
+              /> */}
               <Route 
                 path="/investor/project/:projectId" 
                 element={

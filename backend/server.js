@@ -753,6 +753,14 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
 
 // Create a new account profile
 app.post('/api/accounts/create', verifyToken, async (req, res) => {
+  // Debug log incoming request (temporary)
+  console.log('📥 /api/accounts/create called by uid:', req.uid);
+  console.log('📤 Request headers:', Object.keys(req.headers).reduce((acc, k) => {
+    acc[k] = req.headers[k];
+    return acc;
+  }, {}));
+  console.log('📦 Request body preview:', JSON.stringify(req.body).slice(0, 1000));
+
   try {
     const { uid: firebase_uid } = req;
     const { accountType, profileData } = req.body;
@@ -873,6 +881,27 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('Error creating account:', err);
     res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Temporary debug endpoint - protected by verifyToken - returns inspected request info
+app.post('/api/debug/inspect', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    console.log('🔍 Debug inspect called by:', firebase_uid);
+    // Only return limited information for safety
+    res.json({
+      success: true,
+      uid: firebase_uid,
+      headers: {
+        authorization: req.headers.authorization || null,
+        'content-type': req.headers['content-type'] || null
+      },
+      bodyPreview: JSON.stringify(req.body).slice(0, 2000)
+    });
+  } catch (err) {
+    console.error('Debug inspect error:', err);
+    res.status(500).json({ error: 'Debug inspect failed' });
   }
 });
 

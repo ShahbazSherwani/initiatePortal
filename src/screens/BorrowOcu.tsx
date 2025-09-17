@@ -5,7 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { authFetch } from "../lib/api";
 import { generateBorrowerCode } from "../lib/profileUtils";
 import { Testimonials } from "../screens/LogIn/Testimonials";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, HandCoins} from "lucide-react";
 import { toast } from "react-hot-toast";
 
 export const BorrowerOccupation: React.FC = () => {
@@ -106,10 +106,8 @@ export const BorrowerOccupation: React.FC = () => {
           <div className="max-w-md">
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="bg-yellow-400 p-2 rounded-lg">
-                  <svg className="w-6 h-6 text-black" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 10 5.16-.26 9-4.45 9-10V7l-10-5z"/>
-                  </svg>
+                <div className="bg-[#0C4B20] p-2 rounded-lg">
+                  <HandCoins className="h-5 w-5 text-white" />
                 </div>
                 <h1 className="text-2xl font-bold text-black">
                   Issue/Borrow
@@ -144,7 +142,7 @@ export const BorrowerOccupation: React.FC = () => {
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !borrowerCode}
-                className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-3 px-4 rounded-lg transition-colors"
+                className="w-full bg-[#0C4B20] hover:bg-[#90B200] text-white font-semibold py-3 px-4 rounded-lg transition-colors"
               >
                 {isSubmitting ? "Generating..." : "Submit and Generate Borrower/Issuer's Code"}
               </button>
@@ -161,7 +159,7 @@ export const BorrowerOccupation: React.FC = () => {
 
               <button
                 onClick={() => navigate("/borrowWallet")}
-                className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-3 px-4 rounded-lg transition-colors"
+                className="w-full bg-[#0C4B20] hover:bg-[#90B200] text-white font-semibold py-3 px-4 rounded-lg transition-colors"
               >
                 Next
               </button>

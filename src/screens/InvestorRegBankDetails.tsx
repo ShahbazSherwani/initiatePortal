@@ -213,7 +213,7 @@ export const InvestorRegBankDetails = (): JSX.Element => {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-black font-semibold px-8 py-3 rounded-2xl h-14 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-white font-semibold px-8 py-3 rounded-2xl h-14 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Creating Account..." : "Complete"}
             </Button>
