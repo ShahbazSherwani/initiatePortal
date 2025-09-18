@@ -10,9 +10,9 @@ const config = {
 
 const environment = (import.meta.env.MODE as string) || 'development';
 
-// For debugging production API issues, temporarily use local development API
-const forceLocalDev = true; // Set to true to use local API in production
-const finalApiUrl = forceLocalDev && environment === 'production' 
+// Force use local development API for debugging
+const forceLocalDev = true; // Set to true to use local API
+const finalApiUrl = forceLocalDev 
   ? 'http://localhost:3001/api' 
   : config[environment as keyof typeof config].API_URL;
 

@@ -195,9 +195,18 @@ export const Settings = (): JSX.Element => {
       setIsLoading(true);
       
       // Load profile data
+      console.log('🔍 Loading user profile data...');
       const profileResponse = await getUserProfile();
+      console.log('📡 Profile API Response:', profileResponse);
+      
       if (profileResponse.success) {
         const profile = profileResponse.profile;
+        console.log('📋 Profile data received:', profile);
+        console.log('🏠 Address data:', profile.address);
+        console.log('🆔 Identification data:', profile.identification);
+        console.log('👤 Personal info data:', profile.personalInfo);
+        console.log('💼 Employment info data:', profile.employmentInfo);
+        
         // Convert date format for HTML input
         if (profile.dateOfBirth) {
           profile.dateOfBirth = formatDateForInput(profile.dateOfBirth);
@@ -209,25 +218,32 @@ export const Settings = (): JSX.Element => {
         }
         
         // Merge with existing state to ensure all fields have values
-        setProfileData(prev => ({
-          ...prev,
-          ...profile,
-          // Ensure username is always a string
-          username: profile.username || "",
-          fullName: profile.fullName || "",
-          email: profile.email || "",
-          phone: profile.phone || "",
-          dateOfBirth: profile.dateOfBirth || "",
-          nationality: profile.nationality || "",
-          address: {
-            ...prev.address,
-            ...(profile.address || {})
-          },
-          identification: {
-            ...prev.identification,
-            ...(profile.identification || {})
-          }
-        }));
+        setProfileData(prev => {
+          const newProfileData = {
+            ...prev,
+            ...profile,
+            // Ensure username is always a string
+            username: profile.username || "",
+            fullName: profile.fullName || "",
+            email: profile.email || "",
+            phone: profile.phone || "",
+            dateOfBirth: profile.dateOfBirth || "",
+            nationality: profile.nationality || "",
+            address: {
+              ...prev.address,
+              ...(profile.address || {})
+            },
+            identification: {
+              ...prev.identification,
+              ...(profile.identification || {})
+            }
+          };
+          
+          console.log('📝 Setting profile data to:', newProfileData);
+          return newProfileData;
+        });
+      } else {
+        console.error('❌ Profile API call failed:', profileResponse);
       }
       
       // Load settings data

@@ -1099,9 +1099,15 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
     };
 
     console.log('📋 Initial profile data:', profileData);
+    console.log('👤 User account flags:', {
+      has_borrower_account: user.has_borrower_account,
+      has_investor_account: user.has_investor_account,
+      current_account_type: user.current_account_type
+    });
 
     // Get detailed profile data based on account type
     if (user.has_borrower_account) {
+      console.log('🔍 Processing borrower account data...');
       const borrowerQuery = await db.query(
         `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
         [firebase_uid]
@@ -1111,28 +1117,46 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
       
       if (borrowerQuery.rows.length > 0) {
         const borrower = borrowerQuery.rows[0];
+        console.log('📋 Borrower address columns available:', {
+          street: borrower.street,
+          barangay: borrower.barangay, 
+          municipality: borrower.municipality,
+          province: borrower.province,
+          country: borrower.country,
+          postal_code: borrower.postal_code,
+          // Check alternative column names too
+          principal_office_street: borrower.principal_office_street,
+          principal_office_barangay: borrower.principal_office_barangay,
+          principal_office_municipality: borrower.principal_office_municipality,
+          principal_office_province: borrower.principal_office_province,
+          principal_office_country: borrower.principal_office_country,
+          principal_office_postal_code: borrower.principal_office_postal_code
+        });
+        
         profileData.phone = borrower.phone_number || profileData.phone;
         profileData.dateOfBirth = borrower.date_of_birth || profileData.dateOfBirth;
         profileData.nationality = borrower.nationality || profileData.nationality;
         
-        // Always map borrower address fields (handle null values)
+        // Map borrower address fields - check both personal and principal office address
         profileData.address = {
-          street: borrower.street || '',
-          barangay: borrower.barangay || '',
-          city: borrower.municipality || '',
-          state: borrower.province || '',
-          country: borrower.country || '',
-          postalCode: borrower.postal_code || '',
+          street: borrower.street || borrower.principal_office_street || '',
+          barangay: borrower.barangay || borrower.principal_office_barangay || '',
+          city: borrower.municipality || borrower.principal_office_municipality || '',
+          state: borrower.province || borrower.principal_office_province || '',
+          country: borrower.country || borrower.principal_office_country || '',
+          postalCode: borrower.postal_code || borrower.principal_office_postal_code || '',
         };
+        console.log('📍 Mapped borrower address:', profileData.address);
         
-        // Always map borrower identification fields (handle null values)
+        // Map borrower identification fields (handle null values)
         profileData.identification = {
           nationalId: borrower.national_id || '',
           passport: borrower.passport_no || '',
-          tin: borrower.tin || '',
+          tin: borrower.tin || borrower.corporate_tin || '',
           secondaryIdType: borrower.secondary_id_type || '',
           secondaryIdNumber: borrower.secondary_id_number || '',
         };
+        console.log('🆔 Mapped borrower identification:', profileData.identification);
 
         // Personal information for individual accounts
         profileData.personalInfo = {
@@ -1213,6 +1237,7 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
     }
     
     if (user.has_investor_account) {
+      console.log('🔍 Processing investor account data...');
       const investorQuery = await db.query(
         `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
         [firebase_uid]
@@ -1235,77 +1260,82 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
         profileData.phone = investor.phone_number || profileData.phone;
         profileData.dateOfBirth = investor.date_of_birth || profileData.dateOfBirth;
         
-        // Always map investor address fields (handle null values)
+        // Only update address fields that have actual values (merge don't overwrite)
+        const currentAddress = profileData.address;
         profileData.address = {
-          street: investor.street || '',
-          barangay: investor.barangay || '',
-          city: investor.municipality || '',
-          state: investor.province || '',
-          country: investor.country || '',
-          postalCode: investor.postal_code || '',
+          street: investor.street || currentAddress.street || '',
+          barangay: investor.barangay || currentAddress.barangay || '',
+          city: investor.municipality || currentAddress.city || '',
+          state: investor.province || currentAddress.state || '',
+          country: investor.country || currentAddress.country || '',
+          postalCode: investor.postal_code || currentAddress.postalCode || '',
         };
-        console.log('✅ Mapped address data from investor profile:', profileData.address);
+        console.log('✅ Mapped address data from investor profile (merged with existing):', {
+          existingAddress: currentAddress,
+          newAddress: profileData.address
+        });
         
-        // Always map investor identification fields (handle null values)
+        // Only update identification fields that have actual values (merge don't overwrite)
+        const currentIdentification = profileData.identification;
         profileData.identification = {
-          nationalId: investor.national_id || '',
-          passport: investor.passport_no || '',
-          tin: investor.tin || '',
-          secondaryIdType: investor.secondary_id_type || '',
-          secondaryIdNumber: investor.secondary_id_number || '',
+          nationalId: investor.national_id || currentIdentification.nationalId || '',
+          passport: investor.passport_no || currentIdentification.passport || '',
+          tin: investor.tin || currentIdentification.tin || '',
+          secondaryIdType: investor.secondary_id_type || currentIdentification.secondaryIdType || '',
+          secondaryIdNumber: investor.secondary_id_number || currentIdentification.secondaryIdNumber || '',
         };
         console.log('✅ Mapped identification data from investor profile:', profileData.identification);
 
-        // Personal information for individual accounts
+        // Only update personal info fields that have actual values (merge don't overwrite)
         profileData.personalInfo = {
-          placeOfBirth: investor.place_of_birth || '',
-          gender: investor.gender || '',
-          civilStatus: investor.civil_status || '',
-          nationality: investor.nationality || '',
-          motherMaidenName: investor.mother_maiden_name || '',
-          contactEmail: investor.contact_email || '',
+          placeOfBirth: investor.place_of_birth || profileData.personalInfo.placeOfBirth || '',
+          gender: investor.gender || profileData.personalInfo.gender || '',
+          civilStatus: investor.civil_status || profileData.personalInfo.civilStatus || '',
+          nationality: investor.nationality || profileData.personalInfo.nationality || '',
+          motherMaidenName: investor.mother_maiden_name || profileData.personalInfo.motherMaidenName || '',
+          contactEmail: investor.contact_email || profileData.personalInfo.contactEmail || '',
         };
 
-        // Emergency contact
+        // Only update emergency contact fields that have actual values (merge don't overwrite)
         profileData.emergencyContact = {
-          name: investor.emergency_contact_name || '',
-          relationship: investor.emergency_contact_relationship || '',
-          phone: investor.emergency_contact_phone || '',
-          address: investor.emergency_contact_address || '',
+          name: investor.emergency_contact_name || profileData.emergencyContact.name || '',
+          relationship: investor.emergency_contact_relationship || profileData.emergencyContact.relationship || '',
+          phone: investor.emergency_contact_phone || profileData.emergencyContact.phone || '',
+          address: investor.emergency_contact_address || profileData.emergencyContact.address || '',
         };
 
-        // Business information (for non-individual accounts)
+        // Only update business info fields that have actual values (merge don't overwrite)
         profileData.businessInfo = {
-          entityType: investor.entity_type || '',
-          businessRegistrationType: investor.business_registration_type || '',
-          businessRegistrationNumber: investor.business_registration_number || '',
-          businessRegistrationDate: investor.business_registration_date || '',
-          corporateTin: investor.corporate_tin || '',
-          natureOfBusiness: investor.nature_of_business || '',
-          businessAddress: investor.business_address || '',
-          gisTotalAssets: investor.gis_total_assets || null,
-          gisTotalLiabilities: investor.gis_total_liabilities || null,
-          gisPaidUpCapital: investor.gis_paid_up_capital || null,
-          gisNumberOfStockholders: investor.gis_number_of_stockholders || null,
-          gisNumberOfEmployees: investor.gis_number_of_employees || null,
+          entityType: investor.entity_type || profileData.businessInfo.entityType || '',
+          businessRegistrationType: investor.business_registration_type || profileData.businessInfo.businessRegistrationType || '',
+          businessRegistrationNumber: investor.business_registration_number || profileData.businessInfo.businessRegistrationNumber || '',
+          businessRegistrationDate: investor.business_registration_date || profileData.businessInfo.businessRegistrationDate || '',
+          corporateTin: investor.corporate_tin || profileData.businessInfo.corporateTin || '',
+          natureOfBusiness: investor.nature_of_business || profileData.businessInfo.natureOfBusiness || '',
+          businessAddress: investor.business_address || profileData.businessInfo.businessAddress || '',
+          gisTotalAssets: investor.gis_total_assets || profileData.businessInfo.gisTotalAssets || null,
+          gisTotalLiabilities: investor.gis_total_liabilities || profileData.businessInfo.gisTotalLiabilities || null,
+          gisPaidUpCapital: investor.gis_paid_up_capital || profileData.businessInfo.gisPaidUpCapital || null,
+          gisNumberOfStockholders: investor.gis_number_of_stockholders || profileData.businessInfo.gisNumberOfStockholders || null,
+          gisNumberOfEmployees: investor.gis_number_of_employees || profileData.businessInfo.gisNumberOfEmployees || null,
         };
 
-        // Principal office address
+        // Only update principal office address fields that have actual values (merge don't overwrite)
         profileData.principalOfficeAddress = {
-          street: investor.principal_office_street || '',
-          barangay: investor.principal_office_barangay || '',
-          municipality: investor.principal_office_municipality || '',
-          province: investor.principal_office_province || '',
-          country: investor.principal_office_country || 'Philippines',
-          postalCode: investor.principal_office_postal_code || '',
+          street: investor.principal_office_street || profileData.principalOfficeAddress.street || '',
+          barangay: investor.principal_office_barangay || profileData.principalOfficeAddress.barangay || '',
+          municipality: investor.principal_office_municipality || profileData.principalOfficeAddress.municipality || '',
+          province: investor.principal_office_province || profileData.principalOfficeAddress.province || '',
+          country: investor.principal_office_country || profileData.principalOfficeAddress.country || 'Philippines',
+          postalCode: investor.principal_office_postal_code || profileData.principalOfficeAddress.postalCode || '',
         };
 
-        // Authorized signatory
+        // Only update authorized signatory fields that have actual values (merge don't overwrite)
         profileData.authorizedSignatory = {
-          name: investor.authorized_signatory_name || '',
-          position: investor.authorized_signatory_position || '',
-          idType: investor.authorized_signatory_id_type || '',
-          idNumber: investor.authorized_signatory_id_number || '',
+          name: investor.authorized_signatory_name || profileData.authorizedSignatory.name || '',
+          position: investor.authorized_signatory_position || profileData.authorizedSignatory.position || '',
+          idType: investor.authorized_signatory_id_type || profileData.authorizedSignatory.idType || '',
+          idNumber: investor.authorized_signatory_id_number || profileData.authorizedSignatory.idNumber || '',
         };
 
         // Investment information
