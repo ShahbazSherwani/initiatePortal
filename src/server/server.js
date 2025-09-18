@@ -3641,6 +3641,84 @@ app.get('/api/user/investments', verifyToken, async (req, res) => {
   }
 });
 
+// Get dashboard stats for user
+app.get('/api/user/dashboard-stats', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  
+  try {
+    console.log("Fetching dashboard stats for user:", uid);
+    
+    // Get ALL projects with investorRequests and filter in Node.js for better reliability
+    const result = await db.query(`
+      SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name as borrower_name
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      WHERE p.project_data ? 'investorRequests'
+    `);
+    
+    console.log("📊 Found projects with investorRequests for stats:", result.rows.length);
+    
+    // Process the results to extract investment details
+    const userInvestments = result.rows
+      .filter(row => {
+        const investorRequests = row.project_data?.investorRequests || [];
+        return investorRequests.some(req => req.investorId === uid);
+      })
+      .map(row => {
+        const projectData = row.project_data;
+        const userInvestmentRequests = projectData.investorRequests?.filter(req => req.investorId === uid) || [];
+        
+        return {
+          projectId: row.id,
+          projectData: projectData,
+          investments: userInvestmentRequests
+        };
+      });
+    
+    // Calculate stats
+    let totalInvested = 0;
+    let approvedInvestments = 0;
+    let pendingInvestments = 0;
+    let totalCampaignsFunded = 0;
+    let activeInvestments = 0;
+    
+    userInvestments.forEach(({ projectData, investments }) => {
+      investments.forEach(investment => {
+        const amount = parseFloat(investment.amount) || 0;
+        totalInvested += amount;
+        
+        if (investment.status === 'approved') {
+          approvedInvestments += amount;
+          totalCampaignsFunded += 1;
+        } else if (investment.status === 'pending') {
+          pendingInvestments += amount;
+        }
+        
+        // Consider investment active if approved and project is not completed
+        if (investment.status === 'approved' && projectData.status !== 'completed') {
+          activeInvestments += 1;
+        }
+      });
+    });
+    
+    const stats = {
+      totalInvested: totalInvested,
+      totalCampaignsFunded: totalCampaignsFunded,
+      approvedInvestments: approvedInvestments,
+      pendingInvestments: pendingInvestments,
+      activeInvestments: activeInvestments,
+      totalProjects: userInvestments.length
+    };
+    
+    console.log(`📊 Dashboard stats for user ${uid}:`, stats);
+    res.json(stats);
+    
+  } catch (err) {
+    console.error("Error fetching dashboard stats:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // Add this endpoint for debugging
 
 app.post('/api/check-admin', async (req, res) => {

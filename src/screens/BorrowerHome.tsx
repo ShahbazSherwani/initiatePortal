@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../../src/components/ui/ava
 import { Button } from "../../src/components/ui/button";
 import { Card, CardContent } from "../../src/components/ui/card";
 import { Sidebar } from "../components/Sidebar/Sidebar";
+import { DashboardStats } from "../components/DashboardStats";
 import { useAuth } from '../contexts/AuthContext';
 
 import "../../src/styles/animations.css";
@@ -394,6 +395,13 @@ export const BorrowerHome: React.FC = () => {
                     >
                       {currentAccountType === 'investor' ? 'Start Investing' : 'Switch & Start Investing'}
                     </Button>
+                  </section>
+                )}
+
+                {/* Investment Stats Dashboard - Show only for current investor accounts */}
+                {currentAccountType === 'investor' && (
+                  <section className="mt-12">
+                    <DashboardStats />
                   </section>
                 )}
 
