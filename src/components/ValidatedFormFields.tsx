@@ -103,7 +103,7 @@ export const ValidatedFileUpload: React.FC<ValidatedFileUploadProps> = ({
   onFileChange,
   accept = "image/*,.pdf",
   buttonText = "Choose File",
-  buttonClassName = "w-full h-14 bg-[#0C4B20] hover:bg-[#0C4B20]/90 rounded-2xl"
+  buttonClassName = "w-full h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl"
 }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 

@@ -303,15 +303,6 @@ export const BorrowerHome: React.FC = () => {
                       const isCurrentAccount = currentAccountType === accountType;
                       const hasThisAccount = hasAccount(accountType);
                       
-                      // Debug logging
-                      console.log(`🔍 Account type: ${accountType}`, {
-                        isCurrentAccount,
-                        hasThisAccount,
-                        borrowerProfile: borrowerProfile ? 'exists' : 'null',
-                        investorProfile: investorProfile ? 'exists' : 'null',
-                        currentAccountType
-                      });
-                      
                       return (
                         <div key={type.key} className="w-full sm:w-[216px] flex flex-col items-center">
                           <button

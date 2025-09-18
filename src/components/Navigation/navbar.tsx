@@ -1,5 +1,5 @@
 // src/components/Navigation/Navbar.tsx
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { MenuIcon, XIcon, BellIcon, ChevronDownIcon } from "lucide-react";
@@ -26,10 +26,28 @@ export interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountTypeKey, setAccountTypeKey] = useState(0); // Force re-render key
   const { token, profile, logout, profilePicture } = useAuth();
   const { currentAccountType, borrowerProfile, investorProfile } = useAccount();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Listen for account switches and force re-render
+  useEffect(() => {
+    const handleAccountSwitch = () => {
+      console.log('🔄 Navbar detected account switch event');
+      setAccountTypeKey(prev => prev + 1); // Force re-render
+    };
+
+    window.addEventListener('account-switched', handleAccountSwitch);
+    return () => window.removeEventListener('account-switched', handleAccountSwitch);
+  }, []);
+
+  // Also listen to currentAccountType changes directly
+  useEffect(() => {
+    console.log('🔄 Navbar currentAccountType changed to:', currentAccountType);
+    setAccountTypeKey(prev => prev + 1); // Force re-render
+  }, [currentAccountType]);
 
   // Get current account name
   const getCurrentAccountName = () => {
@@ -50,12 +68,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   ];
 
   return (
-    <nav className="relative z-50 w-full bg-white border-b border-gray-200 px-6 py-4" style={{ position: 'sticky', top: 0 }}>
+    <nav 
+      key={`navbar-${currentAccountType}-${accountTypeKey}`}
+      className="relative z-50 w-full bg-white border-b border-gray-200 px-6 py-4" 
+      style={{ position: 'sticky', top: 0 }}
+    >
       {/* Role indicator banner - now shows current account type */}
       {currentAccountType && (
-        <div className={`absolute top-0 left-0 w-full text-center py-1 text-xs font-medium ${
-          currentAccountType === 'investor' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-        }`}>
+        <div 
+          key={`account-banner-${accountTypeKey}`}
+          className={`absolute top-0 left-0 w-full text-center py-1 text-xs font-medium ${
+            currentAccountType === 'investor' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+          }`}
+        >
           Currently in {currentAccountType === 'investor' ? 'Investor' : 'Borrower'} mode
         </div>
       )}

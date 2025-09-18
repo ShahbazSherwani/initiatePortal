@@ -24,6 +24,7 @@ interface AuthContextType {
   setProfilePicture: React.Dispatch<React.SetStateAction<string | null>>;
   loading: boolean;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 // Create context with proper typing
@@ -132,6 +133,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshProfile = async () => {
+    if (!user || !token) return;
+    
+    try {
+      console.log('🔄 Refreshing user profile...');
+      const response = await fetch(`${API_BASE_URL}/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const profileData = await response.json();
+        console.log('✅ Profile refreshed:', profileData);
+        setProfile({
+          id: user.uid,
+          email: user.email,
+          name: profileData.full_name,
+          role: profileData.role || null,
+          joined: profileData.created_at || new Date().toISOString(),
+          hasCompletedRegistration: profileData.has_completed_registration || false,
+          isAdmin: profileData.is_admin || false,
+          profileCode: generateProfileCode(user.uid),
+          profilePicture: profileData.profile_picture || null
+        });
+        
+        // Set profile picture in state
+        setProfilePicture(profileData.profile_picture || null);
+      }
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -141,7 +176,8 @@ export const AuthProvider = ({ children }) => {
       profilePicture,
       setProfilePicture,
       loading,
-      logout
+      logout,
+      refreshProfile
     }}>
       {children}
     </AuthContext.Provider>

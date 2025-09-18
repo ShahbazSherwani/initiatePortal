@@ -685,20 +685,8 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
           hasActiveProject: borrowerQuery.rows[0].has_active_project
         };
       } else {
-        console.log('⚠️  User has borrower flag but no borrower profile - creating fallback');
-        // Create a basic fallback borrower profile
-        accounts.borrower = {
-          type: 'borrower',
-          profile: {
-            id: firebase_uid,
-            firebase_uid: firebase_uid,
-            full_name: user.full_name,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          isComplete: true,
-          hasActiveProject: false
-        };
+        console.log('⚠️  User has borrower flag but no borrower profile - data inconsistency');
+        // Don't create fallback profile - let frontend handle the inconsistency
       }
     }
     
@@ -719,28 +707,24 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
           portfolioValue: parseFloat(investorQuery.rows[0].portfolio_value || 0)
         };
       } else {
-        console.log('⚠️  User has investor flag but no investor profile - creating fallback');
-        // Create a basic fallback investor profile
-        accounts.investor = {
-          type: 'investor',
-          profile: {
-            id: firebase_uid,
-            firebase_uid: firebase_uid,
-            full_name: user.full_name,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          isComplete: true,
-          portfolioValue: 0
-        };
+        console.log('⚠️  User has investor flag but no investor profile - data inconsistency');
+        // Don't create fallback profile - let frontend handle the inconsistency
       }
     }
     
     console.log('📤 Returning accounts:', { accounts, currentAccountType: user.current_account_type });
+    
+    // If user has no accounts, clear the current_account_type
+    let effectiveAccountType = user.current_account_type;
+    if (Object.keys(accounts).length === 0) {
+      effectiveAccountType = null;
+      console.log('👤 User has no accounts, clearing current_account_type');
+    }
+    
     res.json({
       user: {
         full_name: user.full_name,
-        currentAccountType: user.current_account_type
+        currentAccountType: effectiveAccountType
       },
       accounts
     });
@@ -753,14 +737,6 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
 
 // Create a new account profile
 app.post('/api/accounts/create', verifyToken, async (req, res) => {
-  // Debug log incoming request (temporary)
-  console.log('📥 /api/accounts/create called by uid:', req.uid);
-  console.log('📤 Request headers:', Object.keys(req.headers).reduce((acc, k) => {
-    acc[k] = req.headers[k];
-    return acc;
-  }, {}));
-  console.log('📦 Request body preview:', JSON.stringify(req.body).slice(0, 1000));
-
   try {
     const { uid: firebase_uid } = req;
     const { accountType, profileData } = req.body;
@@ -807,8 +783,8 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
         
         // Update user account flags
         await client.query(
-          `UPDATE users SET has_borrower_account = TRUE, current_account_type = $2 WHERE firebase_uid = $1`,
-          [firebase_uid, accountType]
+          `UPDATE users SET has_borrower_account = TRUE WHERE firebase_uid = $1`,
+          [firebase_uid]
         );
         
         await client.query('COMMIT');
@@ -855,8 +831,8 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
         
         // Update user account flags
         await client.query(
-          `UPDATE users SET has_investor_account = TRUE, current_account_type = $2 WHERE firebase_uid = $1`,
-          [firebase_uid, accountType]
+          `UPDATE users SET has_investor_account = TRUE WHERE firebase_uid = $1`,
+          [firebase_uid]
         );
         
         await client.query('COMMIT');
@@ -881,27 +857,6 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('Error creating account:', err);
     res.status(500).json({ error: 'Database error' });
-  }
-});
-
-// Temporary debug endpoint - protected by verifyToken - returns inspected request info
-app.post('/api/debug/inspect', verifyToken, async (req, res) => {
-  try {
-    const { uid: firebase_uid } = req;
-    console.log('🔍 Debug inspect called by:', firebase_uid);
-    // Only return limited information for safety
-    res.json({
-      success: true,
-      uid: firebase_uid,
-      headers: {
-        authorization: req.headers.authorization || null,
-        'content-type': req.headers['content-type'] || null
-      },
-      bodyPreview: JSON.stringify(req.body).slice(0, 2000)
-    });
-  } catch (err) {
-    console.error('Debug inspect error:', err);
-    res.status(500).json({ error: 'Debug inspect failed' });
   }
 });
 

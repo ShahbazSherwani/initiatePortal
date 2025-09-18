@@ -229,7 +229,7 @@ const BorwCreateNewProjRewards: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => navigate("/borwMyProj")}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 text-white">
+              <Button type="submit" className="bg-[#0C4B20] hover:bg-[#8FB200] text-white">
                 Save & Continue
               </Button>
             </div>

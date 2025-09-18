@@ -185,8 +185,8 @@ const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [
         process.env.FRONTEND_URL, 
-        'https://initiate-portal-git-deployment-mvp-shahbazsherwanis-projects.vercel.app',
-        'https://initiate-portal-git-deployment-mvp-shahbazsherwanis-projects.vercel.app/',
+        'https://initiate-portal.vercel.app',
+        'https://initiate-portal-git-main-shahbazsherwanis-projects.vercel.app',
         /\.vercel\.app$/
       ]
     : true,
@@ -696,20 +696,8 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
           hasActiveProject: borrowerQuery.rows[0].has_active_project
         };
       } else {
-        console.log('⚠️  User has borrower flag but no borrower profile - creating fallback');
-        // Create a basic fallback borrower profile
-        accounts.borrower = {
-          type: 'borrower',
-          profile: {
-            id: firebase_uid,
-            firebase_uid: firebase_uid,
-            full_name: user.full_name,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          isComplete: true,
-          hasActiveProject: false
-        };
+        console.log('⚠️  User has borrower flag but no borrower profile - data inconsistency');
+        // Don't create fallback profile - let frontend handle the inconsistency
       }
     }
     
@@ -730,28 +718,24 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
           portfolioValue: parseFloat(investorQuery.rows[0].portfolio_value || 0)
         };
       } else {
-        console.log('⚠️  User has investor flag but no investor profile - creating fallback');
-        // Create a basic fallback investor profile
-        accounts.investor = {
-          type: 'investor',
-          profile: {
-            id: firebase_uid,
-            firebase_uid: firebase_uid,
-            full_name: user.full_name,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          isComplete: true,
-          portfolioValue: 0
-        };
+        console.log('⚠️  User has investor flag but no investor profile - data inconsistency');
+        // Don't create fallback profile - let frontend handle the inconsistency
       }
     }
     
     console.log('📤 Returning accounts:', { accounts, currentAccountType: user.current_account_type });
+    
+    // If user has no accounts, clear the current_account_type
+    let effectiveAccountType = user.current_account_type;
+    if (Object.keys(accounts).length === 0) {
+      effectiveAccountType = null;
+      console.log('👤 User has no accounts, clearing current_account_type');
+    }
+    
     res.json({
       user: {
         full_name: user.full_name,
-        currentAccountType: user.current_account_type
+        currentAccountType: effectiveAccountType
       },
       accounts
     });
@@ -808,10 +792,15 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
           ]
         );
         
-        // Update user account flags
+        // Update user account flags and registration status
         await client.query(
-          `UPDATE users SET has_borrower_account = TRUE, current_account_type = $2 WHERE firebase_uid = $1`,
-          [firebase_uid, accountType]
+          `UPDATE users SET 
+             has_borrower_account = TRUE, 
+             has_completed_registration = TRUE,
+             current_account_type = 'borrower',
+             updated_at = NOW()
+           WHERE firebase_uid = $1`,
+          [firebase_uid]
         );
         
         await client.query('COMMIT');
@@ -856,10 +845,15 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
           ]
         );
         
-        // Update user account flags
+        // Update user account flags and registration status
         await client.query(
-          `UPDATE users SET has_investor_account = TRUE, current_account_type = $2 WHERE firebase_uid = $1`,
-          [firebase_uid, accountType]
+          `UPDATE users SET 
+             has_investor_account = TRUE, 
+             has_completed_registration = TRUE,
+             current_account_type = 'investor',
+             updated_at = NOW()
+           WHERE firebase_uid = $1`,
+          [firebase_uid]
         );
         
         await client.query('COMMIT');
@@ -1839,6 +1833,25 @@ topupRouter.get("/my-requests", verifyToken, async (req, res) => {
 });
 
 app.use("/api/topup", topupRouter);
+
+// Get user bank accounts
+app.get('/api/bank-accounts', verifyToken, async (req, res) => {
+  try {
+    const uid = req.uid;
+    console.log('🏦 Fetching bank accounts for user:', uid);
+    
+    // For now, return empty array since we don't have a dedicated bank accounts table
+    // This prevents showing hardcoded accounts to all users
+    const bankAccounts = [];
+    
+    console.log('🏦 Bank accounts found:', bankAccounts.length);
+    res.json({ success: true, accounts: bankAccounts });
+    
+  } catch (err) {
+    console.error("❌ Error fetching bank accounts:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
 
 // Project routes
 const projectsRouter = express.Router();
@@ -2963,30 +2976,143 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
     await db.query('BEGIN');
     
     try {
-      // Update user role and registration status
-      await db.query(
-        `UPDATE users 
-         SET role = $1, 
-             has_completed_registration = true,
-             updated_at = NOW()
-         WHERE firebase_uid = $2`,
-        [accountType, uid]
+      // First, check if user exists and what their current role is
+      const existingUserQuery = await db.query(
+        'SELECT firebase_uid, role, full_name FROM users WHERE firebase_uid = $1',
+        [uid]
       );
       
-      // Set account flags
-      const hasBorowrAccount = accountType === 'borrower';
-      const hasInvestorAccount = accountType === 'investor';
+      console.log('👤 Existing user check:', existingUserQuery.rows.length > 0 ? existingUserQuery.rows[0] : 'No existing user');
       
-      await db.query(
-        `UPDATE users 
-         SET has_borrower_account = $1,
-             has_investor_account = $2,
-             current_account_type = $3,
+      // Ensure user exists in the users table first (upsert)
+      const upsertResult = await db.query(
+        `INSERT INTO users (firebase_uid, full_name, role, has_completed_registration, created_at, updated_at)
+         VALUES ($1, $2, $3, true, NOW(), NOW())
+         ON CONFLICT (firebase_uid) DO UPDATE
+         SET role = EXCLUDED.role, 
+             full_name = EXCLUDED.full_name,
+             has_completed_registration = EXCLUDED.has_completed_registration,
              updated_at = NOW()
-         WHERE firebase_uid = $4`,
-        [hasBorowrAccount, hasInvestorAccount, accountType, uid]
+         RETURNING firebase_uid, role, full_name`,
+        [uid, kycData.fullName || 'Unknown User', accountType]
       );
       
+      console.log('✅ User record upserted:', upsertResult.rows[0]);
+      console.log('🔧 Expected role:', accountType, 'Actual role:', upsertResult.rows[0].role);
+      
+      // Double-check that the role was set correctly - if not, force update
+      if (upsertResult.rows[0].role !== accountType) {
+        console.log('⚠️ Role mismatch detected, forcing update...');
+        const forceUpdateResult = await db.query(
+          'UPDATE users SET role = $1, updated_at = NOW() WHERE firebase_uid = $2 RETURNING role',
+          [accountType, uid]
+        );
+        console.log('🔧 Force update result:', forceUpdateResult.rows[0]);
+      }
+      
+      // Set account flags - preserve existing accounts, don't overwrite
+      if (accountType === 'borrower') {
+        await db.query(
+          `UPDATE users 
+           SET has_borrower_account = true,
+               current_account_type = $1,
+               updated_at = NOW()
+           WHERE firebase_uid = $2`,
+          [accountType, uid]
+        );
+      } else if (accountType === 'investor') {
+        await db.query(
+          `UPDATE users 
+           SET has_investor_account = true,
+               current_account_type = $1,
+               updated_at = NOW()
+           WHERE firebase_uid = $2`,
+          [accountType, uid]
+        );
+      }
+      
+      // Normalize civil status to match database constraint
+      const validCivilStatuses = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated'];
+      let normalizedCivilStatus = null;
+      
+      if (kycData.civilStatus && kycData.civilStatus.trim() !== '') {
+        const inputStatus = kycData.civilStatus.toLowerCase().trim();
+        const matchedStatus = validCivilStatuses.find(status => 
+          status.toLowerCase() === inputStatus
+        );
+        normalizedCivilStatus = matchedStatus || null; // Use null for invalid values
+      }
+      
+      // Normalize gender to match database constraint
+      const validGenders = ['Male', 'Female', 'Other', 'Prefer not to say'];
+      let normalizedGender = null;
+      
+      if (kycData.gender && kycData.gender.trim() !== '') {
+        const inputGender = kycData.gender.toLowerCase().trim();
+        const matchedGender = validGenders.find(gender => 
+          gender.toLowerCase() === inputGender
+        );
+        normalizedGender = matchedGender || null; // Use null for invalid values
+      }
+      
+      // Normalize secondary ID type to match database constraint
+      const validSecondaryIdTypes = [
+        'Drivers License', 'Postal ID', 'Voters ID', 'PhilHealth ID', 
+        'SSS ID', 'GSIS ID', 'PRC ID', 'OFW ID', 'Senior Citizen ID', 'PWD ID'
+      ];
+      let normalizedSecondaryIdType = null;
+      
+      if (kycData.secondaryIdType) {
+        const inputIdType = kycData.secondaryIdType.toLowerCase();
+        
+        // Try exact match first
+        const exactMatch = validSecondaryIdTypes.find(idType => 
+          idType.toLowerCase() === inputIdType
+        );
+        
+        if (exactMatch) {
+          normalizedSecondaryIdType = exactMatch;
+        } else {
+          // Try partial matching for common variations
+          if (inputIdType.includes('driver') || inputIdType.includes('license')) {
+            normalizedSecondaryIdType = 'Drivers License';
+          } else if (inputIdType.includes('postal')) {
+            normalizedSecondaryIdType = 'Postal ID';
+          } else if (inputIdType.includes('voter')) {
+            normalizedSecondaryIdType = 'Voters ID';
+          } else if (inputIdType.includes('philhealth')) {
+            normalizedSecondaryIdType = 'PhilHealth ID';
+          } else if (inputIdType.includes('sss')) {
+            normalizedSecondaryIdType = 'SSS ID';
+          } else if (inputIdType.includes('gsis')) {
+            normalizedSecondaryIdType = 'GSIS ID';
+          } else if (inputIdType.includes('prc')) {
+            normalizedSecondaryIdType = 'PRC ID';
+          } else if (inputIdType.includes('ofw')) {
+            normalizedSecondaryIdType = 'OFW ID';
+          } else if (inputIdType.includes('senior')) {
+            normalizedSecondaryIdType = 'Senior Citizen ID';
+          } else if (inputIdType.includes('pwd')) {
+            normalizedSecondaryIdType = 'PWD ID';
+          } else if (inputIdType.includes('passport')) {
+            normalizedSecondaryIdType = 'Postal ID'; // Map passport to Postal ID as closest match
+          } else {
+            // Default to first valid option if no match found
+            normalizedSecondaryIdType = 'Drivers License';
+          }
+        }
+      }
+      
+      console.log('📝 Civil Status Normalization:');
+      console.log('Original:', kycData.civilStatus);
+      console.log('Normalized:', normalizedCivilStatus);
+      console.log('📝 Gender Normalization:');
+      console.log('Original:', kycData.gender);
+      console.log('Normalized:', normalizedGender);
+      console.log('📝 Secondary ID Type Normalization:');
+      console.log('Original:', kycData.secondaryIdType);
+      console.log('Normalized:', normalizedSecondaryIdType);
+
       // Insert into appropriate profile table
       if (accountType === 'borrower') {
         console.log('💾 Inserting borrower profile data...');
@@ -2994,55 +3120,72 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
         console.log('uid:', uid);
         console.log('isIndividualAccount:', kycData.isIndividualAccount);
         console.log('placeOfBirth:', kycData.placeOfBirth);
-        console.log('gender:', kycData.gender);
-        console.log('civilStatus:', kycData.civilStatus);
+        console.log('gender:', normalizedGender);
+        console.log('civilStatus:', normalizedCivilStatus);
         console.log('nationality:', kycData.nationality);
         console.log('contactEmail:', kycData.contactEmail);
         
-        // Update existing borrower profile with KYC data
+        // Upsert borrower profile with KYC data
         await db.query(`
-          UPDATE borrower_profiles SET
-            is_individual_account = $2,
-            place_of_birth = $3,
-            gender = $4,
-            civil_status = $5,
-            nationality = $6,
-            contact_email = $7,
-            secondary_id_type = $8,
-            secondary_id_number = $9,
-            emergency_contact_name = $10,
-            emergency_contact_relationship = $11,
-            emergency_contact_phone = $12,
-            emergency_contact_email = $13,
-            business_registration_type = $14,
-            business_registration_number = $15,
-            business_registration_date = $16,
-            corporate_tin = $17,
-            nature_of_business = $18,
-            principal_office_street = $19,
-            principal_office_barangay = $20,
-            principal_office_municipality = $21,
-            principal_office_province = $22,
-            principal_office_country = $23,
-            principal_office_postal_code = $24,
-            gis_total_assets = $25,
-            gis_total_liabilities = $26,
-            gis_paid_up_capital = $27,
-            gis_number_of_stockholders = $28,
-            gis_number_of_employees = $29,
-            is_politically_exposed_person = $30,
-            pep_details = $31,
-            authorized_signatory_name = $32,
-            authorized_signatory_position = $33,
-            authorized_signatory_id_type = $34,
-            authorized_signatory_id_number = $35,
+          INSERT INTO borrower_profiles (
+            firebase_uid, is_individual_account, place_of_birth, gender, civil_status,
+            nationality, contact_email, secondary_id_type, secondary_id_number,
+            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone,
+            emergency_contact_email, business_registration_type, business_registration_number,
+            business_registration_date, corporate_tin, nature_of_business,
+            principal_office_street, principal_office_barangay, principal_office_municipality,
+            principal_office_province, principal_office_country, principal_office_postal_code,
+            gis_total_assets, gis_total_liabilities, gis_paid_up_capital,
+            gis_number_of_stockholders, gis_number_of_employees,
+            is_politically_exposed_person, pep_details, authorized_signatory_name,
+            authorized_signatory_position, authorized_signatory_id_type,
+            authorized_signatory_id_number, is_complete, has_active_project, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+            $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34,
+            $35, TRUE, FALSE, NOW(), NOW()
+          )
+          ON CONFLICT (firebase_uid) DO UPDATE SET
+            is_individual_account = EXCLUDED.is_individual_account,
+            place_of_birth = EXCLUDED.place_of_birth,
+            gender = EXCLUDED.gender,
+            civil_status = EXCLUDED.civil_status,
+            nationality = EXCLUDED.nationality,
+            contact_email = EXCLUDED.contact_email,
+            secondary_id_type = EXCLUDED.secondary_id_type,
+            secondary_id_number = EXCLUDED.secondary_id_number,
+            emergency_contact_name = EXCLUDED.emergency_contact_name,
+            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+            emergency_contact_email = EXCLUDED.emergency_contact_email,
+            business_registration_type = EXCLUDED.business_registration_type,
+            business_registration_number = EXCLUDED.business_registration_number,
+            business_registration_date = EXCLUDED.business_registration_date,
+            corporate_tin = EXCLUDED.corporate_tin,
+            nature_of_business = EXCLUDED.nature_of_business,
+            principal_office_street = EXCLUDED.principal_office_street,
+            principal_office_barangay = EXCLUDED.principal_office_barangay,
+            principal_office_municipality = EXCLUDED.principal_office_municipality,
+            principal_office_province = EXCLUDED.principal_office_province,
+            principal_office_country = EXCLUDED.principal_office_country,
+            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            gis_total_assets = EXCLUDED.gis_total_assets,
+            gis_total_liabilities = EXCLUDED.gis_total_liabilities,
+            gis_paid_up_capital = EXCLUDED.gis_paid_up_capital,
+            gis_number_of_stockholders = EXCLUDED.gis_number_of_stockholders,
+            gis_number_of_employees = EXCLUDED.gis_number_of_employees,
+            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
+            pep_details = EXCLUDED.pep_details,
+            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
+            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
+            authorized_signatory_id_type = EXCLUDED.authorized_signatory_id_type,
+            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
             is_complete = TRUE,
             updated_at = NOW()
-          WHERE firebase_uid = $1
         `, [
-          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.gender, 
-          kycData.civilStatus, kycData.nationality, kycData.contactEmail, 
-          kycData.secondaryIdType, kycData.secondaryIdNumber, kycData.emergencyContactName,
+          uid, kycData.isIndividualAccount, kycData.placeOfBirth, normalizedGender, 
+          normalizedCivilStatus, kycData.nationality, kycData.contactEmail, 
+          normalizedSecondaryIdType, kycData.secondaryIdNumber, kycData.emergencyContactName,
           kycData.emergencyContactRelationship, kycData.emergencyContactPhone, 
           kycData.emergencyContactEmail, kycData.businessRegistrationType, 
           kycData.businessRegistrationNumber, kycData.businessRegistrationDate,
@@ -3057,50 +3200,67 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.authorizedSignatoryIdType, kycData.authorizedSignatoryIdNumber
         ]);
       } else {
-        // Update existing investor profile with KYC data
+        // Upsert investor profile with KYC data
         await db.query(`
-          UPDATE investor_profiles SET
-            is_individual_account = $2,
-            place_of_birth = $3,
-            gender = $4,
-            civil_status = $5,
-            nationality = $6,
-            contact_email = $7,
-            secondary_id_type = $8,
-            secondary_id_number = $9,
-            emergency_contact_name = $10,
-            emergency_contact_relationship = $11,
-            emergency_contact_phone = $12,
-            emergency_contact_email = $13,
-            business_registration_type = $14,
-            business_registration_number = $15,
-            business_registration_date = $16,
-            corporate_tin = $17,
-            nature_of_business = $18,
-            principal_office_street = $19,
-            principal_office_barangay = $20,
-            principal_office_municipality = $21,
-            principal_office_province = $22,
-            principal_office_country = $23,
-            principal_office_postal_code = $24,
-            gis_total_assets = $25,
-            gis_total_liabilities = $26,
-            gis_paid_up_capital = $27,
-            gis_number_of_stockholders = $28,
-            gis_number_of_employees = $29,
-            is_politically_exposed_person = $30,
-            pep_details = $31,
-            authorized_signatory_name = $32,
-            authorized_signatory_position = $33,
-            authorized_signatory_id_type = $34,
-            authorized_signatory_id_number = $35,
+          INSERT INTO investor_profiles (
+            firebase_uid, is_individual_account, place_of_birth, gender, civil_status,
+            nationality, contact_email, secondary_id_type, secondary_id_number,
+            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone,
+            emergency_contact_email, business_registration_type, business_registration_number,
+            business_registration_date, corporate_tin, nature_of_business,
+            principal_office_street, principal_office_barangay, principal_office_municipality,
+            principal_office_province, principal_office_country, principal_office_postal_code,
+            gis_total_assets, gis_total_liabilities, gis_paid_up_capital,
+            gis_number_of_stockholders, gis_number_of_employees,
+            is_politically_exposed_person, pep_details, authorized_signatory_name,
+            authorized_signatory_position, authorized_signatory_id_type,
+            authorized_signatory_id_number, is_complete, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+            $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34,
+            $35, TRUE, NOW(), NOW()
+          )
+          ON CONFLICT (firebase_uid) DO UPDATE SET
+            is_individual_account = EXCLUDED.is_individual_account,
+            place_of_birth = EXCLUDED.place_of_birth,
+            gender = EXCLUDED.gender,
+            civil_status = EXCLUDED.civil_status,
+            nationality = EXCLUDED.nationality,
+            contact_email = EXCLUDED.contact_email,
+            secondary_id_type = EXCLUDED.secondary_id_type,
+            secondary_id_number = EXCLUDED.secondary_id_number,
+            emergency_contact_name = EXCLUDED.emergency_contact_name,
+            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+            emergency_contact_email = EXCLUDED.emergency_contact_email,
+            business_registration_type = EXCLUDED.business_registration_type,
+            business_registration_number = EXCLUDED.business_registration_number,
+            business_registration_date = EXCLUDED.business_registration_date,
+            corporate_tin = EXCLUDED.corporate_tin,
+            nature_of_business = EXCLUDED.nature_of_business,
+            principal_office_street = EXCLUDED.principal_office_street,
+            principal_office_barangay = EXCLUDED.principal_office_barangay,
+            principal_office_municipality = EXCLUDED.principal_office_municipality,
+            principal_office_province = EXCLUDED.principal_office_province,
+            principal_office_country = EXCLUDED.principal_office_country,
+            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            gis_total_assets = EXCLUDED.gis_total_assets,
+            gis_total_liabilities = EXCLUDED.gis_total_liabilities,
+            gis_paid_up_capital = EXCLUDED.gis_paid_up_capital,
+            gis_number_of_stockholders = EXCLUDED.gis_number_of_stockholders,
+            gis_number_of_employees = EXCLUDED.gis_number_of_employees,
+            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
+            pep_details = EXCLUDED.pep_details,
+            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
+            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
+            authorized_signatory_id_type = EXCLUDED.authorized_signatory_id_type,
+            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
             is_complete = TRUE,
             updated_at = NOW()
-          WHERE firebase_uid = $1
         `, [
-          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.gender, 
-          kycData.civilStatus, kycData.nationality, kycData.contactEmail, 
-          kycData.secondaryIdType, kycData.secondaryIdNumber, kycData.emergencyContactName,
+          uid, kycData.isIndividualAccount, kycData.placeOfBirth, normalizedGender, 
+          normalizedCivilStatus, kycData.nationality, kycData.contactEmail, 
+          normalizedSecondaryIdType, kycData.secondaryIdNumber, kycData.emergencyContactName,
           kycData.emergencyContactRelationship, kycData.emergencyContactPhone, 
           kycData.emergencyContactEmail, kycData.businessRegistrationType, 
           kycData.businessRegistrationNumber, kycData.businessRegistrationDate,

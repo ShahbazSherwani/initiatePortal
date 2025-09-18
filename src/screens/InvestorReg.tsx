@@ -720,7 +720,7 @@ export const InvestorReg: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-black"
+                className="w-full bg-[#0C4B20] hover:bg-[#8FB200] text-black"
               >
                 {loading ? "Creating Account..." : "Create Investor Account"}
               </Button>

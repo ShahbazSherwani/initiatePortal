@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'react-hot-toast';
@@ -23,6 +23,8 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
   const [step, setStep] = useState<'accounts' | 'form'>('accounts');
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -33,22 +35,31 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
     proofOfTransfer: ''
   });
 
-  const accounts: Account[] = [
-    {
-      id: 1,
-      accountName: "Alexa John",
-      bank: "VEN USD PAR A IC/FOREIGN",
-      accountNumber: "084008124",
-      isDefault: true
-    },
-    {
-      id: 2,
-      accountName: "Alexa John", 
-      bank: "VEN USD PAR A IC/FOREIGN",
-      accountNumber: "084008124",
-      isDefault: false
+  // Fetch user bank accounts
+  useEffect(() => {
+    if (isOpen) {
+      fetchBankAccounts();
     }
-  ];
+  }, [isOpen]);
+
+  const fetchBankAccounts = async () => {
+    setLoadingAccounts(true);
+    try {
+      const response = await authFetch(`${API_BASE_URL}/bank-accounts`);
+      if (response.success) {
+        setAccounts(response.accounts);
+      } else {
+        console.error('Failed to fetch bank accounts:', response);
+        // Fallback to empty array instead of hardcoded data
+        setAccounts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error);
+      setAccounts([]);
+    } finally {
+      setLoadingAccounts(false);
+    }
+  };
 
   const handleAccountSelect = (account: Account) => {
     setSelectedAccount(account);
@@ -168,47 +179,63 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
           <div>
             <h3 className="text-lg font-medium mb-4">Deposit to:</h3>
             
-            <div className="space-y-4">
-              {accounts.map((account) => (
-                <div 
-                  key={account.id}
-                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                    account.isDefault ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handleAccountSelect(account)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center mb-2">
-                        <span className="font-medium">Account {account.id}</span>
-                        {account.isDefault && (
-                          <span className="ml-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
-                            ✓
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <div>Account Name: {account.accountName}</div>
-                        <div>Bank: {account.bank}</div>
-                        <div>Bank Account: {account.accountNumber}</div>
+            {loadingAccounts ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-gray-500">Loading bank accounts...</div>
+              </div>
+            ) : accounts.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500 mb-4">No bank accounts found</div>
+                <div className="text-sm text-gray-400">
+                  Please add a bank account in your profile settings to enable top-up functionality.
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {accounts.map((account) => (
+                    <div 
+                      key={account.id}
+                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                        account.isDefault ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => handleAccountSelect(account)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <span className="font-medium">Account {account.id}</span>
+                            {account.isDefault && (
+                              <span className="ml-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <div>Account Name: {account.accountName}</div>
+                            <div>Bank: {account.bank}</div>
+                            <div>Bank Account: {account.accountNumber}</div>
+                          </div>
+                        </div>
+                        <Button className="bg-yellow-500 hover:bg-yellow-600 text-black">
+                          View Details
+                        </Button>
                       </div>
                     </div>
-                    <Button className="bg-yellow-500 hover:bg-yellow-600 text-black">
-                      View Details
-                    </Button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            
-            <div className="mt-6">
-              <Button 
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
-                onClick={() => handleAccountSelect(accounts[0])}
-              >
-                Next
-              </Button>
-            </div>
+                
+                <div className="mt-6">
+                  <Button 
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+                    onClick={() => handleAccountSelect(accounts[0])}
+                    disabled={accounts.length === 0}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

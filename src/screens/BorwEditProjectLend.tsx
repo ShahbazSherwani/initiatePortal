@@ -458,7 +458,7 @@ const BorwEditProjectLend: React.FC = () => {
                   <input type="file" accept="image/*" onChange={handleMilestoneImageUpload} />
                   {milestoneImage && <img src={milestoneImage} alt="Milestone" className="w-40 h-40 object-cover mt-4 rounded-lg" />}
                 </div>
-                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSaveMilestone}>
+                <Button className="mt-8 w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white" onClick={handleSaveMilestone}>
                   Save & Continue
                 </Button>
               </div>
@@ -501,7 +501,7 @@ const BorwEditProjectLend: React.FC = () => {
                   </div>
                 </div>
 
-                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSaveExpense}>
+                <Button className="mt-8 w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white" onClick={handleSaveExpense}>
                   Save & Continue
                 </Button>
               </div>
@@ -553,7 +553,7 @@ const BorwEditProjectLend: React.FC = () => {
                   />
                 </div>
 
-                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSaveSales}>
+                <Button className="mt-8 w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white" onClick={handleSaveSales}>
                   Save & Continue
                 </Button>
               </div>
@@ -636,7 +636,7 @@ const BorwEditProjectLend: React.FC = () => {
                   </div>
                 </div>
 
-                <Button className="mt-8 w-full bg-[#0C4B20] text-white" onClick={handleSavePayoutSchedule}>
+                <Button className="mt-8 w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white" onClick={handleSavePayoutSchedule}>
                   Save & Continue
                 </Button>
               </div>

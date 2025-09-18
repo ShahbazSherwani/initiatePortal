@@ -715,7 +715,7 @@ export const BorrowerReg = (): JSX.Element => {
 
           {/* Next */}
           <div className="pt-4">
-            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#0C4B20] rounded-2xl font-medium">
+            <Button type="submit" className="w-full md:w-1/3 h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl font-medium">
               Next
             </Button>
           </div>

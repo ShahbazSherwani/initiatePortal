@@ -69,10 +69,7 @@ export const AccountSwitcher: React.FC = () => {
         navigate('/investor/discover', { replace: true });
       }
       
-      // Force a small delay to allow context to update
-      setTimeout(() => {
-        window.dispatchEvent(new Event('account-switched'));
-      }, 100);
+      // No need to dispatch event here - AccountContext now handles this
     } catch (error) {
       console.error('Error switching account:', error);
     } finally {

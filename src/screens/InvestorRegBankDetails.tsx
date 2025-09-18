@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
-import { createAccount } from "../lib/api";
+import { authFetch } from "../lib/api";
+import { API_BASE_URL } from '../config/environment';
+import { useAccount } from "../contexts/AccountContext";
+import { useAuth } from "../contexts/AuthContext";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { ValidatedInput, ValidatedSelect } from "../components/ValidatedFormFields";
@@ -52,6 +55,8 @@ export const InvestorRegBankDetails = (): JSX.Element => {
   };
 
   const { registration, setRegistration } = useRegistration();
+  const { refreshAccounts, setAccountType } = useAccount();
+  const { refreshProfile } = useAuth();
   const navigate = useNavigate();
 
   const bankAccountTypes = [
@@ -86,31 +91,86 @@ export const InvestorRegBankDetails = (): JSX.Element => {
       
       setRegistration(updatedRegistration);
 
-      // Prepare the complete profile data for the API
-      const profileData = {
-        fullName: `${updatedRegistration.details?.firstName || ''} ${updatedRegistration.details?.middleName || ''} ${updatedRegistration.details?.lastName || ''}`.trim(),
-        accountType: updatedRegistration.accountType,
-        personalDetails: updatedRegistration.details,
-        incomeDetails: updatedRegistration.incomeDetails,
-        bankDetails: updatedRegistration.bankDetails,
-        // Add any other data you want to save
+      // Prepare KYC data from the complete registration
+      const kycData = {
+        // Basic details
+        isIndividualAccount: true, // Investors are individual accounts
+        
+        // Personal details
+        placeOfBirth: updatedRegistration.details?.placeOfBirth || '',
+        gender: updatedRegistration.details?.gender || '',
+        civilStatus: updatedRegistration.details?.civilStatus || '',
+        nationality: updatedRegistration.details?.nationality || '',
+        contactEmail: updatedRegistration.details?.contactEmail || '',
+        
+        // Identity verification
+        secondaryIdType: updatedRegistration.details?.secondaryIdType || '',
+        secondaryIdNumber: updatedRegistration.details?.secondaryIdNumber || '',
+        
+        // Emergency contact
+        emergencyContactName: updatedRegistration.details?.emergencyContactName || '',
+        emergencyContactRelationship: updatedRegistration.details?.emergencyContactRelationship || '',
+        emergencyContactPhone: updatedRegistration.details?.emergencyContactPhone || '',
+        emergencyContactEmail: updatedRegistration.details?.emergencyContactEmail || '',
+        
+        // Business fields (set to null for individual investors)
+        businessRegistrationType: null,
+        businessRegistrationNumber: null,
+        businessRegistrationDate: null,
+        corporateTin: null,
+        natureOfBusiness: null,
+        principalOfficeStreet: null,
+        principalOfficeBarangay: null,
+        principalOfficeMunicipality: null,
+        principalOfficeProvince: null,
+        principalOfficeCountry: null,
+        principalOfficePostalCode: null,
+        gisTotalAssets: null,
+        gisTotalLiabilities: null,
+        gisPaidUpCapital: null,
+        gisNumberOfStockholders: null,
+        gisNumberOfEmployees: null,
+        
+        // PEP status
+        isPoliticallyExposedPerson: false,
+        pepDetails: null,
+        
+        // Authorized signatory (null for individual)
+        authorizedSignatoryName: null,
+        authorizedSignatoryPosition: null,
+        authorizedSignatoryIdType: null,
+        authorizedSignatoryIdNumber: null,
       };
 
-      // Create the investor account via API
-      const response = await createAccount('investor', profileData);
+      console.log('📝 Sending investor KYC data:', kycData);
+
+      // Complete the KYC process
+      const result = await authFetch(`${API_BASE_URL}/profile/complete-kyc`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          accountType: 'investor',
+          kycData: kycData
+        })
+      });
+
+      console.log('✅ Investor KYC completed successfully');
       
-      if (response.success) {
-        console.log('✅ Investor account created successfully');
-        // Navigate to investor dashboard or success page
-        navigate("/investor/discover");
-      } else {
-        console.error('❌ Failed to create investor account:', response);
-        // Handle error - maybe show a toast notification
-        alert('Failed to create investor account. Please try again.');
-      }
+      // IMPORTANT: Set current account type to investor immediately after successful registration
+      // This prevents sidebar/navigation issues during the transition
+      setAccountType('investor');
+      
+      // Refresh both account data and user profile
+      await refreshAccounts();
+      await refreshProfile(); // This will update the user role in AuthContext
+      
+      // Navigate to investor dashboard
+      navigate("/investor/discover");
     } catch (error) {
-      console.error('❌ Error creating investor account:', error);
-      alert('An error occurred while creating your account. Please try again.');
+      console.error('❌ Error completing investor registration:', error);
+      alert('An error occurred while completing your registration. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -213,7 +273,7 @@ export const InvestorRegBankDetails = (): JSX.Element => {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-white font-semibold px-8 py-3 rounded-2xl h-14 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold px-8 py-3 rounded-2xl h-14 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Creating Account..." : "Complete"}
             </Button>

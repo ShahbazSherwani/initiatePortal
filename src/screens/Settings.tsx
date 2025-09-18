@@ -1501,7 +1501,7 @@ export const Settings = (): JSX.Element => {
                       <Button
                         type="submit"
                         disabled={isLoading}
-                        className="bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-white font-semibold px-8"
+                        className="bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold px-8"
                       >
                         {isLoading ? "Updating..." : "Save Changes"}
                       </Button>
@@ -1595,7 +1595,7 @@ export const Settings = (): JSX.Element => {
                     <Button
                       type="submit"
                       disabled={isLoading}
-                      className="bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-white font-semibold"
+                      className="bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold"
                     >
                       {isLoading ? "Changing..." : "Change Password"}
                     </Button>

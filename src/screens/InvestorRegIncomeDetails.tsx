@@ -251,7 +251,7 @@ export const InvestorRegIncomeDetails = (): JSX.Element => {
             <Button
               type="submit"
               disabled={!confirmationChecked}
-              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-white font-semibold px-8 py-3 rounded-2xl h-14 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold px-8 py-3 rounded-2xl h-14 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </Button>

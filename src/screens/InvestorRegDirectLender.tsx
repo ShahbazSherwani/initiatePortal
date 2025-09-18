@@ -500,7 +500,7 @@ export const InvestorRegDirectLender = (): JSX.Element => {
           <div className="flex justify-end pt-6">
             <Button
               type="submit"
-              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-black font-semibold px-8 py-3 rounded-2xl h-14"
+              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold px-8 py-3 rounded-2xl h-14"
             >
               Next
             </Button>

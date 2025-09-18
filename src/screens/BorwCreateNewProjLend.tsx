@@ -371,7 +371,7 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                 </div>
 
                 <Button
-                  className="w-full bg-[#0C4B20] text-white py-3 rounded-lg font-medium"
+                  className="w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white py-3 rounded-lg font-medium"
                   onClick={onSubmit}
                 >
                   Continue

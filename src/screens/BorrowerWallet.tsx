@@ -23,9 +23,9 @@ import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
 
 export const BorrowerWallet = (): JSX.Element => {
-  const { profile, setProfile } = useAuth();
+  const { profile, setProfile, refreshProfile } = useAuth();
   const { registration, setRegistration } = useRegistration();
-  const { createAccount, refreshAccounts } = useAccount();
+  const { createAccount, refreshAccounts, setAccountType } = useAccount();
   const navigate = useNavigate();
   const [showThankYou, setShowThankYou] = useState(false);
 
@@ -204,8 +204,13 @@ export const BorrowerWallet = (): JSX.Element => {
       
       console.log('✅ Registration data saved to database');
       
-      // Refresh accounts to get the new borrower account
+      // IMPORTANT: Set current account type to borrower immediately after successful registration
+      // This prevents sidebar/navigation issues during the transition
+      setAccountType('borrower');
+      
+      // Refresh both account data and user profile
       await refreshAccounts();
+      await refreshProfile(); // This will update the user role in AuthContext
       
       console.log('✅ Accounts refreshed');
       
