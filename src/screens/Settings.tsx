@@ -1987,7 +1987,7 @@ export const Settings = (): JSX.Element => {
                         </Select>
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      {/* <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <p className="font-medium">Show Email Address</p>
                           <p className="text-sm text-gray-600">Allow others to see your email</p>
@@ -1996,9 +1996,9 @@ export const Settings = (): JSX.Element => {
                           checked={privacySettings.showEmail}
                           onCheckedChange={(checked) => setPrivacySettings(prev => ({ ...prev, showEmail: checked }))}
                         />
-                      </div>
+                      </div> */}
 
-                      <div className="flex items-center justify-between">
+                      {/* <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <p className="font-medium">Show Phone Number</p>
                           <p className="text-sm text-gray-600">Allow others to see your phone number</p>
@@ -2007,7 +2007,7 @@ export const Settings = (): JSX.Element => {
                           checked={privacySettings.showPhone}
                           onCheckedChange={(checked) => setPrivacySettings(prev => ({ ...prev, showPhone: checked }))}
                         />
-                      </div>
+                      </div> */}
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
