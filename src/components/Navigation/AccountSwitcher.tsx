@@ -134,7 +134,7 @@ export const AccountSwitcher: React.FC = () => {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80 p-6">
+      <DropdownMenuContent align="end" className="w-80 p-6 ">
         <div className="mb-6">
           <h3 className="text-xl font-bold text-gray-900 mb-2">Switch Account To:</h3>
         </div>
@@ -185,7 +185,7 @@ export const AccountSwitcher: React.FC = () => {
             </Button>
           ) : (
             // Show registration buttons if account doesn't exist
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-wrap gap-3 justify-center">
               <Button 
                 variant="outline" 
                 className="h-12 text-gray-700 border-gray-300 hover:bg-blue-50"
@@ -256,8 +256,8 @@ export const AccountSwitcher: React.FC = () => {
             </Button>
           ) : (
             // Show registration buttons if account doesn't exist
-            <div className="grid grid-cols-2 gap-3">
-              <Button 
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button   
                 variant="outline"
                 className="h-12 text-gray-700 border-gray-300 hover:bg-yellow-100"
                 onClick={() => handleCreateAccount('borrower')}
