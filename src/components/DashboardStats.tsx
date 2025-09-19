@@ -84,29 +84,29 @@ export const DashboardStats: React.FC = () => {
     {
       title: "Total Invested",
       value: formatCurrency(stats.totalInvested),
-      icon: <DollarSignIcon className="w-8 h-8 text-green-600" />,
-      bgColor: "bg-green-100",
+      icon: <DollarSignIcon className="w-8 h-8 text-white" />,
+      bgColor: "bg-[#0C4B20] hover:bg-[#8FB200]",
       description: "Total amount invested across all projects"
     },
     {
       title: "Campaigns Funded",
       value: stats.totalCampaignsFunded.toString(),
-      icon: <TargetIcon className="w-8 h-8 text-blue-600" />,
-      bgColor: "bg-blue-100",
+      icon: <TargetIcon className="w-8 h-8 text-white" />,
+      bgColor: "bg-[#0C4B20] hover:bg-[#8FB200]",
       description: "Successfully funded campaigns"
     },
     {
       title: "Active Investments",
       value: stats.activeInvestments.toString(),
-      icon: <TrendingUpIcon className="w-8 h-8 text-purple-600" />,
-      bgColor: "bg-purple-100",
+      icon: <TrendingUpIcon className="w-8 h-8 text-white" />,
+      bgColor: "bg-[#0C4B20] hover:bg-[#8FB200]",
       description: "Currently active investment positions"
     },
     {
       title: "Pending Approval",
       value: formatCurrency(stats.pendingInvestments),
-      icon: <ClockIcon className="w-8 h-8 text-orange-600" />,
-      bgColor: "bg-orange-100",
+      icon: <ClockIcon className="w-8 h-8 text-white" />,
+      bgColor: "bg-[#0C4B20] hover:bg-[#8FB200]",
       description: "Investments awaiting approval"
     }
   ];
