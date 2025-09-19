@@ -2020,7 +2020,7 @@ export const Settings = (): JSX.Element => {
                         />
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      {/* <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <p className="font-medium">Allow Direct Messages</p>
                           <p className="text-sm text-gray-600">Let other users send you messages</p>
@@ -2029,7 +2029,7 @@ export const Settings = (): JSX.Element => {
                           checked={privacySettings.allowMessaging}
                           onCheckedChange={(checked) => setPrivacySettings(prev => ({ ...prev, allowMessaging: checked }))}
                         />
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 </CardContent>

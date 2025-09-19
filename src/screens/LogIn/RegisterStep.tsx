@@ -525,7 +525,7 @@ export const RegisterStep = (): JSX.Element => {
         </p>
       </form>
 </div>
-<div className="flex items-center justify-center">
+<div className="flex items-center justify-center rounded-none">
 
       <Testimonials />
 </div>

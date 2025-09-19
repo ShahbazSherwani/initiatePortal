@@ -90,152 +90,185 @@ export const BorrowerPayoutSchedule: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
-        <div className="hidden md:block w-[325px]">
+        <div className="hidden lg:block w-[325px] flex-shrink-0">
           <Sidebar activePage="My Issuer/Borrower" />
         </div>
 
         {/* Mobile toggle */}
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <button
-            className="fixed top-4 left-4 p-2 bg-white rounded-full shadow z-50"
+            className="fixed top-4 left-4 p-3 bg-white rounded-full shadow-lg z-50 hover:bg-gray-50 transition-colors"
             onClick={() => setMobileMenuOpen(o => !o)}
+            aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
-              <ChevronLeftIcon className="w-6 h-6" />
+              <ChevronLeftIcon className="w-5 h-5 text-gray-700" />
             ) : (
-              <MenuIcon className="w-6 h-6" />
+              <MenuIcon className="w-5 h-5 text-gray-700" />
             )}
           </button>
           <div
-            className={`fixed inset-y-0 left-0 w-3/4 bg-white shadow transition-transform ${
+            className={`fixed inset-y-0 left-0 w-4/5 max-w-sm bg-white shadow-xl transition-transform duration-300 ease-in-out z-40 ${
               mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <Sidebar activePage="My Issuer/Borrower" />
+            <div className="h-full overflow-y-auto">
+              <Sidebar activePage="My Issuer/Borrower" />
+            </div>
           </div>
+          {/* Overlay */}
+          {mobileMenuOpen && (
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 z-30"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          )}
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+        <main className="flex-1 overflow-y-auto bg-[#f0f0f0]">
+          <div className="w-full max-w-7xl mx-auto bg-white min-h-screen">
+            <div className="lg:rounded-tl-[30px] p-4 sm:p-6 lg:p-8 animate-fadeIn delay-300">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 pt-16 lg:pt-0">
               <div className="flex items-center">
                 <ArrowLeftIcon
-                  className="w-6 h-6 cursor-pointer"
+                  className="w-5 h-5 sm:w-6 sm:h-6 cursor-pointer text-gray-700 hover:text-gray-900 transition-colors"
                   onClick={() => navigate(-1)}
                 />
-                <h1 className="ml-4 text-2xl md:text-3xl font-semibold">
+                <h1 className="ml-3 text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900">
                   Payout Schedule
                 </h1>
               </div>
-              <Button className="bg-[#0C4B20]">Add Payout Schedule</Button>
+              <Button className="bg-[#0C4B20] hover:bg-[#8FB200] text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg transition-colors text-sm sm:text-base">
+                Add Payout Schedule
+              </Button>
             </div>
 
             {/* Generate Total Payout */}
-            <div className="mb-6">
-              <label className="block mb-1 font-medium">
+            <div className="mb-8 bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+              <label className="block mb-3 font-semibold text-gray-800 text-sm sm:text-base">
                 Generate Total Payout Required
               </label>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Input
                   placeholder="Total Payout Required"
                   value={totalPayoutReq}
                   onChange={e => setTotalPayoutReq(e.target.value)}
-                  className="flex-1 rounded-2xl border"
+                  className="flex-1 rounded-xl border-gray-300 focus:border-[#0C4B20] focus:ring-[#0C4B20] p-3 text-sm sm:text-base"
                 />
-                <Button onClick={handleGeneratePayout} className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200]">
+                <Button 
+                  onClick={handleGeneratePayout} 
+                  className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200] text-white px-4 py-3 rounded-xl transition-colors text-sm sm:text-base font-medium min-w-fit"
+                >
                   Generate Total Payout Required
                 </Button>
               </div>
             </div>
 
             {/* Enter Details for Payout Schedule */}
-            <div className="mb-6 space-y-4">
-              <h2 className="text-lg font-semibold">Enter Details for Payout Schedule</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-1 font-medium">Payout Date(s)</label>
-                  <Input
-                    type="date"
-                    placeholder="Select Date"
-                    value={scheduleDate}
-                    onChange={e => setScheduleDate(e.target.value)}
-                    className="rounded-2xl border"
-                  />
+            <div className="mb-8 bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
+              <h2 className="text-lg sm:text-xl font-semibold mb-6 text-gray-900">Enter Details for Payout Schedule</h2>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                  <div>
+                    <label className="block mb-2 font-medium text-gray-700 text-sm sm:text-base">
+                      Payout Date(s)
+                    </label>
+                    <Input
+                      type="date"
+                      placeholder="Select Date"
+                      value={scheduleDate}
+                      onChange={e => setScheduleDate(e.target.value)}
+                      className="w-full rounded-xl border-gray-300 focus:border-[#0C4B20] focus:ring-[#0C4B20] p-3 text-sm sm:text-base"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-2 font-medium text-gray-700 text-sm sm:text-base">
+                      Amount
+                    </label>
+                    <Input
+                      placeholder="Amount"
+                      value={scheduleAmount}
+                      onChange={e => setScheduleAmount(e.target.value)}
+                      className="w-full rounded-xl border-gray-300 focus:border-[#0C4B20] focus:ring-[#0C4B20] p-3 text-sm sm:text-base"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block mb-1 font-medium">Amount</label>
+                  <label className="block mb-2 font-medium text-gray-700 text-sm sm:text-base">
+                    % of Total Payout (Capital + Interest)
+                  </label>
                   <Input
-                    placeholder="Amount"
-                    value={scheduleAmount}
-                    onChange={e => setScheduleAmount(e.target.value)}
-                    className="rounded-2xl border"
+                    placeholder="%"
+                    value={payoutPercent}
+                    onChange={e => setPayoutPercent(e.target.value)}
+                    className="w-full rounded-xl border-gray-300 focus:border-[#0C4B20] focus:ring-[#0C4B20] p-3 text-sm sm:text-base max-w-md"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block mb-1 font-medium">% of Total Payout (Capital + Interest)</label>
-                <Input
-                  placeholder="%"
-                  value={payoutPercent}
-                  onChange={e => setPayoutPercent(e.target.value)}
-                  className="w-full rounded-2xl border"
-                />
               </div>
             </div>
 
             {/* Generate Net Income */}
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold">Generate Net Income Calculation</h2>
-              <label className="block mb-1 font-medium">
+            <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 text-blue-900">Generate Net Income Calculation</h2>
+              <label className="block mb-3 font-medium text-blue-800 text-sm sm:text-base">
                 Total Amount in Payout Schedule
               </label>
-              <div className="flex gap-4 items-center">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
                 <Input
                   placeholder="Enter Amount"
                   value={netIncome}
                   onChange={e => setNetIncome(e.target.value)}
-                  className="flex-1 rounded-2xl border"
+                  className="flex-1 rounded-xl border-blue-300 focus:border-blue-500 focus:ring-blue-500 p-3 text-sm sm:text-base bg-white"
                 />
-                <Button onClick={handleMatchMismatch} className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200]">
+                <Button 
+                  onClick={handleMatchMismatch} 
+                  className="whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl transition-colors text-sm sm:text-base font-medium"
+                >
                   Match/Mismatch
                 </Button>
               </div>
             </div>
 
             {/* Agreements */}
-            <div className="space-y-2 mb-6">
-              <div className="flex items-center">
-                <Checkbox
-                  checked={penaltyAgree}
-                  onCheckedChange={val => setPenaltyAgree(!!val)}
-                />
-                <label className="ml-2 text-sm">
-                  I confirm and agree that I will be charged with penalty for delay of payments.
-                </label>
-              </div>
-              <div className="flex items-center">
-                <Checkbox
-                  checked={legalAgree}
-                  onCheckedChange={val => setLegalAgree(!!val)}
-                />
-                <label className="ml-2 text-sm">
-                  I confirm and agree that I will be subject to legal obligations for non-payments.
-                </label>
+            <div className="mb-8 bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6">
+              <h3 className="text-lg font-semibold mb-4 text-yellow-900">Terms & Agreements</h3>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={penaltyAgree}
+                    onCheckedChange={val => setPenaltyAgree(!!val)}
+                    className="mt-1 data-[state=checked]:bg-[#0C4B20] data-[state=checked]:border-[#0C4B20]"
+                  />
+                  <label className="text-sm sm:text-base text-gray-700 leading-relaxed">
+                    I confirm and agree that I will be charged with penalty for delay of payments.
+                  </label>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={legalAgree}
+                    onCheckedChange={val => setLegalAgree(!!val)}
+                    className="mt-1 data-[state=checked]:bg-[#0C4B20] data-[state=checked]:border-[#0C4B20]"
+                  />
+                  <label className="text-sm sm:text-base text-gray-700 leading-relaxed">
+                    I confirm and agree that I will be subject to legal obligations for non-payments.
+                  </label>
+                </div>
               </div>
             </div>
 
             {/* Continue */}
-            <div>
+            <div className="sticky bottom-0 bg-white pt-4 pb-4 sm:pb-6 border-t border-gray-200">
               <Button
-                className="bg-[#0C4B20] text-white w-full"
+                className="bg-[#0C4B20] hover:bg-[#8FB200] text-white w-full py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 onClick={handleContinue}
                 disabled={!penaltyAgree || !legalAgree}
               >
                 Add Payout Schedule
               </Button>
             </div>
+          </div>
           </div>
         </main>
       </div>
