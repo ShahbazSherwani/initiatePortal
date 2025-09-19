@@ -1000,7 +1000,7 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
       phone: user.phone_number || '',
       dateOfBirth: user.date_of_birth || '',
       nationality: user.nationality || '',
-      accountType: user.current_account_type || 'individual',
+      accountType: 'individual', // Will be updated based on profile data
       profileType: user.has_borrower_account && user.has_investor_account ? 'Both' : 
                   user.has_borrower_account ? 'Borrower' : 
                   user.has_investor_account ? 'Investor' : 'None',
@@ -1073,6 +1073,13 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
         preference: '',
         riskTolerance: '',
         portfolioValue: 0,
+      },
+      bankAccount: {
+        bankName: '',
+        accountNumber: '',
+        accountName: '',
+        iban: '',
+        swiftCode: '',
       },
       pepStatus: false,
     };
@@ -1176,6 +1183,18 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
 
         // PEP status
         profileData.pepStatus = borrower.is_politically_exposed_person || false;
+        
+        // Bank account information
+        profileData.bankAccount = {
+          bankName: borrower.bank_name || '',
+          accountNumber: borrower.account_number || '',
+          accountName: borrower.account_name || '',
+          iban: borrower.iban || '',
+          swiftCode: borrower.swift_code || '',
+        };
+        
+        // Set accountType based on is_individual_account flag
+        profileData.accountType = borrower.is_individual_account ? 'individual' : 'non-individual';
         
         // Parse stored JSON data if available
         try {
@@ -1297,6 +1316,18 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
 
         // PEP status
         profileData.pepStatus = investor.is_politically_exposed_person || false;
+        
+        // Bank account information
+        profileData.bankAccount = {
+          bankName: investor.bank_name || '',
+          accountNumber: investor.account_number || '',
+          accountName: investor.account_name || '',
+          iban: investor.iban || '',
+          swiftCode: investor.swift_code || '',
+        };
+        
+        // Set accountType based on is_individual_account flag
+        profileData.accountType = investor.is_individual_account ? 'individual' : 'non-individual';
       }
     }
 

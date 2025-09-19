@@ -3,13 +3,15 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { ChevronLeftIcon } from "lucide-react";
-import { Navbar } from "../components/Navigation/navbar";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Checkbox } from "../components/ui/checkbox";
 import { AddBankAccountModal } from '../components/AddBankAccountModal';
 import { ViewBankAccountModal } from "../components/ViewBankAccountModal";
+import { authFetch } from "../lib/api";
+import { API_BASE_URL } from '../config/environment';
+import { toast } from 'react-hot-toast';
 import type { BankAccount } from "../types/BankAccount";
 
 
@@ -42,12 +44,60 @@ import type { BankAccount } from "../types/BankAccount";
 export const BorrowerBankDet: React.FC = () => {
   const { token } = useContext(AuthContext)!;
   const { registration, setRegistration } = useRegistration();
-  const bankAccounts = registration.bankAccounts || [];
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0); // Force re-render
+
+  // Fetch bank accounts from API
+  const fetchBankAccounts = async () => {
+    try {
+      const response = await authFetch(`${API_BASE_URL}/bank-accounts`);
+      if (response.success) {
+        setBankAccounts(response.accounts);
+        console.log('🏦 Fetched bank accounts:', response.accounts);
+      } else {
+        console.error('Failed to fetch bank accounts:', response);
+        setBankAccounts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error);
+      setBankAccounts([]);
+      toast.error('Failed to load bank accounts');
+    }
+  };
+
+  // Save bank account to API
+  const saveBankAccount = async (accountData: any) => {
+    try {
+      const response = await authFetch(`${API_BASE_URL}/bank-accounts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(accountData)
+      });
+      
+      if (response.success) {
+        toast.success('Bank account added successfully!');
+        fetchBankAccounts(); // Refresh the list
+        return true;
+      } else {
+        toast.error(response.error || 'Failed to add bank account');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error saving bank account:', error);
+      toast.error('Failed to save bank account');
+      return false;
+    }
+  };
+
+  // Load bank accounts on component mount
+  useEffect(() => {
+    fetchBankAccounts();
+  }, []);
 
   // Monitor registration changes
   useEffect(() => {
@@ -58,7 +108,6 @@ export const BorrowerBankDet: React.FC = () => {
   // Debug logging
   console.log('🏦 Current bank accounts:', bankAccounts);
   console.log('🏦 Registration object:', registration);
-  console.log('🏦 Refresh key:', refreshKey);
 
 
 
@@ -85,37 +134,31 @@ export const BorrowerBankDet: React.FC = () => {
                 <AddBankAccountModal
                     isOpen={showModal}
                     onClose={() => setShowModal(false)}
-                    onSubmit={data => {
+                    onSubmit={async data => {
                       console.log('🏦 Adding bank account:', data);
-                      console.log('🏦 Current registration before update:', registration);
                       
-                      const newAccount = { ...data, preferred: false };
-                      
-                      // Use functional update with more explicit logging
-                      setRegistration(prevReg => {
-                        console.log('🏦 Previous registration state:', prevReg);
-                        const currentBankAccounts = prevReg.bankAccounts || [];
-                        console.log('🏦 Current bank accounts array:', currentBankAccounts);
-                        
-                        const updatedBankAccounts = [...currentBankAccounts, newAccount];
-                        console.log('🏦 Updated bank accounts array:', updatedBankAccounts);
-                        
-                        const updatedReg = {
-                          ...prevReg,
-                          bankAccounts: updatedBankAccounts
-                        };
-                        
-                        console.log('🏦 Complete updated registration:', updatedReg);
-                        return updatedReg;
+                      // Save to backend API
+                      const success = await saveBankAccount({
+                        accountName: data.accountName,
+                        bankAccount: data.bankAccount,
+                        accountType: data.accountType,
+                        accountNumber: data.accountNumber,
+                        iban: data.iban,
+                        swiftCode: data.swiftCode,
+                        preferred: data.preferred || false
                       });
                       
-                      // Use setTimeout to force a re-render after state update
-                      setTimeout(() => {
-                        setRefreshKey(prev => prev + 1);
-                        console.log('🏦 Forced re-render triggered');
-                      }, 100);
-                      
-                      setShowModal(false);
+                      if (success) {
+                        // Also update local registration context for compatibility
+                        const newAccount = { ...data, preferred: false };
+                        setRegistration(prevReg => ({
+                          ...prevReg,
+                          bankAccounts: [...(prevReg.bankAccounts || []), newAccount]
+                        }));
+                        
+                        setShowModal(false);
+                      }
+                      // If save failed, modal stays open so user can retry
                     }}
                 />
           </div>
@@ -142,6 +185,12 @@ export const BorrowerBankDet: React.FC = () => {
                         <span className="font-medium text-gray-600">Bank:</span>{" "}
                         <span className="font-medium text-black">{acct.bank || acct.bankAccount}</span>
                       </div>
+                      {acct.accountType && (
+                        <div>
+                          <span className="font-medium text-gray-600">Account Type:</span>{" "}
+                          <span>{acct.accountType}</span>
+                        </div>
+                      )}
                       <div>
                         <span className="font-medium text-gray-600">Account #:</span>{" "}
                         <span>{acct.accountNumber}</span>

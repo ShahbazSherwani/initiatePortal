@@ -73,6 +73,16 @@ router.get('/profile', verifyToken, async (req, res) => {
           postalCode: borrower.postal_code || '',
         };
         
+        // Add bank account information
+        profileData.bankAccount = {
+          accountName: borrower.account_name || '',
+          bankName: borrower.bank_name || '',
+          accountType: borrower.account_type || '',
+          accountNumber: borrower.account_number || '',
+          iban: borrower.iban || '',
+          swiftCode: borrower.swift_code || '',
+        };
+        
         // Individual KYC fields
         if (borrower.is_individual_account) {
           profileData.personalInfo = {
@@ -149,6 +159,18 @@ router.get('/profile', verifyToken, async (req, res) => {
             state: investor.state_province || '',
             country: investor.country || '',
             postalCode: investor.postal_code || '',
+          };
+        }
+        
+        // Add bank account information for investors
+        if (!profileData.bankAccount || Object.values(profileData.bankAccount).every(v => !v)) {
+          profileData.bankAccount = {
+            accountName: investor.account_name || '',
+            bankName: investor.bank_name || '',
+            accountType: investor.account_type || '',
+            accountNumber: investor.account_number || '',
+            iban: investor.iban || '',
+            swiftCode: investor.swift_code || '',
           };
         }
         

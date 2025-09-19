@@ -32,7 +32,8 @@ export const BorrowerWallet = (): JSX.Element => {
   // --- 1) Define all dynamic form data arrays ---
   const bankFields = [
     { id: "accountName", label: "Account Name",   type: "input",  placeholder: "Enter here" },
-    { id: "bankAccount", label: "Bank Account",   type: "select", placeholder: "Please select" },
+    { id: "bankName", label: "Bank Name",   type: "input", placeholder: "Enter bank name" },
+    { id: "accountType", label: "Account Type", type: "select", placeholder: "Select account type" },
     { id: "accountNumber", label: "Account Number", type: "input",  placeholder: "Enter here" },
     { id: "iban",        label: "IBAN",           type: "input",  placeholder: "Enter here" },
     { id: "swiftCode",   label: "SWIFT Code",     type: "input",  placeholder: "Enter here" },
@@ -65,7 +66,8 @@ export const BorrowerWallet = (): JSX.Element => {
   // Add state for bank details
   const [bankDetails, setBankDetails] = useState<{ [key: string]: string }>({
     accountName: "",
-    bankAccount: "",
+    bankName: "",
+    accountType: "",
     accountNumber: "",
     iban: "",
     swiftCode: "",
@@ -82,8 +84,8 @@ export const BorrowerWallet = (): JSX.Element => {
 
   const handleNext = async () => {
     // Validate bank details
-    if (!bankDetails.accountName || !bankDetails.accountNumber) {
-      alert("Please fill in the required bank details");
+    if (!bankDetails.accountName || !bankDetails.bankName || !bankDetails.accountType || !bankDetails.accountNumber) {
+      alert("Please fill in all required bank details: Account Name, Bank Name, Account Type, and Account Number");
       return;
     }
     
@@ -97,7 +99,8 @@ export const BorrowerWallet = (): JSX.Element => {
           ...(reg.bankAccounts || []),
           {
             accountName: bankDetails.accountName,
-            bankAccount: bankDetails.bankAccount,
+            bankAccount: bankDetails.bankName, // bankAccount field holds bank name for compatibility
+            accountType: bankDetails.accountType,
             accountNumber: bankDetails.accountNumber,
             iban: bankDetails.iban,
             swiftCode: bankDetails.swiftCode,
@@ -115,13 +118,7 @@ export const BorrowerWallet = (): JSX.Element => {
         location: registration.details?.cityName || registration.details?.location,
         phoneNumber: registration.details?.phoneNumber,
         dateOfBirth: registration.details?.dateOfBirth,
-        experience: registration.details?.experience,
-        // Bank details
-        bankAccount: bankDetails.bankAccount,
-        accountName: bankDetails.accountName,
-        accountNumber: bankDetails.accountNumber,
-        iban: bankDetails.iban,
-        swiftCode: bankDetails.swiftCode
+        experience: registration.details?.experience
       });
       
       console.log('✅ Borrower account created successfully');
@@ -173,7 +170,15 @@ export const BorrowerWallet = (): JSX.Element => {
         authorizedSignatoryName: !isIndividual ? registration.details?.authorizedSignatoryName || registration.details?.contactPersonName : null,
         authorizedSignatoryPosition: !isIndividual ? registration.details?.authorizedSignatoryPosition || registration.details?.contactPersonPosition : null,
         authorizedSignatoryIdType: !isIndividual ? 'corporate_id' : null,
-        authorizedSignatoryIdNumber: !isIndividual ? registration.details?.authorizedSignatoryIdNumber : null
+        authorizedSignatoryIdNumber: !isIndividual ? registration.details?.authorizedSignatoryIdNumber : null,
+        
+        // Bank account details - ADD THESE MISSING FIELDS
+        account_name: bankDetails.accountName,
+        bank_name: bankDetails.bankName,
+        account_type: bankDetails.accountType,
+        account_number: bankDetails.accountNumber,
+        iban: bankDetails.iban,
+        swift_code: bankDetails.swiftCode
       };
       
       // Sanitize KYC payload: convert empty strings to null and remove undefined properties
@@ -299,7 +304,10 @@ export const BorrowerWallet = (): JSX.Element => {
                     onChange={e => setBankDetails({ ...bankDetails, [field.id]: e.target.value })}
                   />
                 ) : (
-                  <Select>
+                  <Select 
+                    value={bankDetails[field.id] || ""}
+                    onValueChange={(value) => setBankDetails({ ...bankDetails, [field.id]: value })}
+                  >
                     <SelectTrigger
                       id={field.id}
                       className="w-full h-14 rounded-2xl border border-gray-300 px-4"
@@ -307,8 +315,19 @@ export const BorrowerWallet = (): JSX.Element => {
                       <SelectValue placeholder={field.placeholder} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="option1">Current</SelectItem>
-                      <SelectItem value="option2">Savings</SelectItem>
+                      {field.id === "accountType" ? (
+                        <>
+                          <SelectItem value="Savings Account">Savings Account</SelectItem>
+                          <SelectItem value="Current Account">Current Account</SelectItem>
+                          <SelectItem value="Time Deposit">Time Deposit</SelectItem>
+                          <SelectItem value="Investment Account">Investment Account</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="option1">Option 1</SelectItem>
+                          <SelectItem value="option2">Option 2</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 )}

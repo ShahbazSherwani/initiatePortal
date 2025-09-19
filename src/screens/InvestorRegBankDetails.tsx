@@ -15,7 +15,8 @@ import { ArrowLeftIcon } from "lucide-react";
 
 export const InvestorRegBankDetails = (): JSX.Element => {
   const [accountName, setAccountName] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountType, setAccountType] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [iban, setIban] = useState("");
   const [swiftCode, setSwiftCode] = useState("");
@@ -31,7 +32,8 @@ export const InvestorRegBankDetails = (): JSX.Element => {
     // Required fields validation
     const requiredFields = [
       { value: accountName, name: "accountName" },
-      { value: bankAccount, name: "bankAccount" },
+      { value: bankName, name: "bankName" },
+      { value: accountType, name: "accountType" },
       { value: accountNumber, name: "accountNumber" },
       { value: iban, name: "iban" },
       { value: swiftCode, name: "swiftCode" },
@@ -55,7 +57,7 @@ export const InvestorRegBankDetails = (): JSX.Element => {
   };
 
   const { registration, setRegistration } = useRegistration();
-  const { refreshAccounts, setAccountType } = useAccount();
+  const { refreshAccounts, setAccountType: setUserAccountType } = useAccount();
   const { refreshProfile } = useAuth();
   const navigate = useNavigate();
 
@@ -82,7 +84,8 @@ export const InvestorRegBankDetails = (): JSX.Element => {
         ...registration,
         bankDetails: {
           accountName,
-          bankAccount,
+          bankName,
+          accountType,
           accountNumber,
           iban,
           swiftCode,
@@ -135,6 +138,14 @@ export const InvestorRegBankDetails = (): JSX.Element => {
         isPoliticallyExposedPerson: false,
         pepDetails: null,
         
+        // Bank account details
+        account_name: accountName,
+        bank_name: bankName,
+        account_type: accountType,
+        account_number: accountNumber,
+        iban: iban,
+        swift_code: swiftCode,
+        
         // Authorized signatory (null for individual)
         authorizedSignatoryName: null,
         authorizedSignatoryPosition: null,
@@ -145,7 +156,7 @@ export const InvestorRegBankDetails = (): JSX.Element => {
       console.log('📝 Sending investor KYC data:', kycData);
 
       // Complete the KYC process
-      const result = await authFetch(`${API_BASE_URL}/profile/complete-kyc`, {
+      await authFetch(`${API_BASE_URL}/profile/complete-kyc`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -219,14 +230,24 @@ export const InvestorRegBankDetails = (): JSX.Element => {
                 placeholder="Enter here"
               />
 
-              {/* Bank Account Type */}
-              <ValidatedSelect
-                label="Bank Account"
+              {/* Bank Name */}
+              <ValidatedInput
+                label="Bank Name"
                 required
-                hasError={errors.bankAccount}
-                value={bankAccount}
-                onValueChange={setBankAccount}
-                placeholder="Please select"
+                hasError={errors.bankName}
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="Enter bank name"
+              />
+
+              {/* Account Type */}
+              <ValidatedSelect
+                label="Account Type"
+                required
+                hasError={errors.accountType}
+                value={accountType}
+                onValueChange={setAccountType}
+                placeholder="Select account type"
               >
                 {bankAccountTypes.map((type) => (
                   <SelectItem key={type} value={type}>

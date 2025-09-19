@@ -92,6 +92,14 @@ export const Settings = (): JSX.Element => {
       phone: "",
       address: "",
     },
+    bankAccount: {
+      accountName: "",
+      bankName: "",
+      accountType: "",
+      accountNumber: "",
+      iban: "",
+      swiftCode: "",
+    },
     businessInfo: {
       entityType: "",
       businessRegistrationType: "",
@@ -175,7 +183,9 @@ export const Settings = (): JSX.Element => {
 
   // Load user data on component mount
   useEffect(() => {
-    loadUserData();
+    if (user) {
+      loadUserData();
+    }
   }, [user]);
 
   // Helper function to convert date to YYYY-MM-DD format
@@ -195,17 +205,10 @@ export const Settings = (): JSX.Element => {
       setIsLoading(true);
       
       // Load profile data
-      console.log('🔍 Loading user profile data...');
       const profileResponse = await getUserProfile();
-      console.log('📡 Profile API Response:', profileResponse);
       
       if (profileResponse.success) {
         const profile = profileResponse.profile;
-        console.log('📋 Profile data received:', profile);
-        console.log('🏠 Address data:', profile.address);
-        console.log('🆔 Identification data:', profile.identification);
-        console.log('👤 Personal info data:', profile.personalInfo);
-        console.log('💼 Employment info data:', profile.employmentInfo);
         
         // Convert date format for HTML input
         if (profile.dateOfBirth) {
@@ -236,14 +239,43 @@ export const Settings = (): JSX.Element => {
             identification: {
               ...prev.identification,
               ...(profile.identification || {})
+            },
+            personalInfo: {
+              ...prev.personalInfo,
+              ...(profile.personalInfo || {})
+            },
+            employmentInfo: {
+              ...prev.employmentInfo,
+              ...(profile.employmentInfo || {})
+            },
+            emergencyContact: {
+              ...prev.emergencyContact,
+              ...(profile.emergencyContact || {})
+            },
+            businessInfo: {
+              ...prev.businessInfo,
+              ...(profile.businessInfo || {})
+            },
+            principalOfficeAddress: {
+              ...prev.principalOfficeAddress,
+              ...(profile.principalOfficeAddress || {})
+            },
+            authorizedSignatory: {
+              ...prev.authorizedSignatory,
+              ...(profile.authorizedSignatory || {})
+            },
+            investmentInfo: {
+              ...prev.investmentInfo,
+              ...(profile.investmentInfo || {})
+            },
+            bankAccount: {
+              ...prev.bankAccount,
+              ...(profile.bankAccount || {})
             }
           };
           
-          console.log('📝 Setting profile data to:', newProfileData);
           return newProfileData;
         });
-      } else {
-        console.error('❌ Profile API call failed:', profileResponse);
       }
       
       // Load settings data
@@ -275,6 +307,8 @@ export const Settings = (): JSX.Element => {
           nationalId: "1234-5678-9012",
           passport: "P123456789",
           tin: "123-456-789-000",
+          secondaryIdType: "",
+          secondaryIdNumber: "",
         },
         personalInfo: {
           placeOfBirth: "Manila",
@@ -282,6 +316,7 @@ export const Settings = (): JSX.Element => {
           civilStatus: "single",
           nationality: "Filipino",
           motherMaidenName: "Dela Cruz",
+          contactEmail: "",
         },
         employmentInfo: {
           employerName: "ABC Corporation",
@@ -296,17 +331,40 @@ export const Settings = (): JSX.Element => {
           phone: "+63 912 345 6788",
           address: "123 Main Street, Makati",
         },
+        bankAccount: {
+          accountName: "",
+          bankName: "",
+          accountType: "",
+          accountNumber: "",
+          iban: "",
+          swiftCode: "",
+        },
         businessInfo: {
+          entityType: "",
           businessRegistrationType: "",
           businessRegistrationNumber: "",
           businessRegistrationDate: "",
           corporateTin: "",
           natureOfBusiness: "",
           businessAddress: "",
+          gisTotalAssets: null,
+          gisTotalLiabilities: null,
+          gisPaidUpCapital: null,
+          gisNumberOfStockholders: null,
+          gisNumberOfEmployees: null,
+        },
+        principalOfficeAddress: {
+          street: "",
+          barangay: "",
+          municipality: "",
+          province: "",
+          country: "Philippines",
+          postalCode: "",
         },
         authorizedSignatory: {
           name: "",
           position: "",
+          idType: "",
           idNumber: "",
         },
         investmentInfo: {
@@ -514,11 +572,15 @@ export const Settings = (): JSX.Element => {
           </div>
 
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="profile" className="flex items-center gap-2">
                 <UserIcon className="w-4 h-4" />
                 Profile
               </TabsTrigger>
+              {/* <TabsTrigger value="bank" className="flex items-center gap-2">
+                <KeyIcon className="w-4 h-4" />
+                Bank Account
+              </TabsTrigger> */}
               <TabsTrigger value="security" className="flex items-center gap-2">
                 <ShieldIcon className="w-4 h-4" />
                 Security
@@ -864,12 +926,12 @@ export const Settings = (): JSX.Element => {
                             <div className="space-y-2">
                               <Label>Place of Birth</Label>
                               <Input
-                                value={profileData.personalInfo.placeOfBirth}
+                                value={profileData.personalInfo.placeOfBirth || ""}
                                 onChange={(e) => setProfileData(prev => ({ 
                                   ...prev, 
                                   personalInfo: { ...prev.personalInfo, placeOfBirth: e.target.value }
                                 }))}
-                                
+                                placeholder="Enter place of birth"
                               />
                             </div>
                             <div className="space-y-2">
@@ -1523,6 +1585,104 @@ export const Settings = (): JSX.Element => {
                       </Button>
                     </div>
                   </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Bank Account Tab */}
+            <TabsContent value="bank" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <KeyIcon className="w-5 h-5" />
+                    Bank Account Information
+                  </CardTitle>
+                  <CardDescription>
+                    Your bank account details from registration. Contact support to modify these details.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Account Name */}
+                    <div className="space-y-2">
+                      <Label htmlFor="accountName">Account Name</Label>
+                      <Input
+                        id="accountName"
+                        value={profileData.bankAccount?.accountName || ''}
+                        readOnly
+                        className="bg-gray-50"
+                        placeholder="Not provided"
+                      />
+                    </div>
+
+                    {/* Bank Name */}
+                    <div className="space-y-2">
+                      <Label htmlFor="bankName">Bank Name</Label>
+                      <Input
+                        id="bankName"
+                        value={profileData.bankAccount?.bankName || ''}
+                        readOnly
+                        className="bg-gray-50"
+                        placeholder="Not provided"
+                      />
+                    </div>
+
+                    {/* Account Type */}
+                    <div className="space-y-2">
+                      <Label htmlFor="bankAccountType">Account Type</Label>
+                      <Input
+                        id="bankAccountType"
+                        value={profileData.bankAccount?.accountType || ''}
+                        readOnly
+                        className="bg-gray-50"
+                        placeholder="Not provided"
+                      />
+                    </div>
+
+                    {/* Account Number */}
+                    <div className="space-y-2">
+                      <Label htmlFor="accountNumber">Account Number</Label>
+                      <Input
+                        id="accountNumber"
+                        value={profileData.bankAccount?.accountNumber ? 
+                          `****${profileData.bankAccount.accountNumber.slice(-4)}` : ''}
+                        readOnly
+                        className="bg-gray-50"
+                        placeholder="Not provided"
+                      />
+                    </div>
+
+                    {/* IBAN */}
+                    <div className="space-y-2">
+                      <Label htmlFor="iban">IBAN</Label>
+                      <Input
+                        id="iban"
+                        value={profileData.bankAccount?.iban || ''}
+                        readOnly
+                        className="bg-gray-50"
+                        placeholder="Not provided"
+                      />
+                    </div>
+
+                    {/* SWIFT Code */}
+                    <div className="space-y-2">
+                      <Label htmlFor="swiftCode">SWIFT Code</Label>
+                      <Input
+                        id="swiftCode"
+                        value={profileData.bankAccount?.swiftCode || ''}
+                        readOnly
+                        className="bg-gray-50"
+                        placeholder="Not provided"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-700">
+                      <strong>Note:</strong> Bank account information is set during registration and cannot be modified here. 
+                      If you need to update your bank details, please contact our support team for assistance.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
