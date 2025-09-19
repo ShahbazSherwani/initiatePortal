@@ -3,14 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
+import { ValidatedInput, ValidatedSelect } from "../components/ValidatedFormFields";
 import { ArrowLeftIcon } from "lucide-react";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
   SelectItem,
 } from "../components/ui/select";
 
@@ -123,82 +118,71 @@ export const BorrowerBankDetails = (): JSX.Element => {
             <h3 className="text-xl md:text-2xl font-semibold">Bank Information</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Bank Name */}
-              <div className="space-y-2">
-                <Label>Bank Name*</Label>
-                <Input
-                  required
-                  value={bankName}
-                  onChange={e => setBankName(e.target.value)}
-                  placeholder="Enter bank name"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Bank Name"
+                required
+                hasError={validationErrors.bankName}
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="Enter bank name"
+              />
 
               {/* Account Number */}
-              <div className="space-y-2">
-                <Label>Account Number*</Label>
-                <Input
-                  required
-                  value={accountNumber}
-                  onChange={e => setAccountNumber(e.target.value)}
-                  placeholder="Enter account number"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Account Number"
+                required
+                hasError={validationErrors.accountNumber}
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder="Enter account number"
+              />
 
               {/* Account Name */}
-              <div className="sm:col-span-2 space-y-2">
-                <Label>Account Name*</Label>
-                <Input
+              <div className="sm:col-span-2">
+                <ValidatedInput
+                  label="Account Name"
                   required
+                  hasError={validationErrors.accountName}
                   value={accountName}
-                  onChange={e => setAccountName(e.target.value)}
+                  onChange={(e) => setAccountName(e.target.value)}
                   placeholder="Enter account name (as registered with bank)"
-                  className="h-14 rounded-2xl"
                 />
               </div>
 
               {/* Account Type */}
-              <div className="space-y-2">
-                <Label>Account Type*</Label>
-                <Select
-                  required
-                  value={accountType}
-                  onValueChange={setAccountType}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select account type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accountTypes.map(type => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <ValidatedSelect
+                label="Account Type"
+                required
+                hasError={validationErrors.accountType}
+                value={accountType}
+                onValueChange={setAccountType}
+                placeholder="Select account type"
+              >
+                {accountTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </ValidatedSelect>
 
               {/* Branch Code */}
-              <div className="space-y-2">
-                <Label>Branch Code</Label>
-                <Input
-                  value={branchCode}
-                  onChange={e => setBranchCode(e.target.value)}
-                  placeholder="Enter branch code (if available)"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Branch Code"
+                hasError={validationErrors.branchCode}
+                value={branchCode}
+                onChange={(e) => setBranchCode(e.target.value)}
+                placeholder="Enter branch code (if available)"
+              />
 
               {/* Branch Name */}
-              <div className="sm:col-span-2 space-y-2">
-                <Label>Branch Name*</Label>
-                <Input
+              <div className="sm:col-span-2">
+                <ValidatedInput
+                  label="Branch Name"
                   required
+                  hasError={validationErrors.branchName}
                   value={branchName}
-                  onChange={e => setBranchName(e.target.value)}
+                  onChange={(e) => setBranchName(e.target.value)}
                   placeholder="Enter branch name/location"
-                  className="h-14 rounded-2xl"
                 />
               </div>
             </div>

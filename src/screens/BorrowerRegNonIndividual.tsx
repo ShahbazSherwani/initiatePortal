@@ -6,6 +6,7 @@ import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ValidatedInput } from "../components/ValidatedFormFields";
 import { ArrowLeftIcon } from "lucide-react";
 import {
   Select,
@@ -289,16 +290,14 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
             <h3 className="text-xl md:text-2xl font-semibold">Entity Information</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Entity Name */}
-              <div className="sm:col-span-2 space-y-2">
-                <Label className={validationErrors.entityName ? "text-red-500" : ""}>
-                  Entity Name*
-                </Label>
-                <Input
+              <div className="sm:col-span-2">
+                <ValidatedInput
+                  label="Entity Name"
                   required
+                  hasError={validationErrors.entityName}
                   value={entityName}
-                  onChange={e => setEntityName(e.target.value)}
+                  onChange={(e) => setEntityName(e.target.value)}
                   placeholder="Enter entity name"
-                  className={`h-14 rounded-2xl ${validationErrors.entityName ? "border-red-500 focus:border-red-500" : ""}`}
                 />
               </div>
               

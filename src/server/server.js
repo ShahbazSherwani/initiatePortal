@@ -3652,17 +3652,25 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
       
       console.log('👤 Existing user check:', existingUserQuery.rows.length > 0 ? existingUserQuery.rows[0] : 'No existing user');
       
+      // Get the full name to use - preserve existing if no KYC full name provided
+      const existingUser = existingUserQuery.rows[0];
+      const fullNameToUse = kycData.fullName || 
+                           (existingUser?.full_name && existingUser.full_name !== 'Unknown User' ? existingUser.full_name : 'User');
+      
       // Ensure user exists in the users table first (upsert)
       const upsertResult = await db.query(
         `INSERT INTO users (firebase_uid, full_name, role, has_completed_registration, created_at, updated_at)
          VALUES ($1, $2, $3, true, NOW(), NOW())
          ON CONFLICT (firebase_uid) DO UPDATE
          SET role = EXCLUDED.role, 
-             full_name = EXCLUDED.full_name,
+             full_name = CASE 
+               WHEN users.full_name IS NULL OR users.full_name = 'Unknown User' THEN EXCLUDED.full_name
+               ELSE users.full_name
+             END,
              has_completed_registration = EXCLUDED.has_completed_registration,
              updated_at = NOW()
          RETURNING firebase_uid, role, full_name`,
-        [uid, kycData.fullName || 'Unknown User', accountType]
+        [uid, fullNameToUse, accountType]
       );
       
       console.log('✅ User record upserted:', upsertResult.rows[0]);

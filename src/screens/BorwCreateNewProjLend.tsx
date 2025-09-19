@@ -33,6 +33,7 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   const { form, setForm } = useProjectForm();
 
   // Local state for form fields (or use controlled components directly)
+  const [investmentAmount, setInvestmentAmount] = useState("");
   const [loanAmount, setLoanAmount] = useState("");
   const [projectRequirements, setProjectRequirements] = useState("");
   const [investorPercentage, setInvestorPercentage] = useState("");
@@ -157,19 +158,35 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   </label>
                   <ToggleGroup
                     type="single"
-                    className="flex gap-3"
                     value={loanAmount}
-                    onValueChange={setLoanAmount}
+                    onValueChange={(v) => {
+                      // Radix passes undefined if clicking the already-selected item
+                      if (v) setLoanAmount(v);
+                    }}
+                    className="flex gap-3"
                   >
                     <ToggleGroupItem
                       value="Under 100000"
-                      className="flex-1 py-3 rounded-2xl bg-[#0C4B20] text-center font-medium font-poppins"
+                      className="
+                        flex-1 py-3 rounded-2xl border text-center font-medium font-poppins
+                        bg-white text-[#0C4B20] 
+                        hover:bg-[#90B200]
+                        data-[state=on]:bg-[#0C4B20] data-[state=on]:text-white data-[state=on]:border-transparent
+                        transition-colors
+                      "
                     >
                       Under 100000
                     </ToggleGroupItem>
+
                     <ToggleGroupItem
                       value="100000 and Above"
-                      className="flex-1 py-3 rounded-2xl bg-white border text-center font-medium font-poppins"
+                      className="
+                        flex-1 py-3 rounded-2xl border text-center font-medium font-poppins
+                        bg-white text-[#0C4B20]
+                        hover:bg-[#90B200]
+                        data-[state=on]:bg-[#0C4B20] data-[state=on]:text-white data-[state=on]:border-transparent
+                        transition-colors
+                      "
                     >
                       100000 and Above
                     </ToggleGroupItem>

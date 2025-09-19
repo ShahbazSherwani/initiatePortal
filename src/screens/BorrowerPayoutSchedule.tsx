@@ -1,30 +1,18 @@
 // src/screens/BorrowerPayoutSchedule.tsx
 import React, { useContext, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Navbar } from "../components/Navigation/navbar";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Checkbox } from "../components/ui/checkbox";
-import { BorrowerPayoutScheduleModal } from "../components/BorrowerPayoutScheduleModal";
 import { ArrowLeftIcon, ChevronLeftIcon, Menu as MenuIcon } from "lucide-react";
 import { AuthContext } from "../contexts/AuthContext";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { useProjects } from "../contexts/ProjectsContext";
 import { v4 as uuidv4 } from "uuid";
-import type { Milestone } from "../types/Milestone";
 
 
 export const BorrowerPayoutSchedule: React.FC = () => {
-
-
-    const [showGuarantorModal, setShowGuarantorModal] = useState(false);
-
-      const handleModalContinue = (data) => {
-  setShowGuarantorModal(false);
-  // Optionally store data if needed
-  handleFinalSubmit(); // <-- This will add the project and navigate
-};
 
   const { token } = useContext(AuthContext)!;
   const navigate = useNavigate();
@@ -65,7 +53,8 @@ export const BorrowerPayoutSchedule: React.FC = () => {
         legalAgree,
       },
     }));
-    // Optionally navigate to next step
+    // Navigate to next step or submit directly
+    handleFinalSubmit();
   };
 
   const handleFinalSubmit = () => {
@@ -89,6 +78,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
       roi: {},
       sales: {},
       payoutSchedule: {},
+      projectId: "",
     });
     navigate("/borwMyProj"); // Make sure this route matches your "My Projects" page
   };
@@ -154,7 +144,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
                   onChange={e => setTotalPayoutReq(e.target.value)}
                   className="flex-1 rounded-2xl border"
                 />
-                <Button onClick={handleGeneratePayout} className="whitespace-nowrap">
+                <Button onClick={handleGeneratePayout} className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200]">
                   Generate Total Payout Required
                 </Button>
               </div>
@@ -208,7 +198,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
                   onChange={e => setNetIncome(e.target.value)}
                   className="flex-1 rounded-2xl border"
                 />
-                <Button onClick={handleMatchMismatch} className="whitespace-nowrap">
+                <Button onClick={handleMatchMismatch} className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200]">
                   Match/Mismatch
                 </Button>
               </div>
@@ -240,16 +230,11 @@ export const BorrowerPayoutSchedule: React.FC = () => {
             <div>
               <Button
                 className="bg-[#0C4B20] text-white w-full"
-                onClick={() => setShowGuarantorModal(true)}
+                onClick={handleContinue}
+                disabled={!penaltyAgree || !legalAgree}
               >
                 Add Payout Schedule
               </Button>
-
-              <BorrowerPayoutScheduleModal
-                open={showGuarantorModal}
-                onOpenChange={setShowGuarantorModal}
-                onContinue={handleModalContinue}
-              />
             </div>
           </div>
         </main>

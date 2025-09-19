@@ -6,6 +6,7 @@ import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ValidatedInput, ValidatedSelect, ValidatedFileUpload } from "../components/ValidatedFormFields";
 import { ArrowLeftIcon } from "lucide-react";
 import {
   Select,
@@ -26,7 +27,6 @@ export const BorrowerReg = (): JSX.Element => {
   // File uploads
   const [nationalIdFile, setNationalIdFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
-  const nationalIdFileRef = useRef<HTMLInputElement>(null);
   const passportFileRef = useRef<HTMLInputElement>(null);
 
   // Additional KYC fields for Individual accounts
@@ -83,19 +83,8 @@ export const BorrowerReg = (): JSX.Element => {
   };
 
   // File upload handlers
-  const handleNationalIdUpload = () => {
-    nationalIdFileRef.current?.click();
-  };
-
   const handlePassportUpload = () => {
     passportFileRef.current?.click();
-  };
-
-  const handleNationalIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setNationalIdFile(file);
-    }
   };
 
   const handlePassportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -279,37 +268,23 @@ export const BorrowerReg = (): JSX.Element => {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* National ID */}
-              <div className="space-y-2">
-                <Label className={validationErrors.nationalId ? "text-red-500" : ""}>
-                  National/Government ID No.*
-                </Label>
-                <Input
-                  required
-                  value={nationalId}
-                  onChange={e => setNationalId(e.target.value)}
-                  placeholder="Enter here"
-                  className={`h-14 rounded-2xl ${validationErrors.nationalId ? "border-red-500 focus:border-red-500" : ""}`}
-                />
-              </div>
+              <ValidatedInput
+                label="National/Government ID No."
+                required
+                hasError={validationErrors.nationalId}
+                value={nationalId}
+                onChange={(e) => setNationalId(e.target.value)}
+                placeholder="Enter here"
+              />
               {/* Upload ID Copy */}
-              <div className="space-y-2">
-                <Label>Upload ID Copy</Label>
-                <input
-                  type="file"
-                  ref={nationalIdFileRef}
-                  onChange={handleNationalIdFileChange}
-                  accept="image/*,.pdf"
-                  className="hidden"
-                />
-                <Button 
-                  type="button"
-                  onClick={handleNationalIdUpload}
-                  className="w-full h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl flex items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">+</span> 
-                  {nationalIdFile ? `Selected: ${nationalIdFile.name}` : 'Upload'}
-                </Button>
-              </div>
+              <ValidatedFileUpload
+                label="Upload ID Copy"
+                required
+                hasError={validationErrors.nationalIdFile}
+                file={nationalIdFile}
+                onFileChange={setNationalIdFile}
+                buttonText="Upload"
+              />
               {/* Passport */}
               <div className="space-y-2">
                 <Label>Passport Number*</Label>
@@ -344,14 +319,14 @@ export const BorrowerReg = (): JSX.Element => {
                 </Button>
               </div>
               {/* TIN */}
-              <div className="sm:col-span-2 space-y-2">
-                <Label className={validationErrors.tin ? "text-red-500" : ""}>TIN*</Label>
-                <Input
+              <div className="sm:col-span-2">
+                <ValidatedInput
+                  label="TIN"
                   required
+                  hasError={validationErrors.tin}
                   value={tin}
-                  onChange={e => setTin(e.target.value)}
+                  onChange={(e) => setTin(e.target.value)}
                   placeholder="Enter here"
-                  className={`h-14 rounded-2xl ${validationErrors.tin ? "border-red-500 focus:border-red-500" : ""}`}
                 />
               </div>
             </div>
@@ -364,36 +339,27 @@ export const BorrowerReg = (): JSX.Element => {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Place of Birth */}
-              <div className="space-y-2">
-                <Label className={validationErrors.placeOfBirth ? "text-red-500" : ""}>
-                  Place of Birth*
-                </Label>
-                <Input
-                  required
-                  value={placeOfBirth}
-                  onChange={e => setPlaceOfBirth(e.target.value)}
-                  placeholder="Enter place of birth"
-                  className={`h-14 rounded-2xl ${validationErrors.placeOfBirth ? "border-red-500 focus:border-red-500" : ""}`}
-                />
-              </div>
+              <ValidatedInput
+                label="Place of Birth"
+                required
+                hasError={validationErrors.placeOfBirth}
+                value={placeOfBirth}
+                onChange={(e) => setPlaceOfBirth(e.target.value)}
+                placeholder="Enter place of birth"
+              />
               {/* Gender */}
-              <div className="space-y-2">
-                <Label className={validationErrors.gender ? "text-red-500" : ""}>Gender*</Label>
-                <Select
-                  required
-                  value={gender}
-                  onValueChange={setGender}
-                >
-                  <SelectTrigger className={`h-14 rounded-2xl ${validationErrors.gender ? "border-red-500" : ""}`}>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <ValidatedSelect
+                label="Gender"
+                required
+                hasError={validationErrors.gender}
+                value={gender}
+                onValueChange={setGender}
+                placeholder="Select gender"
+              >
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+              </ValidatedSelect>
               {/* Civil Status */}
               <div className="space-y-2">
                 <Label>Civil Status*</Label>
@@ -446,27 +412,23 @@ export const BorrowerReg = (): JSX.Element => {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Employer Name */}
-              <div className="space-y-2">
-                <Label>Employer/Company Name*</Label>
-                <Input
-                  required
-                  value={employerName}
-                  onChange={e => setEmployerName(e.target.value)}
-                  placeholder="Enter employer name"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Employer/Company Name"
+                required
+                hasError={validationErrors.employerName}
+                value={employerName}
+                onChange={(e) => setEmployerName(e.target.value)}
+                placeholder="Enter employer name"
+              />
               {/* Occupation */}
-              <div className="space-y-2">
-                <Label>Occupation/Position*</Label>
-                <Input
-                  required
-                  value={occupation}
-                  onChange={e => setOccupation(e.target.value)}
-                  placeholder="Enter occupation"
-                  className="h-14 rounded-2xl"
-                />
-              </div>
+              <ValidatedInput
+                label="Occupation/Position"
+                required
+                hasError={validationErrors.occupation}
+                value={occupation}
+                onChange={(e) => setOccupation(e.target.value)}
+                placeholder="Enter occupation"
+              />
               {/* Employer Address */}
               <div className="sm:col-span-2 space-y-2">
                 <Label>Employer Address*</Label>
