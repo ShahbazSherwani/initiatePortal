@@ -172,7 +172,7 @@ export const InvestorInvestments: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/investor/discover')}
-            className="bg-yellow-400 text-black px-6 py-2 rounded-lg hover:bg-yellow-500 transition-colors"
+            className="bg-[#0C4B20] hover:bg-[#8FB200] text-white px-6 py-2 rounded-lg transition-colors"
           >
             Discover Investment Opportunities
           </button>

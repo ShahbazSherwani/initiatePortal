@@ -110,6 +110,26 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
               </span>
             </Link>
           ))}
+          {/* Mobile Account Switcher + profile display */}
+          <div className="px-3 mt-2 border-t border-gray-100 pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={profilePicture || "/ellipse-1.png"} alt="avatar" />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white font-semibold">
+                    {getCurrentAccountName().charAt(0).toUpperCase()}
+                 </AvatarFallback>
+                </Avatar>
+               <div className="text-sm">
+                  <div className="font-medium">{getCurrentAccountName()}</div>
+                  <div className="text-xs text-gray-500">{currentAccountType}</div>
+               </div>
+              </div>
+                <div className="ml-4 flex-shrink-0">
+                  <AccountSwitcher />
+              </div>
+            </div>
+          </div>
 
           {token ? (
             <Button

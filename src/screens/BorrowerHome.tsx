@@ -144,6 +144,8 @@ export const BorrowerHome: React.FC = () => {
       setSwitching(false);
     }
   };
+
+  const SHOW_ACCOUNT_SECTION = true; 
       
   return (
     <>
@@ -220,7 +222,7 @@ export const BorrowerHome: React.FC = () => {
                         <p className="text-2xl font-semibold">
                           {currentAccountType === 'borrower' ? 'Issue/Borrow Account' : 'Invest/Lender Account'}
                         </p>
-                        {profile?.profileCode && (
+                        {/* {profile?.profileCode && (
                           <div className="flex items-center justify-center md:justify-start gap-2 mt-2">
                             <span className="text-sm text-gray-600">
                               Profile Code: {showProfileCode ? profile.profileCode : '••••••'}
@@ -234,7 +236,7 @@ export const BorrowerHome: React.FC = () => {
                               {showProfileCode ? <EyeOffIcon className="w-3 h-3" /> : <EyeIcon className="w-3 h-3" />}
                             </Button>
                           </div>
-                        )}
+                        )} */}
                       </div>
 
                       {/* iFunds Balance & Actions */}
@@ -295,89 +297,95 @@ export const BorrowerHome: React.FC = () => {
 
                 {/* Account Type Selectors - Show current account highlighted and others as switchable */}
                 <section className="mt-12">
-                  <h3 className="font-poppins font-semibold text-black text-xl md:text-[26px] mb-6 text-center md:text-left">
-                    Account type
-                  </h3>
-                  <div className="flex flex-wrap gap-6 justify-center md:justify-start">
-                    {accountTypes.map((type) => {
-                      const accountType = type.key as 'borrower' | 'investor';
-                      const isCurrentAccount = currentAccountType === accountType;
-                      const hasThisAccount = hasAccount(accountType);
-                      
-                      return (
-                        <div key={type.key} className="w-full sm:w-[216px] flex flex-col items-center">
-                          <button
-                            onClick={() => {
-                              console.log(`🖱️ Main card clicked: ${accountType}`, {
-                                hasThisAccount,
-                                isCurrentAccount,
-                                action: hasThisAccount && !isCurrentAccount ? 'switch' : !hasThisAccount ? 'create' : 'none'
-                              });
-                              
-                              if (hasThisAccount && !isCurrentAccount) {
-                                handleAccountSwitch(accountType);
-                              } else if (!hasThisAccount) {
-                                handleAccountCreation(accountType);
-                              }
-                            }}
-                            className={`w-full flex flex-col items-center focus:outline-none ${
-                              isCurrentAccount ? 'cursor-default' : 'cursor-pointer'
-                            }`}
-                            disabled={isCurrentAccount || switching}
-                          >
-                            <Card className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition ${
-                              isCurrentAccount 
-                                ? 'bg-[#0C4B20] border-[#0C4B20] border-2 shadow-lg' 
-                                : 'bg-white border border-black hover:shadow-md'
-                            }`}>
-                              <CardContent className="p-0 flex items-center justify-center">
-                                <img
-                                  className="w-[115px] h-[115px] object-cover"
-                                  src={type.image}
-                                  alt={type.title}
-                                />
-                              </CardContent>
-                            </Card>
-                            <span className={`mt-2 font-poppins font-medium text-base md:text-lg ${
-                              isCurrentAccount 
-                                ? 'text-[#0C4B20] font-bold' 
-                                : 'text-black opacity-70'
-                            }`}>
-                              {type.title}
-                            </span>
-                          </button>
+                  {SHOW_ACCOUNT_SECTION && (
+                    <div>
+                      <h3 className="font-poppins font-semibold text-black text-xl md:text-[26px] mb-6 text-center md:text-left">
+                        Account type
+                      </h3>
+                      <div className="flex flex-wrap gap-6 justify-center md:justify-start">
+                        {accountTypes.map((type) => {
+                          const accountType = type.key as 'borrower' | 'investor';
+                          const isCurrentAccount = currentAccountType === accountType;
+                          const hasThisAccount = hasAccount(accountType);
                           
-                          {/* Status and Action Button */}
-                          <div className="mt-2 text-center">
-                            {isCurrentAccount ? (
-                              <span className="inline-block px-3 py-1 bg-[#0C4B20] text-white text-xs font-semibold rounded-full">
-                                Current Account
-                              </span>
-                            ) : hasThisAccount ? (
-                              <button
-                                onClick={() => handleAccountSwitch(accountType)}
-                                disabled={switching}
-                                className="inline-block px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              >
-                                {switching ? 'Switching...' : 'Switch to This Account'}
-                              </button>
-                            ) : (
+                          return (
+                            <div key={type.key} className="w-full sm:w-[216px] flex flex-col items-center">
                               <button
                                 onClick={() => {
-                                  console.log(`🖱️ Create Account button clicked: ${accountType}`);
-                                  handleAccountCreation(accountType);
+                                  console.log(`🖱️ Main card clicked: ${accountType}`, {
+                                    hasThisAccount,
+                                    isCurrentAccount,
+                                    action: hasThisAccount && !isCurrentAccount ? 'switch' : !hasThisAccount ? 'create' : 'none'
+                                  });
+                                  
+                                  if (hasThisAccount && !isCurrentAccount) {
+                                    handleAccountSwitch(accountType);
+                                  } else if (!hasThisAccount) {
+                                    handleAccountCreation(accountType);
+                                  }
                                 }}
-                                className="inline-block px-3 py-1 bg-gray-500 text-white text-xs font-semibold rounded-full hover:bg-gray-600 transition-colors"
+                                className={`w-full flex flex-col items-center focus:outline-none ${
+                                  isCurrentAccount ? 'cursor-default' : 'cursor-pointer'
+                                }`}
+                                disabled={isCurrentAccount || switching}
                               >
-                                Create Account
+                                <Card className={`w-full h-[158px] flex items-center justify-center rounded-2xl transition ${
+                                  isCurrentAccount 
+                                    ? 'bg-[#0C4B20] border-[#0C4B20] border-2 shadow-lg' 
+                                    : 'bg-white border border-black hover:shadow-md'
+                                }`}>
+                                  <CardContent className="p-0 flex items-center justify-center">
+                                    <img
+                                      className="w-[115px] h-[115px] object-cover"
+                                      src={type.image}
+                                      alt={type.title}
+                                    />
+                                  </CardContent>
+                                </Card>
+                                <span className={`mt-2 font-poppins font-medium text-base md:text-lg ${
+                                  isCurrentAccount 
+                                    ? 'text-[#0C4B20] font-bold' 
+                                    : 'text-black opacity-70'
+                                }`}>
+                                  {type.title}
+                                </span>
                               </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
+                              
+                              {/* Status and Action Button */}
+                              <div className="mt-2 text-center">
+                                {isCurrentAccount ? (
+                                  <span className="inline-block px-3 py-1 bg-[#0C4B20] text-white text-xs font-semibold rounded-full">
+                                    Current Account
+                                  </span>
+                                ) : hasThisAccount ? (
+                                  <button
+                                    onClick={() => handleAccountSwitch(accountType)}
+                                    disabled={switching}
+                                    className="inline-block px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    {switching ? 'Switching...' : 'Switch to This Account'}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      console.log(`🖱️ Create Account button clicked: ${accountType}`);
+                                      handleAccountCreation(accountType);
+                                    }}
+                                    className="inline-block px-3 py-1 bg-gray-500 text-white text-xs font-semibold rounded-full hover:bg-gray-600 transition-colors"
+                                  >
+                                    Create Account
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </section> 
+                
+                
 
                 {/* Start Investing Button - Show for current investors or if user has investor account */}
                 {(currentAccountType === 'investor' || hasAccount('investor')) && (
@@ -430,6 +438,7 @@ export const BorrowerHome: React.FC = () => {
                     ))}
                   </div>
                 </section>
+                
               </div>
             )}
           </main>

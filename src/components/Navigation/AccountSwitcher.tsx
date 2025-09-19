@@ -249,7 +249,7 @@ export const AccountSwitcher: React.FC = () => {
 
         {/* User Info Section */}
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+          {/* <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
             <span>User: {getCurrentAccountLabel()}</span>
             <Button
               variant="ghost"
@@ -269,7 +269,7 @@ export const AccountSwitcher: React.FC = () => {
               Profile Code: {getProfileCode()}
             </div>
           )}
-          
+           */}
           {/* Debug Info - Hidden for now, will check later */}
           {/* 
           <div className="mt-2 text-xs text-gray-400 bg-gray-50 p-2 rounded">
