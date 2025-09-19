@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React from "react";
 import {
   ArrowLeftIcon,
   EyeIcon,
@@ -11,10 +11,10 @@ import { Button } from "../../components/ui/button";
 import { Navbar } from "../../components/Navigation/navbar";
 import { Link, useNavigate } from "react-router-dom";
 import { Testimonials } from "../../screens/LogIn/Testimonials";
-import { AuthContext } from "../../contexts/AuthContext";
 import { useAuth } from '../../contexts/AuthContext'; // Ensure this is the correct path to your AuthContext
+import { LoadingSpinner, LoadingOverlay } from "../../components/ui/loading-spinner";
 
-import { upsertProfile, fetchProfile } from '../../lib/profile';
+import { fetchProfile } from '../../lib/profile';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase"; // your client init
 import { generateProfileCode } from "../../lib/profileUtils";
@@ -26,12 +26,20 @@ export const LogIn = (): JSX.Element => {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [showLoadingOverlay, setShowLoadingOverlay] = React.useState(false);
   const { setProfile } = useAuth();
 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
+    
+    // Set up timer to show loading overlay after 1 second
+    const loadingTimer = setTimeout(() => {
+      setShowLoadingOverlay(true);
+    }, 1000);
   
     try {
       // 1) Attempt to sign in
@@ -76,6 +84,11 @@ export const LogIn = (): JSX.Element => {
         // Generic fallback for any other errors
         setError("Login failed. Please check your email and password and try again.");
       }
+    } finally {
+      // Clear timer and reset loading states
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
+      setShowLoadingOverlay(false);
     }
   };
   
@@ -110,8 +123,9 @@ export const LogIn = (): JSX.Element => {
                         ? setEmail(e.target.value)
                         : setPassword(e.target.value)
                     }
+                    disabled={isLoading}
                     placeholder="Enter here"
-                    className="h-[58px] rounded-2xl border border-black pl-12 pr-10 w-full transition-all duration-300"
+                    className="h-[58px] rounded-2xl border border-black pl-12 pr-10 w-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <field.icon className="absolute top-1/2 left-5 transform -translate-y-1/2 w-5 h-5 text-black" />
                   {field.label === "Password" && (
@@ -137,15 +151,36 @@ export const LogIn = (): JSX.Element => {
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center md:gap-4 md:max-w-[65%]">
-            <Button type="submit" className="w-full md:w-[266px] h-[58px] bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl text-white hover:text-white font-medium">
-              Log In
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full md:w-[266px] h-[58px] bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl text-white hover:text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <LoadingSpinner size="sm" className="text-white" />
+                  <span>Logging in...</span>
+                </div>
+              ) : (
+                "Log In"
+              )}
             </Button>
             <span>or</span>
             <div className="flex items-center gap-4 mt-4 md:mt-0">
-              <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none" type="button">
+              <Button 
+                variant="outline" 
+                disabled={isLoading}
+                className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none disabled:opacity-50" 
+                type="button"
+              >
                 <img src="/image-3.png" alt="Google sign in" className="w-[33px] h-[34px] object-cover" />
               </Button>
-              <Button variant="outline" className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none" type="button">
+              <Button 
+                variant="outline" 
+                disabled={isLoading}
+                className="w-full md:w-[107px] h-[58px] bg-[#ebeaea] rounded-2xl border-none disabled:opacity-50" 
+                type="button"
+              >
                 <img src="/image-6.png" alt="Facebook sign in" className="w-[33px] h-[34px] object-cover" />
               </Button>
             </div>
@@ -161,6 +196,11 @@ export const LogIn = (): JSX.Element => {
           </p>
         </div>
       </form>
+
+      <LoadingOverlay 
+        show={showLoadingOverlay} 
+        message="Signing you in..." 
+      />
 
       <Testimonials />
       <style>{`

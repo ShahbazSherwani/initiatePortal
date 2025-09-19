@@ -18,6 +18,7 @@ import { Button } from "../../components/ui/button";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Testimonials } from "./Testimonials";
 import { AuthContext } from "../../contexts/AuthContext";
+import { LoadingSpinner, LoadingOverlay } from "../../components/ui/loading-spinner";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { upsertProfile, fetchProfile } from "../../lib/profile";
@@ -35,6 +36,8 @@ export const RegisterStep = (): JSX.Element => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
 
   // Common password check function
   const isCommonPassword = (pwd: string): boolean => {
@@ -135,55 +138,81 @@ export const RegisterStep = (): JSX.Element => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
+    
+    // Set up timer to show loading overlay after 1 second
+    const loadingTimer = setTimeout(() => {
+      setShowLoadingOverlay(true);
+    }, 1000);
 
     if (!termsChecked) {
       setError("You must accept the terms.");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     if (password !== confirm) {
       setError("Passwords do not match.");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     
     // Enhanced password validation - enforce strong security requirements
     if (password.length < 12) {
       setError("Password must be at least 12 characters long for security.");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     
     if (passwordValidation.strength < 6) {
       setError("Password is not strong enough. Please ensure it meets at least 6 out of 7 security requirements.");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     
     // Check for specific critical requirements
     if (!passwordValidation.checks.uppercase) {
       setError("Password must contain at least one uppercase letter (A-Z).");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     
     if (!passwordValidation.checks.lowercase) {
       setError("Password must contain at least one lowercase letter (a-z).");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     
     if (!passwordValidation.checks.numbers) {
       setError("Password must contain at least one number (0-9).");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     
     if (!passwordValidation.checks.symbols) {
       setError("Password must contain at least one special character (!@#$%^&*).");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     
     if (!passwordValidation.checks.noCommon) {
       setError("Password is too common. Please choose a more unique password.");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     
     if (!passwordValidation.checks.noPersonal) {
       setError("Password cannot contain your name or email. Please choose a different password.");
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
       return;
     }
     try {
@@ -226,6 +255,11 @@ export const RegisterStep = (): JSX.Element => {
         // Generic fallback for any other errors
         setError("Registration failed. Please check your information and try again.");
       }
+    } finally {
+      // Clear timer and reset loading states
+      clearTimeout(loadingTimer);
+      setIsLoading(false);
+      setShowLoadingOverlay(false);
     }
   };
 
@@ -258,8 +292,9 @@ export const RegisterStep = (): JSX.Element => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading}
               placeholder="Enter your email"
-              className="h-[58px] rounded-2xl border border-black pl-12 pr-4 w-full"
+              className="h-[58px] rounded-2xl border border-black pl-12 pr-4 w-full disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <MailIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black" />
           </div>
@@ -273,8 +308,9 @@ export const RegisterStep = (): JSX.Element => {
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              disabled={isLoading}
               placeholder="Enter your name"
-              className="h-[58px] rounded-2xl border border-black pl-12 pr-4 w-full"
+              className="h-[58px] rounded-2xl border border-black pl-12 pr-4 w-full disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black" />
           </div>
@@ -288,8 +324,9 @@ export const RegisterStep = (): JSX.Element => {
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
               placeholder="Create a strong password"
-              className="h-[58px] rounded-2xl border border-black pl-12 pr-16 w-full"
+              className="h-[58px] rounded-2xl border border-black pl-12 pr-16 w-full disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black" />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
@@ -396,8 +433,9 @@ export const RegisterStep = (): JSX.Element => {
               type={showConfirm ? "text" : "password"}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
+              disabled={isLoading}
               placeholder="Confirm password"
-              className={`h-[58px] rounded-2xl border pl-12 pr-12 w-full ${
+              className={`h-[58px] rounded-2xl border pl-12 pr-12 w-full disabled:opacity-50 disabled:cursor-not-allowed ${
                 confirm && password ? 
                   (password === confirm ? 'border-green-500' : 'border-red-500') 
                   : 'border-black'
@@ -438,6 +476,7 @@ export const RegisterStep = (): JSX.Element => {
           <Checkbox
             checked={termsChecked}
             onCheckedChange={(checked) => setTermsChecked(checked === true)}
+            disabled={isLoading}
             className="mr-2"
           />
           <label className="text-sm">
@@ -480,17 +519,26 @@ export const RegisterStep = (): JSX.Element => {
         <div className="flex flex-col md:flex-row md:items-center md:gap-4">
           <Button
             type="submit"
-            disabled={!password || !confirm || password !== confirm || passwordValidation.strength < 6 || !termsChecked}
+            disabled={!password || !confirm || password !== confirm || passwordValidation.strength < 6 || !termsChecked || isLoading}
             className={`w-full md:w-[266px] h-[58px] rounded-2xl text-white font-medium transition-all ${
-              password && confirm && password === confirm && passwordValidation.strength >= 6 && termsChecked
+              password && confirm && password === confirm && passwordValidation.strength >= 6 && termsChecked && !isLoading
                 ? 'bg-[#0C4B20] hover:bg-[#8FB200]'
                 : 'bg-gray-300 cursor-not-allowed'
             }`}
           >
-            {!password || !confirm || password !== confirm || passwordValidation.strength < 6 || !termsChecked
-              ? 'Complete Requirements to Register'
-              : 'Register'
-            }
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <LoadingSpinner size="sm" className="text-white" />
+                <span>Creating Account...</span>
+              </div>
+            ) : (
+              <>
+                {!password || !confirm || password !== confirm || passwordValidation.strength < 6 || !termsChecked
+                  ? 'Complete Requirements to Register'
+                  : 'Register'
+                }
+              </>
+            )}
           </Button>
           <span className="mx-4 md:mx-2">or</span>
           <div className="flex items-center gap-4">
@@ -525,10 +573,15 @@ export const RegisterStep = (): JSX.Element => {
         </p>
       </form>
 </div>
-<div className="flex items-center justify-center rounded-none">
+<div className="flex items-center justify-center">
 
       <Testimonials />
 </div>
+
+      <LoadingOverlay 
+        show={showLoadingOverlay} 
+        message="Creating your account..." 
+      />
 
       <style>{`
         @keyframes fadeIn {
