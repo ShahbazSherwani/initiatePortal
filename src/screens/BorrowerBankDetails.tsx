@@ -189,7 +189,7 @@ export const BorrowerBankDetails = (): JSX.Element => {
           </section>
 
           {/* Information Note */}
-          <section className="space-y-4">
+          {/* <section className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-semibold text-blue-800 mb-2">Important Information</h4>
               <ul className="text-sm text-blue-700 space-y-1">
@@ -199,7 +199,7 @@ export const BorrowerBankDetails = (): JSX.Element => {
                 <li>• You may add additional bank accounts later from your dashboard</li>
               </ul>
             </div>
-          </section>
+          </section> */}
 
           {/* Navigation */}
           <div className="flex gap-4 pt-4">

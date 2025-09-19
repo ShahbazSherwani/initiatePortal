@@ -143,7 +143,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
             />
           </div>
 
-          <div className="flex items-start gap-2">
+          {/* <div className="flex items-start gap-2">
             <div className="pt-1">
               <Checkbox
                 checked={agreePenalty}
@@ -167,7 +167,7 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
             <label htmlFor="risk" className="ml-2 text-sm">
               I confirm and agree to risks associated and consequences.
             </label>
-          </div>
+          </div> */}
 
           <Button type="button" onClick={handleContinue} className="w-full mt-4 bg-[#0C4B20] hover:bg-[#8FB200] py-3 text-sm sm:text-base">
             Continue

@@ -187,7 +187,7 @@ export const BorrowerBankDetailsNonIndividual = (): JSX.Element => {
           </section>
 
           {/* Additional Information */}
-          <section className="space-y-4">
+          {/* <section className="space-y-4">
             <h3 className="text-xl font-semibold">Important Notes</h3>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <ul className="text-sm space-y-2 text-gray-700">
@@ -197,7 +197,7 @@ export const BorrowerBankDetailsNonIndividual = (): JSX.Element => {
                 <li>• Required documents may include bank certificate and signature cards</li>
               </ul>
             </div>
-          </section>
+          </section> */}
 
           {/* Submit Button */}
           <div className="flex justify-end pt-6">
