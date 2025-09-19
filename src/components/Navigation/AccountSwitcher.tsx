@@ -149,10 +149,23 @@ export const AccountSwitcher: React.FC = () => {
               <span className="text-lg font-semibold text-gray-900">Invest/Lender Account</span>
             </div>
             {hasAccount('investor') && (
+              // <div className="flex items-center space-x-2">
+              //   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              //   <span className="text-sm text-green-600 font-medium">Active</span>
+              // </div>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-green-600 font-medium">Active</span>
-              </div>
+                {currentAccountType === 'investor' ? (
+                  <>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                   <span className="text-sm text-green-600 font-medium">Active</span>
+                 </>
+               ) : (
+                  <>
+                   <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    <span className="text-sm text-gray-500 font-medium">Inactive</span>
+                 </>
+                )}
+             </div>
             )}
           </div>
           
@@ -202,13 +215,30 @@ export const AccountSwitcher: React.FC = () => {
               </div>
               <span className="text-lg font-semibold text-gray-900">Issue/Borrow Account</span>
             </div>
-            {hasAccount('borrower') && (
+            {/* {hasAccount('borrower') && (
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span className="text-sm text-green-600 font-medium">Active</span>
               </div>
+            )} */}
+           {hasAccount('borrower') && (
+              <div className="flex items-center space-x-2">
+                {currentAccountType === 'borrower' ? (
+                  <>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-green-600 font-medium">Active</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    <span className="text-sm text-gray-500 font-medium">Inactive</span>
+                  </>
+                )}
+              </div>
             )}
           </div>
+
+          
           
           {hasAccount('borrower') ? (
             // Show switch button if account exists
