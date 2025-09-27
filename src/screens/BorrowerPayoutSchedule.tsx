@@ -210,9 +210,9 @@ export const BorrowerPayoutSchedule: React.FC = () => {
             </div>
 
             {/* Generate Net Income */}
-            <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-semibold mb-4 text-blue-900">Generate Net Income Calculation</h2>
-              <label className="block mb-3 font-medium text-blue-800 text-sm sm:text-base">
+            <div className="mb-8 bg-[#8FB200]/25 border border-[#0C4B20] rounded-xl p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 text-[#0C4B20]">Generate Net Income Calculation</h2>
+              <label className="block mb-3 font-medium text-[#0C4B20] text-sm sm:text-base">
                 Total Amount in Payout Schedule
               </label>
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
@@ -220,11 +220,11 @@ export const BorrowerPayoutSchedule: React.FC = () => {
                   placeholder="Enter Amount"
                   value={netIncome}
                   onChange={e => setNetIncome(e.target.value)}
-                  className="flex-1 rounded-xl border-blue-300 focus:border-blue-500 focus:ring-blue-500 p-3 text-sm sm:text-base bg-white"
+                  className="flex-1 rounded-xl border-[#0C4B20] ring-[#8FB200] p-3 text-sm sm:text-base bg-white"
                 />
                 <Button 
                   onClick={handleMatchMismatch} 
-                  className="whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl transition-colors text-sm sm:text-base font-medium"
+                  className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200] transition-colors text-sm sm:text-base font-medium"
                 >
                   Match/Mismatch
                 </Button>
@@ -232,8 +232,8 @@ export const BorrowerPayoutSchedule: React.FC = () => {
             </div>
 
             {/* Agreements */}
-            <div className="mb-8 bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6">
-              <h3 className="text-lg font-semibold mb-4 text-yellow-900">Terms & Agreements</h3>
+            <div className="mb-8 bg-[#8FB200]/25 border border-[#0C4B20] rounded-xl p-4 sm:p-6">
+              <h3 className="text-lg font-semibold mb-4 text-[#0C4B20]">Terms & Agreements</h3>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <Checkbox
