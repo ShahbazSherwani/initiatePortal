@@ -5,6 +5,7 @@ import { AppRoutes } from "./routes/AppRoutes";
 import { AuthProvider } from './contexts/AuthContext';  // correct path
 import { ProjectsProvider } from './contexts/ProjectsContext'; // <-- Add this import
 import { AccountProvider } from './contexts/AccountContext'; // Add AccountProvider
+import { NotificationProvider } from './contexts/NotificationContext'; // Add NotificationProvider
 
 const rootElement = document.getElementById("root");
 
@@ -18,9 +19,11 @@ root.render(
     <BrowserRouter>
       <AuthProvider>
         <AccountProvider> {/* Wrap with AccountProvider */}
-          <ProjectsProvider> {/* <-- Wrap your routes with ProjectsProvider */}
-            <AppRoutes />
-          </ProjectsProvider>
+          <NotificationProvider> {/* Add NotificationProvider */}
+            <ProjectsProvider> {/* <-- Wrap your routes with ProjectsProvider */}
+              <AppRoutes />
+            </ProjectsProvider>
+          </NotificationProvider>
         </AccountProvider>
       </AuthProvider>
     </BrowserRouter>

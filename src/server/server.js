@@ -2106,6 +2106,16 @@ topupRouter.post("/request", verifyToken, async (req, res) => {
     
     console.log("Top-up request created with ID:", result.rows[0].id);
     
+    // Create notification for successful top-up submission
+    await createNotification(
+      uid,
+      'topup_submitted',
+      'Top-Up Request Submitted! 💰',
+      `Your top-up request of ₱${parseFloat(amount).toLocaleString()} via ${bankName} has been submitted and is awaiting admin approval.`,
+      result.rows[0].id.toString(),
+      'topup'
+    );
+    
     res.json({ 
       success: true, 
       requestId: result.rows[0].id,
@@ -2851,6 +2861,17 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
     // Check if user has sufficient funds
     if (walletBalance < investmentAmount) {
       console.log(`❌ Insufficient wallet balance: ₱${walletBalance.toLocaleString()} < ₱${investmentAmount.toLocaleString()}`);
+      
+      // Create notification for insufficient funds
+      await createNotification(
+        uid, 
+        'investment_failed', 
+        'Investment Failed - Insufficient Funds 💸', 
+        `You tried to invest ₱${investmentAmount.toLocaleString()} but your current balance is only ₱${walletBalance.toLocaleString()}. Please top up your wallet to continue investing.`,
+        id.toString(),
+        'investment'
+      );
+      
       return res.status(400).json({ 
         error: `Insufficient wallet balance. Your current balance is ₱${walletBalance.toLocaleString()}, but you need ₱${investmentAmount.toLocaleString()} to make this investment.`,
         currentBalance: walletBalance,
@@ -2920,6 +2941,17 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
     // Check if requested amount exceeds limit
     if (parseFloat(amount) > maxInvestmentAmount) {
       console.log(`❌ Investment amount ₱${parseFloat(amount).toLocaleString()} exceeds limit of ₱${maxInvestmentAmount.toLocaleString()}`);
+      
+      // Create notification for exceeding investment limit
+      await createNotification(
+        uid, 
+        'investment_failed', 
+        'Investment Failed - Amount Exceeds Limit 📊', 
+        `Your investment of ₱${parseFloat(amount).toLocaleString()} exceeds your maximum limit of ₱${maxInvestmentAmount.toLocaleString()} (${maxInvestmentPercentage}% of your annual income). Please adjust your investment amount.`,
+        id.toString(),
+        'investment'
+      );
+      
       return res.status(400).json({ 
         error: `Investment amount exceeds your limit of ₱${maxInvestmentAmount.toLocaleString()} (${maxInvestmentPercentage}% of annual income of ₱${investorIncome.toLocaleString()})`,
         maxAmount: maxInvestmentAmount,
@@ -2934,6 +2966,17 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
     
     if (existingInvestments.length > 0) {
       console.log(`🚫 User ${uid} already has ${existingInvestments.length} investment(s) in project ${id}`);
+      
+      // Create notification for duplicate investment attempt
+      await createNotification(
+        uid, 
+        'investment_failed', 
+        'Investment Failed - Duplicate Request ⚠️', 
+        `You already have an existing investment request for "${projectData.details?.product || 'this project'}". Multiple investments per project are not allowed.`,
+        id.toString(),
+        'investment'
+      );
+      
       return res.status(400).json({ 
         error: "You already have an investment request for this project. Multiple investments per project are not allowed.",
         existingInvestments: existingInvestments.map(inv => ({
@@ -2974,6 +3017,16 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
        SET project_data = $1, updated_at = NOW()
        WHERE id = $2`,
       [projectData, id]
+    );
+
+    // Create notification for successful investment request
+    await createNotification(
+      uid, 
+      'investment_submitted', 
+      'Investment Request Submitted! 🎯', 
+      `Your investment request of ₱${parseFloat(amount).toLocaleString()} for "${projectData.details?.product || 'Project'}" has been submitted and is awaiting admin approval.`,
+      id.toString(),
+      'investment'
     );
     
     console.log(`✅ Investment request added successfully for project ${id}`);
@@ -3151,6 +3204,15 @@ app.post('/api/admin/projects/:projectId/investments/:investorId/review', verify
     
     // Commit the transaction
     await client.query('COMMIT');
+    
+    // Create notification for the investor
+    const notificationType = action === 'approve' ? 'investment_approved' : 'investment_rejected';
+    const title = action === 'approve' ? 'Investment Approved! 🎯' : 'Investment Request Update';
+    const message = action === 'approve' 
+      ? `Your investment of ${investment.amount} PHP in "${projectData.details?.product || 'Project'}" has been approved!`
+      : `Your investment request for "${projectData.details?.product || 'Project'}" was not approved. ${comment || 'Please contact support for more information.'}`;
+    
+    await createNotification(investorId, notificationType, title, message, projectId.toString(), 'investment');
     
     // Prepare response object
     const responseData = { 
@@ -3559,6 +3621,41 @@ async function createTopUpTable() {
 }
 
 createTopUpTable();
+
+// Create notifications table on startup
+async function createNotificationsTable() {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        firebase_uid VARCHAR(255) NOT NULL,
+        notification_type VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        related_request_id VARCHAR(255),
+        related_request_type VARCHAR(50),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        FOREIGN KEY (firebase_uid) REFERENCES users(firebase_uid) ON DELETE CASCADE
+      )
+    `);
+    
+    // Create indexes for better performance
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_firebase_uid ON notifications(firebase_uid);
+      CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+      CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(notification_type);
+    `);
+    
+    console.log("Notifications table ready");
+  } catch (err) {
+    console.error("Error creating notifications table:", err);
+  }
+}
+
+createNotificationsTable();
 
 // Add this helper function
 function deepMerge(target, source) {
@@ -3999,6 +4096,18 @@ app.post('/api/admin/projects/:id/review', verifyToken, async (req, res) => {
        WHERE p.id = $1`,
       [id]
     );
+
+    // Create notification for the project owner
+    const projectOwnerUid = updatedProject.rows[0]?.firebase_uid;
+    if (projectOwnerUid) {
+      const notificationType = action === 'approve' ? 'project_approved' : 'project_rejected';
+      const title = action === 'approve' ? 'Project Approved! 🎉' : 'Project Review Update';
+      const message = action === 'approve' 
+        ? `Your project "${projectData.details?.product || 'Untitled Project'}" has been approved and is now live!`
+        : `Your project "${projectData.details?.product || 'Untitled Project'}" needs revisions. ${feedback || 'Please review the feedback and resubmit.'}`;
+      
+      await createNotification(projectOwnerUid, notificationType, title, message, id.toString(), 'project');
+    }
     
     res.json({ 
       success: true, 
@@ -4693,6 +4802,15 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
       console.log(`Wallet updated: Added ${topupRequest.amount} ${topupRequest.currency} to user ${topupRequest.firebase_uid}`);
     }
     
+    // Create notification for the user
+    const notificationType = action === 'approved' ? 'topup_approved' : 'topup_rejected';
+    const title = action === 'approved' ? 'Top-up Approved! 💰' : 'Top-up Request Update';
+    const message = action === 'approved' 
+      ? `Your top-up request of ${topupRequest.amount} ${topupRequest.currency} has been approved and added to your wallet!`
+      : `Your top-up request of ${topupRequest.amount} ${topupRequest.currency} was not approved. ${adminNotes || 'Please contact support for more information.'}`;
+    
+    await createNotification(topupRequest.firebase_uid, notificationType, title, message, id.toString(), 'topup');
+    
     res.json({ 
       success: true, 
       message: `Top-up request ${action} successfully`,
@@ -4701,6 +4819,128 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
   } catch (err) {
     console.error("Error reviewing top-up request:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ===== NOTIFICATION ENDPOINTS =====
+
+// Helper function to create notifications
+async function createNotification(firebase_uid, type, title, message, relatedId = null, relatedType = null) {
+  try {
+    await db.query(`
+      INSERT INTO notifications (firebase_uid, notification_type, title, message, related_request_id, related_request_type)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [firebase_uid, type, title, message, relatedId, relatedType]);
+    console.log(`📧 Notification created for user ${firebase_uid}: ${type}`);
+  } catch (err) {
+    console.error('Error creating notification:', err);
+  }
+}
+
+// Get notifications for the authenticated user
+app.get('/api/notifications', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { page = 1, limit = 20, unread_only = false } = req.query;
+    
+    const offset = (page - 1) * limit;
+    let whereClause = 'WHERE firebase_uid = $1';
+    const params = [firebase_uid];
+    
+    if (unread_only === 'true') {
+      whereClause += ' AND is_read = FALSE';
+    }
+    
+    const { rows } = await db.query(`
+      SELECT * FROM notifications 
+      ${whereClause}
+      ORDER BY created_at DESC 
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `, [...params, limit, offset]);
+    
+    // Get unread count
+    const unreadCount = await db.query(`
+      SELECT COUNT(*) as count FROM notifications 
+      WHERE firebase_uid = $1 AND is_read = FALSE
+    `, [firebase_uid]);
+    
+    res.json({
+      notifications: rows,
+      unreadCount: parseInt(unreadCount.rows[0].count),
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: rows.length
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Mark notification as read
+app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { id } = req.params;
+    
+    const result = await db.query(`
+      UPDATE notifications 
+      SET is_read = TRUE, updated_at = NOW()
+      WHERE id = $1 AND firebase_uid = $2
+      RETURNING *
+    `, [id, firebase_uid]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    
+    res.json({ success: true, notification: result.rows[0] });
+  } catch (err) {
+    console.error('Error marking notification as read:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Mark all notifications as read
+app.patch('/api/notifications/read-all', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    await db.query(`
+      UPDATE notifications 
+      SET is_read = TRUE, updated_at = NOW()
+      WHERE firebase_uid = $1 AND is_read = FALSE
+    `, [firebase_uid]);
+    
+    res.json({ success: true, message: 'All notifications marked as read' });
+  } catch (err) {
+    console.error('Error marking all notifications as read:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Delete notification
+app.delete('/api/notifications/:id', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { id } = req.params;
+    
+    const result = await db.query(`
+      DELETE FROM notifications 
+      WHERE id = $1 AND firebase_uid = $2
+      RETURNING *
+    `, [id, firebase_uid]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    
+    res.json({ success: true, message: 'Notification deleted' });
+  } catch (err) {
+    console.error('Error deleting notification:', err);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 

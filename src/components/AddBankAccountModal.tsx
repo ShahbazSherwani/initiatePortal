@@ -40,12 +40,24 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
       return;
     }
     
-    if (!agreePenalty || !agreeRisk) {
-      alert('Please agree to both terms and conditions to continue');
-      return;
-    }
+    // if (!agreePenalty || !agreeRisk) {
+    //   alert('Please agree to both terms and conditions to continue');
+    //   return;
+    // }
 
-    onSubmit({
+    // onSubmit({
+    //   accountName,
+    //   bankAccount,
+    //   accountType,
+    //   accountNumber,
+    //   iban,
+    //   swiftCode,
+    //   preferred: false,
+    //   agreePenalty,
+    //   agreeRisk,
+    // });
+
+        onSubmit({
       accountName,
       bankAccount,
       accountType,
@@ -53,12 +65,10 @@ export const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen
       iban,
       swiftCode,
       preferred: false,
-      agreePenalty,
-      agreeRisk,
     });
     // reset fields
     setAccountName(''); setBankAccount(''); setAccountType(''); setAccountNumber(''); setIban(''); setSwiftCode('');
-    setAgreePenalty(false); setAgreeRisk(false);
+    // setAgreePenalty(false); setAgreeRisk(false);
     onClose();
   };
 

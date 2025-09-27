@@ -5,6 +5,19 @@ import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
 
+/**
+ * TopUpModal - Modal component for handling wallet top-up requests
+ * 
+ * TESTING MODE: This component is configured to always show consistent test bank accounts
+ * for testing purposes, regardless of what's stored in the user's profile database.
+ * This ensures predictable testing experience across all users.
+ * 
+ * Test Accounts:
+ * - John Doe (BDO): 123456789012 
+ * - Jane Smith (BPI): 987654321098
+ * - Mike Johnson (Metrobank): 456789123456
+ */
+
 interface Account {
   id: number;
   accountName: string;
@@ -45,17 +58,64 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
   const fetchBankAccounts = async () => {
     setLoadingAccounts(true);
     try {
-      const response = await authFetch(`${API_BASE_URL}/bank-accounts`);
-      if (response.success) {
-        setAccounts(response.accounts);
-      } else {
-        console.error('Failed to fetch bank accounts:', response);
-        // Fallback to empty array instead of hardcoded data
-        setAccounts([]);
+      // For testing purposes, always use default test accounts
+      // This ensures consistent testing experience
+      console.log('📝 Using default test accounts for testing');
+      const defaultAccounts = [
+        {
+          id: 1,
+          accountName: 'Initiate - for Testing only',
+          bank: 'BDO',
+          accountNumber: '123456789012',
+          isDefault: true
+        },
+        {
+          id: 2,
+          accountName: 'Initiate - for Testing only',
+          bank: 'BPI',
+          accountNumber: '987654321098',
+          isDefault: false
+        },
+        {
+          id: 3,
+          accountName: 'Initiate - for Testing only',
+          bank: 'Metrobank',
+          accountNumber: '456789123456',
+          isDefault: false
+        }
+      ];
+      setAccounts(defaultAccounts);
+      
+      // Optional: Still fetch real accounts but don't use them (for debugging)
+      try {
+        const response = await authFetch(`${API_BASE_URL}/bank-accounts`);
+        if (response.success && response.accounts.length > 0) {
+          console.log('📊 Real accounts found but using test accounts for testing:', response.accounts.length);
+        }
+      } catch (error) {
+        console.log('📋 No real accounts found, using test accounts');
       }
+      
     } catch (error) {
-      console.error('Error fetching bank accounts:', error);
-      setAccounts([]);
+      console.error('Error in fetchBankAccounts:', error);
+      // Fallback to default test accounts
+      const defaultAccounts = [
+        {
+          id: 1,
+          accountName: 'Test Account',
+          bank: 'BDO',
+          accountNumber: '123456789012',
+          isDefault: true
+        },
+        {
+          id: 2,
+          accountName: 'Demo Account',
+          bank: 'BPI',
+          accountNumber: '987654321098',
+          isDefault: false
+        }
+      ];
+      setAccounts(defaultAccounts);
     } finally {
       setLoadingAccounts(false);
     }
@@ -145,7 +205,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
             {step === 'form' && (
               <button 
                 onClick={() => setStep('accounts')} 
-                className="mr-4 hover:bg-gray-100 p-1 rounded"
+                className="mr-4 hover:bg-[#8FB200] hover:text-white p-1 rounded"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -155,7 +215,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
             {step === 'accounts' && (
               <button 
                 onClick={onClose} 
-                className="mr-4 hover:bg-gray-100 p-1 rounded"
+                className="mr-4 hover:text-white hover:bg-[#8FB200] p-1 rounded"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -167,7 +227,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
           {/* Close button */}
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded"
+            className="text-gray-400 hover:text-white hover:bg-[#8FB200] p-1 rounded"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -181,12 +241,12 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
             
             {loadingAccounts ? (
               <div className="flex items-center justify-center py-8">
-                <div className="text-gray-500">Loading bank accounts...</div>
+                <div className="text-[#0C4B20]">Loading bank accounts...</div>
               </div>
             ) : accounts.length === 0 ? (
               <div className="text-center py-8">
-                <div className="text-gray-500 mb-4">No bank accounts found</div>
-                <div className="text-sm text-gray-400">
+                <div className="text-[#0C4B20] mb-4">No bank accounts found</div>
+                <div className="text-sm [#0C4B20]">
                   Please add a bank account in your profile settings to enable top-up functionality.
                 </div>
               </div>
@@ -197,27 +257,27 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
                     <div 
                       key={account.id}
                       className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                        account.isDefault ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:border-gray-300'
+                        account.isDefault ? 'border-[#0C4B20] bg-[#8FB200] bg-opacity-50' : 'border-[#0C4B20] hover:bg-[#8FB200]'
                       }`}
                       onClick={() => handleAccountSelect(account)}
                     >
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center mb-2">
-                            <span className="font-medium">Account {account.id}</span>
+                            <span className="font-medium">Dummy Account {account.id}</span>
                             {account.isDefault && (
-                              <span className="ml-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
+                              <span className="ml-2 bg-white text-[#0C4B20] text-xs px-2 py-1 rounded">
                                 ✓
                               </span>
                             )}
                           </div>
-                          <div className="space-y-1 text-sm text-gray-600">
+                          <div className="space-y-1 text-sm text-[#0C4B20]">
                             <div>Account Name: {account.accountName}</div>
                             <div>Bank: {account.bank}</div>
                             <div>Bank Account: {account.accountNumber}</div>
                           </div>
                         </div>
-                        <Button className="bg-yellow-500 hover:bg-yellow-600 text-black">
+                        <Button className="bg-[#0C4B20] hover:bg-[#8FB200] text-white">
                           View Details
                         </Button>
                       </div>
@@ -227,7 +287,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
                 
                 <div className="mt-6">
                   <Button 
-                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+                    className="w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white"
                     onClick={() => handleAccountSelect(accounts[0])}
                     disabled={accounts.length === 0}
                   >
@@ -245,7 +305,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
               <h3 className="text-lg font-medium mb-2">Amount Transferred</h3>
               
               {/* Fee Structure */}
-              <div className="bg-yellow-100 rounded-lg p-4 mb-6">
+              <div className="bg-[#8FB200]/25 rounded-lg p-4 mb-6">
                 <h4 className="font-medium mb-2">Fee Structure:</h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
@@ -354,16 +414,16 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
                       id="proof-upload"
                     />
                     <label htmlFor="proof-upload" className="cursor-pointer">
-                      <span className="text-blue-600 font-medium">Upload</span>
+                      <span className="text-[#8FB200] font-medium">Upload</span>
                     </label>
                     {formData.proofOfTransfer && (
-                      <div className="mt-2 text-green-600 text-sm">✓ File uploaded</div>
+                      <div className="mt-2 text-[#0C4B20] text-sm">✓ File uploaded</div>
                     )}
                   </div>
                 </div>
 
                 {/* Terms */}
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <label className="flex items-start">
                     <input type="checkbox" className="mt-1 mr-2" required />
                     <span className="text-sm">
@@ -379,12 +439,12 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, onSucce
                       Conditions of Investie.
                     </span>
                   </label>
-                </div>
+                </div> */}
 
                 {/* Submit Button */}
                 <Button 
                   type="submit" 
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+                  className="w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white"
                   disabled={loading}
                 >
                   {loading ? 'Submitting...' : 'Submit'}

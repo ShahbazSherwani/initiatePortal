@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProjects } from "../contexts/ProjectsContext";
 import { AuthContext } from "../contexts/AuthContext";
+import { useNotifications } from "../contexts/NotificationContext";
 import { Navbar } from "../components/Navigation/navbar";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
@@ -14,6 +15,7 @@ import { investInProject, authFetch } from '../lib/api';
 export const InvestorProjectView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { profile } = React.useContext(AuthContext)!;
+  const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
   
   console.log("🎯 InvestorProjectView loaded with projectId:", projectId);
@@ -109,19 +111,25 @@ export const InvestorProjectView: React.FC = () => {
     try {
       console.log("📤 Making investment request to project:", projectId);
       const amount = parseFloat(investmentAmount);
-      const result = await investInProject(projectId, amount);
+      const result = await investInProject(projectId!, amount);
       console.log("📥 Investment result:", result);
       
       if (result.success) {
         toast.success("Investment request sent!");
+        // Refresh notifications to show new investment submission notification
+        await fetchNotifications();
         navigate("/investor/calendar");
       } else {
         console.log("❌ Investment failed:", result);
         toast.error("Failed to submit investment request");
+        // Refresh notifications to show any error notifications
+        await fetchNotifications();
       }
     } catch (error) {
       console.error('💥 Investment error:', error);
       toast.error("An error occurred");
+      // Refresh notifications to show any error notifications
+      await fetchNotifications();
     }
   };
 

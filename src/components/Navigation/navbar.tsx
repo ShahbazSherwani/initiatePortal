@@ -2,12 +2,13 @@
 import React, { useState, useContext, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
-import { MenuIcon, XIcon, BellIcon, ChevronDownIcon } from "lucide-react";
+import { MenuIcon, XIcon, ChevronDownIcon } from "lucide-react";
 import { AuthContext } from "../../contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from '../../contexts/AuthContext';
 import { useAccount } from '../../contexts/AccountContext';
 import { AccountSwitcher } from './AccountSwitcher';
+import NotificationDropdown from '../Notifications/NotificationDropdown';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -191,10 +192,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
           {/* Auth/Profile section */}
           {token && profile ? (
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <BellIcon className="w-6 h-6 text-black" />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full" />
-              </div>
+              <NotificationDropdown />
 
               <Avatar className="w-10 h-10">
                 <AvatarImage src={profilePicture || "/ellipse-1.png"} alt="avatar" />
