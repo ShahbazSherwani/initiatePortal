@@ -28,8 +28,8 @@ export const Testimonials = () => {
             absolute w-[60vw] h-[25vh] lg:w-[942px] lg:h-[509px]
             bottom-[15%] lg:top-[625px] right-0
             bg-[#98B813] rounded-[2rem] lg:rounded-[3.5rem]
-            rotate-[-29.6deg] opacity-60
-            animate-slideIn delay-300
+            rotate-[-29.6deg] slideInSquare opacity-60
+            animate-slideInSquare delay-300
           "
         />
         <div
@@ -37,8 +37,8 @@ export const Testimonials = () => {
             absolute w-[60vw] h-[25vh] lg:w-[942px] lg:h-[509px]
             bottom-[5%] lg:top-[825px] right-0
             bg-[#0C4B20] rounded-[2rem] lg:rounded-[3.5rem]
-            rotate-[-45.88deg] opacity-40
-            animate-slideIn delay-500
+            rotate-[-45.88deg] slideInSquare opacity-40
+            animate-slideInSquare delay-500
           "
         />
       </div>
@@ -169,20 +169,20 @@ export const Testimonials = () => {
           transform: scaleX(-1);
         }
 
-        @keyframes slideIn {
+        @keyframes slideInSquare {
           from { transform: translateX(50px) rotate(-30deg); opacity: 0; }
           to   { transform: translateX(0) rotate(-30deg); opacity: 1; }
         }
         
         @media (min-width: 1024px) {
-          @keyframes slideIn {
+          @keyframes slideInSquare {
             from { transform: translateX(100px) rotate(-30deg); opacity: 0; }
             to   { transform: translateX(0) rotate(-30deg); opacity: 1; }
           }
         }
         
-        .animate-slideIn {
-          animation: slideIn 1s ease-out forwards;
+        .animate-slideInSquare {
+          animation: slideInSquare 1s ease-out forwards;
         }
 
         .delay-200 { animation-delay: 0.2s; }

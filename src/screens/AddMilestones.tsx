@@ -177,6 +177,7 @@ export const AddMilestones: React.FC = () => {
                       <div>
                         <label className="block mb-1 font-medium">Amount</label>
                         <Input
+                          type="number"
                           placeholder="Enter amount"
                           value={m.amount}
                           onChange={(e) =>

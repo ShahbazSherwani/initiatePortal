@@ -165,7 +165,7 @@ export const LogIn = (): JSX.Element => {
                 "Log In"
               )}
             </Button>
-            <span>or</span>
+            <span className="mx-4 md:mx-2 text-center p-5 md:p-0">or</span>
             <div className="flex items-center gap-4 mt-4 md:mt-0">
               <Button 
                 variant="outline" 
@@ -202,8 +202,10 @@ export const LogIn = (): JSX.Element => {
         message="Signing you in..." 
       />
 
-      <Testimonials />
-      <style>{`
+      <div className="hidden md:block md:w-1/3 flex-shrink-0">
+        <Testimonials />
+      </div>
+      {/* <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
@@ -225,7 +227,7 @@ export const LogIn = (): JSX.Element => {
         .delay-500 { animation-delay: 0.5s; }
         .delay-600 { animation-delay: 0.6s; }
         .delay-[600ms] { animation-delay: 0.6s; }
-      `}</style>
+      `}</style> */}
     </div>
   );
 };

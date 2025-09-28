@@ -540,7 +540,7 @@ export const RegisterStep = (): JSX.Element => {
               </>
             )}
           </Button>
-          <span className="mx-4 md:mx-2">or</span>
+          <span className="mx-4 md:mx-2 text-center p-5 md:p-0">or</span>
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
@@ -573,17 +573,17 @@ export const RegisterStep = (): JSX.Element => {
         </p>
       </form>
 </div>
-<div className="flex items-center justify-center">
+    <div className="flex items-center justify-center">
 
-      <Testimonials />
-</div>
+          <Testimonials />
+    </div>
 
       <LoadingOverlay 
         show={showLoadingOverlay} 
         message="Creating your account..." 
       />
 
-      <style>{`
+      {/* <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
@@ -598,7 +598,7 @@ export const RegisterStep = (): JSX.Element => {
         .animate-slideIn {
           animation: slideIn 1s ease-out forwards;
         }
-      `}</style>
+      `}</style> */}
     </div>
   );
 };

@@ -145,10 +145,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
           ) : (
             <>
               <Link to="/">
-                <Button className="w-full bg-[#0C4B20] text-white">Sign In</Button>
+                <Button className="w-full bg-[#0C4B20] text-white mb-3 mt-2">Sign In</Button>
               </Link>
               <Link to="/register">
-                <Button className="w-full bg-[#0C4B20] text-white">
+                <Button className="w-full bg-[#0C4B20] text-white mb-3 mt-2">
                   Sign Up
                 </Button>
               </Link>

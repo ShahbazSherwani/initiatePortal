@@ -98,6 +98,21 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
     return <Navigate to="/login" />;
   }
 
+
+const [showAmountTooltip, setShowAmountTooltip] = useState(false);
+
+const amountPattern = /^\d*(\.\d{0,2})?$/;
+
+const handleProjectRequirements = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const rawValue = event.target.value;
+  const cleanedValue = rawValue.replace(/[^\d.]/g, "");     // strips e, +, -
+  const isValid = cleanedValue === rawValue && amountPattern.test(cleanedValue);
+
+  setProjectRequirements(cleanedValue);
+  setShowAmountTooltip(!isValid && rawValue !== "");
+};
+
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
       {/* Top navbar */}
@@ -196,12 +211,23 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
                     <label className="font-medium text-black text-base block mb-2">
                       Project Requirements
                     </label>
-                    <Input
-                      placeholder="Enter amount"
-                      className="w-full py-3 pl-3 rounded-2xl border"
-                      value={projectRequirements}
-                      onChange={e => setProjectRequirements(e.target.value)}
-                    />
+                        <div className="relative">
+                          <Input
+                            placeholder="Enter amount"
+                            type="text"
+                            inputMode="decimal"
+                            className="w-full py-3 pl-3 rounded-2xl border"
+                            value={projectRequirements}
+                            onChange={handleProjectRequirements}
+                            onBlur={() => setShowAmountTooltip(false)}
+                            aria-invalid={showAmountTooltip}
+                          />
+                          {showAmountTooltip && (
+                            <div className="pointer-events-none absolute left-3 top-full z-20 mt-1 rounded bg-red-600 px-2 py-1 text-xs text-white shadow">
+                              Please enter a number
+                            </div>
+                          )}
+                        </div>
                   </div>
 
                   {/* Investor Percentage */}
