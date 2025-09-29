@@ -48,6 +48,11 @@ import { InvestorRegSelection } from "../screens/InvestorRegSelection";
 import { InvestorRegIndividual } from "../screens/InvestorRegIndividual";
 import { InvestorRegNonIndividual } from "../screens/InvestorRegNonIndividual";
 import { InvestorRegDirectLender } from "../screens/InvestorRegDirectLender";
+
+// Owner Flow Components
+import { OwnerDashboard } from "../screens/owner/OwnerDashboard";
+import { OwnerUsers } from "../screens/owner/OwnerUsers";
+import { OwnerUserDetail } from "../screens/owner/OwnerUserDetail";
 import { InvestorRegIncomeDetails } from "../screens/InvestorRegIncomeDetails";
 import { InvestorRegBankDetails } from "../screens/InvestorRegBankDetails";
 import Settings from "../screens/Settings";
@@ -62,6 +67,52 @@ const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
     // not authenticated, redirect to login
     return <Navigate to="/" replace />;
   }
+  return children;
+};
+
+// A wrapper for admin-only routes
+const AdminRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
+  const authContext = useContext(AuthContext);
+  const { profile, loading } = useAuth();
+  const { currentAccountType } = useAccount();
+  const navigate = useNavigate();
+
+  const token = authContext?.token;
+  
+  if (!token) {
+    // not authenticated, redirect to login
+    return <Navigate to="/" replace />;
+  }
+
+  if (loading || !profile) {
+    // Still loading profile, show loading state
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0C4B20] mx-auto mb-4"></div>
+        <p className="text-gray-600">Verifying admin access...</p>
+      </div>
+    </div>;
+  }
+
+  if (!profile.isAdmin) {
+    // Not an admin, redirect to appropriate dashboard
+    console.log('🚫 Admin access denied for user:', profile);
+    
+    // Redirect based on current account type
+    if (currentAccountType === 'investor') {
+      navigate("/investor/discover", { replace: true });
+    } else {
+      navigate("/borrow", { replace: true });
+    }
+    
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <p className="text-red-600">Access denied. Redirecting...</p>
+      </div>
+    </div>;
+  }
+
+  console.log('✅ Admin access granted for user:', profile);
   return children;
 };
 
@@ -137,8 +188,8 @@ export const AppRoutes: React.FC = () => {
             navigate("/investor/discover", { replace: true });
           } else if (currentAccountType === 'borrower' && hasAccount('borrower')) {
             navigate("/borrow", { replace: true });
-          } else if (profile.role === 'admin') {
-            navigate("/admin/projects", { replace: true });
+          } else if (profile.isAdmin) {
+            navigate("/owner/dashboard", { replace: true });
           } else {
             // No accounts exist, redirect to account setup
             navigate("/borrow", { replace: true });
@@ -549,6 +600,34 @@ export const AppRoutes: React.FC = () => {
                   </PrivateRoute>
                 } 
               />
+
+              {/* Owner routes - Admin only */}
+              <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
+              <Route 
+                path="/owner/dashboard" 
+                element={
+                  <AdminRoute>
+                    <OwnerDashboard />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/users" 
+                element={
+                  <AdminRoute>
+                    <OwnerUsers />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/users/:userId" 
+                element={
+                  <AdminRoute>
+                    <OwnerUserDetail />
+                  </AdminRoute>
+                } 
+              />
+              
               <Route 
                 path="/calendar" 
                 element={

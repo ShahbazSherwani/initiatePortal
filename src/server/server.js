@@ -4996,6 +4996,471 @@ app.delete('/api/admin/clear-all-data', verifyToken, async (req, res) => {
   }
 });
 
+// ============= OWNER (SUPER ADMIN) API ENDPOINTS =============
+
+// Owner Dashboard Stats
+app.get('/api/owner/stats', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Get comprehensive platform stats
+    const [usersResult, projectsResult, investmentsResult] = await Promise.all([
+      // Users by type
+      db.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE has_borrower_account = true) as total_borrowers,
+          COUNT(*) FILTER (WHERE has_investor_account = true) as total_investors,
+          COUNT(*) FILTER (WHERE has_borrower_account = true AND has_investor_account = true) as total_guarantors,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as new_users_this_month,
+          COUNT(*) FILTER (WHERE current_account_type = 'suspended') as suspended_users
+        FROM users
+      `),
+      
+      // Projects by status
+      db.query(`
+        SELECT 
+          COUNT(*) as total_projects,
+          COUNT(*) FILTER (WHERE project_data->>'status' = 'published' AND project_data->>'approvalStatus' = 'approved') as active_projects,
+          COUNT(*) FILTER (WHERE project_data->>'approvalStatus' = 'pending') as pending_projects,
+          COUNT(*) FILTER (WHERE project_data->>'status' = 'suspended') as suspended_projects,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as new_projects_this_month
+        FROM projects
+      `),
+      
+      // Investment amounts
+      db.query(`
+        SELECT 
+          COALESCE(SUM((investment->'amount')::numeric), 0) as total_investment_amount
+        FROM projects p, jsonb_array_elements(COALESCE(p.project_data->'investorRequests', '[]'::jsonb)) as investment
+        WHERE investment->>'status' = 'approved'
+      `)
+    ]);
+
+    const stats = {
+      totalBorrowers: parseInt(usersResult.rows[0].total_borrowers) || 0,
+      totalInvestors: parseInt(usersResult.rows[0].total_investors) || 0,
+      totalGuarantors: parseInt(usersResult.rows[0].total_guarantors) || 0,
+      totalProjects: parseInt(projectsResult.rows[0].total_projects) || 0,
+      activeProjects: parseInt(projectsResult.rows[0].active_projects) || 0,
+      pendingProjects: parseInt(projectsResult.rows[0].pending_projects) || 0,
+      suspendedUsers: parseInt(usersResult.rows[0].suspended_users) || 0,
+      suspendedProjects: parseInt(projectsResult.rows[0].suspended_projects) || 0,
+      totalInvestmentAmount: parseFloat(investmentsResult.rows[0].total_investment_amount) || 0,
+      monthlyGrowth: {
+        users: parseInt(usersResult.rows[0].new_users_this_month) || 0,
+        projects: parseInt(projectsResult.rows[0].new_projects_this_month) || 0,
+        investments: 15 // Mock data for now
+      }
+    };
+
+    res.json(stats);
+  } catch (err) {
+    console.error("Error fetching owner stats:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Recent Projects
+app.get('/api/owner/recent-projects', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const result = await db.query(`
+      SELECT p.id, p.project_data, p.created_at, u.full_name as borrower_name
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      ORDER BY p.created_at DESC
+      LIMIT 10
+    `);
+
+    const projects = result.rows.map(row => ({
+      id: row.project_data?.id || row.id,
+      title: row.project_data?.details?.product || 'Untitled Project',
+      borrowerName: row.borrower_name || 'Unknown',
+      fundingProgress: row.project_data?.details?.fundingProgress || '0%',
+      amount: parseInt(row.project_data?.details?.fundingRequirement) || 0,
+      status: row.project_data?.status || 'draft',
+      createdAt: row.created_at,
+      thumbnail: row.project_data?.details?.image
+    }));
+
+    res.json(projects);
+  } catch (err) {
+    console.error("Error fetching recent projects:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Project Insights
+app.get('/api/owner/project-insights', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const result = await db.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE project_data->>'type' = 'equity') as equity_count,
+        COUNT(*) FILTER (WHERE project_data->>'type' = 'lending') as lending_count,
+        COUNT(*) FILTER (WHERE project_data->>'type' = 'donation') as donation_count,
+        COUNT(*) FILTER (WHERE (project_data->'details'->>'fundingRequirement')::numeric > 100000) as high_value_count,
+        COUNT(*) as total_count
+      FROM projects
+    `);
+
+    const row = result.rows[0];
+    const total = parseInt(row.total_count) || 1; // Avoid division by zero
+
+    const insights = {
+      equity: Math.round((parseInt(row.equity_count) || 0) * 100 / total),
+      lending: Math.round((parseInt(row.lending_count) || 0) * 100 / total),
+      donation: Math.round((parseInt(row.donation_count) || 0) * 100 / total),
+      highValue: Math.round((parseInt(row.high_value_count) || 0) * 100 / total)
+    };
+
+    res.json(insights);
+  } catch (err) {
+    console.error("Error fetching project insights:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Users List
+app.get('/api/owner/users', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const result = await db.query(`
+      SELECT 
+        firebase_uid,
+        full_name,
+        username,
+        profile_picture,
+        has_borrower_account,
+        has_investor_account,
+        current_account_type,
+        created_at,
+        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects
+      FROM users u
+      ORDER BY u.created_at DESC
+    `);
+
+    const users = result.rows.map(row => ({
+      id: row.firebase_uid,
+      firebaseUid: row.firebase_uid,
+      fullName: row.full_name || 'Unknown User',
+      email: 'N/A', // Email column doesn't exist in current schema
+      username: row.username,
+      profilePicture: row.profile_picture,
+      accountTypes: [
+        ...(row.has_borrower_account ? ['borrower'] : []),
+        ...(row.has_investor_account ? ['investor'] : [])
+      ],
+      status: row.current_account_type === 'suspended' ? 'suspended' : 'active',
+      memberSince: row.created_at,
+      totalProjects: parseInt(row.total_projects) || 0,
+      location: null, // Would come from profile data
+      lastActivity: null // Would track from login/activity logs
+    }));
+
+    res.json(users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner User Detail
+app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const userResult = await db.query(`
+      SELECT * FROM users WHERE firebase_uid = $1
+    `, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userResult.rows[0];
+    
+    // Get project counts
+    const projectStats = await db.query(`
+      SELECT 
+        COUNT(*) as total_projects,
+        COUNT(*) FILTER (WHERE project_data->>'status' = 'published') as active_projects,
+        COUNT(*) FILTER (WHERE project_data->>'status' = 'completed') as completed_projects
+      FROM projects 
+      WHERE firebase_uid = $1
+    `, [userId]);
+
+    const userDetail = {
+      id: user.firebase_uid,
+      firebaseUid: user.firebase_uid,
+      fullName: user.full_name || 'Unknown User',
+      email: user.email,
+      username: user.username,
+      profilePicture: user.profile_picture,
+      accountTypes: [
+        ...(user.has_borrower_account ? ['borrower'] : []),
+        ...(user.has_investor_account ? ['investor'] : [])
+      ],
+      status: user.current_account_type === 'suspended' ? 'suspended' : 'active',
+      memberSince: user.created_at,
+      location: null, // Would come from profile
+      occupation: null, // Would come from profile
+      issuerCode: user.firebase_uid.substring(0, 6).toUpperCase(),
+      borrowerData: user.has_borrower_account ? {
+        totalProjects: parseInt(projectStats.rows[0].total_projects) || 0,
+        activeProjects: parseInt(projectStats.rows[0].active_projects) || 0,
+        completedProjects: parseInt(projectStats.rows[0].completed_projects) || 0,
+        industryType: null
+      } : null,
+      investorData: user.has_investor_account ? {
+        totalInvestments: 0, // Would calculate from investment data
+        activeInvestments: 0,
+        portfolioValue: 0,
+        riskTolerance: null
+      } : null
+    };
+
+    res.json(userDetail);
+  } catch (err) {
+    console.error("Error fetching user detail:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner User Projects
+app.get('/api/owner/users/:userId/projects', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const result = await db.query(`
+      SELECT id, project_data, created_at
+      FROM projects 
+      WHERE firebase_uid = $1
+      ORDER BY created_at DESC
+    `, [userId]);
+
+    const projects = result.rows.map(row => ({
+      id: row.project_data?.id || row.id,
+      title: row.project_data?.details?.product || 'Untitled Project',
+      status: row.project_data?.status || 'draft',
+      fundingAmount: parseInt(row.project_data?.details?.fundingRequirement) || 0,
+      fundingProgress: row.project_data?.details?.fundingProgress || '0%',
+      createdAt: row.created_at
+    }));
+
+    res.json(projects);
+  } catch (err) {
+    console.error("Error fetching user projects:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Suspend User
+app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  const { reason } = req.body;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    await db.query(`
+      UPDATE users 
+      SET current_account_type = 'suspended'
+      WHERE firebase_uid = $1
+    `, [userId]);
+
+    // Log the action (would implement audit log here)
+    console.log(`Owner ${req.uid} suspended user ${userId} with reason: ${reason}`);
+
+    res.json({ success: true, message: "User suspended successfully" });
+  } catch (err) {
+    console.error("Error suspending user:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Reactivate User
+app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Determine appropriate account type
+    const userResult = await db.query(`
+      SELECT has_borrower_account, has_investor_account 
+      FROM users WHERE firebase_uid = $1
+    `, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userResult.rows[0];
+    const accountType = user.has_borrower_account ? 'borrower' : 
+                      user.has_investor_account ? 'investor' : 'borrower';
+
+    await db.query(`
+      UPDATE users 
+      SET current_account_type = $1
+      WHERE firebase_uid = $2
+    `, [accountType, userId]);
+
+    console.log(`Owner ${req.uid} reactivated user ${userId}`);
+
+    res.json({ success: true, message: "User reactivated successfully" });
+  } catch (err) {
+    console.error("Error reactivating user:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Delete User
+app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Begin transaction
+    await db.query('BEGIN');
+
+    try {
+      // Delete related data first
+      await db.query('DELETE FROM projects WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM topup_requests WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM borrower_profiles WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM investor_profiles WHERE firebase_uid = $1', [userId]);
+      
+      // Delete user
+      await db.query('DELETE FROM users WHERE firebase_uid = $1', [userId]);
+
+      await db.query('COMMIT');
+      
+      console.log(`Owner ${req.uid} deleted user ${userId}`);
+      res.json({ success: true, message: "User deleted successfully" });
+      
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Update User
+app.put('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  const { fullName, email } = req.body;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    await db.query(`
+      UPDATE users 
+      SET full_name = COALESCE($1, full_name), email = COALESCE($2, email)
+      WHERE firebase_uid = $3
+    `, [fullName, email, userId]);
+
+    console.log(`Owner ${req.uid} updated user ${userId}`);
+    res.json({ success: true, message: "User updated successfully" });
+  } catch (err) {
+    console.error("Error updating user:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ============= END OWNER API ENDPOINTS =============
+
 const PORT = process.env.PORT || 3001;
 
 // Set up admin user before starting server
