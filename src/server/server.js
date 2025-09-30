@@ -208,7 +208,7 @@ try {
             INSERT INTO borrower_profiles (firebase_uid, is_individual_account, created_at, updated_at)
             SELECT 
                 firebase_uid, 
-                CASE WHEN account_type = 'individual' THEN TRUE ELSE FALSE END,
+                CASE WHEN current_account_type = 'individual' THEN TRUE ELSE FALSE END,
                 created_at,
                 updated_at
             FROM users 
@@ -220,7 +220,7 @@ try {
             INSERT INTO investor_profiles (firebase_uid, is_individual_account, created_at, updated_at)
             SELECT 
                 firebase_uid, 
-                CASE WHEN account_type = 'individual' THEN TRUE ELSE FALSE END,
+                CASE WHEN current_account_type = 'individual' THEN TRUE ELSE FALSE END,
                 created_at,
                 updated_at
             FROM users 
@@ -650,6 +650,75 @@ profileRouter.post('/upload-picture', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('❌ Error updating profile picture:', err);
     res.status(500).json({ error: 'Failed to update profile picture' });
+  }
+});
+
+// Document upload endpoint for ID, passport, etc.
+profileRouter.post('/upload-document', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { documentType, documentImage, documentName } = req.body;
+    
+    if (!documentType || !documentImage) {
+      return res.status(400).json({ error: 'Document type and image are required' });
+    }
+    
+    // Valid document types
+    const validTypes = ['national_id', 'passport', 'drivers_license', 'tin_id'];
+    if (!validTypes.includes(documentType)) {
+      return res.status(400).json({ error: 'Invalid document type' });
+    }
+    
+    // Save document to database (could be extended to save to cloud storage)
+    await db.query(
+      `INSERT INTO user_documents (firebase_uid, document_type, document_image, document_name, uploaded_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (firebase_uid, document_type) DO UPDATE SET
+       document_image = EXCLUDED.document_image,
+       document_name = EXCLUDED.document_name,
+       uploaded_at = EXCLUDED.uploaded_at`,
+      [firebase_uid, documentType, documentImage, documentName || `${documentType}_document`]
+    );
+    
+    console.log('✅ Document uploaded for user:', firebase_uid, 'Type:', documentType);
+    res.json({ 
+      success: true, 
+      message: 'Document uploaded successfully',
+      documentType,
+      documentName
+    });
+    
+  } catch (err) {
+    console.error('❌ Error uploading document:', err);
+    res.status(500).json({ error: 'Failed to upload document' });
+  }
+});
+
+// Get user documents endpoint
+profileRouter.get('/documents', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    
+    const result = await db.query(
+      `SELECT document_type, document_image, document_name, uploaded_at 
+       FROM user_documents WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    const documents = {};
+    result.rows.forEach(doc => {
+      documents[doc.document_type] = {
+        image: doc.document_image,
+        name: doc.document_name,
+        uploadedAt: doc.uploaded_at
+      };
+    });
+    
+    res.json({ documents });
+    
+  } catch (err) {
+    console.error('❌ Error fetching documents:', err);
+    res.status(500).json({ error: 'Failed to fetch documents' });
   }
 });
 
@@ -1353,7 +1422,33 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
       
       if (borrowerQuery.rows.length > 0) {
         const borrower = borrowerQuery.rows[0];
-        console.log('📋 Borrower address columns available:', {
+        console.log('� Checking for address fields:', {
+          present_address: borrower.present_address,
+          city: borrower.city,
+          state: borrower.state,
+          country: borrower.country,
+          postal_code: borrower.postal_code
+        });
+        console.log('🔍 Checking for identification fields:', {
+          national_id: borrower.national_id,
+          passport: borrower.passport,
+          tin_number: borrower.tin_number
+        });
+        console.log('🔍 Checking for employment fields:', {
+          occupation: borrower.occupation,
+          employer_name: borrower.employer_name,
+          employer_address: borrower.employer_address,
+          source_of_income: borrower.source_of_income
+        });
+        console.log('🔍 Checking for emergency contact fields:', {
+          emergency_contact_name: borrower.emergency_contact_name,
+          emergency_contact_relationship: borrower.emergency_contact_relationship,
+          emergency_contact_phone: borrower.emergency_contact_phone,
+          emergency_contact_email: borrower.emergency_contact_email
+        });
+        console.log('🔍 All available borrower columns:', Object.keys(borrower));
+        
+        console.log('�📋 Borrower address columns available:', {
           street: borrower.street,
           barangay: borrower.barangay, 
           municipality: borrower.municipality,
@@ -2327,7 +2422,7 @@ app.post('/api/admin/create-profile-tables', async (req, res) => {
       INSERT INTO borrower_profiles (firebase_uid, is_individual_account, created_at, updated_at)
       SELECT 
           firebase_uid, 
-          CASE WHEN account_type = 'individual' THEN TRUE ELSE FALSE END,
+          CASE WHEN current_account_type = 'individual' THEN TRUE ELSE FALSE END,
           created_at,
           updated_at
       FROM users 
@@ -2337,7 +2432,7 @@ app.post('/api/admin/create-profile-tables', async (req, res) => {
       INSERT INTO investor_profiles (firebase_uid, is_individual_account, created_at, updated_at)
       SELECT 
           firebase_uid, 
-          CASE WHEN account_type = 'individual' THEN TRUE ELSE FALSE END,
+          CASE WHEN current_account_type = 'individual' THEN TRUE ELSE FALSE END,
           created_at,
           updated_at
       FROM users 
@@ -3344,6 +3439,210 @@ app.post('/api/debug/make-admin/:userId', verifyToken, async (req, res) => {
   }
 });
 
+// Owner Dashboard Endpoints
+// Get all users for owner dashboard
+app.get('/api/owner/users', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    console.log(`🔍 Owner users request from user: ${firebase_uid}`);
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      console.log(`❌ Access denied for user ${firebase_uid} - not admin`);
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    console.log(`✅ Admin access verified for user: ${firebase_uid}`);
+    
+    // Get all users with comprehensive information
+    const usersResult = await db.query(`
+      SELECT 
+        u.firebase_uid,
+        u.full_name,
+        u.username,
+        u.profile_picture,
+        u.has_borrower_account,
+        u.has_investor_account,
+        u.current_account_type,
+        u.created_at,
+        u.updated_at,
+        u.is_admin,
+        bp.first_name,
+        bp.last_name,
+        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
+        w.balance as wallet_balance
+      FROM users u
+      LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
+      LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
+      ORDER BY u.created_at DESC
+    `);
+    
+    console.log(`📊 Found ${usersResult.rows.length} users in database`);
+    
+    // Transform data to match frontend interface
+    const users = [];
+    
+    for (const row of usersResult.rows) {
+      const accountTypes = [];
+      if (row.has_borrower_account) accountTypes.push('borrower');
+      if (row.has_investor_account) accountTypes.push('investor');
+      
+      // Get email from Firebase since it's not in the database
+      let email = '';
+      try {
+        const firebaseUser = await admin.auth().getUser(row.firebase_uid);
+        email = firebaseUser.email || '';
+      } catch (e) {
+        console.log(`Could not get email for user ${row.firebase_uid}:`, e.message);
+      }
+      
+      users.push({
+        id: row.firebase_uid,
+        firebaseUid: row.firebase_uid,
+        fullName: row.full_name || '',
+        email: email,
+        username: row.username || '',
+        profilePicture: row.profile_picture,
+        accountTypes,
+        status: 'active', // We don't have a status field, assuming active
+        memberSince: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : '',
+        lastActivity: row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : '',
+        totalProjects: parseInt(row.total_projects) || 0,
+        activeProjects: 0, // Would need to calculate from project data
+        isQualifiedInvestor: false, // Would need investor profile data
+        location: '', // Would need address data
+        walletBalance: parseFloat(row.wallet_balance) || 0,
+        isAdmin: row.is_admin || false
+      });
+    }
+
+    console.log(`� Returning ${users.length} users for owner dashboard`);
+    res.json(users);
+    
+  } catch (err) {
+    console.error('❌ Error fetching users for owner dashboard:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Owner endpoint to suspend user
+app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    const { reason } = req.body;
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Update user status - for now we'll use a simple flag
+    await db.query(
+      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
+      [userId]
+    );
+    
+    // Log the action (you might want to create an admin_actions table)
+    console.log(`👮 Admin ${firebase_uid} suspended user ${userId} - Reason: ${reason}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User suspended successfully',
+      action: 'suspended'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error suspending user:', err);
+    res.status(500).json({ error: 'Failed to suspend user' });
+  }
+});
+
+// Owner endpoint to delete user (soft delete)
+app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    const { reason } = req.body;
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Soft delete - don't actually remove from database but mark as deleted
+    await db.query(
+      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
+      [userId]
+    );
+    
+    // Log the action
+    console.log(`🗑️ Admin ${firebase_uid} deleted user ${userId} - Reason: ${reason}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User deleted successfully',
+      action: 'deleted'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error deleting user:', err);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Owner endpoint to reactivate user
+app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Reactivate user
+    await db.query(
+      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
+      [userId]
+    );
+    
+    // Log the action
+    console.log(`✅ Admin ${firebase_uid} reactivated user ${userId}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User reactivated successfully',
+      action: 'active'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error reactivating user:', err);
+    res.status(500).json({ error: 'Failed to reactivate user' });
+  }
+});
+
 // Add interest request to a project
 projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
   const { id } = req.params;
@@ -3898,7 +4197,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
         console.log('nationality:', kycData.nationality);
         console.log('contactEmail:', kycData.contactEmail);
         
-        // Upsert borrower profile with KYC data including bank account fields
+        // Upsert borrower profile with comprehensive KYC data
         console.log('💾 Inserting borrower profile data...');
         console.log('🔢 Parameters for borrower insert:');
         console.log('uid:', uid);
@@ -3908,78 +4207,254 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
         console.log('civilStatus:', normalizedCivilStatus);
         console.log('nationality:', kycData.nationality);
         console.log('contactEmail:', kycData.contactEmail);
+        console.log('🔢 Personal info parameters:');
+        console.log('firstName:', kycData.firstName);
+        console.log('lastName:', kycData.lastName);
+        console.log('dateOfBirth:', kycData.dateOfBirth);
+        console.log('phoneNumber:', kycData.phoneNumber);
+        console.log('🔢 Address parameters:');
+        console.log('street:', kycData.street);
+        console.log('city:', kycData.city);
+        console.log('state:', kycData.state);
+        console.log('🔢 ID parameters:');
+        console.log('nationalId:', kycData.nationalId);
+        console.log('passport:', kycData.passport);
+        console.log('tin:', kycData.tin);
+        console.log('🔢 Employment parameters:');
+        console.log('occupation:', kycData.occupation);
+        console.log('employerName:', kycData.employerName);
+        console.log('🔢 Emergency Contact parameters:');
+        console.log('emergencyContactName:', kycData.emergencyContactName);
+        console.log('emergencyContactRelationship:', kycData.emergencyContactRelationship);
+        console.log('emergencyContactPhone:', kycData.emergencyContactPhone);
+        console.log('emergencyContactEmail:', kycData.emergencyContactEmail);
+        console.log('emergencyContactAddress:', kycData.emergencyContactAddress);
+        console.log('🔢 Additional Personal Info parameters:');
+        console.log('motherMaidenName:', kycData.motherMaidenName);
+        console.log('contactEmail:', kycData.contactEmail);
         console.log('🔢 Bank account parameters:');
         console.log('account_name:', kycData.account_name);
         console.log('bank_name:', kycData.bank_name);
-        console.log('account_type:', kycData.account_type);
         console.log('account_number:', kycData.account_number);
         console.log('iban:', kycData.iban);
         console.log('swift_code:', kycData.swift_code);
         
         await db.query(`
           INSERT INTO borrower_profiles (
-            firebase_uid, is_individual_account, place_of_birth, nationality, gender, civil_status,
+            firebase_uid, full_name, first_name, last_name, middle_name, 
+            date_of_birth, place_of_birth, nationality, gender, civil_status,
+            mobile_number, country_code, email_address, contact_email,
+            present_address, permanent_address, city, state, postal_code, country,
+            national_id, passport, tin_number,
+            occupation, employer_name, employer_address, employment_status, 
+            gross_annual_income, source_of_income,
+            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_email, emergency_contact_address,
+            mother_maiden_name,
             account_name, bank_name, account_type, account_number, iban, swift_code,
-            is_complete, created_at, updated_at
+            is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
+            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+            $21, $22, $23, $24, $25, $26, $27, $28, $29, 
+            $30, $31, $32, $33, $34, $35, $36, $37, $38, 
+            $39, $40, $41, $42, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
-            is_individual_account = EXCLUDED.is_individual_account,
+            full_name = EXCLUDED.full_name,
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            middle_name = EXCLUDED.middle_name,
+            date_of_birth = EXCLUDED.date_of_birth,
             place_of_birth = EXCLUDED.place_of_birth,
             nationality = EXCLUDED.nationality,
             gender = EXCLUDED.gender,
             civil_status = EXCLUDED.civil_status,
+            mobile_number = EXCLUDED.mobile_number,
+            country_code = EXCLUDED.country_code,
+            email_address = EXCLUDED.email_address,
+            present_address = EXCLUDED.present_address,
+            permanent_address = EXCLUDED.permanent_address,
+            city = EXCLUDED.city,
+            state = EXCLUDED.state,
+            postal_code = EXCLUDED.postal_code,
+            country = EXCLUDED.country,
+            national_id = EXCLUDED.national_id,
+            passport = EXCLUDED.passport,
+            tin_number = EXCLUDED.tin_number,
+            occupation = EXCLUDED.occupation,
+            employer_name = EXCLUDED.employer_name,
+            employer_address = EXCLUDED.employer_address,
+            employment_status = EXCLUDED.employment_status,
+            gross_annual_income = EXCLUDED.gross_annual_income,
+            source_of_income = EXCLUDED.source_of_income,
             account_name = EXCLUDED.account_name,
             bank_name = EXCLUDED.bank_name,
-            account_type = EXCLUDED.account_type,
             account_number = EXCLUDED.account_number,
             iban = EXCLUDED.iban,
             swift_code = EXCLUDED.swift_code,
+            is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
         `, [
-          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.nationality,
-          normalizedGender, normalizedCivilStatus, kycData.account_name, kycData.bank_name, 
-          kycData.account_type, kycData.account_number, kycData.iban, kycData.swift_code
+          uid, 
+          // Personal Information (2-13)
+          fullNameToUse,
+          kycData.firstName || null,
+          kycData.lastName || null,
+          kycData.middleName || null,
+          kycData.dateOfBirth || null,
+          kycData.placeOfBirth || null,
+          kycData.nationality || null,
+          normalizedGender,
+          normalizedCivilStatus,
+          kycData.phoneNumber || kycData.mobileNumber || null,
+          kycData.countryCode || null,
+          kycData.emailAddress || kycData.contactEmail || null,
+          kycData.contactEmail || kycData.emailAddress || null,
+          // Address Information (15-20)
+          kycData.presentAddress || kycData.street || null,
+          kycData.permanentAddress || null,
+          kycData.city || kycData.cityName || null,
+          kycData.state || kycData.stateIso || null,
+          kycData.postalCode || null,
+          kycData.country || kycData.countryIso || null,
+          // Identification (21-23)
+          kycData.nationalId || null,
+          kycData.passport || kycData.passportNumber || null,
+          kycData.tin || kycData.tinNumber || null,
+          // Employment Information (24-29)
+          kycData.occupation || null,
+          kycData.employerName || null,
+          kycData.employerAddress || null,
+          kycData.employmentStatus || null,
+          kycData.grossAnnualIncome || kycData.monthlyIncome || null,
+          kycData.sourceOfIncome || null,
+          // Emergency Contact Information (30-34)
+          kycData.emergencyContactName || null,
+          kycData.emergencyContactRelationship || null,
+          kycData.emergencyContactPhone || null,
+          kycData.emergencyContactEmail || null,
+          kycData.emergencyContactAddress || null,
+          // Mother's Maiden Name (35)
+          kycData.motherMaidenName || null,
+          // Bank Account Information (36-41)
+          kycData.account_name || kycData.accountName || null,
+          kycData.bank_name || kycData.bankName || null,
+          kycData.account_type || kycData.accountType || null,
+          kycData.account_number || kycData.accountNumber || null,
+          kycData.iban || null,
+          kycData.swift_code || kycData.swiftCode || null,
+          // Account Type (42)
+          kycData.isIndividualAccount
         ]);
       } else {
-        // Upsert investor profile with KYC data including bank account fields
+        // Upsert investor profile with comprehensive KYC data
         console.log('💾 Inserting investor profile data...');
+        console.log('� Personal info parameters:');
+        console.log('firstName:', kycData.firstName);
+        console.log('lastName:', kycData.lastName);
+        console.log('dateOfBirth:', kycData.dateOfBirth);
+        console.log('phoneNumber:', kycData.phoneNumber);
         console.log('🔢 Bank account parameters:');
         console.log('account_name:', kycData.account_name);
         console.log('bank_name:', kycData.bank_name);
-        console.log('account_type:', kycData.account_type);
         console.log('account_number:', kycData.account_number);
         console.log('iban:', kycData.iban);
         console.log('swift_code:', kycData.swift_code);
         
         await db.query(`
           INSERT INTO investor_profiles (
-            firebase_uid, is_individual_account, place_of_birth, nationality, gender, civil_status,
+            firebase_uid, full_name, first_name, last_name, middle_name, 
+            date_of_birth, place_of_birth, nationality, gender, civil_status,
+            mobile_number, country_code, email_address,
+            present_address, permanent_address, city, state, postal_code, country,
+            national_id, passport, tin_number,
+            occupation, employer_name, employer_address, employment_status, 
+            gross_annual_income, source_of_income,
             account_name, bank_name, account_type, account_number, iban, swift_code,
-            is_complete, created_at, updated_at
+            is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 
+            $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
-            is_individual_account = EXCLUDED.is_individual_account,
+            full_name = EXCLUDED.full_name,
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            middle_name = EXCLUDED.middle_name,
+            date_of_birth = EXCLUDED.date_of_birth,
             place_of_birth = EXCLUDED.place_of_birth,
             nationality = EXCLUDED.nationality,
             gender = EXCLUDED.gender,
             civil_status = EXCLUDED.civil_status,
+            mobile_number = EXCLUDED.mobile_number,
+            country_code = EXCLUDED.country_code,
+            email_address = EXCLUDED.email_address,
+            present_address = EXCLUDED.present_address,
+            permanent_address = EXCLUDED.permanent_address,
+            city = EXCLUDED.city,
+            state = EXCLUDED.state,
+            postal_code = EXCLUDED.postal_code,
+            country = EXCLUDED.country,
+            national_id = EXCLUDED.national_id,
+            passport = EXCLUDED.passport,
+            tin_number = EXCLUDED.tin_number,
+            occupation = EXCLUDED.occupation,
+            employer_name = EXCLUDED.employer_name,
+            employer_address = EXCLUDED.employer_address,
+            employment_status = EXCLUDED.employment_status,
+            gross_annual_income = EXCLUDED.gross_annual_income,
+            source_of_income = EXCLUDED.source_of_income,
             account_name = EXCLUDED.account_name,
             bank_name = EXCLUDED.bank_name,
-            account_type = EXCLUDED.account_type,
             account_number = EXCLUDED.account_number,
             iban = EXCLUDED.iban,
             swift_code = EXCLUDED.swift_code,
+            is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
         `, [
-          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.nationality,
-          normalizedGender, normalizedCivilStatus, kycData.account_name, kycData.bank_name,
-          kycData.account_type, kycData.account_number, kycData.iban, kycData.swift_code
+          uid, 
+          // Personal Information (2-13)
+          fullNameToUse,
+          kycData.firstName || null,
+          kycData.lastName || null,
+          kycData.middleName || null,
+          kycData.dateOfBirth || null,
+          kycData.placeOfBirth || null,
+          kycData.nationality || null,
+          normalizedGender,
+          normalizedCivilStatus,
+          kycData.phoneNumber || kycData.mobileNumber || null,
+          kycData.countryCode || null,
+          kycData.emailAddress || kycData.contactEmail || null,
+          // Address Information (14-19)
+          kycData.presentAddress || kycData.street || null,
+          kycData.permanentAddress || null,
+          kycData.city || kycData.cityName || null,
+          kycData.state || kycData.stateIso || null,
+          kycData.postalCode || null,
+          kycData.country || kycData.countryIso || null,
+          // Identification (20-22)
+          kycData.nationalId || null,
+          kycData.passport || kycData.passportNumber || null,
+          kycData.tin || kycData.tinNumber || null,
+          // Employment Information (23-28)
+          kycData.occupation || null,
+          kycData.employerName || null,
+          kycData.employerAddress || null,
+          kycData.employmentStatus || null,
+          kycData.grossAnnualIncome || kycData.monthlyIncome || null,
+          kycData.sourceOfIncome || null,
+          // Bank Account Information (29-34)
+          kycData.account_name || kycData.accountName || null,
+          kycData.bank_name || kycData.bankName || null,
+          kycData.account_type || kycData.accountType || null,
+          kycData.account_number || kycData.accountNumber || null,
+          kycData.iban || null,
+          kycData.swift_code || kycData.swiftCode || null,
+          // Account Type (35)
+          kycData.isIndividualAccount
         ]);
       }
       
@@ -4996,7 +5471,71 @@ app.delete('/api/admin/clear-all-data', verifyToken, async (req, res) => {
   }
 });
 
+// Debug endpoint to check database table structure and data
+app.get('/api/debug/user-data/:userId', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Get raw user data
+    const userResult = await db.query('SELECT * FROM users WHERE firebase_uid = $1', [userId]);
+    const borrowerResult = await db.query('SELECT * FROM borrower_profiles WHERE firebase_uid = $1', [userId]);
+    
+    // Get table structure
+    const tableStructure = await db.query(`
+      SELECT column_name, data_type, is_nullable, column_default 
+      FROM information_schema.columns 
+      WHERE table_name = 'borrower_profiles' 
+      ORDER BY ordinal_position
+    `);
+    
+    res.json({
+      user: userResult.rows[0] || null,
+      borrower: borrowerResult.rows[0] || null,
+      borrowerColumns: borrowerResult.rows[0] ? Object.keys(borrowerResult.rows[0]) : [],
+      tableStructure: tableStructure.rows,
+      analysis: {
+        userExists: userResult.rows.length > 0,
+        borrowerExists: borrowerResult.rows.length > 0,
+        hasAddress: borrowerResult.rows[0]?.present_address ? true : false,
+        hasEmployment: borrowerResult.rows[0]?.occupation ? true : false,
+        hasIdentification: borrowerResult.rows[0]?.national_id ? true : false,
+        hasEmergencyContact: borrowerResult.rows[0]?.emergency_contact_name ? true : false
+      }
+    });
+  } catch (err) {
+    console.error('Debug endpoint error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============= OWNER (SUPER ADMIN) API ENDPOINTS =============
+
+// Test endpoint to check table structure and add missing columns
+app.get('/api/debug/fix-table', async (req, res) => {
+  try {
+    // Add missing emergency contact columns to borrower_profiles
+    await db.query(`
+      ALTER TABLE borrower_profiles 
+      ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS emergency_contact_relationship VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS emergency_contact_email VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS emergency_contact_address TEXT,
+      ADD COLUMN IF NOT EXISTS mother_maiden_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)
+    `);
+
+    console.log('✅ Added missing columns to borrower_profiles');
+    
+    res.json({
+      success: true,
+      message: 'Missing columns added to borrower_profiles table'
+    });
+  } catch (err) {
+    console.error('Fix table error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Owner Dashboard Stats
 app.get('/api/owner/stats', verifyToken, async (req, res) => {
@@ -5225,6 +5764,15 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
 
     const user = userResult.rows[0];
     
+    // Get email from Firebase since it's not stored in the database
+    let userEmail = '';
+    try {
+      const firebaseUser = await admin.auth().getUser(userId);
+      userEmail = firebaseUser.email || '';
+    } catch (e) {
+      console.log('Could not get email from Firebase:', e.message);
+    }
+    
     // Get project counts
     const projectStats = await db.query(`
       SELECT 
@@ -5235,11 +5783,205 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
       WHERE firebase_uid = $1
     `, [userId]);
 
+    // Initialize profile data structure
+    let profileData = {
+      personalInfo: {
+        firstName: '',
+        lastName: '',
+        middleName: '',
+        dateOfBirth: '',
+        placeOfBirth: '',
+        gender: '',
+        civilStatus: '',
+        nationality: '',
+        motherMaidenName: '',
+        contactEmail: userEmail
+      },
+      contactInfo: {
+        mobileNumber: '',
+        countryCode: '',
+        presentAddress: '',
+        permanentAddress: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: ''
+      },
+      employmentInfo: {
+        occupation: '',
+        employerName: '',
+        employerAddress: '',
+        employmentStatus: '',
+        grossAnnualIncome: null,
+        sourceOfIncome: ''
+      },
+      identifications: {
+        nationalId: '',
+        passport: '',
+        tin: '',
+        secondaryIdType: '',
+        secondaryIdNumber: ''
+      },
+      bankAccounts: [],
+      businessInfo: {
+        entityType: '',
+        entityName: '',
+        registrationNumber: '',
+        registrationType: '',
+        registrationDate: '',
+        businessAddress: '',
+        authorizedPersonName: '',
+        authorizedPersonPosition: ''
+      },
+      investmentInfo: {
+        experience: '',
+        objectives: '',
+        riskTolerance: '',
+        investmentHorizon: '',
+        liquidNetWorth: null,
+        pepStatus: false
+      }
+    };
+
+    // Get detailed profile data based on account type
+    if (user.has_borrower_account) {
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [userId]
+      );
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        
+        // Map borrower personal information
+        profileData.personalInfo = {
+          firstName: borrower.first_name || '',
+          lastName: borrower.last_name || '',
+          middleName: borrower.middle_name || '',
+          dateOfBirth: borrower.date_of_birth || '',
+          placeOfBirth: borrower.place_of_birth || '',
+          gender: borrower.gender || '',
+          civilStatus: borrower.civil_status || '',
+          nationality: borrower.nationality || '',
+          motherMaidenName: '',
+          contactEmail: borrower.email_address || userEmail
+        };
+
+        // Map borrower contact information
+        profileData.contactInfo = {
+          mobileNumber: borrower.mobile_number || '',
+          countryCode: borrower.country_code || '',
+          presentAddress: borrower.present_address || '',
+          permanentAddress: borrower.permanent_address || '',
+          city: borrower.city || '',
+          state: borrower.state || '',
+          postalCode: borrower.postal_code || '',
+          country: borrower.country || ''
+        };
+
+        // Map borrower employment information
+        profileData.employmentInfo = {
+          occupation: borrower.occupation || '',
+          employerName: borrower.employer_name || '',
+          employerAddress: borrower.employer_address || '',
+          employmentStatus: borrower.employment_status || '',
+          grossAnnualIncome: borrower.gross_annual_income,
+          sourceOfIncome: borrower.source_of_income || ''
+        };
+
+        // Map bank account information
+        if (borrower.bank_name) {
+          profileData.bankAccounts.push({
+            bankName: borrower.bank_name,
+            accountName: borrower.account_name,
+            accountNumber: borrower.account_number,
+            accountType: borrower.account_type,
+            iban: borrower.iban,
+            swiftCode: borrower.swift_code,
+            isDefault: borrower.preferred
+          });
+        }
+
+        // Map business information
+        profileData.businessInfo = {
+          entityType: borrower.entity_type || '',
+          entityName: borrower.entity_name || '',
+          registrationNumber: borrower.registration_number || '',
+          registrationType: borrower.registration_type || '',
+          registrationDate: borrower.registration_date || '',
+          businessAddress: borrower.business_address || '',
+          authorizedPersonName: borrower.authorized_person_name || '',
+          authorizedPersonPosition: borrower.authorized_person_position || ''
+        };
+
+        // Map identification documents
+        profileData.identifications = {
+          nationalId: borrower.national_id || '',
+          passport: borrower.passport || '',
+          tin: borrower.tin_number || '',
+          secondaryIdType: '',
+          secondaryIdNumber: ''
+        };
+      }
+    }
+
+    // Also get investor profile data if they have investor account
+    if (user.has_investor_account) {
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [userId]
+      );
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        
+        // Merge investor data (override borrower data if both exist)
+        if (!profileData.personalInfo.firstName) {
+          profileData.personalInfo.firstName = investor.first_name || '';
+          profileData.personalInfo.lastName = investor.last_name || '';
+          profileData.personalInfo.middleName = investor.middle_name || '';
+        }
+
+        // Merge investor identification data
+        if (!profileData.identifications.nationalId) {
+          profileData.identifications.nationalId = investor.national_id || '';
+        }
+        if (!profileData.identifications.passport) {
+          profileData.identifications.passport = investor.passport || '';
+        }
+        if (!profileData.identifications.tin) {
+          profileData.identifications.tin = investor.tin_number || '';
+        }
+        
+        profileData.investmentInfo = {
+          experience: investor.investment_experience || '',
+          objectives: investor.investment_objectives || '',
+          riskTolerance: investor.risk_tolerance || '',
+          investmentHorizon: investor.investment_horizon || '',
+          liquidNetWorth: investor.liquid_net_worth,
+          pepStatus: investor.pep_status === 'yes'
+        };
+
+        // Add investor bank account if different from borrower
+        if (investor.bank_name && !profileData.bankAccounts.some(acc => acc.bankName === investor.bank_name)) {
+          profileData.bankAccounts.push({
+            bankName: investor.bank_name,
+            accountName: investor.account_name,
+            accountNumber: investor.account_number,
+            accountType: investor.account_type,
+            iban: investor.iban,
+            swiftCode: investor.swift_code,
+            isDefault: investor.preferred
+          });
+        }
+      }
+    }
+
     const userDetail = {
       id: user.firebase_uid,
       firebaseUid: user.firebase_uid,
       fullName: user.full_name || 'Unknown User',
-      email: user.email,
+      email: userEmail,
       username: user.username,
       profilePicture: user.profile_picture,
       accountTypes: [
@@ -5248,21 +5990,65 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
       ],
       status: user.current_account_type === 'suspended' ? 'suspended' : 'active',
       memberSince: user.created_at,
-      location: null, // Would come from profile
-      occupation: null, // Would come from profile
+      lastActivity: user.updated_at,
+      location: profileData.contactInfo.city && profileData.contactInfo.country ? 
+        `${profileData.contactInfo.city}, ${profileData.contactInfo.country}` : null,
+      occupation: profileData.employmentInfo.occupation,
       issuerCode: user.firebase_uid.substring(0, 6).toUpperCase(),
+      
+      // Add comprehensive profile data
+      personalProfile: profileData.personalInfo,
+      identifications: profileData.identifications,
+      addresses: {
+        present: profileData.contactInfo.presentAddress,
+        permanent: profileData.contactInfo.permanentAddress,
+        city: profileData.contactInfo.city,
+        state: profileData.contactInfo.state,
+        country: profileData.contactInfo.country,
+        postalCode: profileData.contactInfo.postalCode
+      },
+      bankAccounts: profileData.bankAccounts,
+      rolesSettings: {
+        accountType: user.current_account_type,
+        hasBorrowerAccount: user.has_borrower_account,
+        hasInvestorAccount: user.has_investor_account,
+        isAdmin: user.is_admin,
+        isComplete: false
+      },
+      
       borrowerData: user.has_borrower_account ? {
         totalProjects: parseInt(projectStats.rows[0].total_projects) || 0,
         activeProjects: parseInt(projectStats.rows[0].active_projects) || 0,
         completedProjects: parseInt(projectStats.rows[0].completed_projects) || 0,
-        industryType: null
+        industryType: profileData.businessInfo.entityType,
+        businessInfo: profileData.businessInfo,
+        employmentInfo: profileData.employmentInfo
       } : null,
+      
       investorData: user.has_investor_account ? {
         totalInvestments: 0, // Would calculate from investment data
         activeInvestments: 0,
-        portfolioValue: 0,
-        riskTolerance: null
-      } : null
+        portfolioValue: profileData.investmentInfo.liquidNetWorth || 0,
+        riskTolerance: profileData.investmentInfo.riskTolerance,
+        investmentInfo: profileData.investmentInfo
+      } : null,
+      
+      activityLog: [
+        {
+          id: 1,
+          type: 'account_created',
+          description: 'Account created',
+          timestamp: user.created_at,
+          status: 'completed'
+        },
+        {
+          id: 2,
+          type: 'profile_updated',
+          description: 'Profile last updated',
+          timestamp: user.updated_at,
+          status: 'completed'
+        }
+      ]
     };
 
     res.json(userDetail);

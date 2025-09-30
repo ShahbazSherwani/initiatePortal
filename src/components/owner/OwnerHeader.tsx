@@ -88,7 +88,7 @@ export const OwnerHeader: React.FC = () => {
                   <p className="text-sm font-medium text-gray-900">
                     {profile?.name || 'Owner'}
                   </p>
-                  <p className="text-xs text-gray-500">Super Admin</p>
+                  <p className="text-xs text-gray-500">Owner</p>
                 </div>
                 <ChevronDownIcon className="w-4 h-4 text-gray-400" />
               </Button>

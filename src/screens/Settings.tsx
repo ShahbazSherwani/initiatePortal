@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { getUserProfile, getUserSettings, updateUserSettings, changePassword, authFetch } from "../lib/api";
 import { API_BASE_URL } from '../config/environment';
 import { generateProfileCode, generateIssuerCode, generateBorrowerCode } from "../lib/profileUtils";
+import { ProfileDataDebug } from "../components/ProfileDataDebug";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -549,6 +550,7 @@ export const Settings = (): JSX.Element => {
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
+      <ProfileDataDebug />
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div className="w-0 md:w-[280px] flex-shrink-0">
@@ -577,10 +579,10 @@ export const Settings = (): JSX.Element => {
                 <UserIcon className="w-4 h-4" />
                 Profile
               </TabsTrigger>
-              {/* <TabsTrigger value="bank" className="flex items-center gap-2">
+              <TabsTrigger value="bank" className="flex items-center gap-2">
                 <KeyIcon className="w-4 h-4" />
                 Bank Account
-              </TabsTrigger> */}
+              </TabsTrigger>
               <TabsTrigger value="security" className="flex items-center gap-2">
                 <ShieldIcon className="w-4 h-4" />
                 Security

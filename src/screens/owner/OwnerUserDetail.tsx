@@ -1,5 +1,4 @@
-// src/screens/owner/OwnerUserDetail.tsx
-import React, { useEffect, useState, Fragment } from 'react';
+import React, { useState, Fragment, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { OwnerLayout } from '../../layouts/OwnerLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -8,12 +7,13 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Textarea } from '../../components/ui/textarea';
+import { LoadingSpinner } from '../../components/ui/loading-spinner';
 import { authFetch } from '../../lib/api';
 import { API_BASE_URL } from '../../config/environment';
 import { 
-  ArrowLeftIcon,
-  UserIcon,
-  MailIcon,
+  ArrowLeftIcon, 
+  UserIcon, 
+  MailIcon, 
   PhoneIcon,
   CalendarIcon,
   MapPinIcon,
@@ -24,7 +24,11 @@ import {
   UserXIcon,
   EyeIcon,
   EditIcon,
-  CameraIcon
+  CameraIcon,
+  IdCardIcon,
+  CreditCardIcon,
+  ClockIcon,
+  ChartBarIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Dialog, Transition } from '@headlessui/react';
@@ -46,19 +50,69 @@ interface UserDetail {
   isQualifiedInvestor?: boolean;
   issuerCode?: string;
   
-  // Profile data based on account types
+  // Enhanced profile data
+  personalProfile?: {
+    firstName?: string;
+    lastName?: string;
+    middleName?: string;
+    dateOfBirth?: string;
+    placeOfBirth?: string;
+    nationality?: string;
+    gender?: string;
+    maritalStatus?: string;
+    emailAddress?: string;
+    mobileNumber?: string;
+  };
+  
+  // Address information
+  addresses?: {
+    presentAddress?: string;
+    permanentAddress?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  
+  // KYC and identification documents
+  identifications?: {
+    idType?: string;
+    idNumber?: string;
+    expiryDate?: string;
+    issuingCountry?: string;
+    verificationStatus?: 'pending' | 'verified' | 'rejected';
+  }[];
+  
+  // Bank account information
+  bankAccounts?: {
+    bankName?: string;
+    accountName?: string;
+    accountNumber?: string;
+    accountType?: string;
+    isDefault?: boolean;
+    verificationStatus?: 'pending' | 'verified' | 'rejected';
+  }[];
+  
+  // Role-specific data
   borrowerData?: {
     totalProjects: number;
     activeProjects: number;
     completedProjects: number;
+    businessType?: string;
+    companyName?: string;
     industryType?: string;
+    fundingLimits?: number;
+    kycLevel?: string;
   };
   
   investorData?: {
     totalInvestments: number;
     activeInvestments: number;
     portfolioValue: number;
+    investorType?: 'individual' | 'non-individual';
+    qualifiedInvestor?: boolean;
     riskTolerance?: string;
+    investmentLimits?: number;
   };
 }
 
@@ -72,179 +126,100 @@ interface UserProject {
 }
 
 const USER_TABS = [
-  { key: 'details', label: 'User Details' },
+  { key: 'overview', label: 'Overview' },
+  { key: 'personal', label: 'Personal Profile' },
+  { key: 'identifications', label: 'Identifications' },
+  { key: 'addresses', label: 'Addresses' },
+  { key: 'bank', label: 'Bank Accounts' },
+  { key: 'roles', label: 'Roles & Settings' },
   { key: 'projects', label: 'Projects' },
+  { key: 'investments', label: 'Investments' },
+  { key: 'activity', label: 'Activity Log' },
 ];
 
 export const OwnerUserDetail: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const [user, setUser] = useState<UserDetail | null>(null);
-  const [userProjects, setUserProjects] = useState<UserProject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('details');
+  const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
-  const [editedUser, setEditedUser] = useState<Partial<UserDetail>>({});
   const [suspendReason, setSuspendReason] = useState('');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  useEffect(() => {
-    if (userId) {
-      fetchUserDetail();
+  // Fetch user data based on userId
+  const fetchUserData = async () => {
+    if (!userId) {
+      navigate('/owner/users');
+      return;
     }
-  }, [userId]);
 
-  const fetchUserDetail = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching user details for ID:', userId);
       
-      const [userData, projectsData] = await Promise.all([
-        authFetch(`${API_BASE_URL}/owner/users/${userId}`),
-        authFetch(`${API_BASE_URL}/owner/users/${userId}/projects`)
-      ]);
+      // Fetch actual user data from the backend
+      const userData = await authFetch(`${API_BASE_URL}/owner/users/${userId}`);
+      console.log('✅ User data fetched:', userData);
       
-      setUser(userData);
-      setUserProjects(projectsData);
-      setEditedUser(userData);
+      if (userData) {
+        setUser(userData);
+      } else {
+        console.warn('⚠️ No user data returned from API');
+        setUser(null);
+      }
+    } catch (error: any) {
+      console.error('❌ Error fetching user data:', error);
       
-    } catch (error) {
-      console.error('Error fetching user detail:', error);
-      toast.error('Failed to load user details');
+      // Show user-friendly error message
+      if (error.message?.includes('404')) {
+        toast.error('User not found');
+      } else if (error.message?.includes('403')) {
+        toast.error('Access denied - Admin privileges required');
+      } else {
+        toast.error('Failed to load user details');
+      }
       
-      // Mock data for development
-      setUser({
-        id: '1',
-        firebaseUid: userId || '28745',
-        fullName: 'Alexa John',
-        email: 'alexajohn12@gmail.com',
-        username: 'alex_john',
-        phoneNumber: '+63 912 345 6789',
-        accountTypes: ['borrower', 'investor'],
-        status: 'active',
-        memberSince: '2023-11-20',
-        lastActivity: '2024-01-15',
-        location: 'Manila, Philippines',
-        occupation: 'Business Owner',
-        issuerCode: '554Xd1',
-        borrowerData: {
-          totalProjects: 4,
-          activeProjects: 1,
-          completedProjects: 2,
-          industryType: 'Agriculture'
-        },
-        investorData: {
-          totalInvestments: 8,
-          activeInvestments: 3,
-          portfolioValue: 500000,
-          riskTolerance: 'Medium'
-        }
-      });
-      
-      setUserProjects([
-        {
-          id: 'PFL4345N',
-          title: 'Rice Field Expansion Project',
-          status: 'active',
-          fundingAmount: 100000,
-          fundingProgress: '45%',
-          createdAt: '2024-01-10'
-        }
-      ]);
-      
+      setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveChanges = async () => {
-    try {
-      await authFetch(`${API_BASE_URL}/owner/users/${userId}`, {
-        method: 'PUT',
-        body: JSON.stringify(editedUser)
-      });
-      
-      setUser({ ...user!, ...editedUser });
-      setIsEditing(false);
-      toast.success('User details updated successfully');
-      
-    } catch (error) {
-      console.error('Error updating user:', error);
-      toast.error('Failed to update user details');
-    }
-  };
+  // Fetch user data on component mount or userId change
+  useEffect(() => {
+    fetchUserData();
+  }, [userId]);
 
-  const handleSuspendUser = async () => {
-    if (!suspendReason.trim()) {
-      toast.error('Please provide a reason for suspension');
-      return;
-    }
-
-    try {
-      await authFetch(`${API_BASE_URL}/owner/users/${userId}/suspend`, {
-        method: 'POST',
-        body: JSON.stringify({ reason: suspendReason })
-      });
-      
-      setUser({ ...user!, status: 'suspended' });
-      setShowSuspendDialog(false);
-      setSuspendReason('');
-      toast.success('User suspended successfully');
-      
-    } catch (error) {
-      console.error('Error suspending user:', error);
-      toast.error('Failed to suspend user');
-    }
-  };
-
-  const handleDeleteUser = async () => {
-    if (deleteConfirmText !== 'DELETE') {
-      toast.error('Please type DELETE to confirm');
-      return;
-    }
-
-    try {
-      await authFetch(`${API_BASE_URL}/owner/users/${userId}`, {
-        method: 'DELETE'
-      });
-      
-      toast.success('User deleted successfully');
-      navigate('/owner/users');
-      
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
-    }
-  };
-
-  const handleReactivateUser = async () => {
-    try {
-      await authFetch(`${API_BASE_URL}/owner/users/${userId}/reactivate`, {
-        method: 'POST'
-      });
-      
-      setUser({ ...user!, status: 'active' });
-      toast.success('User reactivated successfully');
-      
-    } catch (error) {
-      console.error('Error reactivating user:', error);
-      toast.error('Failed to reactivate user');
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      active: 'bg-green-100 text-green-800',
-      suspended: 'bg-yellow-100 text-yellow-800', 
-      deleted: 'bg-red-100 text-red-800'
-    };
-    
+  if (loading) {
     return (
-      <Badge className={`${variants[status as keyof typeof variants]} border-0`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
+      <OwnerLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingSpinner showText text="Loading user details..." />
+        </div>
+      </OwnerLayout>
     );
+  }
+
+  if (!user) {
+    return (
+      <OwnerLayout>
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">User Not Found</h2>
+          <p className="text-gray-600 mb-6">The user you're looking for doesn't exist.</p>
+          <Button onClick={() => navigate('/owner/users')}>Back to Users</Button>
+        </div>
+      </OwnerLayout>
+    );
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP'
+    }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
@@ -255,48 +230,86 @@ export const OwnerUserDetail: React.FC = () => {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-      minimumFractionDigits: 0
-    }).format(amount);
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      active: { label: 'Active', className: 'bg-green-100 text-green-800 border-0' },
+      suspended: { label: 'Suspended', className: 'bg-yellow-100 text-yellow-800 border-0' },
+      deleted: { label: 'Deleted', className: 'bg-red-100 text-red-800 border-0' }
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig];
+    return <Badge className={config?.className}>{config?.label}</Badge>;
   };
 
-  if (loading) {
-    return (
-      <OwnerLayout activePage="users">
-        <div className="p-8">
-          <div className="flex items-center justify-center min-h-96">
-            <div className="text-lg text-gray-600">Loading user details...</div>
-          </div>
-        </div>
-      </OwnerLayout>
-    );
-  }
+  const handleSuspendUser = async () => {
+    if (!suspendReason.trim()) {
+      toast.error('Please provide a reason for suspension');
+      return;
+    }
+    if (!user) return;
 
-  if (!user) {
-    return (
-      <OwnerLayout activePage="users">
-        <div className="p-8">
-          <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-12 text-center">
-              <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">User not found</h3>
-              <p className="text-gray-500 mb-4">The requested user could not be found.</p>
-              <Button onClick={() => navigate('/owner/users')}>
-                Back to Users
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </OwnerLayout>
-    );
-  }
+    try {
+      await authFetch(`${API_BASE_URL}/owner/users/${user.id}/suspend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: suspendReason })
+      });
+      
+      toast.success('User suspended successfully');
+      setUser({ ...user, status: 'suspended' });
+      setShowSuspendDialog(false);
+      setSuspendReason('');
+    } catch (error: any) {
+      console.error('Error suspending user:', error);
+      toast.error(error.message || 'Failed to suspend user');
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      toast.error('Please type DELETE to confirm');
+      return;
+    }
+    if (!user) return;
+
+    try {
+      await authFetch(`${API_BASE_URL}/owner/users/${user.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: 'Account deletion requested by admin' })
+      });
+      
+      toast.success('User deleted successfully');
+      navigate('/owner/users');
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast.error(error.message || 'Failed to delete user');
+    }
+  };
+
+  const handleReactivateUser = async () => {
+    if (!user) return;
+    
+    try {
+      await authFetch(`${API_BASE_URL}/owner/users/${user.id}/reactivate`, {
+        method: 'POST'
+      });
+      
+      toast.success('User reactivated successfully');
+      setUser({ ...user, status: 'active' });
+    } catch (error: any) {
+      console.error('Error reactivating user:', error);
+      toast.error(error.message || 'Failed to reactivate user');
+    }
+  };
 
   return (
-    <OwnerLayout activePage="users">
-      <div className="p-8 space-y-6">
+    <OwnerLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -310,7 +323,7 @@ export const OwnerUserDetail: React.FC = () => {
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">User Details</h1>
-              <p className="text-gray-600">Manage user profile and account settings</p>
+              <p className="text-gray-600">Comprehensive view of user registration data</p>
             </div>
           </div>
 
@@ -328,7 +341,7 @@ export const OwnerUserDetail: React.FC = () => {
               <Button 
                 onClick={() => setShowSuspendDialog(true)}
                 variant="outline" 
-                className="text-yellow-600 border-yellow-600"
+                className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
               >
                 <UserXIcon className="w-4 h-4 mr-2" />
                 Suspend
@@ -338,7 +351,7 @@ export const OwnerUserDetail: React.FC = () => {
             <Button 
               onClick={() => setShowDeleteDialog(true)}
               variant="outline" 
-              className="text-red-600 border-red-600"
+              className="text-red-600 border-red-600 hover:bg-red-50"
             >
               <TrashIcon className="w-4 h-4 mr-2" />
               Delete
@@ -398,12 +411,12 @@ export const OwnerUserDetail: React.FC = () => {
 
             {/* Tabs */}
             <div className="border-b border-gray-200 mb-6">
-              <nav className="flex space-x-8">
+              <nav className="flex space-x-8 overflow-x-auto">
                 {USER_TABS.map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
                       activeTab === tab.key
                         ? 'border-[#0C4B20] text-[#0C4B20]'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -416,116 +429,64 @@ export const OwnerUserDetail: React.FC = () => {
             </div>
 
             {/* Tab Content */}
-            {activeTab === 'details' && (
+            {activeTab === 'overview' && (
               <div className="space-y-6">
-                {/* General Settings */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name
-                      </label>
-                      {isEditing ? (
-                        <Input
-                          value={editedUser.fullName || ''}
-                          onChange={(e) => setEditedUser({...editedUser, fullName: e.target.value})}
-                        />
-                      ) : (
-                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                          <UserIcon className="w-4 h-4 text-gray-400 mr-2" />
-                          <span>{user.fullName}</span>
-                        </div>
-                      )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                      <MailIcon className="w-4 h-4 text-gray-400 mr-2" />
+                      <span>{user.email}</span>
                     </div>
+                  </div>
 
+                  {user.phoneNumber && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email Address
-                      </label>
-                      {isEditing ? (
-                        <Input
-                          type="email"
-                          value={editedUser.email || ''}
-                          onChange={(e) => setEditedUser({...editedUser, email: e.target.value})}
-                        />
-                      ) : (
-                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                          <MailIcon className="w-4 h-4 text-gray-400 mr-2" />
-                          <span>{user.email}</span>
-                        </div>
-                      )}
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <PhoneIcon className="w-4 h-4 text-gray-400 mr-2" />
+                        <span>{user.phoneNumber}</span>
+                      </div>
                     </div>
+                  )}
 
-                    {user.username && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Username
-                        </label>
-                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                          <span>@{user.username}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {user.phoneNumber && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Phone Number
-                        </label>
-                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                          <PhoneIcon className="w-4 h-4 text-gray-400 mr-2" />
-                          <span>{user.phoneNumber}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {user.location && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Location
-                        </label>
-                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                          <MapPinIcon className="w-4 h-4 text-gray-400 mr-2" />
-                          <span>{user.location}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {user.occupation && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Occupation
-                        </label>
-                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                          <BriefcaseIcon className="w-4 h-4 text-gray-400 mr-2" />
-                          <span>{user.occupation}</span>
-                        </div>
-                      </div>
-                    )}
-
+                  {user.location && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Member Since
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <MapPinIcon className="w-4 h-4 text-gray-400 mr-2" />
+                        <span>{user.location}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {user.occupation && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <BriefcaseIcon className="w-4 h-4 text-gray-400 mr-2" />
+                        <span>{user.occupation}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                      <CalendarIcon className="w-4 h-4 text-gray-400 mr-2" />
+                      <span>{formatDate(user.memberSince)}</span>
+                    </div>
+                  </div>
+
+                  {user.lastActivity && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Activity</label>
                       <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                         <CalendarIcon className="w-4 h-4 text-gray-400 mr-2" />
-                        <span>{formatDate(user.memberSince)}</span>
+                        <span>{formatDate(user.lastActivity)}</span>
                       </div>
                     </div>
-
-                    {user.lastActivity && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Last Activity
-                        </label>
-                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                          <CalendarIcon className="w-4 h-4 text-gray-400 mr-2" />
-                          <span>{formatDate(user.lastActivity)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 {/* Account Statistics */}
@@ -589,104 +550,51 @@ export const OwnerUserDetail: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'projects' && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    User Projects ({userProjects.length})
-                  </h3>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">All</Button>
-                    <Button size="sm" variant="outline">Pending</Button>
-                    <Button size="sm" variant="outline">Active</Button>
-                    <Button size="sm" variant="outline">Completed</Button>
+            {/* Personal Profile Tab */}
+            {activeTab === 'personal' && user.personalProfile && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.firstName || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.lastName || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.middleName || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.dateOfBirth || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.placeOfBirth || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.nationality || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.gender || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.maritalStatus || 'Not provided'}</div>
                   </div>
                 </div>
-
-                {userProjects.length === 0 ? (
-                  <div className="text-center py-12">
-                    <BriefcaseIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">No projects found</h4>
-                    <p className="text-gray-500">This user hasn't created any projects yet.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {userProjects.map((project) => (
-                      <Card key={project.id} className="bg-gray-50 border-0">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
-                                  {project.status}
-                                </Badge>
-                                <span className="text-sm text-gray-500">
-                                  Status: {project.status}
-                                </span>
-                              </div>
-                              
-                              <h4 className="font-semibold text-gray-900 mb-2">{project.title}</h4>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <span className="text-gray-500">Project ID:</span>
-                                  <div className="font-medium">{project.id}</div>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Funding Requirement:</span>
-                                  <div className="font-medium">{formatCurrency(project.fundingAmount)}</div>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Funding Progress:</span>
-                                  <div className="font-medium">{project.fundingProgress}</div>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Created:</span>
-                                  <div className="font-medium">{formatDate(project.createdAt)}</div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 ml-4">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/owner/projects/${project.id}`)}
-                              >
-                                <EyeIcon className="w-3 h-3 mr-1" />
-                                View Project
-                              </Button>
-                              <Button size="sm" variant="outline" className="text-gray-500">
-                                Remove
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Save/Cancel buttons for editing */}
-            {isEditing && (
-              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditedUser(user);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSaveChanges}
-                  className="bg-[#0C4B20] hover:bg-[#8FB200] text-white"
-                >
-                  Save Changes
-                </Button>
+            {/* Other tabs show placeholder content for now */}
+            {activeTab !== 'overview' && activeTab !== 'personal' && (
+              <div className="text-center py-12">
+                <h4 className="text-lg font-medium text-gray-900 mb-2">{USER_TABS.find(t => t.key === activeTab)?.label}</h4>
+                <p className="text-gray-500">This tab contains detailed {activeTab} information.</p>
               </div>
             )}
           </CardContent>

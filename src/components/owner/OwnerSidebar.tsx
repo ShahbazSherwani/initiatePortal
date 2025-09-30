@@ -100,7 +100,7 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ activePage = '' }) =
             <p className="text-sm font-medium text-gray-900 truncate">
               {profile?.name || 'Owner'}
             </p>
-            <p className="text-xs text-gray-500">Super Admin</p>
+            <p className="text-xs text-gray-500">Owner</p>
           </div>
         </div>
         
