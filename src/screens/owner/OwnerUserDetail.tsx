@@ -81,6 +81,8 @@ interface UserDetail {
     tin?: string;
     secondaryIdType?: string;
     secondaryIdNumber?: string;
+    nationalIdFile?: string | null;
+    passportFile?: string | null;
   };
   
   // Bank account information
@@ -286,18 +288,27 @@ export const OwnerUserDetail: React.FC = () => {
     if (!user) return;
 
     try {
-      await authFetch(`${API_BASE_URL}/owner/users/${user.id}`, {
+      console.log('🗑️ Deleting user:', user.firebaseUid);
+      
+      const response = await authFetch(`${API_BASE_URL}/owner/users/${user.firebaseUid}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reason: 'Account deletion requested by admin' })
+        }
       });
       
-      toast.success('User deleted successfully');
-      navigate('/owner/users');
+      console.log('✅ Delete response:', response);
+      
+      toast.success('User deleted successfully from Firebase and database');
+      setShowDeleteDialog(false);
+      
+      // Navigate after a short delay to show the success message
+      setTimeout(() => {
+        navigate('/owner/users');
+      }, 1500);
+      
     } catch (error: any) {
-      console.error('Error deleting user:', error);
+      console.error('❌ Error deleting user:', error);
       toast.error(error.message || 'Failed to delete user');
     }
   };
@@ -737,6 +748,100 @@ export const OwnerUserDetail: React.FC = () => {
                     ) : (
                       <div className="p-3 bg-gray-50 rounded-lg">{user.identifications?.secondaryIdNumber || 'Not provided'}</div>
                     )}
+                  </div>
+                </div>
+
+                {/* Uploaded Documents Section */}
+                <div className="mt-8">
+                  <h4 className="text-md font-semibold text-gray-900 mb-4">Uploaded Documents</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* National ID File */}
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center">
+                        <IdCardIcon className="w-4 h-4 mr-2" />
+                        National ID Document
+                      </label>
+                      {user.identifications?.nationalIdFile ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={user.identifications.nationalIdFile} 
+                            alt="National ID" 
+                            className="w-full h-48 object-contain border rounded bg-white"
+                            onError={(e) => {
+                              // If image fails to load, show error message
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              const parent = (e.target as HTMLElement).parentElement;
+                              if (parent && !parent.querySelector('.error-message')) {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'error-message p-3 bg-red-50 text-red-700 rounded text-sm';
+                                errorDiv.textContent = 'Failed to load image';
+                                parent.appendChild(errorDiv);
+                              }
+                            }}
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => window.open(user.identifications?.nationalIdFile!, '_blank')}
+                          >
+                            <EyeIcon className="w-4 h-4 mr-2" />
+                            View Full Size
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-48 bg-white border-2 border-dashed border-gray-300 rounded">
+                          <div className="text-center text-gray-500">
+                            <IdCardIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No document uploaded</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Passport File */}
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center">
+                        <CreditCardIcon className="w-4 h-4 mr-2" />
+                        Passport Document
+                      </label>
+                      {user.identifications?.passportFile ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={user.identifications.passportFile} 
+                            alt="Passport" 
+                            className="w-full h-48 object-contain border rounded bg-white"
+                            onError={(e) => {
+                              // If image fails to load, show error message
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              const parent = (e.target as HTMLElement).parentElement;
+                              if (parent && !parent.querySelector('.error-message')) {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'error-message p-3 bg-red-50 text-red-700 rounded text-sm';
+                                errorDiv.textContent = 'Failed to load image';
+                                parent.appendChild(errorDiv);
+                              }
+                            }}
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => window.open(user.identifications?.passportFile!, '_blank')}
+                          >
+                            <EyeIcon className="w-4 h-4 mr-2" />
+                            View Full Size
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-48 bg-white border-2 border-dashed border-gray-300 rounded">
+                          <div className="text-center text-gray-500">
+                            <CreditCardIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No document uploaded</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

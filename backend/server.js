@@ -4118,6 +4118,10 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         bp.phone_number,
         bp.present_address,
         bp.permanent_address,
+        bp.street as bp_street,
+        bp.barangay as bp_barangay,
+        bp.municipality as bp_municipality,
+        bp.province as bp_province,
         bp.city,
         bp.state,
         bp.postal_code,
@@ -4134,11 +4138,31 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         bp.identity_document_number,
         bp.identity_document_expiry,
         bp.identity_document_issuing_country,
+        bp.national_id,
+        bp.passport_no,
+        bp.tin,
+        bp.national_id_file,
+        bp.passport_file,
+        bp.bank_name as bp_bank_name,
+        bp.account_number as bp_account_number,
+        bp.account_name as bp_account_name,
         ip.qualified_investor,
         ip.investor_type,
         ip.risk_tolerance,
         ip.investment_experience,
         ip.expected_investment_amount,
+        ip.street as ip_street,
+        ip.barangay as ip_barangay,
+        ip.municipality as ip_municipality,
+        ip.province as ip_province,
+        ip.national_id as ip_national_id,
+        ip.passport_no as ip_passport_no,
+        ip.tin as ip_tin,
+        ip.national_id_file as ip_national_id_file,
+        ip.passport_file as ip_passport_file,
+        ip.bank_name as ip_bank_name,
+        ip.account_number as ip_account_number,
+        ip.account_name as ip_account_name,
         w.balance as wallet_balance,
         (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
         (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid AND status = 'active') as active_projects,
@@ -4209,28 +4233,52 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
       addresses: {
         presentAddress: row.present_address || '',
         permanentAddress: row.permanent_address || '',
-        city: row.city || '',
-        state: row.state || '',
+        street: row.bp_street || row.ip_street || '',
+        barangay: row.bp_barangay || row.ip_barangay || '',
+        municipality: row.bp_municipality || row.ip_municipality || '',
+        city: row.city || row.bp_municipality || row.ip_municipality || '',
+        state: row.state || row.bp_province || row.ip_province || '',
+        province: row.bp_province || row.ip_province || '',
         postalCode: row.postal_code || '',
         country: row.country || ''
       },
       
-      identifications: row.identity_document_type ? [{
-        idType: row.identity_document_type,
-        idNumber: row.identity_document_number || '',
-        expiryDate: row.identity_document_expiry || '',
-        issuingCountry: row.identity_document_issuing_country || '',
-        verificationStatus: row.kyc_verified ? 'verified' : 'pending'
-      }] : [],
+      identifications: {
+        nationalId: row.national_id || row.ip_national_id || '',
+        passport: row.passport_no || row.ip_passport_no || '',
+        tin: row.tin || row.ip_tin || '',
+        nationalIdFile: row.national_id_file || row.ip_national_id_file || null,
+        passportFile: row.passport_file || row.ip_passport_file || null,
+        verificationStatus: row.kyc_verified ? 'verified' : 'pending',
+        // Legacy format for backward compatibility
+        documents: row.identity_document_type ? [{
+          idType: row.identity_document_type,
+          idNumber: row.identity_document_number || '',
+          expiryDate: row.identity_document_expiry || '',
+          issuingCountry: row.identity_document_issuing_country || '',
+          verificationStatus: row.kyc_verified ? 'verified' : 'pending'
+        }] : []
+      },
       
-      bankAccounts: bankAccountsResult.rows.map(bank => ({
-        bankName: bank.bank_name,
-        accountName: bank.account_name,
-        accountNumber: bank.account_number,
-        accountType: bank.account_type,
-        isDefault: bank.is_default,
-        verificationStatus: bank.verification_status || 'pending'
-      })),
+      bankAccounts: bankAccountsResult.rows.length > 0 
+        ? bankAccountsResult.rows.map(bank => ({
+            bankName: bank.bank_name,
+            accountName: bank.account_name,
+            accountNumber: bank.account_number,
+            accountType: bank.account_type,
+            isDefault: bank.is_default,
+            verificationStatus: bank.verification_status || 'pending'
+          }))
+        : (row.bp_bank_name || row.ip_bank_name) 
+          ? [{
+              bankName: row.bp_bank_name || row.ip_bank_name || '',
+              accountName: row.bp_account_name || row.ip_account_name || '',
+              accountNumber: row.bp_account_number || row.ip_account_number || '',
+              accountType: 'savings',
+              isDefault: true,
+              verificationStatus: 'pending'
+            }]
+          : [],
       
       borrowerData: row.has_borrower_account ? {
         totalProjects: parseInt(row.total_projects) || 0,
@@ -4301,15 +4349,17 @@ app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
   }
 });
 
-// Owner endpoint to delete user (soft delete)
+// Owner endpoint to delete user (hard delete)
 app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  const client = await db.connect();
+  
   try {
     const firebase_uid = req.uid;
     const { userId } = req.params;
     const { reason } = req.body;
     
     // Check if user is admin/owner
-    const adminCheck = await db.query(
+    const adminCheck = await client.query(
       'SELECT is_admin FROM users WHERE firebase_uid = $1',
       [firebase_uid]
     );
@@ -4318,24 +4368,61 @@ app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Access denied - Admin privileges required' });
     }
     
-    // Soft delete - don't actually remove from database but mark as deleted
-    await db.query(
-      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
-      [userId]
-    );
+    await client.query('BEGIN');
     
-    // Log the action
-    console.log(`🗑️ Admin ${firebase_uid} deleted user ${userId} - Reason: ${reason}`);
+    console.log(`🗑️ Admin ${firebase_uid} initiated deletion of user ${userId} - Reason: ${reason}`);
+    
+    // Delete from all related tables first (to handle foreign key constraints)
+    await client.query('DELETE FROM wallets WHERE firebase_uid = $1', [userId]);
+    console.log('✅ Deleted wallet records');
+    
+    await client.query('DELETE FROM projects WHERE firebase_uid = $1', [userId]);
+    console.log('✅ Deleted project records');
+    
+    await client.query('DELETE FROM topup_requests WHERE firebase_uid = $1', [userId]);
+    console.log('✅ Deleted topup requests');
+    
+    await client.query('DELETE FROM borrow_requests WHERE firebase_uid = $1', [userId]);
+    console.log('✅ Deleted borrow requests');
+    
+    await client.query('DELETE FROM borrower_profiles WHERE firebase_uid = $1', [userId]);
+    console.log('✅ Deleted borrower profile');
+    
+    await client.query('DELETE FROM investor_profiles WHERE firebase_uid = $1', [userId]);
+    console.log('✅ Deleted investor profile');
+    
+    await client.query('DELETE FROM user_settings WHERE firebase_uid = $1', [userId]);
+    console.log('✅ Deleted user settings');
+    
+    // Delete from users table
+    await client.query('DELETE FROM users WHERE firebase_uid = $1', [userId]);
+    console.log('✅ Deleted user record');
+    
+    // Delete from Firebase Authentication
+    try {
+      await admin.auth().deleteUser(userId);
+      console.log('✅ Deleted user from Firebase Authentication');
+    } catch (firebaseError) {
+      console.error('⚠️ Error deleting from Firebase (user may not exist):', firebaseError.message);
+      // Continue anyway - database cleanup is more important
+    }
+    
+    await client.query('COMMIT');
+    
+    console.log(`🗑️ User ${userId} completely deleted by admin ${firebase_uid}`);
     
     res.json({ 
       success: true, 
-      message: 'User deleted successfully',
+      message: 'User deleted successfully from all systems',
       action: 'deleted'
     });
     
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('❌ Error deleting user:', err);
-    res.status(500).json({ error: 'Failed to delete user' });
+    res.status(500).json({ error: 'Failed to delete user', details: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -4373,6 +4460,317 @@ app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) =>
   } catch (err) {
     console.error('❌ Error reactivating user:', err);
     res.status(500).json({ error: 'Failed to reactivate user' });
+  }
+});
+
+// Owner endpoint to update user profile
+app.put('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  const client = await db.connect();
+  
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    const { profileData } = req.body;
+    
+    console.log('📝 Owner updating user profile:', userId);
+    console.log('📋 Profile data received:', JSON.stringify(profileData, null, 2));
+    
+    // Check if user is admin/owner
+    const adminCheck = await client.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Update basic user info
+    if (profileData.fullName || profileData.username || profileData.email) {
+      const userUpdates = [];
+      const userParams = [];
+      let paramIndex = 1;
+      
+      if (profileData.fullName) {
+        userUpdates.push(`full_name = $${paramIndex++}`);
+        userParams.push(profileData.fullName);
+      }
+      if (profileData.username) {
+        userUpdates.push(`username = $${paramIndex++}`);
+        userParams.push(profileData.username);
+      }
+      
+      if (userUpdates.length > 0) {
+        userUpdates.push(`updated_at = CURRENT_TIMESTAMP`);
+        userParams.push(userId);
+        
+        const updateQuery = `UPDATE users SET ${userUpdates.join(', ')} WHERE firebase_uid = $${paramIndex}`;
+        await client.query(updateQuery, userParams);
+        console.log('✅ Updated basic user info');
+      }
+    }
+    
+    // Get user account types
+    const userQuery = await client.query(
+      'SELECT has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1',
+      [userId]
+    );
+    
+    if (userQuery.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userQuery.rows[0];
+    
+    // Update borrower profile if exists
+    if (user.has_borrower_account && profileData) {
+      const borrowerUpdates = [];
+      const borrowerParams = [];
+      let paramIndex = 1;
+      
+      // Personal information
+      if (profileData.phone !== undefined) {
+        borrowerUpdates.push(`phone_number = $${paramIndex++}`);
+        borrowerParams.push(profileData.phone);
+      }
+      if (profileData.dateOfBirth !== undefined) {
+        borrowerUpdates.push(`date_of_birth = $${paramIndex++}`);
+        borrowerParams.push(profileData.dateOfBirth);
+      }
+      if (profileData.nationality !== undefined) {
+        borrowerUpdates.push(`nationality = $${paramIndex++}`);
+        borrowerParams.push(profileData.nationality);
+      }
+      
+      // Personal info fields
+      if (profileData.personalInfo) {
+        if (profileData.personalInfo.placeOfBirth !== undefined) {
+          borrowerUpdates.push(`place_of_birth = $${paramIndex++}`);
+          borrowerParams.push(profileData.personalInfo.placeOfBirth);
+        }
+        if (profileData.personalInfo.gender !== undefined) {
+          borrowerUpdates.push(`gender = $${paramIndex++}`);
+          borrowerParams.push(profileData.personalInfo.gender);
+        }
+        if (profileData.personalInfo.civilStatus !== undefined) {
+          borrowerUpdates.push(`civil_status = $${paramIndex++}`);
+          borrowerParams.push(profileData.personalInfo.civilStatus);
+        }
+        if (profileData.personalInfo.motherMaidenName !== undefined) {
+          borrowerUpdates.push(`mother_maiden_name = $${paramIndex++}`);
+          borrowerParams.push(profileData.personalInfo.motherMaidenName);
+        }
+        if (profileData.personalInfo.contactEmail !== undefined) {
+          borrowerUpdates.push(`contact_email = $${paramIndex++}`);
+          borrowerParams.push(profileData.personalInfo.contactEmail);
+        }
+      }
+      
+      // Address fields
+      if (profileData.address) {
+        if (profileData.address.street !== undefined) {
+          borrowerUpdates.push(`street = $${paramIndex++}`);
+          borrowerParams.push(profileData.address.street);
+        }
+        if (profileData.address.barangay !== undefined) {
+          borrowerUpdates.push(`barangay = $${paramIndex++}`);
+          borrowerParams.push(profileData.address.barangay);
+        }
+        if (profileData.address.city !== undefined) {
+          borrowerUpdates.push(`municipality = $${paramIndex++}`);
+          borrowerParams.push(profileData.address.city);
+        }
+        if (profileData.address.state !== undefined) {
+          borrowerUpdates.push(`province = $${paramIndex++}`);
+          borrowerParams.push(profileData.address.state);
+        }
+        if (profileData.address.country !== undefined) {
+          borrowerUpdates.push(`country = $${paramIndex++}`);
+          borrowerParams.push(profileData.address.country);
+        }
+        if (profileData.address.postalCode !== undefined) {
+          borrowerUpdates.push(`postal_code = $${paramIndex++}`);
+          borrowerParams.push(profileData.address.postalCode);
+        }
+      }
+      
+      // Identification fields
+      if (profileData.identification) {
+        if (profileData.identification.nationalId !== undefined) {
+          borrowerUpdates.push(`national_id = $${paramIndex++}`);
+          borrowerParams.push(profileData.identification.nationalId);
+        }
+        if (profileData.identification.passport !== undefined) {
+          borrowerUpdates.push(`passport_no = $${paramIndex++}`);
+          borrowerParams.push(profileData.identification.passport);
+        }
+        if (profileData.identification.tin !== undefined) {
+          borrowerUpdates.push(`tin = $${paramIndex++}`);
+          borrowerParams.push(profileData.identification.tin);
+        }
+      }
+      
+      // Employment info
+      if (profileData.employmentInfo) {
+        if (profileData.employmentInfo.occupation !== undefined) {
+          borrowerUpdates.push(`occupation = $${paramIndex++}`);
+          borrowerParams.push(profileData.employmentInfo.occupation);
+        }
+        if (profileData.employmentInfo.employerName !== undefined) {
+          borrowerUpdates.push(`employer_name = $${paramIndex++}`);
+          borrowerParams.push(profileData.employmentInfo.employerName);
+        }
+        if (profileData.employmentInfo.monthlyIncome !== undefined) {
+          borrowerUpdates.push(`monthly_income = $${paramIndex++}`);
+          borrowerParams.push(profileData.employmentInfo.monthlyIncome);
+        }
+      }
+      
+      // Bank account
+      if (profileData.bankAccount) {
+        if (profileData.bankAccount.bankName !== undefined) {
+          borrowerUpdates.push(`bank_name = $${paramIndex++}`);
+          borrowerParams.push(profileData.bankAccount.bankName);
+        }
+        if (profileData.bankAccount.accountNumber !== undefined) {
+          borrowerUpdates.push(`account_number = $${paramIndex++}`);
+          borrowerParams.push(profileData.bankAccount.accountNumber);
+        }
+        if (profileData.bankAccount.accountName !== undefined) {
+          borrowerUpdates.push(`account_name = $${paramIndex++}`);
+          borrowerParams.push(profileData.bankAccount.accountName);
+        }
+      }
+      
+      if (borrowerUpdates.length > 0) {
+        borrowerUpdates.push(`updated_at = CURRENT_TIMESTAMP`);
+        borrowerParams.push(userId);
+        
+        const updateQuery = `UPDATE borrower_profiles SET ${borrowerUpdates.join(', ')} WHERE firebase_uid = $${paramIndex}`;
+        await client.query(updateQuery, borrowerParams);
+        console.log('✅ Updated borrower profile');
+      }
+    }
+    
+    // Update investor profile if exists
+    if (user.has_investor_account && profileData) {
+      const investorUpdates = [];
+      const investorParams = [];
+      let paramIndex = 1;
+      
+      // Personal information
+      if (profileData.phone !== undefined) {
+        investorUpdates.push(`phone_number = $${paramIndex++}`);
+        investorParams.push(profileData.phone);
+      }
+      if (profileData.dateOfBirth !== undefined) {
+        investorUpdates.push(`date_of_birth = $${paramIndex++}`);
+        investorParams.push(profileData.dateOfBirth);
+      }
+      if (profileData.nationality !== undefined) {
+        investorUpdates.push(`nationality = $${paramIndex++}`);
+        investorParams.push(profileData.nationality);
+      }
+      
+      // Address fields
+      if (profileData.address) {
+        if (profileData.address.street !== undefined) {
+          investorUpdates.push(`street = $${paramIndex++}`);
+          investorParams.push(profileData.address.street);
+        }
+        if (profileData.address.barangay !== undefined) {
+          investorUpdates.push(`barangay = $${paramIndex++}`);
+          investorParams.push(profileData.address.barangay);
+        }
+        if (profileData.address.city !== undefined) {
+          investorUpdates.push(`municipality = $${paramIndex++}`);
+          investorParams.push(profileData.address.city);
+        }
+        if (profileData.address.state !== undefined) {
+          investorUpdates.push(`province = $${paramIndex++}`);
+          investorParams.push(profileData.address.state);
+        }
+        if (profileData.address.country !== undefined) {
+          investorUpdates.push(`country = $${paramIndex++}`);
+          investorParams.push(profileData.address.country);
+        }
+        if (profileData.address.postalCode !== undefined) {
+          investorUpdates.push(`postal_code = $${paramIndex++}`);
+          investorParams.push(profileData.address.postalCode);
+        }
+      }
+      
+      // Identification fields
+      if (profileData.identification) {
+        if (profileData.identification.nationalId !== undefined) {
+          investorUpdates.push(`national_id = $${paramIndex++}`);
+          investorParams.push(profileData.identification.nationalId);
+        }
+        if (profileData.identification.passport !== undefined) {
+          investorUpdates.push(`passport_no = $${paramIndex++}`);
+          investorParams.push(profileData.identification.passport);
+        }
+        if (profileData.identification.tin !== undefined) {
+          investorUpdates.push(`tin = $${paramIndex++}`);
+          investorParams.push(profileData.identification.tin);
+        }
+      }
+      
+      // Investment info
+      if (profileData.investmentInfo) {
+        if (profileData.investmentInfo.experience !== undefined) {
+          investorUpdates.push(`investment_experience = $${paramIndex++}`);
+          investorParams.push(profileData.investmentInfo.experience);
+        }
+        if (profileData.investmentInfo.riskTolerance !== undefined) {
+          investorUpdates.push(`risk_tolerance = $${paramIndex++}`);
+          investorParams.push(profileData.investmentInfo.riskTolerance);
+        }
+      }
+      
+      // Bank account
+      if (profileData.bankAccount) {
+        if (profileData.bankAccount.bankName !== undefined) {
+          investorUpdates.push(`bank_name = $${paramIndex++}`);
+          investorParams.push(profileData.bankAccount.bankName);
+        }
+        if (profileData.bankAccount.accountNumber !== undefined) {
+          investorUpdates.push(`account_number = $${paramIndex++}`);
+          investorParams.push(profileData.bankAccount.accountNumber);
+        }
+        if (profileData.bankAccount.accountName !== undefined) {
+          investorUpdates.push(`account_name = $${paramIndex++}`);
+          investorParams.push(profileData.bankAccount.accountName);
+        }
+      }
+      
+      if (investorUpdates.length > 0) {
+        investorUpdates.push(`updated_at = CURRENT_TIMESTAMP`);
+        investorParams.push(userId);
+        
+        const updateQuery = `UPDATE investor_profiles SET ${investorUpdates.join(', ')} WHERE firebase_uid = $${paramIndex}`;
+        await client.query(updateQuery, investorParams);
+        console.log('✅ Updated investor profile');
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    console.log(`✅ Admin ${firebase_uid} updated user profile for ${userId}`);
+    res.json({ 
+      success: true, 
+      message: 'User profile updated successfully'
+    });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('❌ Error updating user profile:', err);
+    res.status(500).json({ error: 'Failed to update user profile', details: err.message });
+  } finally {
+    client.release();
   }
 });
 
