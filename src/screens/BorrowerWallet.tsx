@@ -129,6 +129,38 @@ export const BorrowerWallet = (): JSX.Element => {
         hasCompletedRegistration: true
       }));
       
+      // Helper function to convert File to base64
+      const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+      };
+
+      // Convert document files to base64 if they exist
+      let nationalIdFileBase64 = null;
+      let passportFileBase64 = null;
+      
+      if (registration.files?.nationalIdFile) {
+        try {
+          nationalIdFileBase64 = await fileToBase64(registration.files.nationalIdFile);
+          console.log('✅ National ID file converted to base64');
+        } catch (error) {
+          console.error('❌ Error converting National ID file:', error);
+        }
+      }
+      
+      if (registration.files?.passportFile) {
+        try {
+          passportFileBase64 = await fileToBase64(registration.files.passportFile);
+          console.log('✅ Passport file converted to base64');
+        } catch (error) {
+          console.error('❌ Error converting Passport file:', error);
+        }
+      }
+      
       // Prepare registration data for complete-kyc endpoint
       const isIndividual = registration.accountType === 'individual';
       const kycData = {
@@ -163,6 +195,10 @@ export const BorrowerWallet = (): JSX.Element => {
         nationalId: registration.details?.nationalId || null,
         passport: registration.details?.passport || registration.details?.passportNumber || null,
         tin: registration.details?.tin || registration.details?.tinNumber || null,
+        
+        // ✅ DOCUMENT FILES - Base64 encoded document images
+        nationalIdFile: nationalIdFileBase64,
+        passportFile: passportFileBase64,
         
         // ✅ EMPLOYMENT INFORMATION - Critical missing fields added!
         occupation: registration.details?.occupation || null,

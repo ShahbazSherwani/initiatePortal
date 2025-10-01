@@ -12,6 +12,8 @@ interface AuthContextType {
     id: string;
     email: string | null;
     name: string | null;
+    fullName?: string | null; // Full name from settings
+    username?: string | null; // Username from settings
     role: string | null;
     joined: string;
     hasCompletedRegistration?: boolean; // Add this field
@@ -94,6 +96,8 @@ export const AuthProvider = ({ children }) => {
                 id: user.uid,
                 email: user.email,
                 name: profileData.full_name,
+                fullName: profileData.full_name, // Add fullName
+                username: profileData.username, // Add username
                 role: profileData.role || null,
                 joined: profileData.created_at || new Date().toISOString(),
                 hasCompletedRegistration: profileData.has_completed_registration || false,
@@ -151,6 +155,8 @@ export const AuthProvider = ({ children }) => {
           id: user.uid,
           email: user.email,
           name: profileData.full_name,
+          fullName: profileData.full_name, // Add fullName
+          username: profileData.username, // Add username
           role: profileData.role || null,
           joined: profileData.created_at || new Date().toISOString(),
           hasCompletedRegistration: profileData.has_completed_registration || false,

@@ -94,21 +94,72 @@ export const InvestorRegBankDetails = (): JSX.Element => {
       
       setRegistration(updatedRegistration);
 
+      // Helper function to convert File to base64
+      const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+      };
+
+      // Convert document files to base64 if they exist
+      let nationalIdFileBase64 = null;
+      let passportFileBase64 = null;
+      
+      if (updatedRegistration.files?.nationalIdFile) {
+        try {
+          nationalIdFileBase64 = await fileToBase64(updatedRegistration.files.nationalIdFile);
+          console.log('✅ National ID file converted to base64');
+        } catch (error) {
+          console.error('❌ Error converting National ID file:', error);
+        }
+      }
+      
+      if (updatedRegistration.files?.passportFile) {
+        try {
+          passportFileBase64 = await fileToBase64(updatedRegistration.files.passportFile);
+          console.log('✅ Passport file converted to base64');
+        } catch (error) {
+          console.error('❌ Error converting Passport file:', error);
+        }
+      }
+
       // Prepare KYC data from the complete registration
       const kycData = {
         // Basic details
         isIndividualAccount: true, // Investors are individual accounts
         
         // Personal details
+        firstName: updatedRegistration.details?.firstName || '',
+        middleName: updatedRegistration.details?.middleName || '',
+        lastName: updatedRegistration.details?.lastName || '',
+        suffixName: updatedRegistration.details?.suffixName || '',
         placeOfBirth: updatedRegistration.details?.placeOfBirth || '',
         gender: updatedRegistration.details?.gender || '',
         civilStatus: updatedRegistration.details?.civilStatus || '',
         nationality: updatedRegistration.details?.nationality || '',
         contactEmail: updatedRegistration.details?.contactEmail || '',
         
+        // Address information
+        street: updatedRegistration.details?.street || '',
+        barangay: updatedRegistration.details?.barangay || '',
+        city: updatedRegistration.details?.cityName || '',
+        state: updatedRegistration.details?.stateIso || '',
+        country: updatedRegistration.details?.countryIso || '',
+        postalCode: updatedRegistration.details?.postalCode || '',
+        
         // Identity verification
+        nationalId: updatedRegistration.details?.nationalId || '',
+        passport: updatedRegistration.details?.passport || '',
+        tin: updatedRegistration.details?.tin || '',
         secondaryIdType: updatedRegistration.details?.secondaryIdType || '',
         secondaryIdNumber: updatedRegistration.details?.secondaryIdNumber || '',
+        
+        // Document files (base64 encoded)
+        nationalIdFile: nationalIdFileBase64,
+        passportFile: passportFileBase64,
         
         // Emergency contact
         emergencyContactName: updatedRegistration.details?.emergencyContactName || '',

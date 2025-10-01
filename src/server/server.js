@@ -1486,6 +1486,8 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           tin: borrower.tin_number || borrower.corporate_tin || '',
           secondaryIdType: borrower.secondary_id_type || '',
           secondaryIdNumber: borrower.secondary_id_number || '',
+          nationalIdFile: borrower.national_id_file || null,
+          passportFile: borrower.passport_file || null,
         };
         console.log('🆔 Mapped borrower identification:', profileData.identification);
 
@@ -1627,6 +1629,8 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           tin: investor.tin_number || currentIdentification.tin || '',
           secondaryIdType: investor.secondary_id_type || currentIdentification.secondaryIdType || '',
           secondaryIdNumber: investor.secondary_id_number || currentIdentification.secondaryIdNumber || '',
+          nationalIdFile: investor.national_id_file || null,
+          passportFile: investor.passport_file || null,
         };
         console.log('✅ Mapped identification data from investor profile:', profileData.identification);
 
@@ -1911,12 +1915,16 @@ app.post('/api/settings', verifyToken, async (req, res) => {
                 UPDATE borrower_profiles SET
                   national_id = $1,
                   passport = $2,
-                  tin_number = $3
-                WHERE firebase_uid = $4
+                  tin_number = $3,
+                  national_id_file = $4,
+                  passport_file = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.identification?.nationalId || null,
                 profileData.identification?.passport || null,
                 profileData.identification?.tin || null,
+                profileData.identification?.nationalIdFile || null,
+                profileData.identification?.passportFile || null,
                 firebase_uid
               ]);
               console.log('✅ Updated borrower identification info');
@@ -2070,12 +2078,16 @@ app.post('/api/settings', verifyToken, async (req, res) => {
                 UPDATE investor_profiles SET
                   national_id = $1,
                   passport = $2,
-                  tin_number = $3
-                WHERE firebase_uid = $4
+                  tin_number = $3,
+                  national_id_file = $4,
+                  passport_file = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.identification?.nationalId || null,
                 profileData.identification?.passport || null,
                 profileData.identification?.tin || null,
+                profileData.identification?.nationalIdFile || null,
+                profileData.identification?.passportFile || null,
                 firebase_uid
               ]);
               console.log('✅ Updated investor identification info');
@@ -4383,7 +4395,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             date_of_birth, place_of_birth, nationality, gender, civil_status,
             mobile_number, country_code, email_address, contact_email,
             present_address, permanent_address, city, state, postal_code, country,
-            national_id, passport, tin_number,
+            national_id, passport, tin_number, national_id_file, passport_file,
             occupation, employer_name, employer_address, employment_status, 
             gross_annual_income, source_of_income,
             emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_email, emergency_contact_address,
@@ -4393,9 +4405,9 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
             $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-            $21, $22, $23, $24, $25, $26, $27, $28, $29, 
-            $30, $31, $32, $33, $34, $35, $36, $37, $38, 
-            $39, $40, $41, $42, TRUE, NOW(), NOW()
+            $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, 
+            $32, $33, $34, $35, $36, $37, $38, $39, $40, 
+            $41, $42, $43, $44, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -4420,6 +4432,8 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             national_id = EXCLUDED.national_id,
             passport = EXCLUDED.passport,
             tin_number = EXCLUDED.tin_number,
+            national_id_file = EXCLUDED.national_id_file,
+            passport_file = EXCLUDED.passport_file,
             occupation = EXCLUDED.occupation,
             employer_name = EXCLUDED.employer_name,
             employer_address = EXCLUDED.employer_address,
@@ -4463,33 +4477,35 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.state || kycData.stateIso || null,
           kycData.postalCode || null,
           kycData.country || kycData.countryIso || null,
-          // Identification (21-23)
+          // Identification (21-25)
           kycData.nationalId || null,
           kycData.passport || kycData.passportNumber || null,
           kycData.tin || kycData.tinNumber || null,
-          // Employment Information (24-29)
+          kycData.nationalIdFile || null,
+          kycData.passportFile || null,
+          // Employment Information (26-31)
           kycData.occupation || null,
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
           kycData.grossAnnualIncome || kycData.monthlyIncome || null,
           kycData.sourceOfIncome || null,
-          // Emergency Contact Information (30-34)
+          // Emergency Contact Information (32-36)
           kycData.emergencyContactName || null,
           kycData.emergencyContactRelationship || null,
           kycData.emergencyContactPhone || null,
           kycData.emergencyContactEmail || null,
           kycData.emergencyContactAddress || null,
-          // Mother's Maiden Name (35)
+          // Mother's Maiden Name (37)
           kycData.motherMaidenName || null,
-          // Bank Account Information (36-41)
+          // Bank Account Information (38-43)
           kycData.account_name || kycData.accountName || null,
           kycData.bank_name || kycData.bankName || null,
           kycData.account_type || kycData.accountType || null,
           kycData.account_number || kycData.accountNumber || null,
           kycData.iban || null,
           kycData.swift_code || kycData.swiftCode || null,
-          // Account Type (42)
+          // Account Type (44)
           kycData.isIndividualAccount
         ]);
       } else {
@@ -6249,7 +6265,7 @@ app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
   try {
     // Verify owner/admin status
     const adminCheck = await db.query(
-      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      `SELECT is_admin, full_name FROM users WHERE firebase_uid = $1`,
       [req.uid]
     );
     
@@ -6257,16 +6273,35 @@ app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: Owner access required" });
     }
 
+    // Get user details before suspension
+    const userResult = await db.query(`
+      SELECT full_name FROM users WHERE firebase_uid = $1
+    `, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update user status to suspended
     await db.query(`
       UPDATE users 
       SET current_account_type = 'suspended'
       WHERE firebase_uid = $1
     `, [userId]);
 
-    // Log the action (would implement audit log here)
+    // Create notification for the suspended user
+    const notificationTitle = 'Account Suspended';
+    const notificationMessage = `Your account has been suspended. Reason: ${reason}. Please contact support for more information.`;
+    
+    await db.query(`
+      INSERT INTO notifications (firebase_uid, title, message, type, is_read, created_at)
+      VALUES ($1, $2, $3, $4, false, NOW())
+    `, [userId, notificationTitle, notificationMessage, 'alert']);
+
+    // Log the action
     console.log(`Owner ${req.uid} suspended user ${userId} with reason: ${reason}`);
 
-    res.json({ success: true, message: "User suspended successfully" });
+    res.json({ success: true, message: "User suspended successfully and notification sent" });
   } catch (err) {
     console.error("Error suspending user:", err);
     res.status(500).json({ error: "Database error" });

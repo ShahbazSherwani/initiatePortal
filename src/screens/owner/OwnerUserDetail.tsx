@@ -66,8 +66,8 @@ interface UserDetail {
   
   // Address information
   addresses?: {
-    presentAddress?: string;
-    permanentAddress?: string;
+    present?: string;
+    permanent?: string;
     city?: string;
     state?: string;
     postalCode?: string;
@@ -76,12 +76,12 @@ interface UserDetail {
   
   // KYC and identification documents
   identifications?: {
-    idType?: string;
-    idNumber?: string;
-    expiryDate?: string;
-    issuingCountry?: string;
-    verificationStatus?: 'pending' | 'verified' | 'rejected';
-  }[];
+    nationalId?: string;
+    passport?: string;
+    tin?: string;
+    secondaryIdType?: string;
+    secondaryIdNumber?: string;
+  };
   
   // Bank account information
   bankAccounts?: {
@@ -89,9 +89,20 @@ interface UserDetail {
     accountName?: string;
     accountNumber?: string;
     accountType?: string;
+    iban?: string;
+    swiftCode?: string;
     isDefault?: boolean;
     verificationStatus?: 'pending' | 'verified' | 'rejected';
   }[];
+  
+  // Roles and settings
+  rolesSettings?: {
+    accountType?: string;
+    hasBorrowerAccount?: boolean;
+    hasInvestorAccount?: boolean;
+    isAdmin?: boolean;
+    isComplete?: boolean;
+  };
   
   // Role-specific data
   borrowerData?: {
@@ -552,46 +563,331 @@ export const OwnerUserDetail: React.FC = () => {
 
             {/* Personal Profile Tab */}
             {activeTab === 'personal' && user.personalProfile && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                      {isEditing ? (
+                        <Input placeholder="First Name" defaultValue={user.personalProfile.firstName} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.firstName || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                      {isEditing ? (
+                        <Input placeholder="Last Name" defaultValue={user.personalProfile.lastName} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.lastName || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                      {isEditing ? (
+                        <Input placeholder="Middle Name" defaultValue={user.personalProfile.middleName} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.middleName || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                      {isEditing ? (
+                        <Input type="date" defaultValue={user.personalProfile.dateOfBirth} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.dateOfBirth || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
+                      {isEditing ? (
+                        <Input placeholder="Place of Birth" defaultValue={user.personalProfile.placeOfBirth} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.placeOfBirth || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                      {isEditing ? (
+                        <Input placeholder="Nationality" defaultValue={user.personalProfile.nationality} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.nationality || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                      {isEditing ? (
+                        <Input placeholder="Gender" defaultValue={user.personalProfile.gender} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.gender || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                      {isEditing ? (
+                        <Input placeholder="Marital Status" defaultValue={user.personalProfile.maritalStatus} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.maritalStatus || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                      {isEditing ? (
+                        <Input type="email" placeholder="Email" defaultValue={user.personalProfile.emailAddress} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.emailAddress || user.email || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                      {isEditing ? (
+                        <Input placeholder="Mobile Number" defaultValue={user.personalProfile.mobileNumber} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.mobileNumber || user.phoneNumber || 'Not provided'}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Employment Information */}
+                {user.borrowerData?.employmentInfo && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.borrowerData.employmentInfo.occupation || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Employer Name</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.borrowerData.employmentInfo.employerName || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Employer Address</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.borrowerData.employmentInfo.employerAddress || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Employment Status</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.borrowerData.employmentInfo.employmentStatus || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Annual Income</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          {user.borrowerData.employmentInfo.grossAnnualIncome ? formatCurrency(user.borrowerData.employmentInfo.grossAnnualIncome) : 'Not provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Source of Income</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.borrowerData.employmentInfo.sourceOfIncome || 'Not provided'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Identifications Tab */}
+            {activeTab === 'identifications' && (
               <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Identifications</h3>
+                <p className="text-sm text-gray-500 mb-6">This tab contains detailed identifications information.</p>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.firstName || 'Not provided'}</div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">National ID</label>
+                    {isEditing ? (
+                      <Input placeholder="National ID Number" defaultValue={user.identifications?.nationalId} />
+                    ) : (
+                      <div className="p-3 bg-gray-50 rounded-lg">{user.identifications?.nationalId || 'Not provided'}</div>
+                    )}
                   </div>
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.lastName || 'Not provided'}</div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Passport Number</label>
+                    {isEditing ? (
+                      <Input placeholder="Passport Number" defaultValue={user.identifications?.passport} />
+                    ) : (
+                      <div className="p-3 bg-gray-50 rounded-lg">{user.identifications?.passport || 'Not provided'}</div>
+                    )}
                   </div>
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.middleName || 'Not provided'}</div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">TIN Number</label>
+                    {isEditing ? (
+                      <Input placeholder="TIN Number" defaultValue={user.identifications?.tin} />
+                    ) : (
+                      <div className="p-3 bg-gray-50 rounded-lg">{user.identifications?.tin || 'Not provided'}</div>
+                    )}
                   </div>
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.dateOfBirth || 'Not provided'}</div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Secondary ID Type</label>
+                    {isEditing ? (
+                      <Input placeholder="Secondary ID Type" defaultValue={user.identifications?.secondaryIdType} />
+                    ) : (
+                      <div className="p-3 bg-gray-50 rounded-lg">{user.identifications?.secondaryIdType || 'Not provided'}</div>
+                    )}
                   </div>
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
-                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.placeOfBirth || 'Not provided'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.nationality || 'Not provided'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.gender || 'Not provided'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
-                    <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.maritalStatus || 'Not provided'}</div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Secondary ID Number</label>
+                    {isEditing ? (
+                      <Input placeholder="Secondary ID Number" defaultValue={user.identifications?.secondaryIdNumber} />
+                    ) : (
+                      <div className="p-3 bg-gray-50 rounded-lg">{user.identifications?.secondaryIdNumber || 'Not provided'}</div>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Other tabs show placeholder content for now */}
-            {activeTab !== 'overview' && activeTab !== 'personal' && (
+            {/* Addresses Tab */}
+            {activeTab === 'addresses' && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Addresses</h3>
+                <p className="text-sm text-gray-500 mb-6">This tab contains detailed addresses information.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">Present Address</h4>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                      {isEditing ? (
+                        <Input placeholder="Street Address" defaultValue={user.addresses?.present} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.present || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                      {isEditing ? (
+                        <Input placeholder="City" defaultValue={user.addresses?.city} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.city || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">State/Province</label>
+                      {isEditing ? (
+                        <Input placeholder="State/Province" defaultValue={user.addresses?.state} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.state || 'Not provided'}</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">Additional Details</h4>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                      {isEditing ? (
+                        <Input placeholder="Postal Code" defaultValue={user.addresses?.postalCode} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.postalCode || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                      {isEditing ? (
+                        <Input placeholder="Country" defaultValue={user.addresses?.country} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.country || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Permanent Address</label>
+                      {isEditing ? (
+                        <Input placeholder="Permanent Address" defaultValue={user.addresses?.permanent} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.permanent || 'Same as present'}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Bank Accounts Tab */}
+            {activeTab === 'bank' && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Bank Accounts</h3>
+                <p className="text-sm text-gray-500 mb-6">This tab contains detailed bank information.</p>
+                
+                {user.bankAccounts && user.bankAccounts.length > 0 ? (
+                  <div className="space-y-4">
+                    {user.bankAccounts.map((account, index) => (
+                      <Card key={index} className="bg-gray-50 border-0">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-medium text-gray-900">{account.bankName || 'Bank Account'}</h4>
+                            {account.isDefault && (
+                              <Badge className="bg-green-100 text-green-800 border-0">Default</Badge>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                              <div className="p-2 bg-white rounded">{account.accountName || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                              <div className="p-2 bg-white rounded">{account.accountNumber || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                              <div className="p-2 bg-white rounded">{account.accountType || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
+                              <div className="p-2 bg-white rounded">{account.iban || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">SWIFT Code</label>
+                              <div className="p-2 bg-white rounded">{account.swiftCode || 'N/A'}</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No bank accounts registered
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Roles & Settings Tab */}
+            {activeTab === 'roles' && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Roles & Settings</h3>
+                <p className="text-sm text-gray-500 mb-6">This tab contains detailed roles information.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Account Type</label>
+                    <div className="p-3 bg-gray-50 rounded-lg capitalize">{user.rolesSettings?.accountType || 'Not set'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Has Borrower Account</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.rolesSettings?.hasBorrowerAccount ? 'Yes' : 'No'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Has Investor Account</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.rolesSettings?.hasInvestorAccount ? 'Yes' : 'No'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Is Admin</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">{user.rolesSettings?.isAdmin ? 'Yes' : 'No'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Other tabs show placeholder content */}
+            {!['overview', 'personal', 'identifications', 'addresses', 'bank', 'roles'].includes(activeTab) && (
               <div className="text-center py-12">
                 <h4 className="text-lg font-medium text-gray-900 mb-2">{USER_TABS.find(t => t.key === activeTab)?.label}</h4>
                 <p className="text-gray-500">This tab contains detailed {activeTab} information.</p>

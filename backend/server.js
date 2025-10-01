@@ -1118,6 +1118,8 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           tin: borrower.tin || '',
           secondaryIdType: borrower.secondary_id_type || '',
           secondaryIdNumber: borrower.secondary_id_number || '',
+          nationalIdFile: borrower.national_id_file || null,
+          passportFile: borrower.passport_file || null,
         };
 
         // Personal information for individual accounts
@@ -1251,6 +1253,8 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           tin: investor.tin || '',
           secondaryIdType: investor.secondary_id_type || '',
           secondaryIdNumber: investor.secondary_id_number || '',
+          nationalIdFile: investor.national_id_file || null,
+          passportFile: investor.passport_file || null,
         };
         console.log('✅ Mapped identification data from investor profile:', profileData.identification);
 
@@ -1524,12 +1528,16 @@ app.post('/api/settings', verifyToken, async (req, res) => {
                 UPDATE borrower_profiles SET
                   national_id = $1,
                   passport_no = $2,
-                  tin = $3
-                WHERE firebase_uid = $4
+                  tin = $3,
+                  national_id_file = $4,
+                  passport_file = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.identification?.nationalId || null,
                 profileData.identification?.passport || null,
                 profileData.identification?.tin || null,
+                profileData.identification?.nationalIdFile || null,
+                profileData.identification?.passportFile || null,
                 firebase_uid
               ]);
               console.log('✅ Updated borrower identification info');
@@ -1591,12 +1599,16 @@ app.post('/api/settings', verifyToken, async (req, res) => {
                 UPDATE investor_profiles SET
                   national_id = $1,
                   passport_no = $2,
-                  tin = $3
-                WHERE firebase_uid = $4
+                  tin = $3,
+                  national_id_file = $4,
+                  passport_file = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.identification?.nationalId || null,
                 profileData.identification?.passport || null,
                 profileData.identification?.tin || null,
+                profileData.identification?.nationalIdFile || null,
+                profileData.identification?.passportFile || null,
                 firebase_uid
               ]);
               console.log('✅ Updated investor identification info');
@@ -3033,6 +3045,8 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             tin_number = $23,
             secondary_id_type = $24,
             secondary_id_number = $25,
+            national_id_file = $67,
+            passport_file = $68,
             -- Employment Information
             occupation = $26,
             employer_name = $27,
@@ -3161,7 +3175,10 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.gisNumberOfEmployees,
           // PEP Status (65-66)
           kycData.isPoliticallyExposedPerson,
-          kycData.pepDetails
+          kycData.pepDetails,
+          // Document Files (67-68)
+          kycData.nationalIdFile || null,
+          kycData.passportFile || null
         ]);
       } else {
         // Update existing investor profile with KYC data
@@ -3201,6 +3218,8 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             authorized_signatory_position = $33,
             authorized_signatory_id_type = $34,
             authorized_signatory_id_number = $35,
+            national_id_file = $36,
+            passport_file = $37,
             is_complete = TRUE,
             updated_at = NOW()
           WHERE firebase_uid = $1
@@ -3219,7 +3238,9 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.gisNumberOfStockholders, kycData.gisNumberOfEmployees,
           kycData.isPoliticallyExposedPerson, kycData.pepDetails,
           kycData.authorizedSignatoryName, kycData.authorizedSignatoryPosition,
-          kycData.authorizedSignatoryIdType, kycData.authorizedSignatoryIdNumber
+          kycData.authorizedSignatoryIdType, kycData.authorizedSignatoryIdNumber,
+          kycData.nationalIdFile || null,
+          kycData.passportFile || null
         ]);
       }
       

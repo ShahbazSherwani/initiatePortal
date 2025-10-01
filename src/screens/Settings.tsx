@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 
 export const Settings = (): JSX.Element => {
-  const { user, profilePicture, setProfilePicture, setProfile } = useAuth();
+  const { user, profilePicture, setProfilePicture, setProfile, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
   // Profile Data State
@@ -71,6 +71,8 @@ export const Settings = (): JSX.Element => {
       tin: "",
       secondaryIdType: "",
       secondaryIdNumber: "",
+      nationalIdFile: null as string | null,
+      passportFile: null as string | null,
     },
     personalInfo: {
       placeOfBirth: "",
@@ -396,6 +398,8 @@ export const Settings = (): JSX.Element => {
       });
       
       if (response.success) {
+        // Refresh the profile to update the context with new data
+        await refreshProfile();
         alert("Profile updated successfully!");
       } else {
         alert("Failed to update profile. Please try again.");
@@ -914,6 +918,52 @@ export const Settings = (): JSX.Element => {
                             
                             placeholder="Enter secondary ID number"
                           />
+                        </div>
+                      </div>
+                      
+                      {/* Document Images Display */}
+                      <div className="mt-6">
+                        <h4 className="text-md font-semibold mb-3">Uploaded Documents</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* National ID Image */}
+                          <div className="space-y-2">
+                            <Label>National ID Document</Label>
+                            {profileData.identification.nationalIdFile ? (
+                              <div className="border rounded-lg p-2 bg-gray-50">
+                                <img 
+                                  src={profileData.identification.nationalIdFile} 
+                                  alt="National ID" 
+                                  className="w-full h-48 object-contain rounded cursor-pointer hover:opacity-80 transition"
+                                  onClick={() => window.open(profileData.identification.nationalIdFile!, '_blank')}
+                                />
+                                <p className="text-xs text-gray-500 mt-2 text-center">Click to view full size</p>
+                              </div>
+                            ) : (
+                              <div className="border rounded-lg p-4 bg-gray-50 text-center text-gray-500">
+                                <p className="text-sm">No document uploaded</p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Passport Image */}
+                          <div className="space-y-2">
+                            <Label>Passport Document</Label>
+                            {profileData.identification.passportFile ? (
+                              <div className="border rounded-lg p-2 bg-gray-50">
+                                <img 
+                                  src={profileData.identification.passportFile} 
+                                  alt="Passport" 
+                                  className="w-full h-48 object-contain rounded cursor-pointer hover:opacity-80 transition"
+                                  onClick={() => window.open(profileData.identification.passportFile!, '_blank')}
+                                />
+                                <p className="text-xs text-gray-500 mt-2 text-center">Click to view full size</p>
+                              </div>
+                            ) : (
+                              <div className="border rounded-lg p-4 bg-gray-50 text-center text-gray-500">
+                                <p className="text-sm">No document uploaded</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
