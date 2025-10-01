@@ -1868,10 +1868,10 @@ app.post('/api/settings', verifyToken, async (req, res) => {
         // Update borrower profile if user has borrower account
         if (user.has_borrower_account) {
           try {
-            // Only update confirmed existing fields
+            // Only update confirmed existing fields - use correct column names from database
             await db.query(`
               UPDATE borrower_profiles SET
-                phone_number = $1,
+                mobile_number = $1,
                 date_of_birth = $2,
                 updated_at = CURRENT_TIMESTAMP
               WHERE firebase_uid = $3
@@ -1882,20 +1882,18 @@ app.post('/api/settings', verifyToken, async (req, res) => {
             ]);
             console.log('✅ Updated borrower profile basic info');
             
-            // Try to update address fields separately with error handling
+            // Try to update address fields separately with error handling - use correct column names
             try {
               await db.query(`
                 UPDATE borrower_profiles SET
-                  street = $1,
-                  barangay = $2,
-                  municipality = $3,
-                  province = $4,
-                  country = $5,
-                  postal_code = $6
-                WHERE firebase_uid = $7
+                  present_address = $1,
+                  city = $2,
+                  state = $3,
+                  country = $4,
+                  postal_code = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.address?.street || null,
-                profileData.address?.barangay || null,
                 profileData.address?.city || null,
                 profileData.address?.state || null,
                 profileData.address?.country || null,
@@ -1907,13 +1905,13 @@ app.post('/api/settings', verifyToken, async (req, res) => {
               console.log('⚠️ Address fields may not exist in borrower_profiles:', addressError.message);
             }
             
-            // Try to update identification fields separately
+            // Try to update identification fields separately - use correct column names
             try {
               await db.query(`
                 UPDATE borrower_profiles SET
                   national_id = $1,
-                  passport_no = $2,
-                  tin = $3
+                  passport = $2,
+                  tin_number = $3
                 WHERE firebase_uid = $4
               `, [
                 profileData.identification?.nationalId || null,
@@ -1926,6 +1924,100 @@ app.post('/api/settings', verifyToken, async (req, res) => {
               console.log('⚠️ ID fields may not exist in borrower_profiles:', idError.message);
             }
             
+            // Try to update personal info fields
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  place_of_birth = $1,
+                  gender = $2,
+                  civil_status = $3,
+                  nationality = $4,
+                  mother_maiden_name = $5,
+                  contact_email = $6
+                WHERE firebase_uid = $7
+              `, [
+                profileData.personalInfo?.placeOfBirth || null,
+                profileData.personalInfo?.gender || null,
+                profileData.personalInfo?.civilStatus || null,
+                profileData.personalInfo?.nationality || null,
+                profileData.personalInfo?.motherMaidenName || null,
+                profileData.personalInfo?.contactEmail || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower personal info');
+            } catch (personalError) {
+              console.log('⚠️ Personal info fields may not exist in borrower_profiles:', personalError.message);
+            }
+            
+            // Try to update emergency contact fields
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  emergency_contact_name = $1,
+                  emergency_contact_relationship = $2,
+                  emergency_contact_phone = $3,
+                  emergency_contact_email = $4,
+                  emergency_contact_address = $5
+                WHERE firebase_uid = $6
+              `, [
+                profileData.emergencyContact?.name || null,
+                profileData.emergencyContact?.relationship || null,
+                profileData.emergencyContact?.phone || null,
+                profileData.emergencyContact?.email || null,
+                profileData.emergencyContact?.address || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower emergency contact info');
+            } catch (emergencyError) {
+              console.log('⚠️ Emergency contact fields may not exist in borrower_profiles:', emergencyError.message);
+            }
+            
+            // Try to update employment info fields
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  occupation = $1,
+                  employer_name = $2,
+                  employer_address = $3,
+                  source_of_income = $4,
+                  gross_annual_income = $5
+                WHERE firebase_uid = $6
+              `, [
+                profileData.employmentInfo?.occupation || null,
+                profileData.employmentInfo?.employerName || null,
+                profileData.employmentInfo?.employerAddress || null,
+                profileData.employmentInfo?.sourceOfIncome || null,
+                profileData.employmentInfo?.monthlyIncome || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower employment info');
+            } catch (employmentError) {
+              console.log('⚠️ Employment info fields may not exist in borrower_profiles:', employmentError.message);
+            }
+            
+            // Try to update bank account fields
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  bank_name = $1,
+                  account_name = $2,
+                  account_number = $3,
+                  iban = $4,
+                  swift_code = $5
+                WHERE firebase_uid = $6
+              `, [
+                profileData.bankAccount?.bankName || null,
+                profileData.bankAccount?.accountName || null,
+                profileData.bankAccount?.accountNumber || null,
+                profileData.bankAccount?.iban || null,
+                profileData.bankAccount?.swiftCode || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower bank account info');
+            } catch (bankError) {
+              console.log('⚠️ Bank account fields may not exist in borrower_profiles:', bankError.message);
+            }
+            
           } catch (error) {
             console.error('❌ Error updating borrower profile:', error);
             // Don't throw error, continue with other updates
@@ -1935,10 +2027,10 @@ app.post('/api/settings', verifyToken, async (req, res) => {
         // Update investor profile if user has investor account
         if (user.has_investor_account) {
           try {
-            // Update basic info
+            // Update basic info - use correct column names
             await db.query(`
               UPDATE investor_profiles SET
-                phone_number = $1,
+                mobile_number = $1,
                 date_of_birth = $2,
                 updated_at = CURRENT_TIMESTAMP
               WHERE firebase_uid = $3
@@ -1949,20 +2041,18 @@ app.post('/api/settings', verifyToken, async (req, res) => {
             ]);
             console.log('✅ Updated investor profile basic info');
 
-            // Update address fields
+            // Update address fields - use correct column names
             try {
               await db.query(`
                 UPDATE investor_profiles SET
-                  street = $1,
-                  barangay = $2,
-                  municipality = $3,
-                  province = $4,
-                  country = $5,
-                  postal_code = $6
-                WHERE firebase_uid = $7
+                  present_address = $1,
+                  city = $2,
+                  state = $3,
+                  country = $4,
+                  postal_code = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.address?.street || null,
-                profileData.address?.barangay || null,
                 profileData.address?.city || null,
                 profileData.address?.state || null,
                 profileData.address?.country || null,
@@ -1974,13 +2064,13 @@ app.post('/api/settings', verifyToken, async (req, res) => {
               console.log('⚠️ Address fields may not exist in investor_profiles:', addressError.message);
             }
 
-            // Update identification fields
+            // Update identification fields - use correct column names
             try {
               await db.query(`
                 UPDATE investor_profiles SET
                   national_id = $1,
-                  passport_no = $2,
-                  tin = $3
+                  passport = $2,
+                  tin_number = $3
                 WHERE firebase_uid = $4
               `, [
                 profileData.identification?.nationalId || null,
@@ -1991,6 +2081,54 @@ app.post('/api/settings', verifyToken, async (req, res) => {
               console.log('✅ Updated investor identification info');
             } catch (idError) {
               console.log('⚠️ ID fields may not exist in investor_profiles:', idError.message);
+            }
+            
+            // Try to update personal info fields
+            try {
+              await db.query(`
+                UPDATE investor_profiles SET
+                  place_of_birth = $1,
+                  gender = $2,
+                  civil_status = $3,
+                  nationality = $4,
+                  mother_maiden_name = $5,
+                  contact_email = $6
+                WHERE firebase_uid = $7
+              `, [
+                profileData.personalInfo?.placeOfBirth || null,
+                profileData.personalInfo?.gender || null,
+                profileData.personalInfo?.civilStatus || null,
+                profileData.personalInfo?.nationality || null,
+                profileData.personalInfo?.motherMaidenName || null,
+                profileData.personalInfo?.contactEmail || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated investor personal info');
+            } catch (personalError) {
+              console.log('⚠️ Personal info fields may not exist in investor_profiles:', personalError.message);
+            }
+            
+            // Try to update emergency contact fields
+            try {
+              await db.query(`
+                UPDATE investor_profiles SET
+                  emergency_contact_name = $1,
+                  emergency_contact_relationship = $2,
+                  emergency_contact_phone = $3,
+                  emergency_contact_email = $4,
+                  emergency_contact_address = $5
+                WHERE firebase_uid = $6
+              `, [
+                profileData.emergencyContact?.name || null,
+                profileData.emergencyContact?.relationship || null,
+                profileData.emergencyContact?.phone || null,
+                profileData.emergencyContact?.email || null,
+                profileData.emergencyContact?.address || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated investor emergency contact info');
+            } catch (emergencyError) {
+              console.log('⚠️ Emergency contact fields may not exist in investor_profiles:', emergencyError.message);
             }
 
           } catch (error) {
@@ -4272,6 +4410,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             mobile_number = EXCLUDED.mobile_number,
             country_code = EXCLUDED.country_code,
             email_address = EXCLUDED.email_address,
+            contact_email = EXCLUDED.contact_email,
             present_address = EXCLUDED.present_address,
             permanent_address = EXCLUDED.permanent_address,
             city = EXCLUDED.city,
@@ -4287,6 +4426,12 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             employment_status = EXCLUDED.employment_status,
             gross_annual_income = EXCLUDED.gross_annual_income,
             source_of_income = EXCLUDED.source_of_income,
+            emergency_contact_name = EXCLUDED.emergency_contact_name,
+            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+            emergency_contact_email = EXCLUDED.emergency_contact_email,
+            emergency_contact_address = EXCLUDED.emergency_contact_address,
+            mother_maiden_name = EXCLUDED.mother_maiden_name,
             account_name = EXCLUDED.account_name,
             bank_name = EXCLUDED.bank_name,
             account_number = EXCLUDED.account_number,

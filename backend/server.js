@@ -3045,40 +3045,42 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             emergency_contact_relationship = $33,
             emergency_contact_phone = $34,
             emergency_contact_email = $35,
+            emergency_contact_address = $36,
+            mother_maiden_name = $37,
             -- Business/Corporate Information
-            entity_type = $36,
-            entity_name = $37,
-            registration_type = $38,
-            registration_number = $39,
-            registration_date = $40,
-            corporate_tin = $41,
-            nature_of_business = $42,
-            business_address = $43,
-            authorized_person_name = $44,
-            authorized_person_position = $45,
+            entity_type = $38,
+            entity_name = $39,
+            registration_type = $40,
+            registration_number = $41,
+            registration_date = $42,
+            corporate_tin = $43,
+            nature_of_business = $44,
+            business_address = $45,
+            authorized_person_name = $46,
+            authorized_person_position = $47,
             -- Bank Account Information
-            account_name = $46,
-            bank_name = $47,
-            account_type = $48,
-            account_number = $49,
-            iban = $50,
-            swift_code = $51,
+            account_name = $48,
+            bank_name = $49,
+            account_type = $50,
+            account_number = $51,
+            iban = $52,
+            swift_code = $53,
             -- Principal Office Address
-            principal_office_street = $52,
-            principal_office_barangay = $53,
-            principal_office_municipality = $54,
-            principal_office_province = $55,
-            principal_office_country = $56,
-            principal_office_postal_code = $57,
+            principal_office_street = $54,
+            principal_office_barangay = $55,
+            principal_office_municipality = $56,
+            principal_office_province = $57,
+            principal_office_country = $58,
+            principal_office_postal_code = $59,
             -- GIS Information
-            gis_total_assets = $58,
-            gis_total_liabilities = $59,
-            gis_paid_up_capital = $60,
-            gis_number_of_stockholders = $61,
-            gis_number_of_employees = $62,
+            gis_total_assets = $60,
+            gis_total_liabilities = $61,
+            gis_paid_up_capital = $62,
+            gis_number_of_stockholders = $63,
+            gis_number_of_employees = $64,
             -- PEP Status
-            is_politically_exposed_person = $63,
-            pep_details = $64,
+            is_politically_exposed_person = $65,
+            pep_details = $66,
             -- Completion Status
             is_complete = TRUE,
             updated_at = NOW()
@@ -3119,12 +3121,14 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.employmentStatus || null,
           kycData.grossAnnualIncome || kycData.monthlyIncome || null,
           kycData.sourceOfIncome || null,
-          // Emergency Contact (32-35)
+          // Emergency Contact (32-37)
           kycData.emergencyContactName,
           kycData.emergencyContactRelationship,
           kycData.emergencyContactPhone, 
           kycData.emergencyContactEmail,
-          // Business/Corporate Information (36-45)
+          kycData.emergencyContactAddress,
+          kycData.motherMaidenName,
+          // Business/Corporate Information (38-47)
           kycData.entityType || null,
           kycData.entityName || null,
           kycData.businessRegistrationType,
@@ -3135,27 +3139,27 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.businessAddress || null,
           kycData.authorizedSignatoryName,
           kycData.authorizedSignatoryPosition,
-          // Bank Account Information (46-51)
+          // Bank Account Information (48-53)
           kycData.account_name || kycData.accountName || null,
           kycData.bank_name || kycData.bankName || null,
           kycData.account_type || kycData.accountType || null,
           kycData.account_number || kycData.accountNumber || null,
           kycData.iban || null,
           kycData.swift_code || kycData.swiftCode || null,
-          // Principal Office Address (52-57)
+          // Principal Office Address (54-59)
           kycData.principalOfficeStreet,
           kycData.principalOfficeBarangay,
           kycData.principalOfficeMunicipality,
           kycData.principalOfficeProvince,
           kycData.principalOfficeCountry,
           kycData.principalOfficePostalCode,
-          // GIS Information (58-62)
+          // GIS Information (60-64)
           kycData.gisTotalAssets,
           kycData.gisTotalLiabilities,
           kycData.gisPaidUpCapital, 
           kycData.gisNumberOfStockholders,
           kycData.gisNumberOfEmployees,
-          // PEP Status (63-64)
+          // PEP Status (65-66)
           kycData.isPoliticallyExposedPerson,
           kycData.pepDetails
         ]);
