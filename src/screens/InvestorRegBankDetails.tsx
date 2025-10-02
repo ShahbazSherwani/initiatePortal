@@ -269,7 +269,12 @@ export const InvestorRegBankDetails = (): JSX.Element => {
 
           {/* Bank Details */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">Bank Details</h3>
+            <div className="space-y-2">
+              <h3 className="text-xl md:text-2xl font-semibold">Bank Details</h3>
+              <p className="text-sm text-gray-600">
+                📌 <span className="font-medium">Required:</span> These details are needed for investment disbursements and returns
+              </p>
+            </div>
             <div className="space-y-4">
               {/* Account Name */}
               <ValidatedInput

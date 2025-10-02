@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
+import { useExistingAccountData } from "../hooks/useExistingAccountData";
 import { Country, State, City } from "country-state-city";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
@@ -8,12 +9,15 @@ import { ValidatedInput, ValidatedSelect, ValidatedFileUpload } from "../compone
 import {
   SelectItem,
 } from "../components/ui/select";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckCircle2 } from "lucide-react";
 
 export const InvestorRegIndividual = (): JSX.Element => {
   const location = useLocation();
   const initialAccountType = location.state?.accountType || "individual";
   const [accountType] = useState(initialAccountType);
+
+  // Fetch existing account data for smart pre-population
+  const { existingData, hasExistingAccount, isLoading } = useExistingAccountData('investor');
 
   // Personal Information
   const [firstName, setFirstName] = useState("");
@@ -39,6 +43,36 @@ export const InvestorRegIndividual = (): JSX.Element => {
   const [stateIso, setStateIso] = useState("");
   const [cityName, setCityName] = useState("");
   const [postalCode, setPostalCode] = useState("");
+
+  // Pre-populate fields from existing borrower account
+  useEffect(() => {
+    if (hasExistingAccount && existingData) {
+      console.log('✅ Pre-populating investor form with borrower account data');
+      
+      // Personal information
+      if (existingData.personalInfo) {
+        setFirstName(existingData.personalInfo.firstName || "");
+        setMiddleName(existingData.personalInfo.middleName || "");
+        setLastName(existingData.personalInfo.lastName || "");
+      }
+      
+      // Identification
+      if (existingData.identification) {
+        setNationalId(existingData.identification.nationalId || "");
+        setPassport(existingData.identification.passport || "");
+        setTin(existingData.identification.tin || "");
+      }
+      
+      // Address
+      if (existingData.address) {
+        setStreet(existingData.address.street || "");
+        setCountryIso(existingData.address.country || "");
+        setStateIso(existingData.address.state || "");
+        setCityName(existingData.address.city || "");
+        setPostalCode(existingData.address.postalCode || "");
+      }
+    }
+  }, [hasExistingAccount, existingData]);
 
   // Validation state
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -151,9 +185,41 @@ export const InvestorRegIndividual = (): JSX.Element => {
             <h2 className="text-2xl md:text-3xl font-bold">Invest/Lender</h2>
           </div>
 
+          {/* Smart Pre-fill Notice */}
+          {hasExistingAccount && (
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-green-900 mb-1">
+                    ✨ We found your existing information!
+                  </h4>
+                  <p className="text-sm text-green-700">
+                    Your personal details, identification, and address from your borrower account have been automatically filled. 
+                    You can review and update them if needed. Just add your investor-specific details to complete registration.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Personal Profile */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">Personal Profile</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">Personal Profile</h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* First Name */}
               <ValidatedInput
@@ -197,9 +263,19 @@ export const InvestorRegIndividual = (): JSX.Element => {
 
           {/* Personal Identification */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">
-              Personal Identification (Individual)
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">
+                Personal Identification (Individual)
+              </h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* National ID */}
               <ValidatedInput
@@ -258,7 +334,17 @@ export const InvestorRegIndividual = (): JSX.Element => {
 
           {/* Home Address */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">Home Address</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">Home Address</h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Street */}
               <div className="sm:col-span-2">

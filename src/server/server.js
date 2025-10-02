@@ -270,12 +270,30 @@ try {
           ADD COLUMN IF NOT EXISTS national_id VARCHAR(100),
           ADD COLUMN IF NOT EXISTS passport VARCHAR(100),
           ADD COLUMN IF NOT EXISTS tin_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS national_id_file TEXT,
+          ADD COLUMN IF NOT EXISTS passport_file TEXT,
+          ADD COLUMN IF NOT EXISTS secondary_id_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS secondary_id_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS secondary_id_file TEXT,
+          ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS mother_maiden_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS occupation VARCHAR(255),
           ADD COLUMN IF NOT EXISTS employer_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS employer_address TEXT,
           ADD COLUMN IF NOT EXISTS employment_status VARCHAR(100),
           ADD COLUMN IF NOT EXISTS gross_annual_income VARCHAR(100),
           ADD COLUMN IF NOT EXISTS source_of_income TEXT,
+          ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS emergency_contact_relationship VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS emergency_contact_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS emergency_contact_address TEXT,
+          ADD COLUMN IF NOT EXISTS account_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS account_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS account_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS iban VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS swift_code VARCHAR(100),
           ADD COLUMN IF NOT EXISTS investment_experience VARCHAR(100),
           ADD COLUMN IF NOT EXISTS investment_objectives TEXT,
           ADD COLUMN IF NOT EXISTS risk_tolerance VARCHAR(100),
@@ -298,6 +316,9 @@ try {
           ADD COLUMN IF NOT EXISTS business_address TEXT,
           ADD COLUMN IF NOT EXISTS authorized_person_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS authorized_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_person_id_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS authorized_person_id_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS is_individual_account BOOLEAN DEFAULT TRUE,
           ADD COLUMN IF NOT EXISTS is_complete BOOLEAN DEFAULT FALSE
       `);
       
@@ -4171,6 +4192,134 @@ app.post('/api/profile/complete-registration', verifyToken, async (req, res) => 
   }
 });
 
+// Get existing profile data for dual account creation
+app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
+  try {
+    const uid = req.uid;
+    const { targetAccountType } = req.query; // 'borrower' or 'investor'
+    
+    console.log('🔍 Fetching existing account data for dual account creation');
+    console.log('👤 User ID:', uid);
+    console.log('🎯 Target account type:', targetAccountType);
+    
+    // Check user's current accounts
+    const userQuery = await db.query(
+      'SELECT has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+    
+    if (userQuery.rows.length === 0) {
+      return res.json({ hasExistingAccount: false, existingData: null });
+    }
+    
+    const user = userQuery.rows[0];
+    const existingData = {};
+    
+    // If creating investor account and has borrower account, pull borrower data
+    if (targetAccountType === 'investor' && user.has_borrower_account) {
+      const borrowerQuery = await db.query(
+        'SELECT * FROM borrower_profiles WHERE firebase_uid = $1',
+        [uid]
+      );
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        existingData.personalInfo = {
+          fullName: borrower.full_name,
+          firstName: borrower.first_name,
+          lastName: borrower.last_name,
+          middleName: borrower.middle_name,
+          dateOfBirth: borrower.date_of_birth,
+          placeOfBirth: borrower.place_of_birth,
+          nationality: borrower.nationality,
+          gender: borrower.gender,
+          civilStatus: borrower.civil_status,
+          motherMaidenName: borrower.mother_maiden_name,
+        };
+        existingData.identification = {
+          nationalId: borrower.national_id,
+          passport: borrower.passport,
+          tin: borrower.tin_number,
+          nationalIdFile: borrower.national_id_file,
+          passportFile: borrower.passport_file,
+          secondaryIdType: borrower.secondary_id_type,
+          secondaryIdNumber: borrower.secondary_id_number,
+        };
+        existingData.address = {
+          street: borrower.present_address,
+          city: borrower.city,
+          state: borrower.state,
+          country: borrower.country,
+          postalCode: borrower.postal_code,
+        };
+        existingData.contact = {
+          mobileNumber: borrower.mobile_number,
+          countryCode: borrower.country_code,
+          emailAddress: borrower.email_address || borrower.contact_email,
+          contactEmail: borrower.contact_email || borrower.email_address,
+        };
+      }
+    }
+    
+    // If creating borrower account and has investor account, pull investor data
+    if (targetAccountType === 'borrower' && user.has_investor_account) {
+      const investorQuery = await db.query(
+        'SELECT * FROM investor_profiles WHERE firebase_uid = $1',
+        [uid]
+      );
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        existingData.personalInfo = {
+          fullName: investor.full_name,
+          firstName: investor.first_name,
+          lastName: investor.last_name,
+          middleName: investor.middle_name,
+          dateOfBirth: investor.date_of_birth,
+          placeOfBirth: investor.place_of_birth,
+          nationality: investor.nationality,
+          gender: investor.gender,
+          civilStatus: investor.civil_status,
+          motherMaidenName: investor.mother_maiden_name,
+        };
+        existingData.identification = {
+          nationalId: investor.national_id,
+          passport: investor.passport,
+          tin: investor.tin_number,
+          nationalIdFile: investor.national_id_file,
+          passportFile: investor.passport_file,
+          secondaryIdType: investor.secondary_id_type,
+          secondaryIdNumber: investor.secondary_id_number,
+        };
+        existingData.address = {
+          street: investor.present_address,
+          city: investor.city,
+          state: investor.state,
+          country: investor.country,
+          postalCode: investor.postal_code,
+        };
+        existingData.contact = {
+          mobileNumber: investor.mobile_number,
+          countryCode: investor.country_code,
+          emailAddress: investor.email_address || investor.contact_email,
+          contactEmail: investor.contact_email || investor.email_address,
+        };
+      }
+    }
+    
+    console.log('✅ Found existing account data:', Object.keys(existingData).length > 0);
+    
+    res.json({
+      hasExistingAccount: Object.keys(existingData).length > 0,
+      existingData: Object.keys(existingData).length > 0 ? existingData : null
+    });
+    
+  } catch (err) {
+    console.error('❌ Error fetching existing account data:', err);
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
 // Complete KYC registration
 app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
   try {
@@ -4543,16 +4692,23 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           INSERT INTO investor_profiles (
             firebase_uid, full_name, first_name, last_name, middle_name, 
             date_of_birth, place_of_birth, nationality, gender, civil_status,
-            mobile_number, country_code, email_address,
+            mobile_number, country_code, email_address, contact_email,
             present_address, permanent_address, city, state, postal_code, country,
-            national_id, passport, tin_number,
+            national_id, passport, tin_number, national_id_file, passport_file,
+            secondary_id_type, secondary_id_number,
+            mother_maiden_name,
             occupation, employer_name, employer_address, employment_status, 
             gross_annual_income, source_of_income,
+            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, 
+            emergency_contact_email, emergency_contact_address,
             account_name, bank_name, account_type, account_number, iban, swift_code,
             is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 
-            $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, TRUE, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
+            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+            $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+            $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
+            $41, $42, $43, $44, $45, $46, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -4567,6 +4723,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             mobile_number = EXCLUDED.mobile_number,
             country_code = EXCLUDED.country_code,
             email_address = EXCLUDED.email_address,
+            contact_email = EXCLUDED.contact_email,
             present_address = EXCLUDED.present_address,
             permanent_address = EXCLUDED.permanent_address,
             city = EXCLUDED.city,
@@ -4576,14 +4733,25 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             national_id = EXCLUDED.national_id,
             passport = EXCLUDED.passport,
             tin_number = EXCLUDED.tin_number,
+            national_id_file = EXCLUDED.national_id_file,
+            passport_file = EXCLUDED.passport_file,
+            secondary_id_type = EXCLUDED.secondary_id_type,
+            secondary_id_number = EXCLUDED.secondary_id_number,
+            mother_maiden_name = EXCLUDED.mother_maiden_name,
             occupation = EXCLUDED.occupation,
             employer_name = EXCLUDED.employer_name,
             employer_address = EXCLUDED.employer_address,
             employment_status = EXCLUDED.employment_status,
             gross_annual_income = EXCLUDED.gross_annual_income,
             source_of_income = EXCLUDED.source_of_income,
+            emergency_contact_name = EXCLUDED.emergency_contact_name,
+            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+            emergency_contact_email = EXCLUDED.emergency_contact_email,
+            emergency_contact_address = EXCLUDED.emergency_contact_address,
             account_name = EXCLUDED.account_name,
             bank_name = EXCLUDED.bank_name,
+            account_type = EXCLUDED.account_type,
             account_number = EXCLUDED.account_number,
             iban = EXCLUDED.iban,
             swift_code = EXCLUDED.swift_code,
@@ -4592,7 +4760,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             updated_at = NOW()
         `, [
           uid, 
-          // Personal Information (2-13)
+          // Personal Information (2-14)
           fullNameToUse,
           kycData.firstName || null,
           kycData.lastName || null,
@@ -4605,32 +4773,45 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.phoneNumber || kycData.mobileNumber || null,
           kycData.countryCode || null,
           kycData.emailAddress || kycData.contactEmail || null,
-          // Address Information (14-19)
+          kycData.contactEmail || kycData.emailAddress || null,
+          // Address Information (15-20)
           kycData.presentAddress || kycData.street || null,
           kycData.permanentAddress || null,
           kycData.city || kycData.cityName || null,
           kycData.state || kycData.stateIso || null,
           kycData.postalCode || null,
           kycData.country || kycData.countryIso || null,
-          // Identification (20-22)
+          // Identification (21-27)
           kycData.nationalId || null,
           kycData.passport || kycData.passportNumber || null,
           kycData.tin || kycData.tinNumber || null,
-          // Employment Information (23-28)
+          kycData.nationalIdFile || null,
+          kycData.passportFile || null,
+          normalizedSecondaryIdType,
+          kycData.secondaryIdNumber || null,
+          // Mother's Maiden Name (28)
+          kycData.motherMaidenName || null,
+          // Employment Information (29-34)
           kycData.occupation || null,
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
           kycData.grossAnnualIncome || kycData.monthlyIncome || null,
           kycData.sourceOfIncome || null,
-          // Bank Account Information (29-34)
+          // Emergency Contact Information (35-39)
+          kycData.emergencyContactName || null,
+          kycData.emergencyContactRelationship || null,
+          kycData.emergencyContactPhone || null,
+          kycData.emergencyContactEmail || null,
+          kycData.emergencyContactAddress || null,
+          // Bank Account Information (40-45)
           kycData.account_name || kycData.accountName || null,
           kycData.bank_name || kycData.bankName || null,
           kycData.account_type || kycData.accountType || null,
           kycData.account_number || kycData.accountNumber || null,
           kycData.iban || null,
           kycData.swift_code || kycData.swiftCode || null,
-          // Account Type (35)
+          // Account Type (46)
           kycData.isIndividualAccount
         ]);
       }
