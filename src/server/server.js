@@ -248,6 +248,7 @@ try {
       // Add KYC fields to investor_profiles table
       await db.query(`
         ALTER TABLE investor_profiles 
+          ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS first_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS last_name VARCHAR(255), 
           ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255),
