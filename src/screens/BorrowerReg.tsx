@@ -20,6 +20,12 @@ import {
 export const BorrowerReg = (): JSX.Element => {
   const [accountType, setAccountType] = useState("individual");
 
+  // Personal Profile
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [suffixName, setSuffixName] = useState("");
+
   // Identification
   const [nationalId, setNationalId] = useState("");
   const [passport, setPassport] = useState("");
@@ -114,6 +120,15 @@ export const BorrowerReg = (): JSX.Element => {
           const existingData = data.existingData;
           console.log('✅ Has existing account data, pre-populating fields...');
           setHasExistingAccount(true);
+          
+          // Pre-populate personal profile fields
+          if (existingData.personalInfo) {
+            console.log('👤 Personal profile data:', existingData.personalInfo);
+            setFirstName(existingData.personalInfo.firstName || "");
+            setMiddleName(existingData.personalInfo.middleName || "");
+            setLastName(existingData.personalInfo.lastName || "");
+            setSuffixName(existingData.personalInfo.suffixName || "");
+          }
             
             // Pre-populate address fields
             if (existingData.address) {
@@ -222,6 +237,8 @@ export const BorrowerReg = (): JSX.Element => {
     
     // Validation for mandatory fields (excluding nationalId which is conditional)
     const requiredFields = [
+      { field: firstName, name: "firstName" },
+      { field: lastName, name: "lastName" },
       { field: tin, name: "tin" },
       { field: street, name: "street" },
       { field: barangay, name: "barangay" },
@@ -292,6 +309,11 @@ export const BorrowerReg = (): JSX.Element => {
       ...reg,
       accountType,
       details: {
+        // Personal profile
+        firstName,
+        middleName,
+        lastName,
+        suffixName,
         // Basic identification
         nationalId,
         passport,
@@ -419,6 +441,60 @@ export const BorrowerReg = (): JSX.Element => {
               </div>
             </div>
           )}
+
+          {/* Personal Profile */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">Personal Profile</h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* First Name */}
+              <ValidatedInput
+                label="First Name"
+                required
+                hasError={validationErrors.firstName}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter here"
+              />
+
+              {/* Middle Name */}
+              <ValidatedInput
+                label="Middle Name"
+                hasError={false}
+                value={middleName}
+                onChange={(e) => setMiddleName(e.target.value)}
+                placeholder="Enter here"
+              />
+
+              {/* Last Name */}
+              <ValidatedInput
+                label="Last Name"
+                required
+                hasError={validationErrors.lastName}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Enter here"
+              />
+
+              {/* Suffix Name */}
+              <ValidatedInput
+                label="Suffix Name"
+                hasError={false}
+                value={suffixName}
+                onChange={(e) => setSuffixName(e.target.value)}
+                placeholder="Jr, Sr, III"
+              />
+            </div>
+          </section>
 
           {/* Identification */}
           <section className="space-y-4">

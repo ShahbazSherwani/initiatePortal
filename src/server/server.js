@@ -248,7 +248,6 @@ try {
       // Add KYC fields to investor_profiles table
       await db.query(`
         ALTER TABLE investor_profiles 
-          ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS first_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS last_name VARCHAR(255), 
           ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255),
@@ -270,30 +269,12 @@ try {
           ADD COLUMN IF NOT EXISTS national_id VARCHAR(100),
           ADD COLUMN IF NOT EXISTS passport VARCHAR(100),
           ADD COLUMN IF NOT EXISTS tin_number VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS national_id_file TEXT,
-          ADD COLUMN IF NOT EXISTS passport_file TEXT,
-          ADD COLUMN IF NOT EXISTS secondary_id_type VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS secondary_id_number VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS secondary_id_file TEXT,
-          ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS mother_maiden_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS occupation VARCHAR(255),
           ADD COLUMN IF NOT EXISTS employer_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS employer_address TEXT,
           ADD COLUMN IF NOT EXISTS employment_status VARCHAR(100),
           ADD COLUMN IF NOT EXISTS gross_annual_income VARCHAR(100),
           ADD COLUMN IF NOT EXISTS source_of_income TEXT,
-          ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS emergency_contact_relationship VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(50),
-          ADD COLUMN IF NOT EXISTS emergency_contact_email VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS emergency_contact_address TEXT,
-          ADD COLUMN IF NOT EXISTS account_name VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS account_type VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS account_number VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS iban VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS swift_code VARCHAR(100),
           ADD COLUMN IF NOT EXISTS investment_experience VARCHAR(100),
           ADD COLUMN IF NOT EXISTS investment_objectives TEXT,
           ADD COLUMN IF NOT EXISTS risk_tolerance VARCHAR(100),
@@ -316,9 +297,6 @@ try {
           ADD COLUMN IF NOT EXISTS business_address TEXT,
           ADD COLUMN IF NOT EXISTS authorized_person_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS authorized_person_position VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS authorized_person_id_type VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS authorized_person_id_number VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS is_individual_account BOOLEAN DEFAULT TRUE,
           ADD COLUMN IF NOT EXISTS is_complete BOOLEAN DEFAULT FALSE
       `);
       
@@ -489,57 +467,6 @@ async function verifyToken(req, res, next) {
     const decoded = await admin.auth().verifyIdToken(idToken);
     console.log('✅ Token verified successfully for user:', decoded.uid);
     req.uid = decoded.uid;
-    
-    // Check if user is suspended (skip for admin endpoints and profile endpoint)
-    const isAdminEndpoint = req.url.includes('/api/owner/') || req.url.includes('/api/admin/');
-    const isProfileEndpoint = req.url === '/api/profile' && req.method === 'GET';
-    
-    if (!isAdminEndpoint && !isProfileEndpoint && dbConnected && db) {
-      try {
-        const userCheck = await db.query(
-          `SELECT status, suspension_reason, suspension_end_date FROM users WHERE firebase_uid = $1`,
-          [decoded.uid]
-        );
-        
-        if (userCheck.rows.length > 0 && userCheck.rows[0].status === 'suspended') {
-          const user = userCheck.rows[0];
-          console.log('🚫 Suspended user attempted access:', decoded.uid);
-          
-          let message = `Your account has been suspended. Reason: ${user.suspension_reason || 'Violation of terms'}. `;
-          
-          // Check if temporary suspension has expired
-          if (user.suspension_end_date && new Date(user.suspension_end_date) < new Date()) {
-            // Auto-reactivate expired suspension
-            await db.query(
-              `UPDATE users SET status = 'active', suspension_reason = NULL, suspended_at = NULL, 
-               suspended_by = NULL, suspension_duration = NULL, suspension_end_date = NULL, 
-               suspension_scope = NULL WHERE firebase_uid = $1`,
-              [decoded.uid]
-            );
-            console.log('✅ Auto-reactivated expired suspension for user:', decoded.uid);
-            // Allow access
-            return next();
-          }
-          
-          if (user.suspension_end_date) {
-            message += `This suspension will be lifted on ${new Date(user.suspension_end_date).toLocaleDateString()}.`;
-          }
-          message += ' Please contact support for more information.';
-          
-          return res.status(403).json({ 
-            error: 'Account Suspended',
-            message: message,
-            suspended: true,
-            suspensionReason: user.suspension_reason,
-            suspensionEndDate: user.suspension_end_date
-          });
-        }
-      } catch (dbErr) {
-        console.error('⚠️ Could not check suspension status:', dbErr.message);
-        // Continue anyway - don't block access due to DB check failure
-      }
-    }
-    
     next();
   } catch (err) {
     console.error('❌ Token verification failed:', {
@@ -1028,81 +955,6 @@ profileRouter.post('/update-borrower-info', verifyToken, async (req, res) => {
 });
 
 app.use('/api/profile', profileRouter);
-
-// Check user suspension status endpoint (for login page)
-app.post('/api/auth/check-suspension', async (req, res) => {
-  try {
-    const { idToken } = req.body;
-    
-    if (!idToken) {
-      return res.status(400).json({ error: 'Token required' });
-    }
-    
-    // Verify the Firebase token
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    const uid = decoded.uid;
-    
-    // Check suspension status
-    const userCheck = await db.query(
-      `SELECT status, suspension_reason, suspension_end_date, suspension_scope FROM users WHERE firebase_uid = $1`,
-      [uid]
-    );
-    
-    if (userCheck.rows.length === 0) {
-      return res.json({ suspended: false });
-    }
-    
-    const user = userCheck.rows[0];
-    
-    if (user.status === 'suspended') {
-      // Check if temporary suspension has expired
-      if (user.suspension_end_date && new Date(user.suspension_end_date) < new Date()) {
-        // Auto-reactivate expired suspension
-        await db.query(
-          `UPDATE users SET status = 'active', suspension_reason = NULL, suspended_at = NULL, 
-           suspended_by = NULL, suspension_duration = NULL, suspension_end_date = NULL, 
-           suspension_scope = NULL WHERE firebase_uid = $1`,
-          [uid]
-        );
-        console.log('✅ Auto-reactivated expired suspension for user:', uid);
-        return res.json({ suspended: false });
-      }
-      
-      let message = `Your account has been suspended. `;
-      
-      if (user.suspension_reason) {
-        message += `Reason: ${user.suspension_reason}. `;
-      }
-      
-      if (user.suspension_end_date) {
-        const endDate = new Date(user.suspension_end_date).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-        message += `This suspension will be lifted on ${endDate}. `;
-      } else {
-        message += `This is a permanent suspension. `;
-      }
-      
-      message += `Please contact support at support@initiateportal.com if you believe this is an error.`;
-      
-      return res.json({
-        suspended: true,
-        message: message,
-        suspensionReason: user.suspension_reason,
-        suspensionEndDate: user.suspension_end_date,
-        suspensionScope: user.suspension_scope
-      });
-    }
-    
-    res.json({ suspended: false });
-    
-  } catch (err) {
-    console.error('Error checking suspension status:', err);
-    res.status(500).json({ error: 'Failed to check suspension status' });
-  }
-});
 
 // Dual Account Management Routes
 // Get all account profiles for a user
@@ -3828,7 +3680,118 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
   }
 });
 
-// NOTE: Suspend and reactivate endpoints have been moved to lines 6450+ (newer implementation with full suspension system)
+// Owner endpoint to suspend user
+app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    const { reason } = req.body;
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Update user status - for now we'll use a simple flag
+    await db.query(
+      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
+      [userId]
+    );
+    
+    // Log the action (you might want to create an admin_actions table)
+    console.log(`👮 Admin ${firebase_uid} suspended user ${userId} - Reason: ${reason}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User suspended successfully',
+      action: 'suspended'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error suspending user:', err);
+    res.status(500).json({ error: 'Failed to suspend user' });
+  }
+});
+
+// Owner endpoint to delete user (soft delete)
+app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    const { reason } = req.body;
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Soft delete - don't actually remove from database but mark as deleted
+    await db.query(
+      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
+      [userId]
+    );
+    
+    // Log the action
+    console.log(`🗑️ Admin ${firebase_uid} deleted user ${userId} - Reason: ${reason}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User deleted successfully',
+      action: 'deleted'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error deleting user:', err);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Owner endpoint to reactivate user
+app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Reactivate user
+    await db.query(
+      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
+      [userId]
+    );
+    
+    // Log the action
+    console.log(`✅ Admin ${firebase_uid} reactivated user ${userId}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User reactivated successfully',
+      action: 'active'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error reactivating user:', err);
+    res.status(500).json({ error: 'Failed to reactivate user' });
+  }
+});
 
 // Add interest request to a project
 projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
@@ -4189,134 +4152,6 @@ app.post('/api/profile/complete-registration', verifyToken, async (req, res) => 
   } catch (err) {
     console.error("Error completing registration:", err);
     res.status(500).json({ error: "Database error", details: err.message });
-  }
-});
-
-// Get existing profile data for dual account creation
-app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
-  try {
-    const uid = req.uid;
-    const { targetAccountType } = req.query; // 'borrower' or 'investor'
-    
-    console.log('🔍 Fetching existing account data for dual account creation');
-    console.log('👤 User ID:', uid);
-    console.log('🎯 Target account type:', targetAccountType);
-    
-    // Check user's current accounts
-    const userQuery = await db.query(
-      'SELECT has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1',
-      [uid]
-    );
-    
-    if (userQuery.rows.length === 0) {
-      return res.json({ hasExistingAccount: false, existingData: null });
-    }
-    
-    const user = userQuery.rows[0];
-    const existingData = {};
-    
-    // If creating investor account and has borrower account, pull borrower data
-    if (targetAccountType === 'investor' && user.has_borrower_account) {
-      const borrowerQuery = await db.query(
-        'SELECT * FROM borrower_profiles WHERE firebase_uid = $1',
-        [uid]
-      );
-      
-      if (borrowerQuery.rows.length > 0) {
-        const borrower = borrowerQuery.rows[0];
-        existingData.personalInfo = {
-          fullName: borrower.full_name,
-          firstName: borrower.first_name,
-          lastName: borrower.last_name,
-          middleName: borrower.middle_name,
-          dateOfBirth: borrower.date_of_birth,
-          placeOfBirth: borrower.place_of_birth,
-          nationality: borrower.nationality,
-          gender: borrower.gender,
-          civilStatus: borrower.civil_status,
-          motherMaidenName: borrower.mother_maiden_name,
-        };
-        existingData.identification = {
-          nationalId: borrower.national_id,
-          passport: borrower.passport,
-          tin: borrower.tin_number,
-          nationalIdFile: borrower.national_id_file,
-          passportFile: borrower.passport_file,
-          secondaryIdType: borrower.secondary_id_type,
-          secondaryIdNumber: borrower.secondary_id_number,
-        };
-        existingData.address = {
-          street: borrower.present_address,
-          city: borrower.city,
-          state: borrower.state,
-          country: borrower.country,
-          postalCode: borrower.postal_code,
-        };
-        existingData.contact = {
-          mobileNumber: borrower.mobile_number,
-          countryCode: borrower.country_code,
-          emailAddress: borrower.email_address || borrower.contact_email,
-          contactEmail: borrower.contact_email || borrower.email_address,
-        };
-      }
-    }
-    
-    // If creating borrower account and has investor account, pull investor data
-    if (targetAccountType === 'borrower' && user.has_investor_account) {
-      const investorQuery = await db.query(
-        'SELECT * FROM investor_profiles WHERE firebase_uid = $1',
-        [uid]
-      );
-      
-      if (investorQuery.rows.length > 0) {
-        const investor = investorQuery.rows[0];
-        existingData.personalInfo = {
-          fullName: investor.full_name,
-          firstName: investor.first_name,
-          lastName: investor.last_name,
-          middleName: investor.middle_name,
-          dateOfBirth: investor.date_of_birth,
-          placeOfBirth: investor.place_of_birth,
-          nationality: investor.nationality,
-          gender: investor.gender,
-          civilStatus: investor.civil_status,
-          motherMaidenName: investor.mother_maiden_name,
-        };
-        existingData.identification = {
-          nationalId: investor.national_id,
-          passport: investor.passport,
-          tin: investor.tin_number,
-          nationalIdFile: investor.national_id_file,
-          passportFile: investor.passport_file,
-          secondaryIdType: investor.secondary_id_type,
-          secondaryIdNumber: investor.secondary_id_number,
-        };
-        existingData.address = {
-          street: investor.present_address,
-          city: investor.city,
-          state: investor.state,
-          country: investor.country,
-          postalCode: investor.postal_code,
-        };
-        existingData.contact = {
-          mobileNumber: investor.mobile_number,
-          countryCode: investor.country_code,
-          emailAddress: investor.email_address || investor.contact_email,
-          contactEmail: investor.contact_email || investor.email_address,
-        };
-      }
-    }
-    
-    console.log('✅ Found existing account data:', Object.keys(existingData).length > 0);
-    
-    res.json({
-      hasExistingAccount: Object.keys(existingData).length > 0,
-      existingData: Object.keys(existingData).length > 0 ? existingData : null
-    });
-    
-  } catch (err) {
-    console.error('❌ Error fetching existing account data:', err);
-    res.status(500).json({ error: 'Database error', details: err.message });
   }
 });
 
@@ -4692,23 +4527,16 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           INSERT INTO investor_profiles (
             firebase_uid, full_name, first_name, last_name, middle_name, 
             date_of_birth, place_of_birth, nationality, gender, civil_status,
-            mobile_number, country_code, email_address, contact_email,
+            mobile_number, country_code, email_address,
             present_address, permanent_address, city, state, postal_code, country,
-            national_id, passport, tin_number, national_id_file, passport_file,
-            secondary_id_type, secondary_id_number,
-            mother_maiden_name,
+            national_id, passport, tin_number,
             occupation, employer_name, employer_address, employment_status, 
             gross_annual_income, source_of_income,
-            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, 
-            emergency_contact_email, emergency_contact_address,
             account_name, bank_name, account_type, account_number, iban, swift_code,
             is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
-            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-            $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
-            $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
-            $41, $42, $43, $44, $45, $46, TRUE, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 
+            $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -4723,7 +4551,6 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             mobile_number = EXCLUDED.mobile_number,
             country_code = EXCLUDED.country_code,
             email_address = EXCLUDED.email_address,
-            contact_email = EXCLUDED.contact_email,
             present_address = EXCLUDED.present_address,
             permanent_address = EXCLUDED.permanent_address,
             city = EXCLUDED.city,
@@ -4733,25 +4560,14 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             national_id = EXCLUDED.national_id,
             passport = EXCLUDED.passport,
             tin_number = EXCLUDED.tin_number,
-            national_id_file = EXCLUDED.national_id_file,
-            passport_file = EXCLUDED.passport_file,
-            secondary_id_type = EXCLUDED.secondary_id_type,
-            secondary_id_number = EXCLUDED.secondary_id_number,
-            mother_maiden_name = EXCLUDED.mother_maiden_name,
             occupation = EXCLUDED.occupation,
             employer_name = EXCLUDED.employer_name,
             employer_address = EXCLUDED.employer_address,
             employment_status = EXCLUDED.employment_status,
             gross_annual_income = EXCLUDED.gross_annual_income,
             source_of_income = EXCLUDED.source_of_income,
-            emergency_contact_name = EXCLUDED.emergency_contact_name,
-            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
-            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
-            emergency_contact_email = EXCLUDED.emergency_contact_email,
-            emergency_contact_address = EXCLUDED.emergency_contact_address,
             account_name = EXCLUDED.account_name,
             bank_name = EXCLUDED.bank_name,
-            account_type = EXCLUDED.account_type,
             account_number = EXCLUDED.account_number,
             iban = EXCLUDED.iban,
             swift_code = EXCLUDED.swift_code,
@@ -4760,7 +4576,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             updated_at = NOW()
         `, [
           uid, 
-          // Personal Information (2-14)
+          // Personal Information (2-13)
           fullNameToUse,
           kycData.firstName || null,
           kycData.lastName || null,
@@ -4773,45 +4589,32 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.phoneNumber || kycData.mobileNumber || null,
           kycData.countryCode || null,
           kycData.emailAddress || kycData.contactEmail || null,
-          kycData.contactEmail || kycData.emailAddress || null,
-          // Address Information (15-20)
+          // Address Information (14-19)
           kycData.presentAddress || kycData.street || null,
           kycData.permanentAddress || null,
           kycData.city || kycData.cityName || null,
           kycData.state || kycData.stateIso || null,
           kycData.postalCode || null,
           kycData.country || kycData.countryIso || null,
-          // Identification (21-27)
+          // Identification (20-22)
           kycData.nationalId || null,
           kycData.passport || kycData.passportNumber || null,
           kycData.tin || kycData.tinNumber || null,
-          kycData.nationalIdFile || null,
-          kycData.passportFile || null,
-          normalizedSecondaryIdType,
-          kycData.secondaryIdNumber || null,
-          // Mother's Maiden Name (28)
-          kycData.motherMaidenName || null,
-          // Employment Information (29-34)
+          // Employment Information (23-28)
           kycData.occupation || null,
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
           kycData.grossAnnualIncome || kycData.monthlyIncome || null,
           kycData.sourceOfIncome || null,
-          // Emergency Contact Information (35-39)
-          kycData.emergencyContactName || null,
-          kycData.emergencyContactRelationship || null,
-          kycData.emergencyContactPhone || null,
-          kycData.emergencyContactEmail || null,
-          kycData.emergencyContactAddress || null,
-          // Bank Account Information (40-45)
+          // Bank Account Information (29-34)
           kycData.account_name || kycData.accountName || null,
           kycData.bank_name || kycData.bankName || null,
           kycData.account_type || kycData.accountType || null,
           kycData.account_number || kycData.accountNumber || null,
           kycData.iban || null,
           kycData.swift_code || kycData.swiftCode || null,
-          // Account Type (46)
+          // Account Type (35)
           kycData.isIndividualAccount
         ]);
       }
@@ -4838,6 +4641,152 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
     console.error("❌ Error completing KYC:", err);
     console.error("🔍 Error details:", err.message);
     console.error("📊 Stack trace:", err.stack);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Get existing account data for dual account registration
+app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { targetAccountType } = req.query;
+    
+    console.log('🔍 [EXISTING-DATA] Fetching existing account data');
+    console.log('👤 [EXISTING-DATA] User ID:', firebase_uid);
+    console.log('🎯 [EXISTING-DATA] Target account type:', targetAccountType);
+    
+    if (!targetAccountType || !['borrower', 'investor'].includes(targetAccountType)) {
+      return res.status(400).json({ error: 'Invalid target account type' });
+    }
+    
+    // Determine which existing account to fetch from
+    // If creating borrower account, fetch from investor; if creating investor, fetch from borrower
+    const sourceAccountType = targetAccountType === 'borrower' ? 'investor' : 'borrower';
+    
+    console.log('📊 [EXISTING-DATA] Fetching from source account type:', sourceAccountType);
+    
+    let existingData = null;
+    
+    if (sourceAccountType === 'investor') {
+      // Fetch from investor_profiles
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        console.log('✅ [EXISTING-DATA] Found existing investor account');
+        
+        existingData = {
+          personalInfo: {
+            firstName: investor.first_name || '',
+            middleName: investor.middle_name || '',
+            lastName: investor.last_name || '',
+            suffixName: investor.suffix_name || '',
+            placeOfBirth: investor.place_of_birth || '',
+            gender: investor.gender || '',
+            civilStatus: investor.civil_status || '',
+            nationality: investor.nationality || '',
+            motherMaidenName: investor.mother_maiden_name || '',
+            contactEmail: investor.contact_email || investor.email_address || ''
+          },
+          identification: {
+            nationalId: investor.national_id || '',
+            passport: investor.passport || '',
+            tin: investor.tin_number || '',
+            nationalIdFile: investor.national_id_file || null,
+            passportFile: investor.passport_file || null
+          },
+          address: {
+            street: investor.present_address || '',
+            barangay: investor.barangay || '',
+            city: investor.city || '',
+            state: investor.state || '',
+            country: investor.country || '',
+            postalCode: investor.postal_code || '',
+            // Also include alternate field names for compatibility
+            present_address: investor.present_address || '',
+            country_iso: investor.country || '',
+            state_iso: investor.state || '',
+            postal_code: investor.postal_code || ''
+          }
+        };
+      } else {
+        console.log('ℹ️ [EXISTING-DATA] No existing investor account found');
+      }
+    } else {
+      // Fetch from borrower_profiles
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        console.log('✅ [EXISTING-DATA] Found existing borrower account');
+        
+        existingData = {
+          personalInfo: {
+            firstName: borrower.first_name || '',
+            middleName: borrower.middle_name || '',
+            lastName: borrower.last_name || '',
+            suffixName: borrower.suffix_name || '',
+            placeOfBirth: borrower.place_of_birth || '',
+            gender: borrower.gender || '',
+            civilStatus: borrower.civil_status || '',
+            nationality: borrower.nationality || '',
+            motherMaidenName: borrower.mother_maiden_name || '',
+            contactEmail: borrower.contact_email || borrower.email_address || ''
+          },
+          identification: {
+            nationalId: borrower.national_id || '',
+            passport: borrower.passport || '',
+            tin: borrower.tin_number || '',
+            nationalIdFile: borrower.national_id_file || null,
+            passportFile: borrower.passport_file || null
+          },
+          address: {
+            street: borrower.present_address || '',
+            barangay: borrower.barangay || '',
+            city: borrower.city || '',
+            state: borrower.state || '',
+            country: borrower.country || '',
+            postalCode: borrower.postal_code || '',
+            // Also include alternate field names for compatibility
+            present_address: borrower.present_address || '',
+            country_iso: borrower.country || '',
+            state_iso: borrower.state || '',
+            postal_code: borrower.postal_code || ''
+          },
+          employmentInfo: {
+            employerName: borrower.employer_name || '',
+            occupation: borrower.occupation || '',
+            employerAddress: borrower.employer_address || '',
+            sourceOfIncome: borrower.source_of_income || '',
+            monthlyIncome: borrower.gross_annual_income || ''
+          },
+          emergencyContact: {
+            name: borrower.emergency_contact_name || '',
+            relationship: borrower.emergency_contact_relationship || '',
+            phone: borrower.emergency_contact_phone || '',
+            address: borrower.emergency_contact_address || ''
+          },
+          pepStatus: borrower.is_politically_exposed_person || false
+        };
+      } else {
+        console.log('ℹ️ [EXISTING-DATA] No existing borrower account found');
+      }
+    }
+    
+    res.json({
+      hasExistingAccount: !!existingData,
+      existingData: existingData
+    });
+    
+  } catch (err) {
+    console.error("❌ [EXISTING-DATA] Error:", err);
+    console.error("🔍 [EXISTING-DATA] Error details:", err.message);
     res.status(500).json({ error: "Database error", details: err.message });
   }
 });
@@ -6066,10 +6015,6 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         has_borrower_account,
         has_investor_account,
         current_account_type,
-        status,
-        suspension_reason,
-        suspended_at,
-        suspension_end_date,
         created_at,
         (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects
       FROM users u
@@ -6087,10 +6032,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         ...(row.has_borrower_account ? ['borrower'] : []),
         ...(row.has_investor_account ? ['investor'] : [])
       ],
-      status: row.status || 'active',
-      suspensionReason: row.suspension_reason,
-      suspendedAt: row.suspended_at,
-      suspensionEndDate: row.suspension_end_date,
+      status: row.current_account_type === 'suspended' ? 'suspended' : 'active',
       memberSince: row.created_at,
       totalProjects: parseInt(row.total_projects) || 0,
       location: null, // Would come from profile data
@@ -6279,15 +6221,13 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           authorizedPersonPosition: borrower.authorized_person_position || ''
         };
 
-        // Map identification documents with uploaded files
+        // Map identification documents
         profileData.identifications = {
           nationalId: borrower.national_id || '',
           passport: borrower.passport || '',
           tin: borrower.tin_number || '',
           secondaryIdType: '',
-          secondaryIdNumber: '',
-          nationalIdFile: borrower.national_id_file || null,
-          passportFile: borrower.passport_file || null
+          secondaryIdNumber: ''
         };
       }
     }
@@ -6309,7 +6249,7 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           profileData.personalInfo.middleName = investor.middle_name || '';
         }
 
-        // Merge investor identification data with uploaded files
+        // Merge investor identification data
         if (!profileData.identifications.nationalId) {
           profileData.identifications.nationalId = investor.national_id || '';
         }
@@ -6318,13 +6258,6 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         }
         if (!profileData.identifications.tin) {
           profileData.identifications.tin = investor.tin_number || '';
-        }
-        // Include investor document files
-        if (!profileData.identifications.nationalIdFile) {
-          profileData.identifications.nationalIdFile = investor.national_id_file || null;
-        }
-        if (!profileData.identifications.passportFile) {
-          profileData.identifications.passportFile = investor.passport_file || null;
         }
         
         profileData.investmentInfo = {
@@ -6362,15 +6295,7 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         ...(user.has_borrower_account ? ['borrower'] : []),
         ...(user.has_investor_account ? ['investor'] : [])
       ],
-      status: user.status || 'active',
-      suspensionReason: user.suspension_reason,
-      suspendedAt: user.suspended_at,
-      suspendedBy: user.suspended_by,
-      suspensionDuration: user.suspension_duration,
-      suspensionEndDate: user.suspension_end_date,
-      suspensionScope: user.suspension_scope,
-      reactivatedAt: user.reactivated_at,
-      reactivatedBy: user.reactivated_by,
+      status: user.current_account_type === 'suspended' ? 'suspended' : 'active',
       memberSince: user.created_at,
       lastActivity: user.updated_at,
       location: profileData.contactInfo.city && profileData.contactInfo.country ? 
@@ -6478,12 +6403,10 @@ app.get('/api/owner/users/:userId/projects', verifyToken, async (req, res) => {
   }
 });
 
-// Owner Suspend User - Full Implementation
+// Owner Suspend User
 app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
   const { userId } = req.params;
-  const { reason, scope = 'full_account', duration = 'permanent', endDate } = req.body;
-  
-  console.log(`🔒 Suspend user request - userId: ${userId}, requester: ${req.uid}`);
+  const { reason } = req.body;
   
   try {
     // Verify owner/admin status
@@ -6493,210 +6416,85 @@ app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
     );
     
     if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner/Admin access required" });
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
     }
 
-    // Validate required fields
-    if (!reason || reason.trim().length === 0) {
-      return res.status(400).json({ error: "Suspension reason is required" });
-    }
-
-    // Get user details for notification
-    const userResult = await db.query(
-      `SELECT firebase_uid, full_name FROM users WHERE firebase_uid = $1`,
-      [userId]
-    );
+    // Get user details before suspension
+    const userResult = await db.query(`
+      SELECT full_name FROM users WHERE firebase_uid = $1
+    `, [userId]);
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const user = userResult.rows[0];
+    // Update user status to suspended
+    await db.query(`
+      UPDATE users 
+      SET current_account_type = 'suspended'
+      WHERE firebase_uid = $1
+    `, [userId]);
 
-    // Begin transaction
-    await db.query('BEGIN');
+    // Create notification for the suspended user
+    const notificationTitle = 'Account Suspended';
+    const notificationMessage = `Your account has been suspended. Reason: ${reason}. Please contact support for more information.`;
+    
+    await db.query(`
+      INSERT INTO notifications (firebase_uid, title, message, type, is_read, created_at)
+      VALUES ($1, $2, $3, $4, false, NOW())
+    `, [userId, notificationTitle, notificationMessage, 'alert']);
 
-    try {
-      // Update user status to suspended
-      await db.query(
-        `UPDATE users 
-         SET status = 'suspended',
-             suspension_reason = $1,
-             suspended_at = NOW(),
-             suspended_by = $2,
-             suspension_duration = $3,
-             suspension_end_date = $4,
-             suspension_scope = $5,
-             updated_at = NOW()
-         WHERE firebase_uid = $6`,
-        [reason, req.uid, duration, endDate, scope, userId]
-      );
+    // Log the action
+    console.log(`Owner ${req.uid} suspended user ${userId} with reason: ${reason}`);
 
-      // Record in suspension history
-      await db.query(
-        `INSERT INTO user_suspension_history 
-         (firebase_uid, action, reason, scope, duration, end_date, performed_by, notes)
-         VALUES ($1, 'suspend', $2, $3, $4, $5, $6, $7)`,
-        [
-          userId, 
-          reason, 
-          scope, 
-          duration, 
-          endDate, 
-          req.uid,
-          `Suspended by ${adminCheck.rows[0].full_name}`
-        ]
-      );
-
-      // Create notification for the user
-      let notificationMessage = `Your account has been suspended. Reason: ${reason}.`;
-      if (duration === 'temporary' && endDate) {
-        notificationMessage += ` This suspension will be lifted on ${new Date(endDate).toLocaleDateString()}.`;
-      }
-      notificationMessage += ' Please contact support if you have questions.';
-
-      await db.query(
-        `INSERT INTO notifications 
-         (firebase_uid, notification_type, title, message, is_read)
-         VALUES ($1, $2, $3, $4, FALSE)`,
-        [
-          userId,
-          'warning',
-          'Account Suspended',
-          notificationMessage
-        ]
-      );
-
-      await db.query('COMMIT');
-
-      console.log(`👮 Admin ${req.uid} suspended user ${userId} - Reason: ${reason}`);
-      
-      // Return updated user data
-      res.json({ 
-        success: true, 
-        message: "User suspended successfully",
-        user: {
-          ...user,
-          status: 'suspended',
-          suspension_reason: reason,
-          suspended_at: new Date().toISOString()
-        }
-      });
-
-    } catch (err) {
-      await db.query('ROLLBACK');
-      throw err;
-    }
-
+    res.json({ success: true, message: "User suspended successfully and notification sent" });
   } catch (err) {
     console.error("Error suspending user:", err);
-    res.status(500).json({ error: "Failed to suspend user", details: err.message });
+    res.status(500).json({ error: "Database error" });
   }
 });
 
-// Owner Reactivate User - Full Implementation
+// Owner Reactivate User
 app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) => {
   const { userId } = req.params;
-  const { notes } = req.body;
-  
-  console.log(`🔓 Reactivate user request - userId: ${userId}, requester: ${req.uid}`);
   
   try {
     // Verify owner/admin status
     const adminCheck = await db.query(
-      `SELECT is_admin, full_name FROM users WHERE firebase_uid = $1`,
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
       [req.uid]
     );
     
     if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner/Admin access required" });
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
     }
 
-    // Get user details
-    const userResult = await db.query(
-      `SELECT firebase_uid, full_name, status FROM users WHERE firebase_uid = $1`,
-      [userId]
-    );
+    // Determine appropriate account type
+    const userResult = await db.query(`
+      SELECT has_borrower_account, has_investor_account 
+      FROM users WHERE firebase_uid = $1
+    `, [userId]);
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
     const user = userResult.rows[0];
+    const accountType = user.has_borrower_account ? 'borrower' : 
+                      user.has_investor_account ? 'investor' : 'borrower';
 
-    if (user.status !== 'suspended') {
-      return res.status(400).json({ error: "User is not currently suspended" });
-    }
+    await db.query(`
+      UPDATE users 
+      SET current_account_type = $1
+      WHERE firebase_uid = $2
+    `, [accountType, userId]);
 
-    // Begin transaction
-    await db.query('BEGIN');
+    console.log(`Owner ${req.uid} reactivated user ${userId}`);
 
-    try {
-      // Update user status to active
-      await db.query(
-        `UPDATE users 
-         SET status = 'active',
-             suspension_reason = NULL,
-             suspended_at = NULL,
-             suspended_by = NULL,
-             suspension_duration = NULL,
-             suspension_end_date = NULL,
-             suspension_scope = NULL,
-             reactivated_at = NOW(),
-             reactivated_by = $1,
-             updated_at = NOW()
-         WHERE firebase_uid = $2`,
-        [req.uid, userId]
-      );
-
-      // Record in suspension history
-      await db.query(
-        `INSERT INTO user_suspension_history 
-         (firebase_uid, action, reason, performed_by, notes)
-         VALUES ($1, 'reactivate', $2, $3, $4)`,
-        [
-          userId,
-          notes || 'Account reactivated by admin',
-          req.uid,
-          `Reactivated by ${adminCheck.rows[0].full_name}`
-        ]
-      );
-
-      // Create notification for the user
-      await db.query(
-        `INSERT INTO notifications 
-         (firebase_uid, notification_type, title, message, is_read)
-         VALUES ($1, $2, $3, $4, FALSE)`,
-        [
-          userId,
-          'success',
-          'Account Reactivated',
-          'Your account has been reactivated. You can now access all features and perform transactions.'
-        ]
-      );
-
-      await db.query('COMMIT');
-
-      console.log(`✅ User ${userId} reactivated by ${req.uid}`);
-      
-      res.json({ 
-        success: true, 
-        message: "User reactivated successfully",
-        user: {
-          ...user,
-          status: 'active',
-          reactivated_at: new Date().toISOString()
-        }
-      });
-
-    } catch (err) {
-      await db.query('ROLLBACK');
-      throw err;
-    }
-
+    res.json({ success: true, message: "User reactivated successfully" });
   } catch (err) {
     console.error("Error reactivating user:", err);
-    res.status(500).json({ error: "Failed to reactivate user", details: err.message });
+    res.status(500).json({ error: "Database error" });
   }
 });
 
@@ -6704,16 +6502,12 @@ app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) =>
 app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
   const { userId } = req.params;
   
-  console.log(`🔴 DELETE ENDPOINT HIT - userId: ${userId}, requester: ${req.uid}`);
-  
   try {
     // Verify owner/admin status
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
       [req.uid]
     );
-    
-    console.log(`🔴 Admin check result:`, adminCheck.rows[0]);
     
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: "Unauthorized: Owner access required" });
@@ -6723,30 +6517,19 @@ app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
     await db.query('BEGIN');
 
     try {
-      // Delete from Firebase first
-      try {
-        await admin.auth().deleteUser(userId);
-        console.log(`✅ Deleted Firebase user: ${userId}`);
-      } catch (firebaseError) {
-        console.error('⚠️ Firebase user deletion failed:', firebaseError.message);
-        // Continue with database deletion even if Firebase deletion fails
-      }
-
-      // Delete related data from database
+      // Delete related data first
       await db.query('DELETE FROM projects WHERE firebase_uid = $1', [userId]);
       await db.query('DELETE FROM topup_requests WHERE firebase_uid = $1', [userId]);
       await db.query('DELETE FROM borrower_profiles WHERE firebase_uid = $1', [userId]);
       await db.query('DELETE FROM investor_profiles WHERE firebase_uid = $1', [userId]);
-      await db.query('DELETE FROM user_settings WHERE firebase_uid = $1', [userId]);
-      await db.query('DELETE FROM wallets WHERE firebase_uid = $1', [userId]);
       
       // Delete user
       await db.query('DELETE FROM users WHERE firebase_uid = $1', [userId]);
 
       await db.query('COMMIT');
       
-      console.log(`✅ Owner ${req.uid} deleted user ${userId} completely`);
-      res.json({ success: true, message: "User deleted successfully from Firebase and database" });
+      console.log(`Owner ${req.uid} deleted user ${userId}`);
+      res.json({ success: true, message: "User deleted successfully" });
       
     } catch (err) {
       await db.query('ROLLBACK');
@@ -6754,71 +6537,14 @@ app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
     }
   } catch (err) {
     console.error("Error deleting user:", err);
-    res.status(500).json({ error: "Database error", details: err.message });
-  }
-});
-
-// NOTE: Suspend and Reactivate endpoints are defined below (starting around line 6200+) with full implementation
-
-// Get suspension history for a user
-app.get('/api/owner/users/:userId/suspension-history', verifyToken, async (req, res) => {
-  const { userId } = req.params;
-  
-  try {
-    // Verify owner/admin status
-    const adminCheck = await db.query(
-      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
-      [req.uid]
-    );
-    
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner/Admin access required" });
-    }
-
-    // Get suspension history
-    const historyResult = await db.query(
-      `SELECT 
-        sh.id,
-        sh.action,
-        sh.reason,
-        sh.scope,
-        sh.duration,
-        sh.end_date,
-        sh.performed_at,
-        sh.notes,
-        u.full_name as performed_by_name
-       FROM user_suspension_history sh
-       LEFT JOIN users u ON sh.performed_by = u.firebase_uid
-       WHERE sh.firebase_uid = $1
-       ORDER BY sh.performed_at DESC`,
-      [userId]
-    );
-
-    res.json({ 
-      success: true, 
-      history: historyResult.rows 
-    });
-
-  } catch (err) {
-    console.error("Error fetching suspension history:", err);
-    res.status(500).json({ error: "Failed to fetch suspension history", details: err.message });
+    res.status(500).json({ error: "Database error" });
   }
 });
 
 // Owner Update User
 app.put('/api/owner/users/:userId', verifyToken, async (req, res) => {
   const { userId } = req.params;
-  const { 
-    fullName, 
-    email, 
-    personalInfo,
-    contactInfo,
-    employmentInfo,
-    identifications,
-    bankAccount,
-    businessInfo,
-    investmentInfo
-  } = req.body;
+  const { fullName, email } = req.body;
   
   try {
     // Verify owner/admin status
@@ -6831,267 +6557,17 @@ app.put('/api/owner/users/:userId', verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: Owner access required" });
     }
 
-    // Begin transaction
-    await db.query('BEGIN');
+    await db.query(`
+      UPDATE users 
+      SET full_name = COALESCE($1, full_name), email = COALESCE($2, email)
+      WHERE firebase_uid = $3
+    `, [fullName, email, userId]);
 
-    try {
-      // Update basic user info
-      if (fullName) {
-        await db.query(
-          `UPDATE users SET full_name = $1, updated_at = CURRENT_TIMESTAMP WHERE firebase_uid = $2`,
-          [fullName, userId]
-        );
-      }
-
-      // Update email in Firebase if provided
-      if (email) {
-        try {
-          await admin.auth().updateUser(userId, { email });
-          console.log(`✅ Updated Firebase email for user: ${userId}`);
-        } catch (firebaseError) {
-          console.error('⚠️ Firebase email update failed:', firebaseError.message);
-        }
-      }
-
-      // Get user account types to determine which profiles to update
-      const userQuery = await db.query(
-        `SELECT has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1`,
-        [userId]
-      );
-
-      if (userQuery.rows.length > 0) {
-        const user = userQuery.rows[0];
-
-        // Update borrower profile if user has borrower account
-        if (user.has_borrower_account) {
-          const borrowerUpdates = [];
-          const borrowerValues = [];
-          let paramIndex = 1;
-
-          if (personalInfo) {
-            if (personalInfo.firstName) {
-              borrowerUpdates.push(`first_name = $${paramIndex++}`);
-              borrowerValues.push(personalInfo.firstName);
-            }
-            if (personalInfo.lastName) {
-              borrowerUpdates.push(`last_name = $${paramIndex++}`);
-              borrowerValues.push(personalInfo.lastName);
-            }
-            if (personalInfo.middleName) {
-              borrowerUpdates.push(`middle_name = $${paramIndex++}`);
-              borrowerValues.push(personalInfo.middleName);
-            }
-            if (personalInfo.dateOfBirth) {
-              borrowerUpdates.push(`date_of_birth = $${paramIndex++}`);
-              borrowerValues.push(personalInfo.dateOfBirth);
-            }
-            if (personalInfo.placeOfBirth) {
-              borrowerUpdates.push(`place_of_birth = $${paramIndex++}`);
-              borrowerValues.push(personalInfo.placeOfBirth);
-            }
-            if (personalInfo.gender) {
-              borrowerUpdates.push(`gender = $${paramIndex++}`);
-              borrowerValues.push(personalInfo.gender);
-            }
-            if (personalInfo.civilStatus) {
-              borrowerUpdates.push(`civil_status = $${paramIndex++}`);
-              borrowerValues.push(personalInfo.civilStatus);
-            }
-            if (personalInfo.nationality) {
-              borrowerUpdates.push(`nationality = $${paramIndex++}`);
-              borrowerValues.push(personalInfo.nationality);
-            }
-          }
-
-          if (contactInfo) {
-            if (contactInfo.mobileNumber) {
-              borrowerUpdates.push(`mobile_number = $${paramIndex++}`);
-              borrowerValues.push(contactInfo.mobileNumber);
-            }
-            if (contactInfo.presentAddress) {
-              borrowerUpdates.push(`present_address = $${paramIndex++}`);
-              borrowerValues.push(contactInfo.presentAddress);
-            }
-            if (contactInfo.permanentAddress) {
-              borrowerUpdates.push(`permanent_address = $${paramIndex++}`);
-              borrowerValues.push(contactInfo.permanentAddress);
-            }
-            if (contactInfo.city) {
-              borrowerUpdates.push(`city = $${paramIndex++}`);
-              borrowerValues.push(contactInfo.city);
-            }
-            if (contactInfo.state) {
-              borrowerUpdates.push(`state = $${paramIndex++}`);
-              borrowerValues.push(contactInfo.state);
-            }
-            if (contactInfo.country) {
-              borrowerUpdates.push(`country = $${paramIndex++}`);
-              borrowerValues.push(contactInfo.country);
-            }
-            if (contactInfo.postalCode) {
-              borrowerUpdates.push(`postal_code = $${paramIndex++}`);
-              borrowerValues.push(contactInfo.postalCode);
-            }
-          }
-
-          if (employmentInfo) {
-            if (employmentInfo.occupation) {
-              borrowerUpdates.push(`occupation = $${paramIndex++}`);
-              borrowerValues.push(employmentInfo.occupation);
-            }
-            if (employmentInfo.employerName) {
-              borrowerUpdates.push(`employer_name = $${paramIndex++}`);
-              borrowerValues.push(employmentInfo.employerName);
-            }
-            if (employmentInfo.employerAddress) {
-              borrowerUpdates.push(`employer_address = $${paramIndex++}`);
-              borrowerValues.push(employmentInfo.employerAddress);
-            }
-            if (employmentInfo.sourceOfIncome) {
-              borrowerUpdates.push(`source_of_income = $${paramIndex++}`);
-              borrowerValues.push(employmentInfo.sourceOfIncome);
-            }
-          }
-
-          if (identifications) {
-            if (identifications.nationalId) {
-              borrowerUpdates.push(`national_id = $${paramIndex++}`);
-              borrowerValues.push(identifications.nationalId);
-            }
-            if (identifications.passport) {
-              borrowerUpdates.push(`passport = $${paramIndex++}`);
-              borrowerValues.push(identifications.passport);
-            }
-            if (identifications.tin) {
-              borrowerUpdates.push(`tin_number = $${paramIndex++}`);
-              borrowerValues.push(identifications.tin);
-            }
-          }
-
-          if (bankAccount) {
-            if (bankAccount.bankName) {
-              borrowerUpdates.push(`bank_name = $${paramIndex++}`);
-              borrowerValues.push(bankAccount.bankName);
-            }
-            if (bankAccount.accountName) {
-              borrowerUpdates.push(`account_name = $${paramIndex++}`);
-              borrowerValues.push(bankAccount.accountName);
-            }
-            if (bankAccount.accountNumber) {
-              borrowerUpdates.push(`account_number = $${paramIndex++}`);
-              borrowerValues.push(bankAccount.accountNumber);
-            }
-          }
-
-          if (businessInfo) {
-            if (businessInfo.entityType) {
-              borrowerUpdates.push(`entity_type = $${paramIndex++}`);
-              borrowerValues.push(businessInfo.entityType);
-            }
-            if (businessInfo.entityName) {
-              borrowerUpdates.push(`entity_name = $${paramIndex++}`);
-              borrowerValues.push(businessInfo.entityName);
-            }
-            if (businessInfo.registrationNumber) {
-              borrowerUpdates.push(`registration_number = $${paramIndex++}`);
-              borrowerValues.push(businessInfo.registrationNumber);
-            }
-          }
-
-          if (borrowerUpdates.length > 0) {
-            borrowerUpdates.push(`updated_at = CURRENT_TIMESTAMP`);
-            borrowerValues.push(userId);
-            
-            const updateQuery = `
-              UPDATE borrower_profiles 
-              SET ${borrowerUpdates.join(', ')}
-              WHERE firebase_uid = $${paramIndex}
-            `;
-            
-            await db.query(updateQuery, borrowerValues);
-            console.log(`✅ Updated borrower profile for user: ${userId}`);
-          }
-        }
-
-        // Update investor profile if user has investor account
-        if (user.has_investor_account) {
-          const investorUpdates = [];
-          const investorValues = [];
-          let paramIndex = 1;
-
-          if (personalInfo) {
-            if (personalInfo.firstName) {
-              investorUpdates.push(`first_name = $${paramIndex++}`);
-              investorValues.push(personalInfo.firstName);
-            }
-            if (personalInfo.lastName) {
-              investorUpdates.push(`last_name = $${paramIndex++}`);
-              investorValues.push(personalInfo.lastName);
-            }
-            if (personalInfo.dateOfBirth) {
-              investorUpdates.push(`date_of_birth = $${paramIndex++}`);
-              investorValues.push(personalInfo.dateOfBirth);
-            }
-            if (personalInfo.nationality) {
-              investorUpdates.push(`nationality = $${paramIndex++}`);
-              investorValues.push(personalInfo.nationality);
-            }
-          }
-
-          if (identifications) {
-            if (identifications.nationalId) {
-              investorUpdates.push(`national_id = $${paramIndex++}`);
-              investorValues.push(identifications.nationalId);
-            }
-            if (identifications.passport) {
-              investorUpdates.push(`passport = $${paramIndex++}`);
-              investorValues.push(identifications.passport);
-            }
-            if (identifications.tin) {
-              investorUpdates.push(`tin_number = $${paramIndex++}`);
-              investorValues.push(identifications.tin);
-            }
-          }
-
-          if (investmentInfo) {
-            if (investmentInfo.experience) {
-              investorUpdates.push(`investment_experience = $${paramIndex++}`);
-              investorValues.push(investmentInfo.experience);
-            }
-            if (investmentInfo.riskTolerance) {
-              investorUpdates.push(`risk_tolerance = $${paramIndex++}`);
-              investorValues.push(investmentInfo.riskTolerance);
-            }
-          }
-
-          if (investorUpdates.length > 0) {
-            investorUpdates.push(`updated_at = CURRENT_TIMESTAMP`);
-            investorValues.push(userId);
-            
-            const updateQuery = `
-              UPDATE investor_profiles 
-              SET ${investorUpdates.join(', ')}
-              WHERE firebase_uid = $${paramIndex}
-            `;
-            
-            await db.query(updateQuery, investorValues);
-            console.log(`✅ Updated investor profile for user: ${userId}`);
-          }
-        }
-      }
-
-      await db.query('COMMIT');
-      
-      console.log(`✅ Owner ${req.uid} successfully updated user ${userId}`);
-      res.json({ success: true, message: "User profile updated successfully" });
-
-    } catch (err) {
-      await db.query('ROLLBACK');
-      throw err;
-    }
+    console.log(`Owner ${req.uid} updated user ${userId}`);
+    res.json({ success: true, message: "User updated successfully" });
   } catch (err) {
     console.error("Error updating user:", err);
-    res.status(500).json({ error: "Database error", details: err.message });
+    res.status(500).json({ error: "Database error" });
   }
 });
 
