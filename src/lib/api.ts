@@ -44,6 +44,23 @@ export async function authFetch(url: string, options: RequestInit = {}) {
     if (!response.ok) {
       const text = await response.text();
       console.error("❌ HTTP error response:", text.substring(0, 300));
+      
+      // Check if it's a suspension error
+      if (response.status === 403) {
+        try {
+          const errorData = JSON.parse(text);
+          if (errorData.suspended) {
+            // Create a suspension error that can be caught and handled specially
+            const suspensionError: any = new Error(errorData.message || 'Account suspended');
+            suspensionError.isSuspension = true;
+            suspensionError.suspensionData = errorData;
+            throw suspensionError;
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, just throw the normal error
+        }
+      }
+      
       throw new Error(`HTTP error! status: ${response.status}. Response: ${text.substring(0, 200)}`);
     }
     

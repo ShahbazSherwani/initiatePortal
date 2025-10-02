@@ -467,6 +467,57 @@ async function verifyToken(req, res, next) {
     const decoded = await admin.auth().verifyIdToken(idToken);
     console.log('✅ Token verified successfully for user:', decoded.uid);
     req.uid = decoded.uid;
+    
+    // Check if user is suspended (skip for admin endpoints and profile endpoint)
+    const isAdminEndpoint = req.url.includes('/api/owner/') || req.url.includes('/api/admin/');
+    const isProfileEndpoint = req.url === '/api/profile' && req.method === 'GET';
+    
+    if (!isAdminEndpoint && !isProfileEndpoint && dbConnected && db) {
+      try {
+        const userCheck = await db.query(
+          `SELECT status, suspension_reason, suspension_end_date FROM users WHERE firebase_uid = $1`,
+          [decoded.uid]
+        );
+        
+        if (userCheck.rows.length > 0 && userCheck.rows[0].status === 'suspended') {
+          const user = userCheck.rows[0];
+          console.log('🚫 Suspended user attempted access:', decoded.uid);
+          
+          let message = `Your account has been suspended. Reason: ${user.suspension_reason || 'Violation of terms'}. `;
+          
+          // Check if temporary suspension has expired
+          if (user.suspension_end_date && new Date(user.suspension_end_date) < new Date()) {
+            // Auto-reactivate expired suspension
+            await db.query(
+              `UPDATE users SET status = 'active', suspension_reason = NULL, suspended_at = NULL, 
+               suspended_by = NULL, suspension_duration = NULL, suspension_end_date = NULL, 
+               suspension_scope = NULL WHERE firebase_uid = $1`,
+              [decoded.uid]
+            );
+            console.log('✅ Auto-reactivated expired suspension for user:', decoded.uid);
+            // Allow access
+            return next();
+          }
+          
+          if (user.suspension_end_date) {
+            message += `This suspension will be lifted on ${new Date(user.suspension_end_date).toLocaleDateString()}.`;
+          }
+          message += ' Please contact support for more information.';
+          
+          return res.status(403).json({ 
+            error: 'Account Suspended',
+            message: message,
+            suspended: true,
+            suspensionReason: user.suspension_reason,
+            suspensionEndDate: user.suspension_end_date
+          });
+        }
+      } catch (dbErr) {
+        console.error('⚠️ Could not check suspension status:', dbErr.message);
+        // Continue anyway - don't block access due to DB check failure
+      }
+    }
+    
     next();
   } catch (err) {
     console.error('❌ Token verification failed:', {
@@ -955,6 +1006,81 @@ profileRouter.post('/update-borrower-info', verifyToken, async (req, res) => {
 });
 
 app.use('/api/profile', profileRouter);
+
+// Check user suspension status endpoint (for login page)
+app.post('/api/auth/check-suspension', async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    
+    if (!idToken) {
+      return res.status(400).json({ error: 'Token required' });
+    }
+    
+    // Verify the Firebase token
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const uid = decoded.uid;
+    
+    // Check suspension status
+    const userCheck = await db.query(
+      `SELECT status, suspension_reason, suspension_end_date, suspension_scope FROM users WHERE firebase_uid = $1`,
+      [uid]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      return res.json({ suspended: false });
+    }
+    
+    const user = userCheck.rows[0];
+    
+    if (user.status === 'suspended') {
+      // Check if temporary suspension has expired
+      if (user.suspension_end_date && new Date(user.suspension_end_date) < new Date()) {
+        // Auto-reactivate expired suspension
+        await db.query(
+          `UPDATE users SET status = 'active', suspension_reason = NULL, suspended_at = NULL, 
+           suspended_by = NULL, suspension_duration = NULL, suspension_end_date = NULL, 
+           suspension_scope = NULL WHERE firebase_uid = $1`,
+          [uid]
+        );
+        console.log('✅ Auto-reactivated expired suspension for user:', uid);
+        return res.json({ suspended: false });
+      }
+      
+      let message = `Your account has been suspended. `;
+      
+      if (user.suspension_reason) {
+        message += `Reason: ${user.suspension_reason}. `;
+      }
+      
+      if (user.suspension_end_date) {
+        const endDate = new Date(user.suspension_end_date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        message += `This suspension will be lifted on ${endDate}. `;
+      } else {
+        message += `This is a permanent suspension. `;
+      }
+      
+      message += `Please contact support at support@initiateportal.com if you believe this is an error.`;
+      
+      return res.json({
+        suspended: true,
+        message: message,
+        suspensionReason: user.suspension_reason,
+        suspensionEndDate: user.suspension_end_date,
+        suspensionScope: user.suspension_scope
+      });
+    }
+    
+    res.json({ suspended: false });
+    
+  } catch (err) {
+    console.error('Error checking suspension status:', err);
+    res.status(500).json({ error: 'Failed to check suspension status' });
+  }
+});
 
 // Dual Account Management Routes
 // Get all account profiles for a user
@@ -3680,79 +3806,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
   }
 });
 
-// Owner endpoint to suspend user
-app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
-  try {
-    const firebase_uid = req.uid;
-    const { userId } = req.params;
-    const { reason } = req.body;
-    
-    // Check if user is admin/owner
-    const adminCheck = await db.query(
-      'SELECT is_admin FROM users WHERE firebase_uid = $1',
-      [firebase_uid]
-    );
-    
-    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
-      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
-    }
-    
-    // Update user status - for now we'll use a simple flag
-    await db.query(
-      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
-      [userId]
-    );
-    
-    // Log the action (you might want to create an admin_actions table)
-    console.log(`👮 Admin ${firebase_uid} suspended user ${userId} - Reason: ${reason}`);
-    
-    res.json({ 
-      success: true, 
-      message: 'User suspended successfully',
-      action: 'suspended'
-    });
-    
-  } catch (err) {
-    console.error('❌ Error suspending user:', err);
-    res.status(500).json({ error: 'Failed to suspend user' });
-  }
-});
-// Owner endpoint to reactivate user (moved delete to line ~6363)
-app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) => {
-  try {
-    const firebase_uid = req.uid;
-    const { userId } = req.params;
-    
-    // Check if user is admin/owner
-    const adminCheck = await db.query(
-      'SELECT is_admin FROM users WHERE firebase_uid = $1',
-      [firebase_uid]
-    );
-    
-    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
-      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
-    }
-    
-    // Reactivate user
-    await db.query(
-      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
-      [userId]
-    );
-    
-    // Log the action
-    console.log(`✅ Admin ${firebase_uid} reactivated user ${userId}`);
-    
-    res.json({ 
-      success: true, 
-      message: 'User reactivated successfully',
-      action: 'active'
-    });
-    
-  } catch (err) {
-    console.error('❌ Error reactivating user:', err);
-    res.status(500).json({ error: 'Failed to reactivate user' });
-  }
-});
+// NOTE: Suspend and reactivate endpoints have been moved to lines 6450+ (newer implementation with full suspension system)
 
 // Add interest request to a project
 projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
@@ -5830,6 +5884,10 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         has_borrower_account,
         has_investor_account,
         current_account_type,
+        status,
+        suspension_reason,
+        suspended_at,
+        suspension_end_date,
         created_at,
         (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects
       FROM users u
@@ -5847,7 +5905,10 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         ...(row.has_borrower_account ? ['borrower'] : []),
         ...(row.has_investor_account ? ['investor'] : [])
       ],
-      status: row.current_account_type === 'suspended' ? 'suspended' : 'active',
+      status: row.status || 'active',
+      suspensionReason: row.suspension_reason,
+      suspendedAt: row.suspended_at,
+      suspensionEndDate: row.suspension_end_date,
       memberSince: row.created_at,
       totalProjects: parseInt(row.total_projects) || 0,
       location: null, // Would come from profile data
@@ -6119,7 +6180,15 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         ...(user.has_borrower_account ? ['borrower'] : []),
         ...(user.has_investor_account ? ['investor'] : [])
       ],
-      status: user.current_account_type === 'suspended' ? 'suspended' : 'active',
+      status: user.status || 'active',
+      suspensionReason: user.suspension_reason,
+      suspendedAt: user.suspended_at,
+      suspendedBy: user.suspended_by,
+      suspensionDuration: user.suspension_duration,
+      suspensionEndDate: user.suspension_end_date,
+      suspensionScope: user.suspension_scope,
+      reactivatedAt: user.reactivated_at,
+      reactivatedBy: user.reactivated_by,
       memberSince: user.created_at,
       lastActivity: user.updated_at,
       location: profileData.contactInfo.city && profileData.contactInfo.country ? 
@@ -6227,10 +6296,12 @@ app.get('/api/owner/users/:userId/projects', verifyToken, async (req, res) => {
   }
 });
 
-// Owner Suspend User
+// Owner Suspend User - Full Implementation
 app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
   const { userId } = req.params;
-  const { reason } = req.body;
+  const { reason, scope = 'full_account', duration = 'permanent', endDate } = req.body;
+  
+  console.log(`🔒 Suspend user request - userId: ${userId}, requester: ${req.uid}`);
   
   try {
     // Verify owner/admin status
@@ -6240,85 +6311,210 @@ app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
     );
     
     if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+      return res.status(403).json({ error: "Unauthorized: Owner/Admin access required" });
     }
 
-    // Get user details before suspension
-    const userResult = await db.query(`
-      SELECT full_name FROM users WHERE firebase_uid = $1
-    `, [userId]);
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
+    // Validate required fields
+    if (!reason || reason.trim().length === 0) {
+      return res.status(400).json({ error: "Suspension reason is required" });
     }
 
-    // Update user status to suspended
-    await db.query(`
-      UPDATE users 
-      SET current_account_type = 'suspended'
-      WHERE firebase_uid = $1
-    `, [userId]);
-
-    // Create notification for the suspended user
-    const notificationTitle = 'Account Suspended';
-    const notificationMessage = `Your account has been suspended. Reason: ${reason}. Please contact support for more information.`;
-    
-    await db.query(`
-      INSERT INTO notifications (firebase_uid, title, message, type, is_read, created_at)
-      VALUES ($1, $2, $3, $4, false, NOW())
-    `, [userId, notificationTitle, notificationMessage, 'alert']);
-
-    // Log the action
-    console.log(`Owner ${req.uid} suspended user ${userId} with reason: ${reason}`);
-
-    res.json({ success: true, message: "User suspended successfully and notification sent" });
-  } catch (err) {
-    console.error("Error suspending user:", err);
-    res.status(500).json({ error: "Database error" });
-  }
-});
-
-// Owner Reactivate User
-app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) => {
-  const { userId } = req.params;
-  
-  try {
-    // Verify owner/admin status
-    const adminCheck = await db.query(
-      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
-      [req.uid]
+    // Get user details for notification
+    const userResult = await db.query(
+      `SELECT firebase_uid, full_name FROM users WHERE firebase_uid = $1`,
+      [userId]
     );
-    
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
-    }
-
-    // Determine appropriate account type
-    const userResult = await db.query(`
-      SELECT has_borrower_account, has_investor_account 
-      FROM users WHERE firebase_uid = $1
-    `, [userId]);
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
     const user = userResult.rows[0];
-    const accountType = user.has_borrower_account ? 'borrower' : 
-                      user.has_investor_account ? 'investor' : 'borrower';
 
-    await db.query(`
-      UPDATE users 
-      SET current_account_type = $1
-      WHERE firebase_uid = $2
-    `, [accountType, userId]);
+    // Begin transaction
+    await db.query('BEGIN');
 
-    console.log(`Owner ${req.uid} reactivated user ${userId}`);
+    try {
+      // Update user status to suspended
+      await db.query(
+        `UPDATE users 
+         SET status = 'suspended',
+             suspension_reason = $1,
+             suspended_at = NOW(),
+             suspended_by = $2,
+             suspension_duration = $3,
+             suspension_end_date = $4,
+             suspension_scope = $5,
+             updated_at = NOW()
+         WHERE firebase_uid = $6`,
+        [reason, req.uid, duration, endDate, scope, userId]
+      );
 
-    res.json({ success: true, message: "User reactivated successfully" });
+      // Record in suspension history
+      await db.query(
+        `INSERT INTO user_suspension_history 
+         (firebase_uid, action, reason, scope, duration, end_date, performed_by, notes)
+         VALUES ($1, 'suspend', $2, $3, $4, $5, $6, $7)`,
+        [
+          userId, 
+          reason, 
+          scope, 
+          duration, 
+          endDate, 
+          req.uid,
+          `Suspended by ${adminCheck.rows[0].full_name}`
+        ]
+      );
+
+      // Create notification for the user
+      let notificationMessage = `Your account has been suspended. Reason: ${reason}.`;
+      if (duration === 'temporary' && endDate) {
+        notificationMessage += ` This suspension will be lifted on ${new Date(endDate).toLocaleDateString()}.`;
+      }
+      notificationMessage += ' Please contact support if you have questions.';
+
+      await db.query(
+        `INSERT INTO notifications 
+         (firebase_uid, notification_type, title, message, is_read)
+         VALUES ($1, $2, $3, $4, FALSE)`,
+        [
+          userId,
+          'warning',
+          'Account Suspended',
+          notificationMessage
+        ]
+      );
+
+      await db.query('COMMIT');
+
+      console.log(`👮 Admin ${req.uid} suspended user ${userId} - Reason: ${reason}`);
+      
+      // Return updated user data
+      res.json({ 
+        success: true, 
+        message: "User suspended successfully",
+        user: {
+          ...user,
+          status: 'suspended',
+          suspension_reason: reason,
+          suspended_at: new Date().toISOString()
+        }
+      });
+
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+
+  } catch (err) {
+    console.error("Error suspending user:", err);
+    res.status(500).json({ error: "Failed to suspend user", details: err.message });
+  }
+});
+
+// Owner Reactivate User - Full Implementation
+app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  const { notes } = req.body;
+  
+  console.log(`🔓 Reactivate user request - userId: ${userId}, requester: ${req.uid}`);
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin, full_name FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner/Admin access required" });
+    }
+
+    // Get user details
+    const userResult = await db.query(
+      `SELECT firebase_uid, full_name, status FROM users WHERE firebase_uid = $1`,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.status !== 'suspended') {
+      return res.status(400).json({ error: "User is not currently suspended" });
+    }
+
+    // Begin transaction
+    await db.query('BEGIN');
+
+    try {
+      // Update user status to active
+      await db.query(
+        `UPDATE users 
+         SET status = 'active',
+             suspension_reason = NULL,
+             suspended_at = NULL,
+             suspended_by = NULL,
+             suspension_duration = NULL,
+             suspension_end_date = NULL,
+             suspension_scope = NULL,
+             reactivated_at = NOW(),
+             reactivated_by = $1,
+             updated_at = NOW()
+         WHERE firebase_uid = $2`,
+        [req.uid, userId]
+      );
+
+      // Record in suspension history
+      await db.query(
+        `INSERT INTO user_suspension_history 
+         (firebase_uid, action, reason, performed_by, notes)
+         VALUES ($1, 'reactivate', $2, $3, $4)`,
+        [
+          userId,
+          notes || 'Account reactivated by admin',
+          req.uid,
+          `Reactivated by ${adminCheck.rows[0].full_name}`
+        ]
+      );
+
+      // Create notification for the user
+      await db.query(
+        `INSERT INTO notifications 
+         (firebase_uid, notification_type, title, message, is_read)
+         VALUES ($1, $2, $3, $4, FALSE)`,
+        [
+          userId,
+          'success',
+          'Account Reactivated',
+          'Your account has been reactivated. You can now access all features and perform transactions.'
+        ]
+      );
+
+      await db.query('COMMIT');
+
+      console.log(`✅ User ${userId} reactivated by ${req.uid}`);
+      
+      res.json({ 
+        success: true, 
+        message: "User reactivated successfully",
+        user: {
+          ...user,
+          status: 'active',
+          reactivated_at: new Date().toISOString()
+        }
+      });
+
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+
   } catch (err) {
     console.error("Error reactivating user:", err);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: "Failed to reactivate user", details: err.message });
   }
 });
 
@@ -6377,6 +6573,53 @@ app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Error deleting user:", err);
     res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// NOTE: Suspend and Reactivate endpoints are defined below (starting around line 6200+) with full implementation
+
+// Get suspension history for a user
+app.get('/api/owner/users/:userId/suspension-history', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner/Admin access required" });
+    }
+
+    // Get suspension history
+    const historyResult = await db.query(
+      `SELECT 
+        sh.id,
+        sh.action,
+        sh.reason,
+        sh.scope,
+        sh.duration,
+        sh.end_date,
+        sh.performed_at,
+        sh.notes,
+        u.full_name as performed_by_name
+       FROM user_suspension_history sh
+       LEFT JOIN users u ON sh.performed_by = u.firebase_uid
+       WHERE sh.firebase_uid = $1
+       ORDER BY sh.performed_at DESC`,
+      [userId]
+    );
+
+    res.json({ 
+      success: true, 
+      history: historyResult.rows 
+    });
+
+  } catch (err) {
+    console.error("Error fetching suspension history:", err);
+    res.status(500).json({ error: "Failed to fetch suspension history", details: err.message });
   }
 });
 

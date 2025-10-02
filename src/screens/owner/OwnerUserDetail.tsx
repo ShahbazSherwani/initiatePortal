@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Dialog, Transition } from '@headlessui/react';
+import { SuspendUserModal, SuspensionData } from '../../components/modals/SuspendUserModal';
 
 interface UserDetail {
   id: string;
@@ -43,6 +44,14 @@ interface UserDetail {
   profilePicture?: string;
   accountTypes: ('borrower' | 'investor' | 'guarantor')[];
   status: 'active' | 'suspended' | 'deleted';
+  suspensionReason?: string;
+  suspendedAt?: string;
+  suspendedBy?: string;
+  suspensionDuration?: string;
+  suspensionEndDate?: string;
+  suspensionScope?: string;
+  reactivatedAt?: string;
+  reactivatedBy?: string;
   memberSince: string;
   lastActivity?: string;
   location?: string;
@@ -161,6 +170,7 @@ export const OwnerUserDetail: React.FC = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [suspendLoading, setSuspendLoading] = useState(false);
 
   // Fetch user data based on userId
   const fetchUserData = async () => {
@@ -254,29 +264,42 @@ export const OwnerUserDetail: React.FC = () => {
     return <Badge className={config?.className}>{config?.label}</Badge>;
   };
 
-  const handleSuspendUser = async () => {
-    if (!suspendReason.trim()) {
-      toast.error('Please provide a reason for suspension');
-      return;
-    }
+  const handleSuspendUser = async (suspensionData: SuspensionData) => {
     if (!user) return;
 
     try {
-      await authFetch(`${API_BASE_URL}/owner/users/${user.id}/suspend`, {
+      setSuspendLoading(true);
+      
+      const response = await authFetch(`${API_BASE_URL}/owner/users/${user.firebaseUid}/suspend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ reason: suspendReason })
+        body: JSON.stringify(suspensionData)
       });
       
-      toast.success('User suspended successfully');
-      setUser({ ...user, status: 'suspended' });
+      console.log('✅ Suspend response:', response);
+      
+      toast.success('User suspended successfully. They have been notified.');
+      
+      // Update local user state
+      setUser({ 
+        ...user, 
+        status: 'suspended',
+        suspensionReason: suspensionData.reason,
+        suspendedAt: new Date().toISOString()
+      });
+      
       setShowSuspendDialog(false);
-      setSuspendReason('');
+      
+      // Refresh user data to get full details
+      fetchUserData();
+      
     } catch (error: any) {
       console.error('Error suspending user:', error);
       toast.error(error.message || 'Failed to suspend user');
+    } finally {
+      setSuspendLoading(false);
     }
   };
 
@@ -1001,75 +1024,14 @@ export const OwnerUserDetail: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Suspend User Dialog */}
-        <Transition appear show={showSuspendDialog} as={Fragment}>
-          <Dialog as="div" className="relative z-50" onClose={() => setShowSuspendDialog(false)}>
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black bg-opacity-25" />
-            </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Suspend User
-                    </Dialog.Title>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        This will temporarily restrict the user's access to the platform.
-                      </p>
-                    </div>
-
-                    <div className="mt-4">
-                      <Textarea
-                        placeholder="Reason for suspension (required)"
-                        value={suspendReason}
-                        onChange={(e) => setSuspendReason(e.target.value)}
-                        rows={3}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="mt-6 flex justify-end gap-3">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowSuspendDialog(false);
-                          setSuspendReason('');
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleSuspendUser}
-                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                      >
-                        Suspend User
-                      </Button>
-                    </div>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
+        {/* Suspend User Modal */}
+        <SuspendUserModal
+          isOpen={showSuspendDialog}
+          onClose={() => setShowSuspendDialog(false)}
+          onConfirm={handleSuspendUser}
+          userName={user.fullName}
+          loading={suspendLoading}
+        />
 
         {/* Delete User Dialog */}
         <Transition appear show={showDeleteDialog} as={Fragment}>
