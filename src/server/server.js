@@ -4394,20 +4394,31 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             firebase_uid, full_name, first_name, last_name, middle_name, 
             date_of_birth, place_of_birth, nationality, gender, civil_status,
             mobile_number, country_code, email_address, contact_email,
-            present_address, permanent_address, city, state, postal_code, country,
+            present_address, permanent_address, city, state, postal_code, country, barangay,
             national_id, passport, tin_number, national_id_file, passport_file,
             occupation, employer_name, employer_address, employment_status, 
             gross_annual_income, source_of_income,
             emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_email, emergency_contact_address,
             mother_maiden_name,
             account_name, bank_name, account_type, account_number, iban, swift_code,
+            entity_type, entity_name, registration_number,
+            contact_person_name, contact_person_position, contact_person_email, contact_person_phone,
+            business_registration_type, business_registration_date, corporate_tin,
+            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_number,
+            nature_of_business,
+            principal_office_street, principal_office_barangay, principal_office_country,
+            principal_office_state, principal_office_city, principal_office_postal_code,
+            registration_cert_file, tin_cert_file, authorization_file,
+            is_politically_exposed_person,
             is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
-            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-            $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, 
-            $32, $33, $34, $35, $36, $37, $38, $39, $40, 
-            $41, $42, $43, $44, TRUE, NOW(), NOW()
+            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+            $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, 
+            $33, $34, $35, $36, $37, $38, $39, $40, $41, 
+            $42, $43, $44, $45, $46, $47, $48, $49, $50, $51,
+            $52, $53, $54, $55, $56, $57, $58, $59, $60, $61,
+            $62, $63, $64, $65, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -4429,6 +4440,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             state = EXCLUDED.state,
             postal_code = EXCLUDED.postal_code,
             country = EXCLUDED.country,
+            barangay = EXCLUDED.barangay,
             national_id = EXCLUDED.national_id,
             passport = EXCLUDED.passport,
             tin_number = EXCLUDED.tin_number,
@@ -4451,6 +4463,30 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             account_number = EXCLUDED.account_number,
             iban = EXCLUDED.iban,
             swift_code = EXCLUDED.swift_code,
+            entity_type = EXCLUDED.entity_type,
+            entity_name = EXCLUDED.entity_name,
+            registration_number = EXCLUDED.registration_number,
+            contact_person_name = EXCLUDED.contact_person_name,
+            contact_person_position = EXCLUDED.contact_person_position,
+            contact_person_email = EXCLUDED.contact_person_email,
+            contact_person_phone = EXCLUDED.contact_person_phone,
+            business_registration_type = EXCLUDED.business_registration_type,
+            business_registration_date = EXCLUDED.business_registration_date,
+            corporate_tin = EXCLUDED.corporate_tin,
+            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
+            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
+            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+            nature_of_business = EXCLUDED.nature_of_business,
+            principal_office_street = EXCLUDED.principal_office_street,
+            principal_office_barangay = EXCLUDED.principal_office_barangay,
+            principal_office_country = EXCLUDED.principal_office_country,
+            principal_office_state = EXCLUDED.principal_office_state,
+            principal_office_city = EXCLUDED.principal_office_city,
+            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            registration_cert_file = EXCLUDED.registration_cert_file,
+            tin_cert_file = EXCLUDED.tin_cert_file,
+            authorization_file = EXCLUDED.authorization_file,
+            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
             is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
@@ -4470,42 +4506,75 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.countryCode || null,
           kycData.emailAddress || kycData.contactEmail || null,
           kycData.contactEmail || kycData.emailAddress || null,
-          // Address Information (15-20)
+          // Address Information (15-21)
           kycData.presentAddress || kycData.street || null,
           kycData.permanentAddress || null,
           kycData.city || kycData.cityName || null,
           kycData.state || kycData.stateIso || null,
           kycData.postalCode || null,
           kycData.country || kycData.countryIso || null,
-          // Identification (21-25)
+          kycData.barangay || null,
+          // Identification (22-26)
           kycData.nationalId || null,
           kycData.passport || kycData.passportNumber || null,
           kycData.tin || kycData.tinNumber || null,
           kycData.nationalIdFile || null,
           kycData.passportFile || null,
-          // Employment Information (26-31)
+          // Employment Information (27-32)
           kycData.occupation || null,
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
           kycData.grossAnnualIncome || kycData.monthlyIncome || null,
           kycData.sourceOfIncome || null,
-          // Emergency Contact Information (32-36)
+          // Emergency Contact Information (33-37)
           kycData.emergencyContactName || null,
           kycData.emergencyContactRelationship || null,
           kycData.emergencyContactPhone || null,
           kycData.emergencyContactEmail || null,
           kycData.emergencyContactAddress || null,
-          // Mother's Maiden Name (37)
+          // Mother's Maiden Name (38)
           kycData.motherMaidenName || null,
-          // Bank Account Information (38-43)
+          // Bank Account Information (39-44)
           kycData.account_name || kycData.accountName || null,
           kycData.bank_name || kycData.bankName || null,
           kycData.account_type || kycData.accountType || null,
           kycData.account_number || kycData.accountNumber || null,
           kycData.iban || null,
           kycData.swift_code || kycData.swiftCode || null,
-          // Account Type (44)
+          // Entity Information (45-48)
+          kycData.entityType || null,
+          kycData.entityName || null,
+          kycData.registrationNumber || null,
+          // Contact Person (49-52)
+          kycData.contactPersonName || null,
+          kycData.contactPersonPosition || null,
+          kycData.contactPersonEmail || null,
+          kycData.contactPersonPhone || null,
+          // Business Registration (53-55)
+          kycData.businessRegistrationType || null,
+          kycData.businessRegistrationDate || null,
+          kycData.corporateTin || null,
+          // Authorized Signatory (56-58)
+          kycData.authorizedSignatoryName || null,
+          kycData.authorizedSignatoryPosition || null,
+          kycData.authorizedSignatoryIdNumber || null,
+          // Nature of Business (59)
+          kycData.natureOfBusiness || null,
+          // Principal Office Address (60-65)
+          kycData.principalOfficeStreet || null,
+          kycData.principalOfficeBarangay || null,
+          kycData.principalOfficeCountry || null,
+          kycData.principalOfficeState || null,
+          kycData.principalOfficeCity || null,
+          kycData.principalOfficePostalCode || null,
+          // File Uploads (66-68)
+          kycData.registrationCertFile || null,
+          kycData.tinCertFile || null,
+          kycData.authorizationFile || null,
+          // PEP Status (69)
+          kycData.pepStatus || false,
+          // Account Type (70)
           kycData.isIndividualAccount
         ]);
       } else {
@@ -4528,15 +4597,19 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             firebase_uid, full_name, first_name, last_name, middle_name, 
             date_of_birth, place_of_birth, nationality, gender, civil_status,
             mobile_number, country_code, email_address,
-            present_address, permanent_address, city, state, postal_code, country,
+            present_address, permanent_address, city, state, postal_code, country, barangay,
             national_id, passport, tin_number,
             occupation, employer_name, employer_address, employment_status, 
             gross_annual_income, source_of_income,
             account_name, bank_name, account_type, account_number, iban, swift_code,
+            entity_type, entity_name, registration_number,
+            contact_person_name, contact_person_position, contact_person_email, contact_person_phone,
+            registration_cert_file, tin_cert_file, authorization_file,
             is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 
-            $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, TRUE, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+            $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36,
+            $37, $38, $39, $40, $41, $42, $43, $44, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -4557,6 +4630,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             state = EXCLUDED.state,
             postal_code = EXCLUDED.postal_code,
             country = EXCLUDED.country,
+            barangay = EXCLUDED.barangay,
             national_id = EXCLUDED.national_id,
             passport = EXCLUDED.passport,
             tin_number = EXCLUDED.tin_number,
@@ -4571,6 +4645,16 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             account_number = EXCLUDED.account_number,
             iban = EXCLUDED.iban,
             swift_code = EXCLUDED.swift_code,
+            entity_type = EXCLUDED.entity_type,
+            entity_name = EXCLUDED.entity_name,
+            registration_number = EXCLUDED.registration_number,
+            contact_person_name = EXCLUDED.contact_person_name,
+            contact_person_position = EXCLUDED.contact_person_position,
+            contact_person_email = EXCLUDED.contact_person_email,
+            contact_person_phone = EXCLUDED.contact_person_phone,
+            registration_cert_file = EXCLUDED.registration_cert_file,
+            tin_cert_file = EXCLUDED.tin_cert_file,
+            authorization_file = EXCLUDED.authorization_file,
             is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
@@ -4596,25 +4680,39 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.state || kycData.stateIso || null,
           kycData.postalCode || null,
           kycData.country || kycData.countryIso || null,
-          // Identification (20-22)
+          kycData.barangay || null,
+          // Identification (21-23)
           kycData.nationalId || null,
           kycData.passport || kycData.passportNumber || null,
           kycData.tin || kycData.tinNumber || null,
-          // Employment Information (23-28)
+          // Employment Information (24-29)
           kycData.occupation || null,
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
           kycData.grossAnnualIncome || kycData.monthlyIncome || null,
           kycData.sourceOfIncome || null,
-          // Bank Account Information (29-34)
+          // Bank Account Information (30-35)
           kycData.account_name || kycData.accountName || null,
           kycData.bank_name || kycData.bankName || null,
           kycData.account_type || kycData.accountType || null,
           kycData.account_number || kycData.accountNumber || null,
           kycData.iban || null,
           kycData.swift_code || kycData.swiftCode || null,
-          // Account Type (35)
+          // Entity Information (36-38)
+          kycData.entityType || null,
+          kycData.entityName || null,
+          kycData.registrationNumber || null,
+          // Contact Person (39-42)
+          kycData.contactPersonName || null,
+          kycData.contactPersonPosition || null,
+          kycData.contactPersonEmail || null,
+          kycData.contactPersonPhone || null,
+          // File Uploads (43-45)
+          kycData.registrationCertFile || null,
+          kycData.tinCertFile || null,
+          kycData.authorizationFile || null,
+          // Account Type (46)
           kycData.isIndividualAccount
         ]);
       }
@@ -4677,9 +4775,14 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
       if (investorQuery.rows.length > 0) {
         const investor = investorQuery.rows[0];
         console.log('✅ [EXISTING-DATA] Found existing investor account');
+        console.log('📊 [EXISTING-DATA] Account type:', investor.account_type);
+        
+        // Check if this is an individual or non-individual account
+        const isIndividual = investor.account_type === 'individual';
         
         existingData = {
-          personalInfo: {
+          accountType: investor.account_type || 'individual',
+          personalInfo: isIndividual ? {
             firstName: investor.first_name || '',
             middleName: investor.middle_name || '',
             lastName: investor.last_name || '',
@@ -4690,7 +4793,17 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
             nationality: investor.nationality || '',
             motherMaidenName: investor.mother_maiden_name || '',
             contactEmail: investor.contact_email || investor.email_address || ''
-          },
+          } : null,
+          entityInfo: !isIndividual ? {
+            entityType: investor.entity_type || '',
+            entityName: investor.entity_name || '',
+            registrationNumber: investor.registration_number || '',
+            tin: investor.tin_number || '',
+            contactPersonName: investor.contact_person_name || '',
+            contactPersonPosition: investor.contact_person_position || '',
+            contactPersonEmail: investor.contact_person_email || investor.email_address || '',
+            contactPersonPhone: investor.contact_person_phone || ''
+          } : null,
           identification: {
             nationalId: investor.national_id || '',
             passport: investor.passport || '',
@@ -4710,6 +4823,11 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
             country_iso: investor.country || '',
             state_iso: investor.state || '',
             postal_code: investor.postal_code || ''
+          },
+          files: {
+            registrationCertFile: investor.registration_cert_file || null,
+            tinCertFile: investor.tin_cert_file || null,
+            authorizationFile: investor.authorization_file || null
           }
         };
       } else {
@@ -4725,9 +4843,14 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
       if (borrowerQuery.rows.length > 0) {
         const borrower = borrowerQuery.rows[0];
         console.log('✅ [EXISTING-DATA] Found existing borrower account');
+        console.log('📊 [EXISTING-DATA] Account type:', borrower.account_type);
+        
+        // Check if this is an individual or non-individual account
+        const isIndividual = borrower.account_type === 'individual';
         
         existingData = {
-          personalInfo: {
+          accountType: borrower.account_type || 'individual',
+          personalInfo: isIndividual ? {
             firstName: borrower.first_name || '',
             middleName: borrower.middle_name || '',
             lastName: borrower.last_name || '',
@@ -4738,7 +4861,17 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
             nationality: borrower.nationality || '',
             motherMaidenName: borrower.mother_maiden_name || '',
             contactEmail: borrower.contact_email || borrower.email_address || ''
-          },
+          } : null,
+          entityInfo: !isIndividual ? {
+            entityType: borrower.entity_type || '',
+            entityName: borrower.entity_name || '',
+            registrationNumber: borrower.registration_number || '',
+            tin: borrower.tin_number || '',
+            contactPersonName: borrower.contact_person_name || '',
+            contactPersonPosition: borrower.contact_person_position || '',
+            contactPersonEmail: borrower.contact_person_email || borrower.email_address || '',
+            contactPersonPhone: borrower.contact_person_phone || ''
+          } : null,
           identification: {
             nationalId: borrower.national_id || '',
             passport: borrower.passport || '',
@@ -4759,20 +4892,42 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
             state_iso: borrower.state || '',
             postal_code: borrower.postal_code || ''
           },
-          employmentInfo: {
+          employmentInfo: isIndividual ? {
             employerName: borrower.employer_name || '',
             occupation: borrower.occupation || '',
             employerAddress: borrower.employer_address || '',
             sourceOfIncome: borrower.source_of_income || '',
             monthlyIncome: borrower.gross_annual_income || ''
-          },
-          emergencyContact: {
+          } : null,
+          emergencyContact: isIndividual ? {
             name: borrower.emergency_contact_name || '',
             relationship: borrower.emergency_contact_relationship || '',
             phone: borrower.emergency_contact_phone || '',
             address: borrower.emergency_contact_address || ''
-          },
-          pepStatus: borrower.is_politically_exposed_person || false
+          } : null,
+          businessRegistration: !isIndividual ? {
+            type: borrower.business_registration_type || '',
+            date: borrower.business_registration_date || '',
+            corporateTin: borrower.corporate_tin || '',
+            authorizedSignatoryName: borrower.authorized_signatory_name || '',
+            authorizedSignatoryPosition: borrower.authorized_signatory_position || '',
+            authorizedSignatoryIdNumber: borrower.authorized_signatory_id_number || '',
+            natureOfBusiness: borrower.nature_of_business || ''
+          } : null,
+          principalOffice: !isIndividual ? {
+            street: borrower.principal_office_street || '',
+            barangay: borrower.principal_office_barangay || '',
+            country: borrower.principal_office_country || '',
+            state: borrower.principal_office_state || '',
+            city: borrower.principal_office_city || '',
+            postalCode: borrower.principal_office_postal_code || ''
+          } : null,
+          pepStatus: borrower.is_politically_exposed_person || false,
+          files: {
+            registrationCertFile: borrower.registration_cert_file || null,
+            tinCertFile: borrower.tin_cert_file || null,
+            authorizationFile: borrower.authorization_file || null
+          }
         };
       } else {
         console.log('ℹ️ [EXISTING-DATA] No existing borrower account found');
