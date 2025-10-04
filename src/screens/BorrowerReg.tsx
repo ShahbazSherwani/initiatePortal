@@ -16,6 +16,7 @@ import {
   SelectContent,
   SelectItem,
 } from "../components/ui/select";
+import { Combobox, type ComboboxOption } from "../components/ui/combobox";
 
 export const BorrowerReg = (): JSX.Element => {
   const [accountType, setAccountType] = useState("individual");
@@ -71,6 +72,45 @@ export const BorrowerReg = (): JSX.Element => {
   const countries = Country.getAllCountries();
   const states = countryIso ? State.getStatesOfCountry(countryIso) : [];
   const cities = stateIso ? City.getCitiesOfState(countryIso, stateIso) : [];
+
+  // Convert to ComboboxOption format for searchable dropdowns
+  const countryOptions: ComboboxOption[] = countries.map(c => ({
+    value: c.isoCode,
+    label: c.name
+  }));
+
+  const stateOptions: ComboboxOption[] = states.map(s => ({
+    value: s.isoCode,
+    label: s.name
+  }));
+
+  const cityOptions: ComboboxOption[] = cities.map(c => ({
+    value: c.name,
+    label: c.name
+  }));
+
+  const genderOptions: ComboboxOption[] = [
+    { value: "male", label: "Male" },
+    { value: "female", label: "Female" },
+    { value: "prefer-not-to-say", label: "Prefer not to say" }
+  ];
+
+  const civilStatusOptions: ComboboxOption[] = [
+    { value: "single", label: "Single" },
+    { value: "married", label: "Married" },
+    { value: "divorced", label: "Divorced" },
+    { value: "widowed", label: "Widowed" },
+    { value: "separated", label: "Separated" }
+  ];
+
+  const sourceOfIncomeOptions: ComboboxOption[] = [
+    { value: "employment", label: "Employment/Salary" },
+    { value: "business", label: "Business Income" },
+    { value: "investments", label: "Investment Income" },
+    { value: "pension", label: "Pension/Retirement" },
+    { value: "remittances", label: "Remittances" },
+    { value: "other", label: "Other" }
+  ];
 
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
@@ -619,22 +659,13 @@ export const BorrowerReg = (): JSX.Element => {
               {/* Civil Status */}
               <div className="space-y-2">
                 <Label>Civil Status*</Label>
-                <Select
-                  required
+                <Combobox
+                  options={civilStatusOptions}
                   value={civilStatus}
                   onValueChange={setCivilStatus}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select civil status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single">Single</SelectItem>
-                    <SelectItem value="married">Married</SelectItem>
-                    <SelectItem value="divorced">Divorced</SelectItem>
-                    <SelectItem value="widowed">Widowed</SelectItem>
-                    <SelectItem value="separated">Separated</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="Select civil status"
+                  searchPlaceholder="Search..."
+                />
               </div>
               {/* Nationality */}
               <div className="space-y-2">
@@ -699,23 +730,13 @@ export const BorrowerReg = (): JSX.Element => {
               {/* Source of Income */}
               <div className="space-y-2">
                 <Label>Primary Source of Income*</Label>
-                <Select
-                  required
+                <Combobox
+                  options={sourceOfIncomeOptions}
                   value={sourceOfIncome}
                   onValueChange={setSourceOfIncome}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select source of income" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="employment">Employment/Salary</SelectItem>
-                    <SelectItem value="business">Business Income</SelectItem>
-                    <SelectItem value="investments">Investment Income</SelectItem>
-                    <SelectItem value="pension">Pension/Retirement</SelectItem>
-                    <SelectItem value="remittances">Remittances</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="Select source of income"
+                  searchPlaceholder="Search income sources..."
+                />
               </div>
               {/* Monthly Income */}
               <div className="space-y-2">
@@ -852,70 +873,44 @@ export const BorrowerReg = (): JSX.Element => {
               {/* Country */}
               <div className="space-y-2">
                 <Label>Country*</Label>
-                <Select
-                  required
+                <Combobox
+                  options={countryOptions}
                   value={countryIso}
                   onValueChange={iso => {
                     setCountryIso(iso);
                     setStateIso("");
                     setCityName("");
                   }}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map(c => (
-                      <SelectItem key={c.isoCode} value={c.isoCode}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select country"
+                  searchPlaceholder="Search countries..."
+                />
               </div>
               {/* State/Province */}
               <div className="space-y-2">
                 <Label>State / Province*</Label>
-                <Select
-                  required
+                <Combobox
+                  options={stateOptions}
                   value={stateIso}
                   onValueChange={iso => {
                     setStateIso(iso);
                     setCityName("");
                   }}
+                  placeholder="Select state"
+                  searchPlaceholder="Search states..."
                   disabled={!countryIso}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {states.map(s => (
-                      <SelectItem key={s.isoCode} value={s.isoCode}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
               {/* City */}
               <div className="space-y-2">
                 <Label>City*</Label>
-                <Select
+                <Combobox
+                  options={cityOptions}
                   value={cityName}
                   onValueChange={setCityName}
+                  placeholder="Select city"
+                  searchPlaceholder="Search cities..."
                   disabled={!stateIso}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select city" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map(ci => (
-                      <SelectItem key={ci.name} value={ci.name}>
-                        {ci.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
               {/* Postal Code */}
               <div className="space-y-2">

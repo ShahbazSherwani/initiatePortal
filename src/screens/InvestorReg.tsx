@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Combobox, type ComboboxOption } from "../components/ui/combobox";
 import { useAccount } from "../contexts/AccountContext";
 import { TrendingUpIcon, ArrowLeftIcon } from "lucide-react";
 
@@ -56,6 +56,65 @@ export const InvestorReg: React.FC = () => {
   const [authorizedSignatoryIdNumber, setAuthorizedSignatoryIdNumber] = useState("");
   const [natureOfBusiness, setNatureOfBusiness] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
+
+  // Combobox options
+  const genderOptions: ComboboxOption[] = [
+    { value: "male", label: "Male" },
+    { value: "female", label: "Female" },
+    { value: "prefer-not-to-say", label: "Prefer not to say" }
+  ];
+
+  const civilStatusOptions: ComboboxOption[] = [
+    { value: "single", label: "Single" },
+    { value: "married", label: "Married" },
+    { value: "divorced", label: "Divorced" },
+    { value: "widowed", label: "Widowed" },
+    { value: "separated", label: "Separated" }
+  ];
+
+  const sourceOfIncomeOptions: ComboboxOption[] = [
+    { value: "employment", label: "Employment/Salary" },
+    { value: "business", label: "Business Income" },
+    { value: "investments", label: "Investment Income" },
+    { value: "pension", label: "Pension/Retirement" },
+    { value: "remittances", label: "Remittances" },
+    { value: "other", label: "Other" }
+  ];
+
+  const emergencyContactRelationshipOptions: ComboboxOption[] = [
+    { value: "spouse", label: "Spouse" },
+    { value: "parent", label: "Parent" },
+    { value: "child", label: "Child" },
+    { value: "sibling", label: "Sibling" },
+    { value: "relative", label: "Relative" },
+    { value: "friend", label: "Friend" },
+    { value: "colleague", label: "Colleague" },
+    { value: "other", label: "Other" }
+  ];
+
+  const businessRegistrationTypeOptions: ComboboxOption[] = [
+    { value: "SEC", label: "SEC (Securities and Exchange Commission)" },
+    { value: "CDA", label: "CDA (Cooperative Development Authority)" },
+    { value: "DTI", label: "DTI (Department of Trade and Industry)" }
+  ];
+
+  const experienceOptions: ComboboxOption[] = [
+    { value: "beginner", label: "Beginner (0-2 years)" },
+    { value: "intermediate", label: "Intermediate (3-5 years)" },
+    { value: "advanced", label: "Advanced (5+ years)" }
+  ];
+
+  const investmentPreferenceOptions: ComboboxOption[] = [
+    { value: "lending", label: "Lending Projects" },
+    { value: "equity", label: "Equity Investments" },
+    { value: "both", label: "Both Lending & Equity" }
+  ];
+
+  const riskToleranceOptions: ComboboxOption[] = [
+    { value: "conservative", label: "Conservative" },
+    { value: "moderate", label: "Moderate" },
+    { value: "aggressive", label: "Aggressive" }
+  ];
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -275,31 +334,23 @@ export const InvestorReg: React.FC = () => {
                       </div>
                       <div>
                         <Label htmlFor="gender">Gender*</Label>
-                        <Select value={gender} onValueChange={setGender}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select gender" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          options={genderOptions}
+                          value={gender}
+                          onValueChange={setGender}
+                          placeholder="Select gender"
+                          searchPlaceholder="Search..."
+                        />
                       </div>
                       <div>
                         <Label htmlFor="civilStatus">Civil Status*</Label>
-                        <Select value={civilStatus} onValueChange={setCivilStatus}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select civil status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="single">Single</SelectItem>
-                            <SelectItem value="married">Married</SelectItem>
-                            <SelectItem value="divorced">Divorced</SelectItem>
-                            <SelectItem value="widowed">Widowed</SelectItem>
-                            <SelectItem value="separated">Separated</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          options={civilStatusOptions}
+                          value={civilStatus}
+                          onValueChange={setCivilStatus}
+                          placeholder="Select civil status"
+                          searchPlaceholder="Search..."
+                        />
                       </div>
                       <div>
                         <Label htmlFor="nationality">Nationality*</Label>
@@ -359,19 +410,13 @@ export const InvestorReg: React.FC = () => {
                       </div>
                       <div>
                         <Label htmlFor="sourceOfIncome">Primary Source of Income*</Label>
-                        <Select value={sourceOfIncome} onValueChange={setSourceOfIncome}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select source of income" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="employment">Employment/Salary</SelectItem>
-                            <SelectItem value="business">Business Income</SelectItem>
-                            <SelectItem value="investments">Investment Income</SelectItem>
-                            <SelectItem value="pension">Pension/Retirement</SelectItem>
-                            <SelectItem value="remittances">Remittances</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          options={sourceOfIncomeOptions}
+                          value={sourceOfIncome}
+                          onValueChange={setSourceOfIncome}
+                          placeholder="Select source of income"
+                          searchPlaceholder="Search income sources..."
+                        />
                       </div>
                       <div>
                         <Label htmlFor="monthlyIncome">Monthly Income (PHP)*</Label>
@@ -403,21 +448,13 @@ export const InvestorReg: React.FC = () => {
                       </div>
                       <div>
                         <Label htmlFor="emergencyContactRelationship">Relationship*</Label>
-                        <Select value={emergencyContactRelationship} onValueChange={setEmergencyContactRelationship}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select relationship" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="spouse">Spouse</SelectItem>
-                            <SelectItem value="parent">Parent</SelectItem>
-                            <SelectItem value="child">Child</SelectItem>
-                            <SelectItem value="sibling">Sibling</SelectItem>
-                            <SelectItem value="relative">Relative</SelectItem>
-                            <SelectItem value="friend">Friend</SelectItem>
-                            <SelectItem value="colleague">Colleague</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          options={emergencyContactRelationshipOptions}
+                          value={emergencyContactRelationship}
+                          onValueChange={setEmergencyContactRelationship}
+                          placeholder="Select relationship"
+                          searchPlaceholder="Search relationships..."
+                        />
                       </div>
                       <div>
                         <Label htmlFor="emergencyContactPhone">Contact Phone Number*</Label>
@@ -445,44 +482,35 @@ export const InvestorReg: React.FC = () => {
                   {/* Investment Preferences */}
                   <div>
                     <Label htmlFor="experience">Investment Experience</Label>
-                    <Select onValueChange={(value) => handleInputChange("experience", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your investment experience" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="beginner">Beginner (0-2 years)</SelectItem>
-                        <SelectItem value="intermediate">Intermediate (3-5 years)</SelectItem>
-                        <SelectItem value="advanced">Advanced (5+ years)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={experienceOptions}
+                      value={formData.experience}
+                      onValueChange={(value) => handleInputChange("experience", value)}
+                      placeholder="Select your investment experience"
+                      searchPlaceholder="Search..."
+                    />
                   </div>
 
                   <div>
                     <Label htmlFor="investmentPreference">Investment Preference</Label>
-                    <Select onValueChange={(value) => handleInputChange("investmentPreference", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your investment preference" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="lending">Lending Projects</SelectItem>
-                        <SelectItem value="equity">Equity Investments</SelectItem>
-                        <SelectItem value="both">Both Lending & Equity</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={investmentPreferenceOptions}
+                      value={formData.investmentPreference}
+                      onValueChange={(value) => handleInputChange("investmentPreference", value)}
+                      placeholder="Select your investment preference"
+                      searchPlaceholder="Search..."
+                    />
                   </div>
 
                   <div>
                     <Label htmlFor="riskTolerance">Risk Tolerance</Label>
-                    <Select onValueChange={(value) => handleInputChange("riskTolerance", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your risk tolerance" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="conservative">Conservative</SelectItem>
-                        <SelectItem value="moderate">Moderate</SelectItem>
-                        <SelectItem value="aggressive">Aggressive</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={riskToleranceOptions}
+                      value={formData.riskTolerance}
+                      onValueChange={(value) => handleInputChange("riskTolerance", value)}
+                      placeholder="Select your risk tolerance"
+                      searchPlaceholder="Search..."
+                    />
                   </div>
 
                   <div>
@@ -538,16 +566,13 @@ export const InvestorReg: React.FC = () => {
                       </div>
                       <div>
                         <Label htmlFor="businessRegistrationType">Registration Type*</Label>
-                        <Select value={businessRegistrationType} onValueChange={setBusinessRegistrationType}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select registration type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="SEC">SEC (Securities and Exchange Commission)</SelectItem>
-                            <SelectItem value="CDA">CDA (Cooperative Development Authority)</SelectItem>
-                            <SelectItem value="DTI">DTI (Department of Trade and Industry)</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          options={businessRegistrationTypeOptions}
+                          value={businessRegistrationType}
+                          onValueChange={setBusinessRegistrationType}
+                          placeholder="Select registration type"
+                          searchPlaceholder="Search registration types..."
+                        />
                       </div>
                       <div>
                         <Label htmlFor="businessRegistrationNumber">Registration Number*</Label>
@@ -641,44 +666,35 @@ export const InvestorReg: React.FC = () => {
                   {/* Investment Preferences for Business */}
                   <div>
                     <Label htmlFor="experience">Investment Experience</Label>
-                    <Select onValueChange={(value) => handleInputChange("experience", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your investment experience" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="beginner">Beginner (0-2 years)</SelectItem>
-                        <SelectItem value="intermediate">Intermediate (3-5 years)</SelectItem>
-                        <SelectItem value="advanced">Advanced (5+ years)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={experienceOptions}
+                      value={formData.experience}
+                      onValueChange={(value) => handleInputChange("experience", value)}
+                      placeholder="Select your investment experience"
+                      searchPlaceholder="Search..."
+                    />
                   </div>
 
                   <div>
                     <Label htmlFor="investmentPreference">Investment Preference</Label>
-                    <Select onValueChange={(value) => handleInputChange("investmentPreference", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your investment preference" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="lending">Lending Projects</SelectItem>
-                        <SelectItem value="equity">Equity Investments</SelectItem>
-                        <SelectItem value="both">Both Lending & Equity</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={investmentPreferenceOptions}
+                      value={formData.investmentPreference}
+                      onValueChange={(value) => handleInputChange("investmentPreference", value)}
+                      placeholder="Select your investment preference"
+                      searchPlaceholder="Search..."
+                    />
                   </div>
 
                   <div>
                     <Label htmlFor="riskTolerance">Risk Tolerance</Label>
-                    <Select onValueChange={(value) => handleInputChange("riskTolerance", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your risk tolerance" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="conservative">Conservative</SelectItem>
-                        <SelectItem value="moderate">Moderate</SelectItem>
-                        <SelectItem value="aggressive">Aggressive</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={riskToleranceOptions}
+                      value={formData.riskTolerance}
+                      onValueChange={(value) => handleInputChange("riskTolerance", value)}
+                      placeholder="Select your risk tolerance"
+                      searchPlaceholder="Search..."
+                    />
                   </div>
 
                   <div>
