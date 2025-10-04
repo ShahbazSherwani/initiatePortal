@@ -299,21 +299,22 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
   return (
     <>
-      {/* Mobile Toggle Button - Enhanced Visibility */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
+      {/* Mobile Menu Tab - Fixed on Left Side */}
+      <div className="md:hidden fixed left-0 top-25 z-50">
         <Button
           onClick={() => setMobileOpen((prev) => !prev)}
-          className="bg-[#0C4B20] hover:bg-[#8FB200] text-white font-poppins px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 transition-all duration-200"
+          className="bg-[#0C4B20] hover:bg-[#8FB200] text-white font-poppins px-2 py-10 rounded-r-xl shadow-lg flex flex-col items-center gap-1 transition-all duration-200 border-r-4 border-[#8FB200]"
+          style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
         >
           {mobileOpen ? (
             <>
-              <ChevronLeftIcon className="w-5 h-5" />
-              <span className="font-medium">Close</span>
+              <ChevronLeftIcon className="w-5 h-5 rotate-0" style={{ writingMode: 'horizontal-tb' }} />
+              <span className="font-bold text-sm tracking-wider">CLOSE</span>
             </>
           ) : (
             <>
-              <ChevronRightIcon className="w-5 h-5" />
-              <span className="font-medium">Menu</span>
+              <ChevronRightIcon className="w-5 h-5 rotate-0" style={{ writingMode: 'horizontal-tb' }} />
+              <span className="font-bold text-sm tracking-wider">MENU</span>
             </>
           )}
         </Button>
