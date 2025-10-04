@@ -63,30 +63,41 @@ export const BorrowerWallet = (): JSX.Element => {
     },
   ];
 
+  // Check if user is non-individual (they already entered entity bank details in previous screen)
+  const isNonIndividual = registration.accountType === 'non-individual';
+  
   // Add state for bank details
-  const [bankDetails, setBankDetails] = useState<{ [key: string]: string }>({
-    accountName: "",
-    bankName: "",
-    accountType: "",
-    accountNumber: "",
-    iban: "",
-    swiftCode: "",
+  const [bankDetails, setBankDetails] = useState<{ [key: string]: string }>(() => {
+    // For non-individual accounts, use bank details from the previous screen
+    if (isNonIndividual && registration.bankDetails) {
+      return {
+        accountName: registration.bankDetails.accountName || "",
+        bankName: registration.bankDetails.bankName || "",
+        accountType: registration.bankDetails.accountType || "",
+        accountNumber: registration.bankDetails.accountNumber || "",
+        iban: registration.bankDetails.iban || "",
+        swiftCode: registration.bankDetails.swiftCode || "",
+      };
+    }
+    // For individual accounts, start with empty form
+    return {
+      accountName: "",
+      bankName: "",
+      accountType: "",
+      accountNumber: "",
+      iban: "",
+      swiftCode: "",
+    };
   });
 
-  // Update state on input change
-  // Example for Account Name:
-  // <Input
-  //   id="accountName"
-  //   value={bankDetails.accountName}
-  //   onChange={e => setBankDetails({ ...bankDetails, accountName: e.target.value })}
-  //   ...
-  // />
-
   const handleNext = async () => {
-    // Validate bank details
-    if (!bankDetails.accountName || !bankDetails.bankName || !bankDetails.accountType || !bankDetails.accountNumber) {
-      alert("Please fill in all required bank details: Account Name, Bank Name, Account Type, and Account Number");
-      return;
+    // For non-individual accounts, bank details were already validated in the previous screen
+    // For individual accounts, validate here
+    if (!isNonIndividual) {
+      if (!bankDetails.accountName || !bankDetails.bankName || !bankDetails.accountType || !bankDetails.accountNumber) {
+        alert("Please fill in all required bank details: Account Name, Bank Name, Account Type, and Account Number");
+        return;
+      }
     }
     
     try {
@@ -366,38 +377,40 @@ export const BorrowerWallet = (): JSX.Element => {
           </div>
 
           {/* ── Bank Details Section ── */}
-          <section className="mb-12">
-            <h2 className="text-xl font-semibold mb-6">Bank Details</h2>
-            {bankFields.map((field) => (
-              <div key={field.id} className="mb-6">
-                <label htmlFor={field.id} className="block text-base font-medium mb-2">
-                  {field.label}
-                </label>
-                {field.type === "input" ? (
-                  <Input
-                    id={field.id}
-                    className="w-full h-14 rounded-2xl border border-gray-300 px-4"
-                    placeholder={field.placeholder}
-                    value={bankDetails[field.id] || ""}
-                    onChange={e => setBankDetails({ ...bankDetails, [field.id]: e.target.value })}
-                  />
-                ) : (
-                  <Select 
-                    value={bankDetails[field.id] || ""}
-                    onValueChange={(value) => setBankDetails({ ...bankDetails, [field.id]: value })}
-                  >
-                    <SelectTrigger
+          {/* For non-individual accounts, bank details are already collected in the entity bank details screen */}
+          {!isNonIndividual && (
+            <section className="mb-12">
+              <h2 className="text-xl font-semibold mb-6">Bank Details</h2>
+              {bankFields.map((field) => (
+                <div key={field.id} className="mb-6">
+                  <label htmlFor={field.id} className="block text-base font-medium mb-2">
+                    {field.label}
+                  </label>
+                  {field.type === "input" ? (
+                    <Input
                       id={field.id}
                       className="w-full h-14 rounded-2xl border border-gray-300 px-4"
+                      placeholder={field.placeholder}
+                      value={bankDetails[field.id] || ""}
+                      onChange={e => setBankDetails({ ...bankDetails, [field.id]: e.target.value })}
+                    />
+                  ) : (
+                    <Select 
+                      value={bankDetails[field.id] || ""}
+                      onValueChange={(value) => setBankDetails({ ...bankDetails, [field.id]: value })}
                     >
-                      <SelectValue placeholder={field.placeholder} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {field.id === "accountType" ? (
-                        <>
-                          <SelectItem value="Savings Account">Savings Account</SelectItem>
-                          <SelectItem value="Current Account">Current Account</SelectItem>
-                          <SelectItem value="Time Deposit">Time Deposit</SelectItem>
+                      <SelectTrigger
+                        id={field.id}
+                        className="w-full h-14 rounded-2xl border border-gray-300 px-4"
+                      >
+                        <SelectValue placeholder={field.placeholder} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {field.id === "accountType" ? (
+                          <>
+                            <SelectItem value="Savings Account">Savings Account</SelectItem>
+                            <SelectItem value="Current Account">Current Account</SelectItem>
+                            <SelectItem value="Time Deposit">Time Deposit</SelectItem>
                           <SelectItem value="Investment Account">Investment Account</SelectItem>
                         </>
                       ) : (
@@ -412,6 +425,7 @@ export const BorrowerWallet = (): JSX.Element => {
               </div>
             ))}
           </section>
+          )}
 
           {/* ── Crypto-Wallet Section ── */}
           {/* <section className="mb-12">

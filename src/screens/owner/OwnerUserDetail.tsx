@@ -32,7 +32,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Dialog, Transition } from '@headlessui/react';
-import { SuspendUserModal, SuspensionData } from '../../components/modals/SuspendUserModal';
 
 interface UserDetail {
   id: string;
@@ -44,14 +43,6 @@ interface UserDetail {
   profilePicture?: string;
   accountTypes: ('borrower' | 'investor' | 'guarantor')[];
   status: 'active' | 'suspended' | 'deleted';
-  suspensionReason?: string;
-  suspendedAt?: string;
-  suspendedBy?: string;
-  suspensionDuration?: string;
-  suspensionEndDate?: string;
-  suspensionScope?: string;
-  reactivatedAt?: string;
-  reactivatedBy?: string;
   memberSince: string;
   lastActivity?: string;
   location?: string;
@@ -59,7 +50,11 @@ interface UserDetail {
   isQualifiedInvestor?: boolean;
   issuerCode?: string;
   
-  // Enhanced profile data
+  // Account type indicator
+  accountType?: 'individual' | 'non-individual';
+  isIndividualAccount?: boolean;
+  
+  // Enhanced profile data (for individual accounts)
   personalProfile?: {
     firstName?: string;
     lastName?: string;
@@ -73,6 +68,46 @@ interface UserDetail {
     mobileNumber?: string;
   };
   
+  // Entity information (for non-individual accounts)
+  entityInfo?: {
+    entityType?: string;
+    entityName?: string;
+    registrationNumber?: string;
+    tin?: string;
+    contactPersonName?: string;
+    contactPersonPosition?: string;
+    contactPersonEmail?: string;
+    contactPersonPhone?: string;
+  };
+  
+  // Business registration details (for non-individual borrowers)
+  businessRegistration?: {
+    type?: string; // SEC, CDA, DTI
+    date?: string;
+    corporateTin?: string;
+    authorizedSignatoryName?: string;
+    authorizedSignatoryPosition?: string;
+    authorizedSignatoryIdNumber?: string;
+    natureOfBusiness?: string;
+  };
+  
+  // Principal office address (for non-individual borrowers)
+  principalOffice?: {
+    street?: string;
+    barangay?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postalCode?: string;
+  };
+  
+  // Entity documents (for non-individual accounts)
+  entityDocuments?: {
+    registrationCertFile?: string;
+    tinCertFile?: string;
+    authorizationFile?: string;
+  };
+  
   // Address information
   addresses?: {
     present?: string;
@@ -81,6 +116,7 @@ interface UserDetail {
     state?: string;
     postalCode?: string;
     country?: string;
+    barangay?: string;
   };
   
   // KYC and identification documents
@@ -90,8 +126,6 @@ interface UserDetail {
     tin?: string;
     secondaryIdType?: string;
     secondaryIdNumber?: string;
-    nationalIdFile?: string | null;
-    passportFile?: string | null;
   };
   
   // Bank account information
@@ -125,6 +159,14 @@ interface UserDetail {
     industryType?: string;
     fundingLimits?: number;
     kycLevel?: string;
+    employmentInfo?: {
+      occupation?: string;
+      employerName?: string;
+      employerAddress?: string;
+      employmentStatus?: string;
+      grossAnnualIncome?: number;
+      sourceOfIncome?: string;
+    };
   };
   
   investorData?: {
@@ -170,7 +212,6 @@ export const OwnerUserDetail: React.FC = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [suspendLoading, setSuspendLoading] = useState(false);
 
   // Fetch user data based on userId
   const fetchUserData = async () => {
@@ -264,42 +305,29 @@ export const OwnerUserDetail: React.FC = () => {
     return <Badge className={config?.className}>{config?.label}</Badge>;
   };
 
-  const handleSuspendUser = async (suspensionData: SuspensionData) => {
+  const handleSuspendUser = async () => {
+    if (!suspendReason.trim()) {
+      toast.error('Please provide a reason for suspension');
+      return;
+    }
     if (!user) return;
 
     try {
-      setSuspendLoading(true);
-      
-      const response = await authFetch(`${API_BASE_URL}/owner/users/${user.firebaseUid}/suspend`, {
+      await authFetch(`${API_BASE_URL}/owner/users/${user.id}/suspend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(suspensionData)
+        body: JSON.stringify({ reason: suspendReason })
       });
       
-      console.log('✅ Suspend response:', response);
-      
-      toast.success('User suspended successfully. They have been notified.');
-      
-      // Update local user state
-      setUser({ 
-        ...user, 
-        status: 'suspended',
-        suspensionReason: suspensionData.reason,
-        suspendedAt: new Date().toISOString()
-      });
-      
+      toast.success('User suspended successfully');
+      setUser({ ...user, status: 'suspended' });
       setShowSuspendDialog(false);
-      
-      // Refresh user data to get full details
-      fetchUserData();
-      
+      setSuspendReason('');
     } catch (error: any) {
       console.error('Error suspending user:', error);
       toast.error(error.message || 'Failed to suspend user');
-    } finally {
-      setSuspendLoading(false);
     }
   };
 
@@ -311,27 +339,18 @@ export const OwnerUserDetail: React.FC = () => {
     if (!user) return;
 
     try {
-      console.log('🗑️ Deleting user:', user.firebaseUid);
-      
-      const response = await authFetch(`${API_BASE_URL}/owner/users/${user.firebaseUid}`, {
+      await authFetch(`${API_BASE_URL}/owner/users/${user.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ reason: 'Account deletion requested by admin' })
       });
       
-      console.log('✅ Delete response:', response);
-      
-      toast.success('User deleted successfully from Firebase and database');
-      setShowDeleteDialog(false);
-      
-      // Navigate after a short delay to show the success message
-      setTimeout(() => {
-        navigate('/owner/users');
-      }, 1500);
-      
+      toast.success('User deleted successfully');
+      navigate('/owner/users');
     } catch (error: any) {
-      console.error('❌ Error deleting user:', error);
+      console.error('Error deleting user:', error);
       toast.error(error.message || 'Failed to delete user');
     }
   };
@@ -437,7 +456,7 @@ export const OwnerUserDetail: React.FC = () => {
                   </div>
                   
                   <div className="space-y-1 text-sm text-gray-600">
-                    <p>Profile Type: Individual</p>
+                    <p>Profile Type: {user.accountType === 'non-individual' || user.isIndividualAccount === false ? 'Non-Individual (Entity/Business)' : 'Individual'}</p>
                     <p>Account Types: {user.accountTypes.join(', ')}</p>
                     {user.issuerCode && <p>Issuer Code: {user.issuerCode}</p>}
                   </div>
@@ -596,96 +615,283 @@ export const OwnerUserDetail: React.FC = () => {
             )}
 
             {/* Personal Profile Tab */}
-            {activeTab === 'personal' && user.personalProfile && (
+            {activeTab === 'personal' && (
               <div className="space-y-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                      {isEditing ? (
-                        <Input placeholder="First Name" defaultValue={user.personalProfile.firstName} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.firstName || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                      {isEditing ? (
-                        <Input placeholder="Last Name" defaultValue={user.personalProfile.lastName} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.lastName || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-                      {isEditing ? (
-                        <Input placeholder="Middle Name" defaultValue={user.personalProfile.middleName} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.middleName || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                      {isEditing ? (
-                        <Input type="date" defaultValue={user.personalProfile.dateOfBirth} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.dateOfBirth || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
-                      {isEditing ? (
-                        <Input placeholder="Place of Birth" defaultValue={user.personalProfile.placeOfBirth} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.placeOfBirth || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                      {isEditing ? (
-                        <Input placeholder="Nationality" defaultValue={user.personalProfile.nationality} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.nationality || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                      {isEditing ? (
-                        <Input placeholder="Gender" defaultValue={user.personalProfile.gender} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.gender || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
-                      {isEditing ? (
-                        <Input placeholder="Marital Status" defaultValue={user.personalProfile.maritalStatus} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.maritalStatus || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                      {isEditing ? (
-                        <Input type="email" placeholder="Email" defaultValue={user.personalProfile.emailAddress} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.emailAddress || user.email || 'Not provided'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
-                      {isEditing ? (
-                        <Input placeholder="Mobile Number" defaultValue={user.personalProfile.mobileNumber} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.mobileNumber || user.phoneNumber || 'Not provided'}</div>
-                      )}
+                {/* Individual Account Fields */}
+                {(user.accountType === 'individual' || user.isIndividualAccount !== false) && user.personalProfile && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                        {isEditing ? (
+                          <Input placeholder="First Name" defaultValue={user.personalProfile.firstName} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.firstName || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                        {isEditing ? (
+                          <Input placeholder="Last Name" defaultValue={user.personalProfile.lastName} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.lastName || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                        {isEditing ? (
+                          <Input placeholder="Middle Name" defaultValue={user.personalProfile.middleName} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.middleName || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                        {isEditing ? (
+                          <Input type="date" defaultValue={user.personalProfile.dateOfBirth} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.dateOfBirth || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
+                        {isEditing ? (
+                          <Input placeholder="Place of Birth" defaultValue={user.personalProfile.placeOfBirth} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.placeOfBirth || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                        {isEditing ? (
+                          <Input placeholder="Nationality" defaultValue={user.personalProfile.nationality} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.nationality || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                        {isEditing ? (
+                          <Input placeholder="Gender" defaultValue={user.personalProfile.gender} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.gender || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                        {isEditing ? (
+                          <Input placeholder="Marital Status" defaultValue={user.personalProfile.maritalStatus} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.maritalStatus || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        {isEditing ? (
+                          <Input type="email" placeholder="Email" defaultValue={user.personalProfile.emailAddress} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.emailAddress || user.email || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                        {isEditing ? (
+                          <Input placeholder="Mobile Number" defaultValue={user.personalProfile.mobileNumber} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.mobileNumber || user.phoneNumber || 'Not provided'}</div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Employment Information */}
-                {user.borrowerData?.employmentInfo && (
+                {/* Non-Individual Account Fields */}
+                {(user.accountType === 'non-individual' || user.isIndividualAccount === false) && user.entityInfo && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Entity Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Entity Type</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.entityInfo.entityType || 'Not provided'}</div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Entity Name</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.entityInfo.entityName || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Registration Number</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.entityInfo.registrationNumber || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">TIN</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.entityInfo.tin || 'Not provided'}</div>
+                      </div>
+                      <div className="md:col-span-1"></div>
+                      
+                      <div className="md:col-span-3">
+                        <h4 className="text-md font-semibold text-gray-900 mt-4 mb-3">Contact Person</h4>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.entityInfo.contactPersonName || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.entityInfo.contactPersonPosition || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.entityInfo.contactPersonEmail || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.entityInfo.contactPersonPhone || 'Not provided'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Business Registration (Non-Individual Borrowers Only) */}
+                {(user.accountType === 'non-individual' || user.isIndividualAccount === false) && 
+                 user.accountTypes.includes('borrower') && 
+                 user.businessRegistration && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Registration Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Registration Type</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.businessRegistration.type || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Registration Date</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          {user.businessRegistration.date ? formatDate(user.businessRegistration.date) : 'Not provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Corporate TIN</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.businessRegistration.corporateTin || 'Not provided'}</div>
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nature of Business</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.businessRegistration.natureOfBusiness || 'Not provided'}</div>
+                      </div>
+                      
+                      <div className="md:col-span-3">
+                        <h4 className="text-md font-semibold text-gray-900 mt-4 mb-3">Authorized Signatory</h4>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Signatory Name</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.businessRegistration.authorizedSignatoryName || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Position/Title</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.businessRegistration.authorizedSignatoryPosition || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.businessRegistration.authorizedSignatoryIdNumber || 'Not provided'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Principal Office Address (Non-Individual Borrowers Only) */}
+                {(user.accountType === 'non-individual' || user.isIndividualAccount === false) && 
+                 user.accountTypes.includes('borrower') && 
+                 user.principalOffice && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Principal Office Address</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.street || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Barangay</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.barangay || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.city || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">State/Province</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.state || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.country || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.postalCode || 'Not provided'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Entity Documents (Non-Individual Accounts) */}
+                {(user.accountType === 'non-individual' || user.isIndividualAccount === false) && 
+                 user.entityDocuments && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Entity Documents</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Registration Certificate</label>
+                        {user.entityDocuments.registrationCertFile ? (
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => window.open(user.entityDocuments?.registrationCertFile, '_blank')}
+                          >
+                            <EyeIcon className="w-4 h-4 mr-2" />
+                            View Document
+                          </Button>
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-sm">Not uploaded</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">TIN Certificate</label>
+                        {user.entityDocuments.tinCertFile ? (
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => window.open(user.entityDocuments?.tinCertFile, '_blank')}
+                          >
+                            <EyeIcon className="w-4 h-4 mr-2" />
+                            View Document
+                          </Button>
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-sm">Not uploaded</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Authorization Letter</label>
+                        {user.entityDocuments.authorizationFile ? (
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => window.open(user.entityDocuments?.authorizationFile, '_blank')}
+                          >
+                            <EyeIcon className="w-4 h-4 mr-2" />
+                            View Document
+                          </Button>
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-sm">Optional - Not uploaded</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Employment Information (Individual Accounts Only) */}
+                {(user.accountType === 'individual' || user.isIndividualAccount !== false) && 
+                 user.borrowerData?.employmentInfo && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -773,107 +979,15 @@ export const OwnerUserDetail: React.FC = () => {
                     )}
                   </div>
                 </div>
-
-                {/* Uploaded Documents Section */}
-                <div className="mt-8">
-                  <h4 className="text-md font-semibold text-gray-900 mb-4">Uploaded Documents</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* National ID File */}
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center">
-                        <IdCardIcon className="w-4 h-4 mr-2" />
-                        National ID Document
-                      </label>
-                      {user.identifications?.nationalIdFile ? (
-                        <div className="space-y-2">
-                          <img 
-                            src={user.identifications.nationalIdFile} 
-                            alt="National ID" 
-                            className="w-full h-48 object-contain border rounded bg-white"
-                            onError={(e) => {
-                              // If image fails to load, show error message
-                              (e.target as HTMLImageElement).style.display = 'none';
-                              const parent = (e.target as HTMLElement).parentElement;
-                              if (parent && !parent.querySelector('.error-message')) {
-                                const errorDiv = document.createElement('div');
-                                errorDiv.className = 'error-message p-3 bg-red-50 text-red-700 rounded text-sm';
-                                errorDiv.textContent = 'Failed to load image';
-                                parent.appendChild(errorDiv);
-                              }
-                            }}
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full"
-                            onClick={() => window.open(user.identifications?.nationalIdFile!, '_blank')}
-                          >
-                            <EyeIcon className="w-4 h-4 mr-2" />
-                            View Full Size
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center h-48 bg-white border-2 border-dashed border-gray-300 rounded">
-                          <div className="text-center text-gray-500">
-                            <IdCardIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No document uploaded</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Passport File */}
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center">
-                        <CreditCardIcon className="w-4 h-4 mr-2" />
-                        Passport Document
-                      </label>
-                      {user.identifications?.passportFile ? (
-                        <div className="space-y-2">
-                          <img 
-                            src={user.identifications.passportFile} 
-                            alt="Passport" 
-                            className="w-full h-48 object-contain border rounded bg-white"
-                            onError={(e) => {
-                              // If image fails to load, show error message
-                              (e.target as HTMLImageElement).style.display = 'none';
-                              const parent = (e.target as HTMLElement).parentElement;
-                              if (parent && !parent.querySelector('.error-message')) {
-                                const errorDiv = document.createElement('div');
-                                errorDiv.className = 'error-message p-3 bg-red-50 text-red-700 rounded text-sm';
-                                errorDiv.textContent = 'Failed to load image';
-                                parent.appendChild(errorDiv);
-                              }
-                            }}
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full"
-                            onClick={() => window.open(user.identifications?.passportFile!, '_blank')}
-                          >
-                            <EyeIcon className="w-4 h-4 mr-2" />
-                            View Full Size
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center h-48 bg-white border-2 border-dashed border-gray-300 rounded">
-                          <div className="text-center text-gray-500">
-                            <CreditCardIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No document uploaded</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
             {/* Addresses Tab */}
             {activeTab === 'addresses' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Addresses</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {(user.accountType === 'non-individual' || user.isIndividualAccount === false) ? 'Business Address' : 'Addresses'}
+                </h3>
                 <p className="text-sm text-gray-500 mb-6">This tab contains detailed addresses information.</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -885,6 +999,14 @@ export const OwnerUserDetail: React.FC = () => {
                         <Input placeholder="Street Address" defaultValue={user.addresses?.present} />
                       ) : (
                         <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.present || 'Not provided'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Barangay</label>
+                      {isEditing ? (
+                        <Input placeholder="Barangay" defaultValue={user.addresses?.barangay} />
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.barangay || 'Not provided'}</div>
                       )}
                     </div>
                     <div>
@@ -923,14 +1045,16 @@ export const OwnerUserDetail: React.FC = () => {
                         <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.country || 'Not provided'}</div>
                       )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Permanent Address</label>
-                      {isEditing ? (
-                        <Input placeholder="Permanent Address" defaultValue={user.addresses?.permanent} />
-                      ) : (
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.permanent || 'Same as present'}</div>
-                      )}
-                    </div>
+                    {(user.accountType === 'individual' || user.isIndividualAccount !== false) && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Permanent Address</label>
+                        {isEditing ? (
+                          <Input placeholder="Permanent Address" defaultValue={user.addresses?.permanent} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.addresses?.permanent || 'Same as present'}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1024,14 +1148,75 @@ export const OwnerUserDetail: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Suspend User Modal */}
-        <SuspendUserModal
-          isOpen={showSuspendDialog}
-          onClose={() => setShowSuspendDialog(false)}
-          onConfirm={handleSuspendUser}
-          userName={user.fullName}
-          loading={suspendLoading}
-        />
+        {/* Suspend User Dialog */}
+        <Transition appear show={showSuspendDialog} as={Fragment}>
+          <Dialog as="div" className="relative z-50" onClose={() => setShowSuspendDialog(false)}>
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <div className="fixed inset-0 bg-black bg-opacity-25" />
+            </Transition.Child>
+
+            <div className="fixed inset-0 overflow-y-auto">
+              <div className="flex min-h-full items-center justify-center p-4 text-center">
+                <Transition.Child
+                  as={Fragment}
+                  enter="ease-out duration-300"
+                  enterFrom="opacity-0 scale-95"
+                  enterTo="opacity-100 scale-100"
+                  leave="ease-in duration-200"
+                  leaveFrom="opacity-100 scale-100"
+                  leaveTo="opacity-0 scale-95"
+                >
+                  <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                      Suspend User
+                    </Dialog.Title>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        This will temporarily restrict the user's access to the platform.
+                      </p>
+                    </div>
+
+                    <div className="mt-4">
+                      <Textarea
+                        placeholder="Reason for suspension (required)"
+                        value={suspendReason}
+                        onChange={(e) => setSuspendReason(e.target.value)}
+                        rows={3}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowSuspendDialog(false);
+                          setSuspendReason('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSuspendUser}
+                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                      >
+                        Suspend User
+                      </Button>
+                    </div>
+                  </Dialog.Panel>
+                </Transition.Child>
+              </div>
+            </div>
+          </Dialog>
+        </Transition>
 
         {/* Delete User Dialog */}
         <Transition appear show={showDeleteDialog} as={Fragment}>

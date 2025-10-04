@@ -262,6 +262,8 @@ try {
           ADD COLUMN IF NOT EXISTS country_code VARCHAR(10),
           ADD COLUMN IF NOT EXISTS present_address TEXT,
           ADD COLUMN IF NOT EXISTS permanent_address TEXT,
+          ADD COLUMN IF NOT EXISTS street VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS barangay VARCHAR(255),
           ADD COLUMN IF NOT EXISTS city VARCHAR(100),
           ADD COLUMN IF NOT EXISTS state VARCHAR(100),
           ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20),
@@ -297,6 +299,28 @@ try {
           ADD COLUMN IF NOT EXISTS business_address TEXT,
           ADD COLUMN IF NOT EXISTS authorized_person_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS authorized_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_phone VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS business_registration_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS business_registration_date DATE,
+          ADD COLUMN IF NOT EXISTS corporate_tin VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_id_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS nature_of_business TEXT,
+          ADD COLUMN IF NOT EXISTS principal_office_street VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS principal_office_barangay VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS principal_office_country VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_state VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_city VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_postal_code VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS registration_cert_file TEXT,
+          ADD COLUMN IF NOT EXISTS tin_cert_file TEXT,
+          ADD COLUMN IF NOT EXISTS authorization_file TEXT,
+          ADD COLUMN IF NOT EXISTS is_politically_exposed_person BOOLEAN DEFAULT FALSE,
+          ADD COLUMN IF NOT EXISTS is_individual_account BOOLEAN DEFAULT TRUE,
           ADD COLUMN IF NOT EXISTS is_complete BOOLEAN DEFAULT FALSE
       `);
       
@@ -329,6 +353,8 @@ try {
           ADD COLUMN IF NOT EXISTS country_code VARCHAR(10),
           ADD COLUMN IF NOT EXISTS present_address TEXT,
           ADD COLUMN IF NOT EXISTS permanent_address TEXT,
+          ADD COLUMN IF NOT EXISTS street VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS barangay VARCHAR(255),
           ADD COLUMN IF NOT EXISTS city VARCHAR(100),
           ADD COLUMN IF NOT EXISTS state VARCHAR(100),
           ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20),
@@ -345,11 +371,43 @@ try {
           ADD COLUMN IF NOT EXISTS entity_type VARCHAR(100),
           ADD COLUMN IF NOT EXISTS entity_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS registration_number VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS registration_type VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS registration_date DATE,
-          ADD COLUMN IF NOT EXISTS business_address TEXT,
-          ADD COLUMN IF NOT EXISTS authorized_person_name VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS authorized_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_phone VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS business_registration_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS business_registration_date DATE,
+          ADD COLUMN IF NOT EXISTS corporate_tin VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_id_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS nature_of_business TEXT,
+          ADD COLUMN IF NOT EXISTS principal_office_street VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS principal_office_barangay VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS principal_office_country VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_state VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_city VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_postal_code VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS registration_cert_file TEXT,
+          ADD COLUMN IF NOT EXISTS tin_cert_file TEXT,
+          ADD COLUMN IF NOT EXISTS authorization_file TEXT,
+          ADD COLUMN IF NOT EXISTS national_id_file TEXT,
+          ADD COLUMN IF NOT EXISTS passport_file TEXT,
+          ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS emergency_contact_relationship VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS emergency_contact_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS emergency_contact_address TEXT,
+          ADD COLUMN IF NOT EXISTS mother_maiden_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS account_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS account_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS account_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS iban VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS swift_code VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS is_politically_exposed_person BOOLEAN DEFAULT FALSE,
+          ADD COLUMN IF NOT EXISTS is_individual_account BOOLEAN DEFAULT TRUE,
           ADD COLUMN IF NOT EXISTS is_complete BOOLEAN DEFAULT FALSE
       `);
       
@@ -3629,6 +3687,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
       FROM users u
       LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
       LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
+      WHERE u.current_account_type != 'deleted' OR u.current_account_type IS NULL
       ORDER BY u.created_at DESC
     `);
     
@@ -3659,7 +3718,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         username: row.username || '',
         profilePicture: row.profile_picture,
         accountTypes,
-        status: 'active', // We don't have a status field, assuming active
+        status: row.current_account_type === 'deleted' ? 'deleted' : 'active',
         memberSince: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : '',
         lastActivity: row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : '',
         totalProjects: parseInt(row.total_projects) || 0,
@@ -3735,11 +3794,24 @@ app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Access denied - Admin privileges required' });
     }
     
-    // Soft delete - don't actually remove from database but mark as deleted
+    // Soft delete - mark user as deleted by setting current_account_type to 'deleted'
     await db.query(
-      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
+      `UPDATE users 
+       SET current_account_type = 'deleted', 
+           updated_at = NOW() 
+       WHERE firebase_uid = $1`,
       [userId]
     );
+    
+    // Permanently delete the user from Firebase Authentication (hard delete)
+    // This frees up the email address for new registrations
+    try {
+      await admin.auth().deleteUser(userId);
+      console.log(`�️ Firebase user ${userId} permanently deleted (email now available for reuse)`);
+    } catch (firebaseErr) {
+      console.error(`⚠️ Could not delete Firebase user ${userId}:`, firebaseErr.message);
+      // Continue even if Firebase delete fails - database is already updated
+    }
     
     // Log the action
     console.log(`🗑️ Admin ${firebase_uid} deleted user ${userId} - Reason: ${reason}`);
@@ -3772,14 +3844,47 @@ app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) =>
       return res.status(403).json({ error: 'Access denied - Admin privileges required' });
     }
     
-    // Reactivate user
-    await db.query(
-      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
+    // Get user's account flags to determine proper account type
+    const userResult = await db.query(
+      'SELECT has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1',
       [userId]
     );
     
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    let newAccountType = 'borrower'; // Default to borrower
+    
+    // Determine account type based on what they have
+    if (user.has_borrower_account && user.has_investor_account) {
+      newAccountType = 'borrower'; // If they have both, default to borrower
+    } else if (user.has_investor_account) {
+      newAccountType = 'investor';
+    } else if (user.has_borrower_account) {
+      newAccountType = 'borrower';
+    }
+    
+    // Reactivate user by restoring their account type
+    await db.query(
+      'UPDATE users SET current_account_type = $1, updated_at = NOW() WHERE firebase_uid = $2',
+      [newAccountType, userId]
+    );
+    
+    // Re-enable the user in Firebase Authentication
+    try {
+      await admin.auth().updateUser(userId, { 
+        disabled: false 
+      });
+      console.log(`🔓 Firebase user ${userId} re-enabled successfully`);
+    } catch (firebaseErr) {
+      console.error(`⚠️ Could not re-enable Firebase user ${userId}:`, firebaseErr.message);
+      // Continue even if Firebase enable fails - database is already updated
+    }
+    
     // Log the action
-    console.log(`✅ Admin ${firebase_uid} reactivated user ${userId}`);
+    console.log(`✅ Admin ${firebase_uid} reactivated user ${userId} as ${newAccountType}`);
     
     res.json({ 
       success: true, 
@@ -4418,7 +4523,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             $33, $34, $35, $36, $37, $38, $39, $40, $41, 
             $42, $43, $44, $45, $46, $47, $48, $49, $50, $51,
             $52, $53, $54, $55, $56, $57, $58, $59, $60, $61,
-            $62, $63, $64, $65, TRUE, NOW(), NOW()
+            $62, $63, $64, $65, $66, $67, $68, $69, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -4572,9 +4677,9 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.registrationCertFile || null,
           kycData.tinCertFile || null,
           kycData.authorizationFile || null,
-          // PEP Status (69)
+          // PEP Status (68)
           kycData.pepStatus || false,
-          // Account Type (70)
+          // Account Type (69)
           kycData.isIndividualAccount
         ]);
       } else {
@@ -4604,12 +4709,18 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             account_name, bank_name, account_type, account_number, iban, swift_code,
             entity_type, entity_name, registration_number,
             contact_person_name, contact_person_position, contact_person_email, contact_person_phone,
+            business_registration_type, business_registration_date, corporate_tin,
+            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_number,
+            nature_of_business,
+            principal_office_street, principal_office_barangay, principal_office_country,
+            principal_office_state, principal_office_city, principal_office_postal_code,
             registration_cert_file, tin_cert_file, authorization_file,
+            is_politically_exposed_person,
             is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
             $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36,
-            $37, $38, $39, $40, $41, $42, $43, $44, TRUE, NOW(), NOW()
+            $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -4652,9 +4763,23 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             contact_person_position = EXCLUDED.contact_person_position,
             contact_person_email = EXCLUDED.contact_person_email,
             contact_person_phone = EXCLUDED.contact_person_phone,
+            business_registration_type = EXCLUDED.business_registration_type,
+            business_registration_date = EXCLUDED.business_registration_date,
+            corporate_tin = EXCLUDED.corporate_tin,
+            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
+            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
+            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+            nature_of_business = EXCLUDED.nature_of_business,
+            principal_office_street = EXCLUDED.principal_office_street,
+            principal_office_barangay = EXCLUDED.principal_office_barangay,
+            principal_office_country = EXCLUDED.principal_office_country,
+            principal_office_state = EXCLUDED.principal_office_state,
+            principal_office_city = EXCLUDED.principal_office_city,
+            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
             registration_cert_file = EXCLUDED.registration_cert_file,
             tin_cert_file = EXCLUDED.tin_cert_file,
             authorization_file = EXCLUDED.authorization_file,
+            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
             is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
@@ -4708,11 +4833,30 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.contactPersonPosition || null,
           kycData.contactPersonEmail || null,
           kycData.contactPersonPhone || null,
-          // File Uploads (43-45)
+          // Business Registration (43-45)
+          kycData.businessRegistrationType || null,
+          kycData.businessRegistrationDate || null,
+          kycData.corporateTin || null,
+          // Authorized Signatory (46-48)
+          kycData.authorizedSignatoryName || null,
+          kycData.authorizedSignatoryPosition || null,
+          kycData.authorizedSignatoryIdNumber || null,
+          // Nature of Business (49)
+          kycData.natureOfBusiness || null,
+          // Principal Office Address (50-55)
+          kycData.principalOfficeStreet || null,
+          kycData.principalOfficeBarangay || null,
+          kycData.principalOfficeCountry || null,
+          kycData.principalOfficeState || null,
+          kycData.principalOfficeCity || null,
+          kycData.principalOfficePostalCode || null,
+          // File Uploads (56-58)
           kycData.registrationCertFile || null,
           kycData.tinCertFile || null,
           kycData.authorizationFile || null,
-          // Account Type (46)
+          // PEP Status (59)
+          kycData.pepStatus || false,
+          // Account Type (60)
           kycData.isIndividualAccount
         ]);
       }
@@ -4775,13 +4919,13 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
       if (investorQuery.rows.length > 0) {
         const investor = investorQuery.rows[0];
         console.log('✅ [EXISTING-DATA] Found existing investor account');
-        console.log('📊 [EXISTING-DATA] Account type:', investor.account_type);
+        console.log('📊 [EXISTING-DATA] Is individual account:', investor.is_individual_account);
         
         // Check if this is an individual or non-individual account
-        const isIndividual = investor.account_type === 'individual';
+        const isIndividual = investor.is_individual_account !== false; // Default to true if null
         
         existingData = {
-          accountType: investor.account_type || 'individual',
+          accountType: isIndividual ? 'individual' : 'non-individual',
           personalInfo: isIndividual ? {
             firstName: investor.first_name || '',
             middleName: investor.middle_name || '',
@@ -4824,6 +4968,24 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
             state_iso: investor.state || '',
             postal_code: investor.postal_code || ''
           },
+          businessRegistration: !isIndividual ? {
+            type: investor.business_registration_type || '',
+            date: investor.business_registration_date || '',
+            corporateTin: investor.corporate_tin || '',
+            authorizedSignatoryName: investor.authorized_signatory_name || '',
+            authorizedSignatoryPosition: investor.authorized_signatory_position || '',
+            authorizedSignatoryIdNumber: investor.authorized_signatory_id_number || '',
+            natureOfBusiness: investor.nature_of_business || ''
+          } : null,
+          principalOffice: !isIndividual ? {
+            street: investor.principal_office_street || '',
+            barangay: investor.principal_office_barangay || '',
+            country: investor.principal_office_country || '',
+            state: investor.principal_office_state || '',
+            city: investor.principal_office_city || '',
+            postalCode: investor.principal_office_postal_code || ''
+          } : null,
+          pepStatus: investor.is_politically_exposed_person || false,
           files: {
             registrationCertFile: investor.registration_cert_file || null,
             tinCertFile: investor.tin_cert_file || null,
@@ -4843,13 +5005,13 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
       if (borrowerQuery.rows.length > 0) {
         const borrower = borrowerQuery.rows[0];
         console.log('✅ [EXISTING-DATA] Found existing borrower account');
-        console.log('📊 [EXISTING-DATA] Account type:', borrower.account_type);
+        console.log('📊 [EXISTING-DATA] Is individual account:', borrower.is_individual_account);
         
         // Check if this is an individual or non-individual account
-        const isIndividual = borrower.account_type === 'individual';
+        const isIndividual = borrower.is_individual_account !== false; // Default to true if null
         
         existingData = {
-          accountType: borrower.account_type || 'individual',
+          accountType: isIndividual ? 'individual' : 'non-individual',
           personalInfo: isIndividual ? {
             firstName: borrower.first_name || '',
             middleName: borrower.middle_name || '',
@@ -4933,6 +5095,14 @@ app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
         console.log('ℹ️ [EXISTING-DATA] No existing borrower account found');
       }
     }
+    
+    console.log('📤 [EXISTING-DATA] Returning data:', JSON.stringify({
+      hasExistingAccount: !!existingData,
+      accountType: existingData?.accountType,
+      hasEntityInfo: !!existingData?.entityInfo,
+      hasPersonalInfo: !!existingData?.personalInfo,
+      addressFields: existingData?.address ? Object.keys(existingData.address).filter(k => existingData.address[k]) : []
+    }, null, 2));
     
     res.json({
       hasExistingAccount: !!existingData,
@@ -6338,7 +6508,8 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           city: borrower.city || '',
           state: borrower.state || '',
           postalCode: borrower.postal_code || '',
-          country: borrower.country || ''
+          country: borrower.country || '',
+          barangay: borrower.barangay || ''
         };
 
         // Map borrower employment information
@@ -6439,6 +6610,95 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
       }
     }
 
+    // Determine if this is an individual or non-individual account
+    let isIndividualAccount = true;
+    let entityInfo = null;
+    let businessRegistration = null;
+    let principalOffice = null;
+    let entityDocuments = null;
+
+    // Get entity-specific data from borrower or investor profile
+    if (user.has_borrower_account) {
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [userId]
+      );
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        isIndividualAccount = borrower.is_individual_account !== false;
+        
+        // If non-individual account, populate entity data
+        if (!isIndividualAccount) {
+          entityInfo = {
+            entityType: borrower.entity_type || '',
+            entityName: borrower.entity_name || '',
+            registrationNumber: borrower.registration_number || '',
+            tin: borrower.tin_number || '',
+            contactPersonName: borrower.contact_person_name || '',
+            contactPersonPosition: borrower.contact_person_position || '',
+            contactPersonEmail: borrower.contact_person_email || '',
+            contactPersonPhone: borrower.contact_person_phone || ''
+          };
+          
+          businessRegistration = {
+            type: borrower.business_registration_type || '',
+            date: borrower.business_registration_date || '',
+            corporateTin: borrower.corporate_tin || '',
+            authorizedSignatoryName: borrower.authorized_signatory_name || '',
+            authorizedSignatoryPosition: borrower.authorized_signatory_position || '',
+            authorizedSignatoryIdNumber: borrower.authorized_signatory_id_number || '',
+            natureOfBusiness: borrower.nature_of_business || ''
+          };
+          
+          principalOffice = {
+            street: borrower.principal_office_street || '',
+            barangay: borrower.principal_office_barangay || '',
+            city: borrower.principal_office_city || '',
+            state: borrower.principal_office_state || '',
+            country: borrower.principal_office_country || '',
+            postalCode: borrower.principal_office_postal_code || ''
+          };
+          
+          entityDocuments = {
+            registrationCertFile: borrower.registration_cert_file || '',
+            tinCertFile: borrower.tin_cert_file || '',
+            authorizationFile: borrower.authorization_file || ''
+          };
+        }
+      }
+    } else if (user.has_investor_account) {
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [userId]
+      );
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        isIndividualAccount = investor.is_individual_account !== false;
+        
+        // If non-individual account, populate entity data
+        if (!isIndividualAccount) {
+          entityInfo = {
+            entityType: investor.entity_type || '',
+            entityName: investor.entity_name || '',
+            registrationNumber: investor.registration_number || '',
+            tin: investor.tin_number || '',
+            contactPersonName: investor.contact_person_name || '',
+            contactPersonPosition: investor.contact_person_position || '',
+            contactPersonEmail: investor.contact_person_email || '',
+            contactPersonPhone: investor.contact_person_phone || ''
+          };
+          
+          entityDocuments = {
+            registrationCertFile: investor.registration_cert_file || '',
+            tinCertFile: investor.tin_cert_file || '',
+            authorizationFile: investor.authorization_file || ''
+          };
+        }
+      }
+    }
+
     const userDetail = {
       id: user.firebase_uid,
       firebaseUid: user.firebase_uid,
@@ -6458,8 +6718,19 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
       occupation: profileData.employmentInfo.occupation,
       issuerCode: user.firebase_uid.substring(0, 6).toUpperCase(),
       
-      // Add comprehensive profile data
-      personalProfile: profileData.personalInfo,
+      // Account type indicator
+      accountType: isIndividualAccount ? 'individual' : 'non-individual',
+      isIndividualAccount: isIndividualAccount,
+      
+      // Add comprehensive profile data (for individual accounts)
+      personalProfile: isIndividualAccount ? profileData.personalInfo : null,
+      
+      // Add entity-specific data (for non-individual accounts)
+      entityInfo: entityInfo,
+      businessRegistration: businessRegistration,
+      principalOffice: principalOffice,
+      entityDocuments: entityDocuments,
+      
       identifications: profileData.identifications,
       addresses: {
         present: profileData.contactInfo.presentAddress,
@@ -6467,7 +6738,8 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         city: profileData.contactInfo.city,
         state: profileData.contactInfo.state,
         country: profileData.contactInfo.country,
-        postalCode: profileData.contactInfo.postalCode
+        postalCode: profileData.contactInfo.postalCode,
+        barangay: profileData.contactInfo.barangay
       },
       bankAccounts: profileData.bankAccounts,
       rolesSettings: {
@@ -6484,7 +6756,7 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         completedProjects: parseInt(projectStats.rows[0].completed_projects) || 0,
         industryType: profileData.businessInfo.entityType,
         businessInfo: profileData.businessInfo,
-        employmentInfo: profileData.employmentInfo
+        employmentInfo: isIndividualAccount ? profileData.employmentInfo : null
       } : null,
       
       investorData: user.has_investor_account ? {

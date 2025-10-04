@@ -104,9 +104,17 @@ export const InvestorRegBankDetails = (): JSX.Element => {
         });
       };
 
+      // Determine if this is an individual or non-individual account
+      const isIndividual = updatedRegistration.accountType !== 'non-individual';
+      console.log('📋 Account type from registration:', updatedRegistration.accountType);
+      console.log('✅ Is individual account:', isIndividual);
+      
       // Convert document files to base64 if they exist
       let nationalIdFileBase64 = null;
       let passportFileBase64 = null;
+      let registrationCertFileBase64 = null;
+      let tinCertFileBase64 = null;
+      let authorizationFileBase64 = null;
       
       if (updatedRegistration.files?.nationalIdFile) {
         try {
@@ -125,14 +133,44 @@ export const InvestorRegBankDetails = (): JSX.Element => {
           console.error('❌ Error converting Passport file:', error);
         }
       }
-
+      
+      // Convert non-individual entity files if this is a non-individual account
+      if (!isIndividual) {
+        if (updatedRegistration.files?.registrationCertFile) {
+          try {
+            registrationCertFileBase64 = await fileToBase64(updatedRegistration.files.registrationCertFile);
+            console.log('✅ Registration cert file converted to base64');
+          } catch (error) {
+            console.error('❌ Error converting registration cert file:', error);
+          }
+        }
+        
+        if (updatedRegistration.files?.tinCertFile) {
+          try {
+            tinCertFileBase64 = await fileToBase64(updatedRegistration.files.tinCertFile);
+            console.log('✅ TIN cert file converted to base64');
+          } catch (error) {
+            console.error('❌ Error converting TIN cert file:', error);
+          }
+        }
+        
+        if (updatedRegistration.files?.authorizationFile) {
+          try {
+            authorizationFileBase64 = await fileToBase64(updatedRegistration.files.authorizationFile);
+            console.log('✅ Authorization file converted to base64');
+          } catch (error) {
+            console.error('❌ Error converting authorization file:', error);
+          }
+        }
+      }
+      
       // Prepare KYC data from the complete registration
       const kycData = {
         // Basic details
-        isIndividualAccount: true, // Investors are individual accounts
+        isIndividualAccount: isIndividual,
         
-        // Personal details
-        firstName: updatedRegistration.details?.firstName || '',
+        // Personal details (only for individual accounts)
+        firstName: isIndividual ? (updatedRegistration.details?.firstName || '') : '',
         middleName: updatedRegistration.details?.middleName || '',
         lastName: updatedRegistration.details?.lastName || '',
         suffixName: updatedRegistration.details?.suffixName || '',
@@ -167,6 +205,15 @@ export const InvestorRegBankDetails = (): JSX.Element => {
         emergencyContactPhone: updatedRegistration.details?.emergencyContactPhone || '',
         emergencyContactEmail: updatedRegistration.details?.emergencyContactEmail || '',
         
+        // Entity fields (for non-individual accounts)
+        entityType: !isIndividual ? (updatedRegistration.details?.entityType || null) : null,
+        entityName: !isIndividual ? (updatedRegistration.details?.entityName || null) : null,
+        registrationNumber: !isIndividual ? (updatedRegistration.details?.registrationNumber || null) : null,
+        contactPersonName: !isIndividual ? (updatedRegistration.details?.contactPersonName || null) : null,
+        contactPersonPosition: !isIndividual ? (updatedRegistration.details?.contactPersonPosition || null) : null,
+        contactPersonEmail: !isIndividual ? (updatedRegistration.details?.contactPersonEmail || null) : null,
+        contactPersonPhone: !isIndividual ? (updatedRegistration.details?.contactPersonPhone || null) : null,
+        
         // Business fields (set to null for individual investors)
         businessRegistrationType: null,
         businessRegistrationNumber: null,
@@ -184,6 +231,11 @@ export const InvestorRegBankDetails = (): JSX.Element => {
         gisPaidUpCapital: null,
         gisNumberOfStockholders: null,
         gisNumberOfEmployees: null,
+        
+        // File uploads for non-individual accounts
+        registrationCertFile: !isIndividual ? registrationCertFileBase64 : null,
+        tinCertFile: !isIndividual ? tinCertFileBase64 : null,
+        authorizationFile: !isIndividual ? authorizationFileBase64 : null,
         
         // PEP status
         isPoliticallyExposedPerson: false,
@@ -269,12 +321,7 @@ export const InvestorRegBankDetails = (): JSX.Element => {
 
           {/* Bank Details */}
           <section className="space-y-4">
-            <div className="space-y-2">
-              <h3 className="text-xl md:text-2xl font-semibold">Bank Details</h3>
-              <p className="text-sm text-gray-600">
-                📌 <span className="font-medium">Required:</span> These details are needed for investment disbursements and returns
-              </p>
-            </div>
+            <h3 className="text-xl md:text-2xl font-semibold">Bank Details</h3>
             <div className="space-y-4">
               {/* Account Name */}
               <ValidatedInput
