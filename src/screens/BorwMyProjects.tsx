@@ -27,6 +27,7 @@ export const BorrowerMyProjects: React.FC = (): JSX.Element => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'ongoing' | 'completed' | 'default'>('pending');
+  const [projectTypeFilter, setProjectTypeFilter] = useState<'all' | 'equity' | 'lending' | 'donation' | 'rewards'>('all');
 
   // Debug logging to see what's happening
   console.log("🔍 Debug - Current user:", user);
@@ -54,7 +55,14 @@ export const BorrowerMyProjects: React.FC = (): JSX.Element => {
       matches_profile_id: (p as any).firebase_uid === profile?.id,
       matches_user_uid: (p as any).firebase_uid === user?.uid,
       status: (p as any).status,
-      status_check: (p as any).status !== "closed"
+      status_check: (p as any).status !== "closed",
+      // 🔍 PROJECT TYPE DEBUG
+      project_type_locations: {
+        direct: (p as any).project_type,
+        in_project_data: p.project_data?.project_type,
+        in_details: p.project_data?.details?.project_type,
+        in_data: (p as any).data?.project_type
+      }
     });
   });
   
@@ -117,6 +125,39 @@ export const BorrowerMyProjects: React.FC = (): JSX.Element => {
   };
 
   const filteredProjects = getFilteredProjects();
+
+  // Apply project type filter
+  const finalFilteredProjects = projectTypeFilter === 'all' 
+    ? filteredProjects 
+    : filteredProjects.filter(p => {
+        // Try all possible locations for project type
+        const projectType = 
+          p.project_data?.project_type || 
+          (p as any).project_type ||
+          p.project_data?.details?.projectType ||
+          (p as any).projectType ||
+          p.project_data?.type ||
+          (p as any).type;
+        
+        console.log(`🔍 FILTER DEBUG - Checking project ${p.id}:`, {
+          projectTypeFilter,
+          foundProjectType: projectType,
+          matches: projectType === projectTypeFilter,
+          all_possible_locations: {
+            'p.project_data?.project_type': p.project_data?.project_type,
+            '(p as any).project_type': (p as any).project_type,
+            'p.project_data?.details?.projectType': p.project_data?.details?.projectType,
+            '(p as any).projectType': (p as any).projectType,
+            'p.project_data?.type': p.project_data?.type,
+            '(p as any).type': (p as any).type,
+          },
+          full_project_data: p.project_data,
+          full_project: p
+        });
+        return projectType === projectTypeFilter;
+      });
+  
+  console.log(`🔍 FILTER RESULT - Active filter: ${projectTypeFilter}, Before: ${filteredProjects.length}, After: ${finalFilteredProjects.length}`);
 
 const handleContinue = () => {
   setShowModal(false);
@@ -226,7 +267,7 @@ const handleContinue = () => {
             </div>
 
             {/* Tabs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-8 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 w-full">
               {projectTabs.map(tab => (
                 <button
                   key={tab.value}
@@ -238,6 +279,65 @@ const handleContinue = () => {
                   {tab.label}
                 </button>
               ))}
+            </div>
+
+            {/* Project Type Filter */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Project Type:
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setProjectTypeFilter('all')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    projectTypeFilter === 'all' 
+                      ? "bg-[#0C4B20] text-white shadow-md" 
+                      : "bg-white text-gray-700 border border-gray-300 hover:border-[#0C4B20] hover:text-[#0C4B20]"
+                  }`}
+                >
+                  All Projects
+                </button>
+                <button
+                  onClick={() => setProjectTypeFilter('equity')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    projectTypeFilter === 'equity' 
+                      ? "bg-[#0C4B20] text-white shadow-md" 
+                      : "bg-white text-gray-700 border border-gray-300 hover:border-[#0C4B20] hover:text-[#0C4B20]"
+                  }`}
+                >
+                  Equity
+                </button>
+                <button
+                  onClick={() => setProjectTypeFilter('lending')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    projectTypeFilter === 'lending' 
+                      ? "bg-[#0C4B20] text-white shadow-md" 
+                      : "bg-white text-gray-700 border border-gray-300 hover:border-[#0C4B20] hover:text-[#0C4B20]"
+                  }`}
+                >
+                  Lending
+                </button>
+                <button
+                  onClick={() => setProjectTypeFilter('donation')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    projectTypeFilter === 'donation' 
+                      ? "bg-[#0C4B20] text-white shadow-md" 
+                      : "bg-white text-gray-700 border border-gray-300 hover:border-[#0C4B20] hover:text-[#0C4B20]"
+                  }`}
+                >
+                  Donation
+                </button>
+                <button
+                  onClick={() => setProjectTypeFilter('rewards')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                    projectTypeFilter === 'rewards' 
+                      ? "bg-[#0C4B20] text-white shadow-md" 
+                      : "bg-white text-gray-700 border border-gray-300 hover:border-[#0C4B20] hover:text-[#0C4B20]"
+                  }`}
+                >
+                  Rewards
+                </button>
+              </div>
             </div>
 
             {/* Empty state */}
@@ -372,14 +472,15 @@ const handleContinue = () => {
             {/* Project count */}
             <div className="mb-4 w-full">
               <p className="text-sm text-gray-600 text-center md:text-left">
-                You have {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''} in {activeTab === 'ongoing' ? 'on-going' : activeTab}
+                You have {finalFilteredProjects.length} project{finalFilteredProjects.length !== 1 ? 's' : ''} in {activeTab === 'ongoing' ? 'on-going' : activeTab}
+                {projectTypeFilter !== 'all' && <span className="ml-1 font-medium text-[#0C4B20]">({projectTypeFilter})</span>}
               </p>
             </div>
 
             {/* Projects List */}
-            {filteredProjects.length > 0 ? (
+            {finalFilteredProjects.length > 0 ? (
   <div>
-    {filteredProjects.map(project => {
+    {finalFilteredProjects.map(project => {
       // Debug logging to see project data structure
       console.log("🔍 Project data structure:", {
         id: project.id,
@@ -427,13 +528,32 @@ const handleContinue = () => {
   console.log('🪙 Project Card Debug:', project);
   return (
   <div key={project.id} className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6 overflow-hidden w-full sm:max-w-md sm:mx-auto md:max-w-full md:w-auto">
-          {/* Status Badge */}
+          {/* Status Badge and Project Type */}
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{statusInfo.icon}</span>
-              <span className={`text-sm font-medium ${statusInfo.color}`}>
-                {statusInfo.text}
-              </span>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">{statusInfo.icon}</span>
+                <span className={`text-sm font-medium ${statusInfo.color}`}>
+                  {statusInfo.text}
+                </span>
+              </div>
+              {/* Project Type Badge */}
+              {(() => {
+                const projectType = project.project_data?.project_type || (project as any).project_type;
+                const typeConfig = {
+                  equity: { label: 'Equity', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+                  lending: { label: 'Lending', color: 'bg-green-100 text-green-700 border-green-200' },
+                  donation: { label: 'Donation', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+                  rewards: { label: 'Rewards', color: 'bg-amber-100 text-amber-700 border-amber-200' }
+                };
+                const config = typeConfig[projectType as keyof typeof typeConfig] || { label: projectType, color: 'bg-gray-100 text-gray-700 border-gray-200' };
+                
+                return projectType ? (
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
+                    {config.label}
+                  </span>
+                ) : null;
+              })()}
             </div>
           </div>
 
