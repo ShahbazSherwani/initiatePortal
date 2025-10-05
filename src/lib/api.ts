@@ -45,19 +45,25 @@ export async function authFetch(url: string, options: RequestInit = {}) {
       const text = await response.text();
       console.error("❌ HTTP error response:", text.substring(0, 300));
       
-      // Check if it's a suspension error
+      // Special handling for suspended accounts
       if (response.status === 403) {
         try {
           const errorData = JSON.parse(text);
           if (errorData.suspended) {
-            // Create a suspension error that can be caught and handled specially
-            const suspensionError: any = new Error(errorData.message || 'Account suspended');
-            suspensionError.isSuspension = true;
-            suspensionError.suspensionData = errorData;
-            throw suspensionError;
+            console.log("🚫 Account is suspended - logging out user", {
+              reason: errorData.reason || errorData.message
+            });
+            // Store suspension reason in sessionStorage so login page can display it
+            const suspensionMessage = errorData.reason || errorData.message || "Your account has been suspended. Please contact support.";
+            sessionStorage.setItem('suspensionReason', suspensionMessage);
+            // Log out the user
+            await auth.signOut();
+            // Redirect to home/login page with suspension message
+            window.location.href = "/?suspended=true";
+            throw new Error(suspensionMessage);
           }
         } catch (parseError) {
-          // If JSON parsing fails, just throw the normal error
+          // If not a suspension error, fall through to generic error
         }
       }
       

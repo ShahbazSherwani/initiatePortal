@@ -50,6 +50,12 @@ interface UserDetail {
   isQualifiedInvestor?: boolean;
   issuerCode?: string;
   
+  // Suspension details
+  suspensionReason?: string;
+  suspendedAt?: string;
+  suspendedBy?: string;
+  suspensionScope?: 'full_account' | 'borrower' | 'investor' | null;
+  
   // Account type indicator
   accountType?: 'individual' | 'non-individual';
   isIndividualAccount?: boolean;
@@ -227,6 +233,8 @@ export const OwnerUserDetail: React.FC = () => {
       // Fetch actual user data from the backend
       const userData = await authFetch(`${API_BASE_URL}/owner/users/${userId}`);
       console.log('✅ User data fetched:', userData);
+      console.log('📄 Account type:', userData?.accountType, '| isIndividual:', userData?.isIndividualAccount);
+      console.log('📑 Entity documents:', userData?.entityDocuments);
       
       if (userData) {
         setUser(userData);
@@ -313,7 +321,7 @@ export const OwnerUserDetail: React.FC = () => {
     if (!user) return;
 
     try {
-      await authFetch(`${API_BASE_URL}/owner/users/${user.id}/suspend`, {
+      const response = await authFetch(`${API_BASE_URL}/owner/users/${user.id}/suspend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -322,9 +330,21 @@ export const OwnerUserDetail: React.FC = () => {
       });
       
       toast.success('User suspended successfully');
-      setUser({ ...user, status: 'suspended' });
+      
+      // Update user state with suspension details
+      setUser({ 
+        ...user, 
+        status: 'suspended',
+        suspensionReason: suspendReason,
+        suspendedAt: new Date().toISOString(),
+        suspensionScope: 'full_account'
+      });
+      
       setShowSuspendDialog(false);
       setSuspendReason('');
+      
+      // Refresh user data to get complete suspension info
+      fetchUserData();
     } catch (error: any) {
       console.error('Error suspending user:', error);
       toast.error(error.message || 'Failed to suspend user');
@@ -495,6 +515,28 @@ export const OwnerUserDetail: React.FC = () => {
             {/* Tab Content */}
             {activeTab === 'overview' && (
               <div className="space-y-6">
+                {/* Suspension Info Alert */}
+                {user.status === 'suspended' && user.suspensionReason && (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+                    <div className="flex items-start">
+                      <AlertTriangleIcon className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-yellow-800 mb-1">
+                          Account Suspended
+                        </h3>
+                        <p className="text-sm text-yellow-700 mb-2">
+                          <span className="font-medium">Reason:</span> {user.suspensionReason}
+                        </p>
+                        {user.suspendedAt && (
+                          <p className="text-xs text-yellow-600">
+                            Suspended on {formatDate(user.suspendedAt)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -835,57 +877,106 @@ export const OwnerUserDetail: React.FC = () => {
                 )}
 
                 {/* Entity Documents (Non-Individual Accounts) */}
-                {(user.accountType === 'non-individual' || user.isIndividualAccount === false) && 
-                 user.entityDocuments && (
+                {(user.accountType === 'non-individual' || user.isIndividualAccount === false) && (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Entity Documents</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Registration Certificate</label>
-                        {user.entityDocuments.registrationCertFile ? (
-                          <Button 
-                            variant="outline" 
-                            className="w-full"
-                            onClick={() => window.open(user.entityDocuments?.registrationCertFile, '_blank')}
-                          >
-                            <EyeIcon className="w-4 h-4 mr-2" />
-                            View Document
-                          </Button>
-                        ) : (
-                          <div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-sm">Not uploaded</div>
-                        )}
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      📑 Entity Registration Documents
+                    </h3>
+                    
+                    {user.entityDocuments && (
+                      user.entityDocuments.registrationCertFile || 
+                      user.entityDocuments.tinCertFile || 
+                      user.entityDocuments.authorizationFile
+                    ) ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Registration Certificate
+                            <span className="text-red-500 ml-1">*</span>
+                          </label>
+                          {user.entityDocuments.registrationCertFile ? (
+                            <Button 
+                              variant="outline" 
+                              className="w-full border-green-500 text-green-700 hover:bg-green-50"
+                              onClick={() => {
+                                console.log('Opening registration cert:', user.entityDocuments?.registrationCertFile);
+                                window.open(user.entityDocuments?.registrationCertFile, '_blank');
+                              }}
+                            >
+                              <EyeIcon className="w-4 h-4 mr-2" />
+                              View Document
+                            </Button>
+                          ) : (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                              ❌ Required - Not uploaded
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            TIN Certificate
+                            <span className="text-red-500 ml-1">*</span>
+                          </label>
+                          {user.entityDocuments.tinCertFile ? (
+                            <Button 
+                              variant="outline" 
+                              className="w-full border-green-500 text-green-700 hover:bg-green-50"
+                              onClick={() => {
+                                console.log('Opening TIN cert:', user.entityDocuments?.tinCertFile);
+                                window.open(user.entityDocuments?.tinCertFile, '_blank');
+                              }}
+                            >
+                              <EyeIcon className="w-4 h-4 mr-2" />
+                              View Document
+                            </Button>
+                          ) : (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                              ❌ Required - Not uploaded
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Authorization Letter
+                            <span className="text-gray-400 ml-1 text-xs">(Optional)</span>
+                          </label>
+                          {user.entityDocuments.authorizationFile ? (
+                            <Button 
+                              variant="outline" 
+                              className="w-full border-green-500 text-green-700 hover:bg-green-50"
+                              onClick={() => {
+                                console.log('Opening authorization file:', user.entityDocuments?.authorizationFile);
+                                window.open(user.entityDocuments?.authorizationFile, '_blank');
+                              }}
+                            >
+                              <EyeIcon className="w-4 h-4 mr-2" />
+                              View Document
+                            </Button>
+                          ) : (
+                            <div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-sm">
+                              Optional - Not uploaded
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">TIN Certificate</label>
-                        {user.entityDocuments.tinCertFile ? (
-                          <Button 
-                            variant="outline" 
-                            className="w-full"
-                            onClick={() => window.open(user.entityDocuments?.tinCertFile, '_blank')}
-                          >
-                            <EyeIcon className="w-4 h-4 mr-2" />
-                            View Document
-                          </Button>
-                        ) : (
-                          <div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-sm">Not uploaded</div>
-                        )}
+                    ) : (
+                      <div className="p-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-yellow-200 rounded-full flex items-center justify-center">
+                            <span className="text-2xl">⚠️</span>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-yellow-900 mb-1">
+                              No Documents Found
+                            </h4>
+                            <p className="text-sm text-yellow-800">
+                              This non-individual account has not uploaded any registration documents yet. 
+                              Registration Certificate and TIN Certificate are required for verification.
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Authorization Letter</label>
-                        {user.entityDocuments.authorizationFile ? (
-                          <Button 
-                            variant="outline" 
-                            className="w-full"
-                            onClick={() => window.open(user.entityDocuments?.authorizationFile, '_blank')}
-                          >
-                            <EyeIcon className="w-4 h-4 mr-2" />
-                            View Document
-                          </Button>
-                        ) : (
-                          <div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-sm">Optional - Not uploaded</div>
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 

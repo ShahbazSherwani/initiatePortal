@@ -13,13 +13,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Testimonials } from "../../screens/LogIn/Testimonials";
 import { useAuth } from '../../contexts/AuthContext'; // Ensure this is the correct path to your AuthContext
 import { LoadingSpinner, LoadingOverlay } from "../../components/ui/loading-spinner";
-import { SuspensionModal } from "../../components/modals/SuspensionModal";
 
 import { fetchProfile } from '../../lib/profile';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase"; // your client init
 import { generateProfileCode } from "../../lib/profileUtils";
-import { API_BASE_URL } from '../../config/environment';
 
 
 export const LogIn = (): JSX.Element => {
@@ -30,9 +28,25 @@ export const LogIn = (): JSX.Element => {
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [showLoadingOverlay, setShowLoadingOverlay] = React.useState(false);
-  const [showSuspensionModal, setShowSuspensionModal] = React.useState(false);
-  const [suspensionData, setSuspensionData] = React.useState<any>(null);
   const { setProfile } = useAuth();
+
+  // Check if redirected due to suspension
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('suspended') === 'true') {
+      // Get suspension reason from sessionStorage if available
+      const suspensionReason = sessionStorage.getItem('suspensionReason');
+      if (suspensionReason) {
+        setError(suspensionReason);
+        // Clear it after displaying
+        sessionStorage.removeItem('suspensionReason');
+      } else {
+        setError("Your account has been suspended. Please contact support for assistance.");
+      }
+      // Clear the URL parameter
+      window.history.replaceState({}, document.title, "/");
+    }
+  }, []);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,32 +65,7 @@ export const LogIn = (): JSX.Element => {
       const idToken = await cred.user.getIdToken();
       localStorage.setItem("fb_token", idToken);
   
-      // 2) Check if user is suspended
-      const suspensionCheck = await fetch(`${API_BASE_URL}/auth/check-suspension`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken })
-      });
-      
-      if (suspensionCheck.ok) {
-        const suspensionDataResponse = await suspensionCheck.json();
-        if (suspensionDataResponse.suspended) {
-          // User is suspended - sign them out and show suspension modal
-          await auth.signOut();
-          localStorage.removeItem("fb_token");
-          
-          // Store suspension data and show modal
-          setSuspensionData(suspensionDataResponse);
-          setShowSuspensionModal(true);
-          
-          clearTimeout(loadingTimer);
-          setIsLoading(false);
-          setShowLoadingOverlay(false);
-          return;
-        }
-      }
-
-      // 3) Fetch their profile with complete data
+      // 2) Fetch their profile with complete data
       const prof = await fetchProfile(idToken);
       setProfile({ 
         id: cred.user.uid,
@@ -89,7 +78,7 @@ export const LogIn = (): JSX.Element => {
         profileCode: generateProfileCode(cred.user.uid)
       });
   
-      // 4) Navigate into the protected area
+      // 3) Navigate into the protected area
       navigate("/borrow");
     } catch (err: any) {
       // Handle Firebase authentication errors with user-friendly messages
@@ -230,18 +219,6 @@ export const LogIn = (): JSX.Element => {
         show={showLoadingOverlay} 
         message="Signing you in..." 
       />
-
-      {/* Suspension Modal */}
-      {suspensionData && (
-        <SuspensionModal
-          isOpen={showSuspensionModal}
-          onClose={() => {
-            setShowSuspensionModal(false);
-            setSuspensionData(null);
-          }}
-          suspensionData={suspensionData}
-        />
-      )}
 
       <div className="hidden md:block md:w-1/3 flex-shrink-0">
         <Testimonials />
