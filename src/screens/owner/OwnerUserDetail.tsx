@@ -1160,11 +1160,11 @@ export const OwnerUserDetail: React.FC = () => {
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <div className="fixed inset-0 bg-black bg-opacity-25" />
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
             </Transition.Child>
 
             <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <div className="flex min-h-full items-center justify-center p-4">
                 <Transition.Child
                   as={Fragment}
                   enter="ease-out duration-300"
@@ -1174,41 +1174,108 @@ export const OwnerUserDetail: React.FC = () => {
                   leaveFrom="opacity-100 scale-100"
                   leaveTo="opacity-0 scale-95"
                 >
-                  <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Suspend User
-                    </Dialog.Title>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        This will temporarily restrict the user's access to the platform.
+                  <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4">
+                      <Dialog.Title as="h3" className="text-xl font-bold text-white flex items-center gap-2">
+                        <AlertTriangleIcon className="w-6 h-6" />
+                        Suspend User Account
+                      </Dialog.Title>
+                      <p className="text-yellow-50 text-sm mt-1">
+                        Temporarily restrict user access to the platform
                       </p>
                     </div>
 
-                    <div className="mt-4">
-                      <Textarea
-                        placeholder="Reason for suspension (required)"
-                        value={suspendReason}
-                        onChange={(e) => setSuspendReason(e.target.value)}
-                        rows={3}
-                        className="w-full"
-                      />
+                    {/* Content */}
+                    <div className="px-6 py-5 space-y-5">
+                      {/* Warning Box */}
+                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                        <div className="flex items-start">
+                          <AlertTriangleIcon className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                          <div>
+                            <h4 className="text-sm font-semibold text-yellow-900 mb-1">
+                              Important Notice
+                            </h4>
+                            <p className="text-sm text-yellow-700">
+                              The user will be immediately logged out and unable to access their account until reactivated.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* User Info */}
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">Suspending User:</p>
+                        <p className="font-semibold text-gray-900">{user?.fullName}</p>
+                        <p className="text-sm text-gray-500">{user?.email}</p>
+                      </div>
+
+                      {/* Quick Reason Buttons */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Select Reason (or type custom reason below)
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            'Suspicious Activity',
+                            'Policy Violation',
+                            'Security Concern',
+                            'Payment Issues',
+                            'Fraud Investigation',
+                            'User Request'
+                          ].map((reason) => (
+                            <button
+                              key={reason}
+                              onClick={() => setSuspendReason(reason)}
+                              className={`px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                                suspendReason === reason
+                                  ? 'border-yellow-500 bg-yellow-50 text-yellow-900 font-semibold'
+                                  : 'border-gray-200 hover:border-yellow-300 text-gray-700'
+                              }`}
+                            >
+                              {reason}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Custom Reason */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Reason for Suspension <span className="text-red-500">*</span>
+                        </label>
+                        <Textarea
+                          placeholder="Enter detailed reason for suspension (required)..."
+                          value={suspendReason}
+                          onChange={(e) => setSuspendReason(e.target.value)}
+                          rows={4}
+                          className="w-full border-gray-300 focus:border-yellow-500 focus:ring-yellow-500"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          This reason will be sent to the user in a notification.
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="mt-6 flex justify-end gap-3">
+                    {/* Footer */}
+                    <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
                       <Button
                         variant="outline"
                         onClick={() => {
                           setShowSuspendDialog(false);
                           setSuspendReason('');
                         }}
+                        className="px-6"
                       >
                         Cancel
                       </Button>
                       <Button
                         onClick={handleSuspendUser}
-                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                        disabled={!suspendReason.trim()}
+                        className="px-6 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Suspend User
+                        <AlertTriangleIcon className="w-4 h-4 mr-2" />
+                        Confirm Suspension
                       </Button>
                     </div>
                   </Dialog.Panel>

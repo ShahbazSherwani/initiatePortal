@@ -53,6 +53,10 @@ import { InvestorRegDirectLender } from "../screens/InvestorRegDirectLender";
 import { OwnerDashboard } from "../screens/owner/OwnerDashboard";
 import { OwnerUsers } from "../screens/owner/OwnerUsers";
 import { OwnerUserDetail } from "../screens/owner/OwnerUserDetail";
+import { OwnerProjects } from "../screens/owner/OwnerProjects";
+import { OwnerProjectDetail } from "../screens/owner/OwnerProjectDetail";
+import { OwnerTopUpRequests } from "../screens/owner/OwnerTopUpRequests";
+import { OwnerInvestmentRequests } from "../screens/owner/OwnerInvestmentRequests";
 import { InvestorRegIncomeDetails } from "../screens/InvestorRegIncomeDetails";
 import { InvestorRegBankDetails } from "../screens/InvestorRegBankDetails";
 import Settings from "../screens/Settings";
@@ -624,6 +628,38 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <AdminRoute>
                     <OwnerUserDetail />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/projects" 
+                element={
+                  <AdminRoute>
+                    <OwnerProjects />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/projects/:projectId" 
+                element={
+                  <AdminRoute>
+                    <OwnerProjectDetail />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/topup-requests" 
+                element={
+                  <AdminRoute>
+                    <OwnerTopUpRequests />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/investment-requests" 
+                element={
+                  <AdminRoute>
+                    <OwnerInvestmentRequests />
                   </AdminRoute>
                 } 
               />

@@ -3739,44 +3739,6 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
   }
 });
 
-// Owner endpoint to suspend user
-app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
-  try {
-    const firebase_uid = req.uid;
-    const { userId } = req.params;
-    const { reason } = req.body;
-    
-    // Check if user is admin/owner
-    const adminCheck = await db.query(
-      'SELECT is_admin FROM users WHERE firebase_uid = $1',
-      [firebase_uid]
-    );
-    
-    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
-      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
-    }
-    
-    // Update user status - for now we'll use a simple flag
-    await db.query(
-      'UPDATE users SET updated_at = NOW() WHERE firebase_uid = $1',
-      [userId]
-    );
-    
-    // Log the action (you might want to create an admin_actions table)
-    console.log(`👮 Admin ${firebase_uid} suspended user ${userId} - Reason: ${reason}`);
-    
-    res.json({ 
-      success: true, 
-      message: 'User suspended successfully',
-      action: 'suspended'
-    });
-    
-  } catch (err) {
-    console.error('❌ Error suspending user:', err);
-    res.status(500).json({ error: 'Failed to suspend user' });
-  }
-});
-
 // Owner endpoint to delete user (soft delete)
 app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
   try {
@@ -6855,29 +6817,88 @@ app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Update user status to suspended
-    await db.query(`
-      UPDATE users 
-      SET current_account_type = 'suspended'
-      WHERE firebase_uid = $1
-    `, [userId]);
+    const user = userResult.rows[0];
 
-    // Create notification for the suspended user
-    const notificationTitle = 'Account Suspended';
-    const notificationMessage = `Your account has been suspended. Reason: ${reason}. Please contact support for more information.`;
-    
-    await db.query(`
-      INSERT INTO notifications (firebase_uid, title, message, type, is_read, created_at)
-      VALUES ($1, $2, $3, $4, false, NOW())
-    `, [userId, notificationTitle, notificationMessage, 'alert']);
+    // Begin transaction
+    await db.query('BEGIN');
 
-    // Log the action
-    console.log(`Owner ${req.uid} suspended user ${userId} with reason: ${reason}`);
+    try {
+      // Update user status to suspended
+      await db.query(`
+        UPDATE users 
+        SET current_account_type = 'suspended',
+            updated_at = NOW()
+        WHERE firebase_uid = $1
+      `, [userId]);
 
-    res.json({ success: true, message: "User suspended successfully and notification sent" });
+      // Try to create notification (if table exists)
+      try {
+        const notificationTitle = 'Account Suspended';
+        const notificationMessage = `Your account has been suspended. Reason: ${reason}. Please contact support for more information.`;
+        
+        await db.query(`
+          INSERT INTO notifications (firebase_uid, title, message, type, is_read, created_at)
+          VALUES ($1, $2, $3, $4, false, NOW())
+        `, [userId, notificationTitle, notificationMessage, 'alert']);
+      } catch (notifErr) {
+        console.warn('Could not create notification (table may not exist):', notifErr.message);
+        // Continue even if notification fails
+      }
+
+      // Store suspension record in user_suspensions table (create if doesn't exist)
+      try {
+        // First check if table exists, if not create it
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS user_suspensions (
+            id SERIAL PRIMARY KEY,
+            firebase_uid VARCHAR(255) NOT NULL,
+            suspended_by VARCHAR(255) NOT NULL,
+            reason TEXT NOT NULL,
+            suspended_at TIMESTAMP DEFAULT NOW(),
+            reactivated_at TIMESTAMP,
+            reactivated_by VARCHAR(255),
+            status VARCHAR(50) DEFAULT 'active'
+          )
+        `);
+
+        // Insert suspension record
+        await db.query(`
+          INSERT INTO user_suspensions (firebase_uid, suspended_by, reason, status)
+          VALUES ($1, $2, $3, 'active')
+        `, [userId, req.uid, reason]);
+      } catch (suspErr) {
+        console.warn('Could not create suspension record:', suspErr.message);
+        // Continue even if suspension record fails
+      }
+
+      await db.query('COMMIT');
+
+      // Log the action
+      console.log(`🚫 Owner ${req.uid} suspended user ${userId} (${user.full_name})`);
+      console.log(`   Reason: ${reason}`);
+
+      res.json({ 
+        success: true, 
+        message: "User suspended successfully",
+        data: {
+          userId,
+          userName: user.full_name,
+          reason,
+          suspendedAt: new Date().toISOString()
+        }
+      });
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
   } catch (err) {
-    console.error("Error suspending user:", err);
-    res.status(500).json({ error: "Database error" });
+    console.error("❌ Error suspending user:", err);
+    console.error("Error details:", err.message);
+    console.error("Error stack:", err.stack);
+    res.status(500).json({ 
+      error: "Failed to suspend user", 
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined 
+    });
   }
 });
 

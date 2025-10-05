@@ -406,20 +406,20 @@ export const OwnerProjects: React.FC = () => {
         {/* Search and Filters */}
         <Card className="bg-white shadow-sm border-0">
           <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="space-y-4">
               {/* Search */}
-              <div className="flex-1 relative">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                   placeholder="Search by project title, borrower, ID, or location..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-10 rounded-2xl border-gray-300 focus:border-[#0C4B20] focus:ring-[#0C4B20]"
+                  className="pl-10 h-12 w-full border-gray-300 focus:border-[#0C4B20] focus:ring-[#0C4B20]"
                 />
               </div>
 
               {/* Filters */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <select
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}

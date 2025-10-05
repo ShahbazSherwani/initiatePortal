@@ -375,15 +375,15 @@ export const OwnerDashboard: React.FC = () => {
               <Button
                 variant="outline"
                 className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
-                onClick={() => navigate('/admin/projects')}
+                onClick={() => navigate('/owner/projects')}
               >
                 <Settings2Icon className="w-5 h-5 mb-1" />
-                <span className="text-sm">Admin Projects</span>
+                <span className="text-sm">All Projects</span>
               </Button>
               <Button
                 variant="outline"
                 className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
-                onClick={() => navigate('/admin/topup-requests')}
+                onClick={() => navigate('/owner/topup-requests')}
               >
                 <ClockIcon className="w-5 h-5 mb-1" />
                 <span className="text-sm">Top-up Requests</span>
@@ -391,7 +391,7 @@ export const OwnerDashboard: React.FC = () => {
               <Button
                 variant="outline"
                 className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
-                onClick={() => navigate('/admin/investment-requests')}
+                onClick={() => navigate('/owner/investment-requests')}
               >
                 <TrendingUpIcon className="w-5 h-5 mb-1" />
                 <span className="text-sm">Investment Requests</span>
