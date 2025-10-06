@@ -23,6 +23,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { upsertProfile, fetchProfile } from "../../lib/profile";
 import { generateProfileCode } from "../../lib/profileUtils";
+import { RiskStatementModal } from "../../components/RiskStatementModal";
 
 export const RegisterStep = (): JSX.Element => {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ export const RegisterStep = (): JSX.Element => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
+  const [showRiskModal, setShowRiskModal] = useState(false);
 
   // Common password check function
   const isCommonPassword = (pwd: string): boolean => {
@@ -134,6 +136,14 @@ export const RegisterStep = (): JSX.Element => {
       console.error('Failed to copy password');
     }
   };
+
+  // Show risk statement modal on first visit
+  React.useEffect(() => {
+    const hasSeenRiskStatement = sessionStorage.getItem('hasSeenRiskStatement_register');
+    if (!hasSeenRiskStatement) {
+      setShowRiskModal(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -581,6 +591,18 @@ export const RegisterStep = (): JSX.Element => {
       <LoadingOverlay 
         show={showLoadingOverlay} 
         message="Creating your account..." 
+      />
+
+      <RiskStatementModal
+        isOpen={showRiskModal}
+        onClose={() => {
+          setShowRiskModal(false);
+          sessionStorage.setItem('hasSeenRiskStatement_register', 'true');
+        }}
+        onAccept={() => {
+          setShowRiskModal(false);
+          sessionStorage.setItem('hasSeenRiskStatement_register', 'true');
+        }}
       />
 
       {/* <style>{`
