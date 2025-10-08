@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { Country, State, City } from "country-state-city";
 import { Testimonials } from "../screens/LogIn/Testimonials";
+import { auth } from "../lib/firebase";
 import { Button } from "../components/ui/button";
 import { ValidatedInput, ValidatedSelect, ValidatedFileUpload } from "../components/ValidatedFormFields";
 import {
@@ -42,6 +43,9 @@ export const InvestorRegIndividual = (): JSX.Element => {
 
   // Validation state
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  
+  // Track if we have existing account data
+  const [hasExistingAccount, setHasExistingAccount] = useState(false);
 
   const countries = Country.getAllCountries();
   const states = countryIso ? State.getStatesOfCountry(countryIso) : [];
@@ -50,15 +54,120 @@ export const InvestorRegIndividual = (): JSX.Element => {
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
 
+  // Fetch existing account data if user already has a borrower account
+  useEffect(() => {
+    const fetchExistingData = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const token = await user.getIdToken();
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const fullUrl = `${apiUrl}/api/profile/existing-account-data?targetAccountType=investor`;
+        
+        console.log('🔍 [INVESTOR] Fetching existing account data from:', fullUrl);
+        console.log('👤 [INVESTOR] User authenticated:', !!user);
+        console.log('🔑 [INVESTOR] Token exists:', !!token);
+        
+        const response = await fetch(fullUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        console.log('📡 [INVESTOR] Response status:', response.status);
+        console.log('📡 [INVESTOR] Response content-type:', response.headers.get('content-type'));
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ [INVESTOR] Failed to fetch existing account data:', response.status, errorText);
+          return;
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const htmlText = await response.text();
+          console.error('❌ [INVESTOR] Expected JSON but got HTML:', htmlText.substring(0, 200));
+          return;
+        }
+
+        const data = await response.json();
+        console.log('📦 [INVESTOR] Received existing account data:', data);
+        
+        if (data.hasExistingAccount && data.existingData) {
+          const existingData = data.existingData;
+          console.log('✅ [INVESTOR] Has existing account data, pre-populating fields...');
+          setHasExistingAccount(true);
+          
+          // Pre-populate personal profile fields
+          if (existingData.personalInfo) {
+            console.log('👤 [INVESTOR] Personal info data:', existingData.personalInfo);
+            // Note: Investor form doesn't have these fields, but borrower might
+            // We'll pre-populate what we can
+          }
+          
+          // Pre-populate address fields
+          if (existingData.address) {
+            console.log('📍 [INVESTOR] Address data:', existingData.address);
+            setStreet(existingData.address.street || existingData.address.present_address || "");
+            setBarangay(existingData.address.barangay || "");
+            setCountryIso(existingData.address.countryIso || existingData.address.country_iso || "");
+            setStateIso(existingData.address.stateIso || existingData.address.state_iso || "");
+            setCityName(existingData.address.cityName || existingData.address.city || "");
+            setPostalCode(existingData.address.postalCode || existingData.address.postal_code || "");
+          }
+          
+          // Pre-populate identification fields
+          if (existingData.identification) {
+            console.log('🆔 [INVESTOR] Identification data:', existingData.identification);
+            setNationalId(existingData.identification.nationalId || "");
+            setPassport(existingData.identification.passport || "");
+            setTin(existingData.identification.tin || "");
+            
+            // Convert base64 images to File objects
+            if (existingData.identification.nationalIdFile) {
+              fetch(existingData.identification.nationalIdFile)
+                .then(res => res.blob())
+                .then(blob => {
+                  const file = new File([blob], 'national-id.jpg', { type: 'image/jpeg' });
+                  setNationalIdFile(file);
+                })
+                .catch(err => console.error('Error converting national ID file:', err));
+            }
+            
+            if (existingData.identification.passportFile) {
+              fetch(existingData.identification.passportFile)
+                .then(res => res.blob())
+                .then(blob => {
+                  const file = new File([blob], 'passport.jpg', { type: 'image/jpeg' });
+                  setPassportFile(file);
+                })
+                .catch(err => console.error('Error converting passport file:', err));
+            }
+          }
+        } else {
+          console.log('ℹ️ [INVESTOR] No existing borrower account found');
+        }
+      } catch (error) {
+        console.error('❌ [INVESTOR] Error fetching existing account data:', error);
+      }
+    };
+
+    fetchExistingData();
+  }, []);
+
   const validateForm = () => {
     const newErrors: Record<string, boolean> = {};
     let hasErrors = false;
 
-    // Required fields validation
+    // Determine if user is from Philippines
+    const isPhilippines = countryIso === 'PH';
+
+    // Required fields validation (excluding conditional nationalId and passport)
     const requiredFields = [
       { value: firstName, name: "firstName" },
       { value: lastName, name: "lastName" },
-      { value: nationalId, name: "nationalId" },
       { value: tin, name: "tin" },
       { value: street, name: "street" },
       { value: barangay, name: "barangay" },
@@ -75,10 +184,27 @@ export const InvestorRegIndividual = (): JSX.Element => {
       }
     });
 
-    // Check file uploads
-    if (!nationalIdFile) {
-      newErrors["nationalIdFile"] = true;
-      hasErrors = true;
+    // Conditional validation based on country
+    if (isPhilippines) {
+      // Philippines: National ID is required
+      if (!nationalId || nationalId.trim() === "") {
+        newErrors["nationalId"] = true;
+        hasErrors = true;
+      }
+      if (!nationalIdFile) {
+        newErrors["nationalIdFile"] = true;
+        hasErrors = true;
+      }
+    } else {
+      // Non-Philippines: Passport is required
+      if (!passport || passport.trim() === "") {
+        newErrors["passport"] = true;
+        hasErrors = true;
+      }
+      if (!passportFile) {
+        newErrors["passportFile"] = true;
+        hasErrors = true;
+      }
     }
 
     setErrors(newErrors);
@@ -151,6 +277,26 @@ export const InvestorRegIndividual = (): JSX.Element => {
             <h2 className="text-2xl md:text-3xl font-bold">Invest/Lender</h2>
           </div>
 
+          {/* Success Banner - Show when existing account data found */}
+          {hasExistingAccount && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-green-800 font-semibold flex items-center gap-2">
+                  <span>🎉</span>
+                  <span>We found your existing information!</span>
+                </h4>
+                <p className="text-green-700 text-sm mt-1">
+                  Your identification and address details from your borrower account have been automatically filled. You can review and update them if needed before continuing.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Personal Profile */}
           <section className="space-y-4">
             <h3 className="text-xl md:text-2xl font-semibold">Personal Profile</h3>
@@ -197,14 +343,24 @@ export const InvestorRegIndividual = (): JSX.Element => {
 
           {/* Personal Identification */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">
-              Personal Identification (Individual)
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">
+                Personal Identification (Individual)
+              </h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* National ID */}
               <ValidatedInput
-                label="National/Government ID No."
-                required
+                label={`National/Government ID No.${countryIso === 'PH' ? '*' : ''}`}
+                required={countryIso === 'PH'}
                 hasError={errors.nationalId}
                 value={nationalId}
                 onChange={(e) => setNationalId(e.target.value)}
@@ -213,8 +369,8 @@ export const InvestorRegIndividual = (): JSX.Element => {
 
               {/* Upload ID Copy */}
               <ValidatedFileUpload
-                label="Upload ID Copy"
-                required
+                label={`Upload ID Copy${countryIso === 'PH' ? '*' : ''}`}
+                required={countryIso === 'PH'}
                 hasError={errors.nationalIdFile}
                 file={nationalIdFile}
                 onFileChange={setNationalIdFile}
@@ -222,10 +378,20 @@ export const InvestorRegIndividual = (): JSX.Element => {
                 buttonText="Upload"
               />
 
+              {/* Philippines requirement notice - fixed height to prevent layout shift */}
+              <div className="sm:col-span-2" style={{ minHeight: '24px' }}>
+                {countryIso === 'PH' && (
+                  <p className="text-sm text-amber-600">
+                    📌 Required for Philippines residents
+                  </p>
+                )}
+              </div>
+
               {/* Passport */}
               <ValidatedInput
-                label="Passport No."
-                hasError={false}
+                label={`Passport Number${countryIso && countryIso !== 'PH' ? '*' : ''}`}
+                required={!!(countryIso && countryIso !== 'PH')}
+                hasError={errors.passport}
                 value={passport}
                 onChange={(e) => setPassport(e.target.value)}
                 placeholder="Enter here"
@@ -233,13 +399,27 @@ export const InvestorRegIndividual = (): JSX.Element => {
 
               {/* Upload Passport Copy */}
               <ValidatedFileUpload
-                label="Upload Passport Copy"
-                hasError={false}
+                label={`Upload Passport Copy${countryIso && countryIso !== 'PH' ? '*' : ''}`}
+                required={!!(countryIso && countryIso !== 'PH')}
+                hasError={errors.passportFile}
                 file={passportFile}
                 onFileChange={setPassportFile}
                 accept="image/*,.pdf"
                 buttonText="Upload"
               />
+
+              {/* Non-Philippines requirement notice - fixed height to prevent layout shift */}
+              <div className="sm:col-span-2" style={{ minHeight: '24px' }}>
+                {countryIso && countryIso !== 'PH' ? (
+                  <p className="text-sm text-amber-600">
+                    📌 Required for non-Philippines residents
+                  </p>
+                ) : !countryIso ? null : (
+                  <p className="text-sm text-gray-600">
+                    (required for funding &gt; Php100,000)
+                  </p>
+                )}
+              </div>
 
               {/* TIN */}
               <div className="sm:col-span-2">
@@ -258,7 +438,17 @@ export const InvestorRegIndividual = (): JSX.Element => {
 
           {/* Home Address */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">Home Address</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">Home Address</h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Street */}
               <div className="sm:col-span-2">

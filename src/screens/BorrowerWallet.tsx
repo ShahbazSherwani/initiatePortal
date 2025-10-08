@@ -63,30 +63,41 @@ export const BorrowerWallet = (): JSX.Element => {
     },
   ];
 
+  // Check if user is non-individual (they already entered entity bank details in previous screen)
+  const isNonIndividual = registration.accountType === 'non-individual';
+  
   // Add state for bank details
-  const [bankDetails, setBankDetails] = useState<{ [key: string]: string }>({
-    accountName: "",
-    bankName: "",
-    accountType: "",
-    accountNumber: "",
-    iban: "",
-    swiftCode: "",
+  const [bankDetails, setBankDetails] = useState<{ [key: string]: string }>(() => {
+    // For non-individual accounts, use bank details from the previous screen
+    if (isNonIndividual && registration.bankDetails) {
+      return {
+        accountName: registration.bankDetails.accountName || "",
+        bankName: registration.bankDetails.bankName || "",
+        accountType: registration.bankDetails.accountType || "",
+        accountNumber: registration.bankDetails.accountNumber || "",
+        iban: registration.bankDetails.iban || "",
+        swiftCode: registration.bankDetails.swiftCode || "",
+      };
+    }
+    // For individual accounts, start with empty form
+    return {
+      accountName: "",
+      bankName: "",
+      accountType: "",
+      accountNumber: "",
+      iban: "",
+      swiftCode: "",
+    };
   });
 
-  // Update state on input change
-  // Example for Account Name:
-  // <Input
-  //   id="accountName"
-  //   value={bankDetails.accountName}
-  //   onChange={e => setBankDetails({ ...bankDetails, accountName: e.target.value })}
-  //   ...
-  // />
-
   const handleNext = async () => {
-    // Validate bank details
-    if (!bankDetails.accountName || !bankDetails.bankName || !bankDetails.accountType || !bankDetails.accountNumber) {
-      alert("Please fill in all required bank details: Account Name, Bank Name, Account Type, and Account Number");
-      return;
+    // For non-individual accounts, bank details were already validated in the previous screen
+    // For individual accounts, validate here
+    if (!isNonIndividual) {
+      if (!bankDetails.accountName || !bankDetails.bankName || !bankDetails.accountType || !bankDetails.accountNumber) {
+        alert("Please fill in all required bank details: Account Name, Bank Name, Account Type, and Account Number");
+        return;
+      }
     }
     
     try {
@@ -129,22 +140,100 @@ export const BorrowerWallet = (): JSX.Element => {
         hasCompletedRegistration: true
       }));
       
+      // Helper function to convert File to base64
+      const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+      };
+
+      // Convert document files to base64 if they exist
+      let nationalIdFileBase64 = null;
+      let passportFileBase64 = null;
+      
+      if (registration.files?.nationalIdFile) {
+        try {
+          nationalIdFileBase64 = await fileToBase64(registration.files.nationalIdFile);
+          console.log('✅ National ID file converted to base64');
+        } catch (error) {
+          console.error('❌ Error converting National ID file:', error);
+        }
+      }
+      
+      if (registration.files?.passportFile) {
+        try {
+          passportFileBase64 = await fileToBase64(registration.files.passportFile);
+          console.log('✅ Passport file converted to base64');
+        } catch (error) {
+          console.error('❌ Error converting Passport file:', error);
+        }
+      }
+      
       // Prepare registration data for complete-kyc endpoint
       const isIndividual = registration.accountType === 'individual';
       const kycData = {
         isIndividualAccount: isIndividual,
+        
+        // ✅ PERSONAL INFORMATION - Critical missing fields added!
+        firstName: registration.details?.firstName || profile?.name?.split(' ')[0] || null,
+        lastName: registration.details?.lastName || profile?.name?.split(' ').slice(1).join(' ') || null,
+        middleName: registration.details?.middleName || null,
+        dateOfBirth: registration.details?.dateOfBirth || null,
+        phoneNumber: registration.details?.phoneNumber || null,
+        mobileNumber: registration.details?.mobileNumber || registration.details?.phoneNumber || null,
+        countryCode: registration.details?.countryCode || null,
+        emailAddress: profile?.email || registration.details?.email || null,
+        
+        // ✅ ADDRESS INFORMATION - Critical missing fields added!
+        street: registration.details?.street || registration.details?.streetAddress || null,
+        barangay: registration.details?.barangay || null,
+        city: registration.details?.city || registration.details?.cityName || null,
+        state: registration.details?.state || registration.details?.stateIso || null,
+        country: registration.details?.country || registration.details?.countryIso || null,
+        postalCode: registration.details?.postalCode || null,
+        presentAddress: registration.details?.presentAddress || [
+          registration.details?.street, 
+          registration.details?.barangay, 
+          registration.details?.cityName, 
+          registration.details?.stateIso
+        ].filter(Boolean).join(', ') || null,
+        permanentAddress: registration.details?.permanentAddress || null,
+        
+        // ✅ IDENTIFICATION DOCUMENTS - Critical missing fields added!
+        nationalId: registration.details?.nationalId || null,
+        passport: registration.details?.passport || registration.details?.passportNumber || null,
+        tin: registration.details?.tin || registration.details?.tinNumber || null,
+        
+        // ✅ DOCUMENT FILES - Base64 encoded document images
+        nationalIdFile: nationalIdFileBase64,
+        passportFile: passportFileBase64,
+        
+        // ✅ EMPLOYMENT INFORMATION - Critical missing fields added!
+        occupation: registration.details?.occupation || null,
+        employerName: registration.details?.employerName || registration.details?.companyName || null,
+        employerAddress: registration.details?.employerAddress || null,
+        employmentStatus: registration.details?.employmentStatus || null,
+        monthlyIncome: registration.details?.monthlyIncome || registration.details?.income || null,
+        grossAnnualIncome: registration.details?.grossAnnualIncome || registration.details?.annualIncome || null,
+        sourceOfIncome: registration.details?.sourceOfIncome || registration.details?.incomeSource || null,
+        
         // Individual account fields
         placeOfBirth: isIndividual ? registration.details?.placeOfBirth || null : null,
         gender: isIndividual ? registration.details?.gender || null : null,
         civilStatus: isIndividual ? registration.details?.civilStatus || null : null,
         nationality: isIndividual ? registration.details?.nationality || null : null,
-        contactEmail: profile?.email || registration.details?.contactPersonEmail || null,
+        motherMaidenName: isIndividual ? registration.details?.motherMaidenName || null : null,
+        contactEmail: profile?.email || registration.details?.contactPersonEmail || registration.details?.contactEmail || null,
         secondaryIdType: registration.details?.passport ? 'passport' : (registration.details?.tin ? 'tin' : null),
         secondaryIdNumber: registration.details?.passport || registration.details?.tin || null,
         emergencyContactName: registration.details?.emergencyContactName || null,
         emergencyContactRelationship: registration.details?.emergencyContactRelationship || null,
         emergencyContactPhone: registration.details?.emergencyContactPhone || null,
-        emergencyContactEmail: registration.details?.emergencyContactAddress || null,
+        emergencyContactEmail: registration.details?.emergencyContactEmail || null,
+        emergencyContactAddress: registration.details?.emergencyContactAddress || null,
         // Business/Corporate account fields
         businessRegistrationType: !isIndividual ? registration.details?.businessRegistrationType || registration.details?.entityType : null,
         businessRegistrationNumber: !isIndividual ? registration.details?.registrationNumber : null,
@@ -172,7 +261,7 @@ export const BorrowerWallet = (): JSX.Element => {
         authorizedSignatoryIdType: !isIndividual ? 'corporate_id' : null,
         authorizedSignatoryIdNumber: !isIndividual ? registration.details?.authorizedSignatoryIdNumber : null,
         
-        // Bank account details - ADD THESE MISSING FIELDS
+        // Bank account details
         account_name: bankDetails.accountName,
         bank_name: bankDetails.bankName,
         account_type: bankDetails.accountType,
@@ -288,38 +377,40 @@ export const BorrowerWallet = (): JSX.Element => {
           </div>
 
           {/* ── Bank Details Section ── */}
-          <section className="mb-12">
-            <h2 className="text-xl font-semibold mb-6">Bank Details</h2>
-            {bankFields.map((field) => (
-              <div key={field.id} className="mb-6">
-                <label htmlFor={field.id} className="block text-base font-medium mb-2">
-                  {field.label}
-                </label>
-                {field.type === "input" ? (
-                  <Input
-                    id={field.id}
-                    className="w-full h-14 rounded-2xl border border-gray-300 px-4"
-                    placeholder={field.placeholder}
-                    value={bankDetails[field.id] || ""}
-                    onChange={e => setBankDetails({ ...bankDetails, [field.id]: e.target.value })}
-                  />
-                ) : (
-                  <Select 
-                    value={bankDetails[field.id] || ""}
-                    onValueChange={(value) => setBankDetails({ ...bankDetails, [field.id]: value })}
-                  >
-                    <SelectTrigger
+          {/* For non-individual accounts, bank details are already collected in the entity bank details screen */}
+          {!isNonIndividual && (
+            <section className="mb-12">
+              <h2 className="text-xl font-semibold mb-6">Bank Details</h2>
+              {bankFields.map((field) => (
+                <div key={field.id} className="mb-6">
+                  <label htmlFor={field.id} className="block text-base font-medium mb-2">
+                    {field.label}
+                  </label>
+                  {field.type === "input" ? (
+                    <Input
                       id={field.id}
                       className="w-full h-14 rounded-2xl border border-gray-300 px-4"
+                      placeholder={field.placeholder}
+                      value={bankDetails[field.id] || ""}
+                      onChange={e => setBankDetails({ ...bankDetails, [field.id]: e.target.value })}
+                    />
+                  ) : (
+                    <Select 
+                      value={bankDetails[field.id] || ""}
+                      onValueChange={(value) => setBankDetails({ ...bankDetails, [field.id]: value })}
                     >
-                      <SelectValue placeholder={field.placeholder} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {field.id === "accountType" ? (
-                        <>
-                          <SelectItem value="Savings Account">Savings Account</SelectItem>
-                          <SelectItem value="Current Account">Current Account</SelectItem>
-                          <SelectItem value="Time Deposit">Time Deposit</SelectItem>
+                      <SelectTrigger
+                        id={field.id}
+                        className="w-full h-14 rounded-2xl border border-gray-300 px-4"
+                      >
+                        <SelectValue placeholder={field.placeholder} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {field.id === "accountType" ? (
+                          <>
+                            <SelectItem value="Savings Account">Savings Account</SelectItem>
+                            <SelectItem value="Current Account">Current Account</SelectItem>
+                            <SelectItem value="Time Deposit">Time Deposit</SelectItem>
                           <SelectItem value="Investment Account">Investment Account</SelectItem>
                         </>
                       ) : (
@@ -334,6 +425,7 @@ export const BorrowerWallet = (): JSX.Element => {
               </div>
             ))}
           </section>
+          )}
 
           {/* ── Crypto-Wallet Section ── */}
           {/* <section className="mb-12">

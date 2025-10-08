@@ -1,4 +1,4 @@
-import React, { useState, ReactNode, useContext } from "react";
+import React, { useState, ReactNode, useContext, Fragment } from "react";
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "../ui/button";
 import {
@@ -15,8 +15,10 @@ import {
   MessageCircle,
   PanelsTopLeft,
   HandCoins,
-  Database
+  Database,
+  XIcon
 } from "lucide-react";
+import { Dialog, Transition } from "@headlessui/react";
 import { AuthContext } from '../../contexts/AuthContext';
 import { useAccount } from '../../contexts/AccountContext';
 import { AccountSwitcher } from '../Navigation/AccountSwitcher';
@@ -102,6 +104,8 @@ export const Sidebar: React.FC<SidebarProps> = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showProjectTypeModal, setShowProjectTypeModal] = useState(false);
+  const [selectedType, setSelectedType] = useState<"equity" | "lending" | "donation" | "rewards" | null>(null);
 
   // Get navigation items based on current account type
   const getNavItems = () => {
@@ -183,6 +187,20 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     navigate('/');
   };
 
+  const handleProjectTypeSelection = () => {
+    setShowProjectTypeModal(false);
+    if (selectedType === "equity") {
+      navigate("/borwNewProjEq");
+    } else if (selectedType === "lending") {
+      navigate("/borwNewProj");
+    } else if (selectedType === "donation") {
+      navigate("/borwNewProjDonation");
+    } else if (selectedType === "rewards") {
+      navigate("/borwNewProjRewards");
+    }
+    setSelectedType(null); // Reset after navigation
+  };
+
   const renderNav = (isMobile = false) => (
     <nav className={`flex flex-col  ${isMobile ? "space-y-4 px-6 pt-20" : "space-y-4"}`}>
       {currentNavItems.map((item, idx) => {
@@ -217,34 +235,45 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
 
             {item.subItems && isSelected && (
-              <div className={`ml-10 mt-2 space-y-2 ${isMobile ? "ml-6" : ""}`}>
+              <div className={`ml-8 mt-2 space-y-1 ${isMobile ? "ml-6" : ""}`}>
                 {item.subItems.map((subItem, subIdx) => (
                   <Button
                     key={subIdx}
                     variant="ghost"
-                    className="bg-[#0C4B20] opacity-50 p-0 h-auto flex justify-start"
+                    className={`w-full justify-start pl-4 py-2 h-auto rounded-lg transition-all duration-200 ${
+                      subItem === "Create New Project" && !canCreateNewProject
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                        : "bg-[#8FB200]/20 text-[#0C4B20] hover:bg-[#8FB200]/40"
+                    }`}
                     onClick={() => {
                       // Add navigation for sub-items based on account type and permissions
                       if (currentAccountType === 'borrower') {
-                        if (subItem === "My Projects") navigate("/borwMyProj");
-                        if (subItem === "Create New Project" && canCreateNewProject) navigate("/borwNewProj");
+                        if (subItem === "My Projects") {
+                          navigate("/borwMyProj");
+                          if (isMobile) setMobileOpen(false);
+                        }
+                        if (subItem === "Create New Project" && canCreateNewProject) {
+                          setShowProjectTypeModal(true);
+                        }
                       } else if (currentAccountType === 'investor') {
-                        if (subItem === "My Investments") navigate("/investor/investments");
-                        if (subItem === "Investment History") navigate("/investor/history");
+                        if (subItem === "My Investments") {
+                          navigate("/investor/investments");
+                          if (isMobile) setMobileOpen(false);
+                        }
+                        if (subItem === "Investment History") {
+                          navigate("/investor/history");
+                          if (isMobile) setMobileOpen(false);
+                        }
                       }
-                      if (isMobile) setMobileOpen(false);
                     }}
+                    disabled={subItem === "Create New Project" && !canCreateNewProject}
                   >
-                    <span className={`font-poppins font-medium text-white text-[14.8px] ${
-                      subItem === "Create New Project" && !canCreateNewProject 
-                        ? "opacity-50 cursor-not-allowed" 
-                        : ""
-                    }`}>
+                    <span className="font-poppins font-medium text-[14px]">
                       {subItem}
-                      {subItem === "Create New Project" && !canCreateNewProject && (
-                        <span className="text-xs text-gray-500 ml-2">(Complete current project first)</span>
-                      )}
                     </span>
+                    {subItem === "Create New Project" && !canCreateNewProject && (
+                      <span className="text-xs text-gray-400 ml-2">(Complete project first)</span>
+                    )}
                   </Button>
                 ))}
               </div>
@@ -270,14 +299,24 @@ export const Sidebar: React.FC<SidebarProps> = () => {
 
   return (
     <>
-      {/* Mobile Toggle Button */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
+      {/* Mobile Menu Tab - Fixed on Left Side */}
+      <div className="md:hidden fixed left-0 top-25 z-50">
         <Button
-          variant="outline"
           onClick={() => setMobileOpen((prev) => !prev)}
-          className="text-black font-poppins p-2 rounded-full shadow"
+          className="bg-[#0C4B20] hover:bg-[#8FB200] text-white font-poppins px-2 py-10 rounded-r-xl shadow-lg flex flex-col items-center gap-1 transition-all duration-200 border-r-4 border-[#8FB200]"
+          style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
         >
-          {mobileOpen ? <ChevronLeftIcon className="w-6 h-6" /> : <ChevronRightIcon className="w-6 h-6" />}
+          {mobileOpen ? (
+            <>
+              <ChevronLeftIcon className="w-5 h-5 rotate-0" style={{ writingMode: 'horizontal-tb' }} />
+              <span className="font-bold text-sm tracking-wider">CLOSE</span>
+            </>
+          ) : (
+            <>
+              <ChevronRightIcon className="w-5 h-5 rotate-0" style={{ writingMode: 'horizontal-tb' }} />
+              <span className="font-bold text-sm tracking-wider">MENU</span>
+            </>
+          )}
         </Button>
       </div>
 
@@ -298,6 +337,113 @@ export const Sidebar: React.FC<SidebarProps> = () => {
       <aside className="hidden md:flex w-[325px] pl-20 pr-4 py-4">
         {renderNav()}
       </aside>
+
+      {/* Project Type Selection Modal */}
+      <Transition appear show={showProjectTypeModal} as={Fragment}>
+        <Dialog
+          as="div"
+          className="fixed inset-0 z-50 overflow-y-auto"
+          onClose={() => {
+            setShowProjectTypeModal(false);
+            setSelectedType(null);
+          }}
+        >
+          <div className="min-h-screen px-4 text-center">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <div className="fixed inset-0 bg-black bg-opacity-30" aria-hidden="true" />
+            </Transition.Child>
+
+            <span className="inline-block h-screen align-middle" aria-hidden="true">
+              &#8203;
+            </span>
+
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white rounded-2xl shadow-xl">
+                <div className="flex justify-between items-center mb-6">
+                  <Dialog.Title as="h3" className="text-2xl font-bold text-[#0C4B20]">
+                    Select Project Type
+                  </Dialog.Title>
+                  <button
+                    onClick={() => {
+                      setShowProjectTypeModal(false);
+                      setSelectedType(null);
+                    }}
+                  >
+                    <XIcon className="w-6 h-6 text-gray-500 hover:text-black" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <button
+                    onClick={() => setSelectedType("equity")}
+                    className={`py-4 rounded-xl border-2 transition-all duration-200 ${
+                      selectedType === "equity"
+                        ? "bg-[#0C4B20] text-white border-[#0C4B20]"
+                        : "bg-white text-[#0C4B20] border-gray-300 hover:border-[#0C4B20]"
+                    }`}
+                  >
+                    <span className="font-semibold">Equity</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedType("lending")}
+                    className={`py-4 rounded-xl border-2 transition-all duration-200 ${
+                      selectedType === "lending"
+                        ? "bg-[#0C4B20] text-white border-[#0C4B20]"
+                        : "bg-white text-[#0C4B20] border-gray-300 hover:border-[#0C4B20]"
+                    }`}
+                  >
+                    <span className="font-semibold">Lending</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedType("donation")}
+                    className={`py-4 rounded-xl border-2 transition-all duration-200 ${
+                      selectedType === "donation"
+                        ? "bg-[#0C4B20] text-white border-[#0C4B20]"
+                        : "bg-white text-[#0C4B20] border-gray-300 hover:border-[#0C4B20]"
+                    }`}
+                  >
+                    <span className="font-semibold">Donation</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedType("rewards")}
+                    className={`py-4 rounded-xl border-2 transition-all duration-200 ${
+                      selectedType === "rewards"
+                        ? "bg-[#0C4B20] text-white border-[#0C4B20]"
+                        : "bg-white text-[#0C4B20] border-gray-300 hover:border-[#0C4B20]"
+                    }`}
+                  >
+                    <span className="font-semibold">Rewards</span>
+                  </button>
+                </div>
+
+                <Button
+                  className="w-full bg-[#0C4B20] text-white py-3 rounded-lg hover:bg-[#8FB200] transition-colors duration-200"
+                  onClick={handleProjectTypeSelection}
+                  disabled={!selectedType}
+                >
+                  Continue
+                </Button>
+              </div>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
     </>
   );
 };

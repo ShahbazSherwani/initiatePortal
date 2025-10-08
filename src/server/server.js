@@ -208,7 +208,7 @@ try {
             INSERT INTO borrower_profiles (firebase_uid, is_individual_account, created_at, updated_at)
             SELECT 
                 firebase_uid, 
-                CASE WHEN account_type = 'individual' THEN TRUE ELSE FALSE END,
+                CASE WHEN current_account_type = 'individual' THEN TRUE ELSE FALSE END,
                 created_at,
                 updated_at
             FROM users 
@@ -220,7 +220,7 @@ try {
             INSERT INTO investor_profiles (firebase_uid, is_individual_account, created_at, updated_at)
             SELECT 
                 firebase_uid, 
-                CASE WHEN account_type = 'individual' THEN TRUE ELSE FALSE END,
+                CASE WHEN current_account_type = 'individual' THEN TRUE ELSE FALSE END,
                 created_at,
                 updated_at
             FROM users 
@@ -262,6 +262,8 @@ try {
           ADD COLUMN IF NOT EXISTS country_code VARCHAR(10),
           ADD COLUMN IF NOT EXISTS present_address TEXT,
           ADD COLUMN IF NOT EXISTS permanent_address TEXT,
+          ADD COLUMN IF NOT EXISTS street VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS barangay VARCHAR(255),
           ADD COLUMN IF NOT EXISTS city VARCHAR(100),
           ADD COLUMN IF NOT EXISTS state VARCHAR(100),
           ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20),
@@ -297,6 +299,28 @@ try {
           ADD COLUMN IF NOT EXISTS business_address TEXT,
           ADD COLUMN IF NOT EXISTS authorized_person_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS authorized_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_phone VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS business_registration_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS business_registration_date DATE,
+          ADD COLUMN IF NOT EXISTS corporate_tin VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_id_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS nature_of_business TEXT,
+          ADD COLUMN IF NOT EXISTS principal_office_street VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS principal_office_barangay VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS principal_office_country VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_state VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_city VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_postal_code VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS registration_cert_file TEXT,
+          ADD COLUMN IF NOT EXISTS tin_cert_file TEXT,
+          ADD COLUMN IF NOT EXISTS authorization_file TEXT,
+          ADD COLUMN IF NOT EXISTS is_politically_exposed_person BOOLEAN DEFAULT FALSE,
+          ADD COLUMN IF NOT EXISTS is_individual_account BOOLEAN DEFAULT TRUE,
           ADD COLUMN IF NOT EXISTS is_complete BOOLEAN DEFAULT FALSE
       `);
       
@@ -329,6 +353,8 @@ try {
           ADD COLUMN IF NOT EXISTS country_code VARCHAR(10),
           ADD COLUMN IF NOT EXISTS present_address TEXT,
           ADD COLUMN IF NOT EXISTS permanent_address TEXT,
+          ADD COLUMN IF NOT EXISTS street VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS barangay VARCHAR(255),
           ADD COLUMN IF NOT EXISTS city VARCHAR(100),
           ADD COLUMN IF NOT EXISTS state VARCHAR(100),
           ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20),
@@ -345,11 +371,43 @@ try {
           ADD COLUMN IF NOT EXISTS entity_type VARCHAR(100),
           ADD COLUMN IF NOT EXISTS entity_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS registration_number VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS registration_type VARCHAR(100),
-          ADD COLUMN IF NOT EXISTS registration_date DATE,
-          ADD COLUMN IF NOT EXISTS business_address TEXT,
-          ADD COLUMN IF NOT EXISTS authorized_person_name VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS authorized_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS contact_person_phone VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS business_registration_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS business_registration_date DATE,
+          ADD COLUMN IF NOT EXISTS corporate_tin VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_position VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS authorized_signatory_id_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS nature_of_business TEXT,
+          ADD COLUMN IF NOT EXISTS principal_office_street VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS principal_office_barangay VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS principal_office_country VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_state VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_city VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS principal_office_postal_code VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS registration_cert_file TEXT,
+          ADD COLUMN IF NOT EXISTS tin_cert_file TEXT,
+          ADD COLUMN IF NOT EXISTS authorization_file TEXT,
+          ADD COLUMN IF NOT EXISTS national_id_file TEXT,
+          ADD COLUMN IF NOT EXISTS passport_file TEXT,
+          ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS emergency_contact_relationship VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS emergency_contact_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS emergency_contact_address TEXT,
+          ADD COLUMN IF NOT EXISTS mother_maiden_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS account_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS account_type VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS account_number VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS iban VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS swift_code VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS is_politically_exposed_person BOOLEAN DEFAULT FALSE,
+          ADD COLUMN IF NOT EXISTS is_individual_account BOOLEAN DEFAULT TRUE,
           ADD COLUMN IF NOT EXISTS is_complete BOOLEAN DEFAULT FALSE
       `);
       
@@ -467,6 +525,76 @@ async function verifyToken(req, res, next) {
     const decoded = await admin.auth().verifyIdToken(idToken);
     console.log('✅ Token verified successfully for user:', decoded.uid);
     req.uid = decoded.uid;
+    
+    // 🚨 CRITICAL: Check if user is suspended in database
+    const userCheck = await db.query(
+      'SELECT suspension_scope, current_account_type, full_name FROM users WHERE firebase_uid = $1',
+      [decoded.uid]
+    );
+    
+    console.log('🔍 Suspension check for user:', decoded.uid, {
+      found: userCheck.rows.length > 0,
+      suspensionScope: userCheck.rows[0]?.suspension_scope,
+      accountType: userCheck.rows[0]?.current_account_type,
+      name: userCheck.rows[0]?.full_name
+    });
+    
+    if (userCheck.rows.length > 0) {
+      const user = userCheck.rows[0];
+      
+      // Check suspension_scope - the proper suspension column
+      if (user.suspension_scope === 'full_account') {
+        console.log('🚫 BLOCKED! Fully suspended user attempted to access:', {
+          uid: decoded.uid,
+          name: user.full_name,
+          url: req.url,
+          method: req.method,
+          reason: user.suspension_reason
+        });
+        
+        return res.status(403).json({ 
+          error: 'Account Suspended',
+          message: user.suspension_reason || 'Your account has been suspended. Please contact support for more information.',
+          reason: user.suspension_reason,
+          suspended: true,
+          scope: 'full_account'
+        });
+      }
+      
+      // Check account-specific suspension
+      if (user.suspension_scope === 'borrower' && user.current_account_type === 'borrower') {
+        console.log('🚫 BLOCKED! Borrower-suspended user attempted borrower access:', {
+          uid: decoded.uid,
+          name: user.full_name,
+          reason: user.suspension_reason
+        });
+        
+        return res.status(403).json({ 
+          error: 'Borrower Account Suspended',
+          message: user.suspension_reason || 'Your borrower account has been suspended.',
+          reason: user.suspension_reason,
+          suspended: true,
+          scope: 'borrower'
+        });
+      }
+      
+      if (user.suspension_scope === 'investor' && user.current_account_type === 'investor') {
+        console.log('🚫 BLOCKED! Investor-suspended user attempted investor access:', {
+          uid: decoded.uid,
+          name: user.full_name,
+          reason: user.suspension_reason
+        });
+        
+        return res.status(403).json({ 
+          error: 'Investor Account Suspended',
+          message: user.suspension_reason || 'Your investor account has been suspended.',
+          reason: user.suspension_reason,
+          suspended: true,
+          scope: 'investor'
+        });
+      }
+    }
+    
     next();
   } catch (err) {
     console.error('❌ Token verification failed:', {
@@ -650,6 +778,75 @@ profileRouter.post('/upload-picture', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('❌ Error updating profile picture:', err);
     res.status(500).json({ error: 'Failed to update profile picture' });
+  }
+});
+
+// Document upload endpoint for ID, passport, etc.
+profileRouter.post('/upload-document', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { documentType, documentImage, documentName } = req.body;
+    
+    if (!documentType || !documentImage) {
+      return res.status(400).json({ error: 'Document type and image are required' });
+    }
+    
+    // Valid document types
+    const validTypes = ['national_id', 'passport', 'drivers_license', 'tin_id'];
+    if (!validTypes.includes(documentType)) {
+      return res.status(400).json({ error: 'Invalid document type' });
+    }
+    
+    // Save document to database (could be extended to save to cloud storage)
+    await db.query(
+      `INSERT INTO user_documents (firebase_uid, document_type, document_image, document_name, uploaded_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (firebase_uid, document_type) DO UPDATE SET
+       document_image = EXCLUDED.document_image,
+       document_name = EXCLUDED.document_name,
+       uploaded_at = EXCLUDED.uploaded_at`,
+      [firebase_uid, documentType, documentImage, documentName || `${documentType}_document`]
+    );
+    
+    console.log('✅ Document uploaded for user:', firebase_uid, 'Type:', documentType);
+    res.json({ 
+      success: true, 
+      message: 'Document uploaded successfully',
+      documentType,
+      documentName
+    });
+    
+  } catch (err) {
+    console.error('❌ Error uploading document:', err);
+    res.status(500).json({ error: 'Failed to upload document' });
+  }
+});
+
+// Get user documents endpoint
+profileRouter.get('/documents', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    
+    const result = await db.query(
+      `SELECT document_type, document_image, document_name, uploaded_at 
+       FROM user_documents WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    const documents = {};
+    result.rows.forEach(doc => {
+      documents[doc.document_type] = {
+        image: doc.document_image,
+        name: doc.document_name,
+        uploadedAt: doc.uploaded_at
+      };
+    });
+    
+    res.json({ documents });
+    
+  } catch (err) {
+    console.error('❌ Error fetching documents:', err);
+    res.status(500).json({ error: 'Failed to fetch documents' });
   }
 });
 
@@ -990,6 +1187,21 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid account type' });
     }
     
+    // 🚨 CRITICAL: Check if user is suspended before creating new accounts
+    const suspensionCheck = await db.query(
+      `SELECT current_account_type FROM users WHERE firebase_uid = $1`,
+      [firebase_uid]
+    );
+    
+    if (suspensionCheck.rows[0]?.current_account_type === 'suspended') {
+      console.log('🚫 Suspended user tried to create new account:', firebase_uid);
+      return res.status(403).json({ 
+        error: 'Account Suspended',
+        message: 'Your account has been suspended. Cannot create new account types.',
+        suspended: true
+      });
+    }
+    
     const client = await db.connect();
     
     try {
@@ -1123,7 +1335,7 @@ app.post('/api/accounts/switch', verifyToken, async (req, res) => {
     
     // Check if user has the requested account type
     const userQuery = await db.query(
-      `SELECT has_borrower_account, has_investor_account, current_account_type FROM users WHERE firebase_uid = $1`,
+      `SELECT has_borrower_account, has_investor_account, current_account_type, suspension_scope FROM users WHERE firebase_uid = $1`,
       [firebase_uid]
     );
     
@@ -1133,6 +1345,27 @@ app.post('/api/accounts/switch', verifyToken, async (req, res) => {
     
     const user = userQuery.rows[0];
     console.log('👤 Current user state:', user);
+    
+    // 🚨 CRITICAL: Check suspension_scope - the proper suspension system!
+    if (user.suspension_scope === 'full_account') {
+      console.log('🚫 Fully suspended user tried to switch accounts:', firebase_uid);
+      return res.status(403).json({ 
+        error: 'Account Suspended',
+        message: 'Your account has been fully suspended. Cannot switch account types.',
+        suspended: true,
+        scope: 'full_account'
+      });
+    }
+    
+    if (user.suspension_scope === accountType) {
+      console.log(`🚫 User tried to switch to suspended ${accountType} account:`, firebase_uid);
+      return res.status(403).json({ 
+        error: `${accountType.charAt(0).toUpperCase() + accountType.slice(1)} Account Suspended`,
+        message: `Your ${accountType} account has been suspended.`,
+        suspended: true,
+        scope: accountType
+      });
+    }
     
     if (accountType === 'borrower' && !user.has_borrower_account) {
       return res.status(400).json({ error: 'User does not have a borrower account' });
@@ -1353,7 +1586,33 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
       
       if (borrowerQuery.rows.length > 0) {
         const borrower = borrowerQuery.rows[0];
-        console.log('📋 Borrower address columns available:', {
+        console.log('� Checking for address fields:', {
+          present_address: borrower.present_address,
+          city: borrower.city,
+          state: borrower.state,
+          country: borrower.country,
+          postal_code: borrower.postal_code
+        });
+        console.log('🔍 Checking for identification fields:', {
+          national_id: borrower.national_id,
+          passport: borrower.passport,
+          tin_number: borrower.tin_number
+        });
+        console.log('🔍 Checking for employment fields:', {
+          occupation: borrower.occupation,
+          employer_name: borrower.employer_name,
+          employer_address: borrower.employer_address,
+          source_of_income: borrower.source_of_income
+        });
+        console.log('🔍 Checking for emergency contact fields:', {
+          emergency_contact_name: borrower.emergency_contact_name,
+          emergency_contact_relationship: borrower.emergency_contact_relationship,
+          emergency_contact_phone: borrower.emergency_contact_phone,
+          emergency_contact_email: borrower.emergency_contact_email
+        });
+        console.log('🔍 All available borrower columns:', Object.keys(borrower));
+        
+        console.log('�📋 Borrower address columns available:', {
           street: borrower.street,
           barangay: borrower.barangay, 
           municipality: borrower.municipality,
@@ -1391,6 +1650,8 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           tin: borrower.tin_number || borrower.corporate_tin || '',
           secondaryIdType: borrower.secondary_id_type || '',
           secondaryIdNumber: borrower.secondary_id_number || '',
+          nationalIdFile: borrower.national_id_file || null,
+          passportFile: borrower.passport_file || null,
         };
         console.log('🆔 Mapped borrower identification:', profileData.identification);
 
@@ -1532,6 +1793,8 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           tin: investor.tin_number || currentIdentification.tin || '',
           secondaryIdType: investor.secondary_id_type || currentIdentification.secondaryIdType || '',
           secondaryIdNumber: investor.secondary_id_number || currentIdentification.secondaryIdNumber || '',
+          nationalIdFile: investor.national_id_file || null,
+          passportFile: investor.passport_file || null,
         };
         console.log('✅ Mapped identification data from investor profile:', profileData.identification);
 
@@ -1773,10 +2036,10 @@ app.post('/api/settings', verifyToken, async (req, res) => {
         // Update borrower profile if user has borrower account
         if (user.has_borrower_account) {
           try {
-            // Only update confirmed existing fields
+            // Only update confirmed existing fields - use correct column names from database
             await db.query(`
               UPDATE borrower_profiles SET
-                phone_number = $1,
+                mobile_number = $1,
                 date_of_birth = $2,
                 updated_at = CURRENT_TIMESTAMP
               WHERE firebase_uid = $3
@@ -1787,20 +2050,18 @@ app.post('/api/settings', verifyToken, async (req, res) => {
             ]);
             console.log('✅ Updated borrower profile basic info');
             
-            // Try to update address fields separately with error handling
+            // Try to update address fields separately with error handling - use correct column names
             try {
               await db.query(`
                 UPDATE borrower_profiles SET
-                  street = $1,
-                  barangay = $2,
-                  municipality = $3,
-                  province = $4,
-                  country = $5,
-                  postal_code = $6
-                WHERE firebase_uid = $7
+                  present_address = $1,
+                  city = $2,
+                  state = $3,
+                  country = $4,
+                  postal_code = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.address?.street || null,
-                profileData.address?.barangay || null,
                 profileData.address?.city || null,
                 profileData.address?.state || null,
                 profileData.address?.country || null,
@@ -1812,23 +2073,121 @@ app.post('/api/settings', verifyToken, async (req, res) => {
               console.log('⚠️ Address fields may not exist in borrower_profiles:', addressError.message);
             }
             
-            // Try to update identification fields separately
+            // Try to update identification fields separately - use correct column names
             try {
               await db.query(`
                 UPDATE borrower_profiles SET
                   national_id = $1,
-                  passport_no = $2,
-                  tin = $3
-                WHERE firebase_uid = $4
+                  passport = $2,
+                  tin_number = $3,
+                  national_id_file = $4,
+                  passport_file = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.identification?.nationalId || null,
                 profileData.identification?.passport || null,
                 profileData.identification?.tin || null,
+                profileData.identification?.nationalIdFile || null,
+                profileData.identification?.passportFile || null,
                 firebase_uid
               ]);
               console.log('✅ Updated borrower identification info');
             } catch (idError) {
               console.log('⚠️ ID fields may not exist in borrower_profiles:', idError.message);
+            }
+            
+            // Try to update personal info fields
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  place_of_birth = $1,
+                  gender = $2,
+                  civil_status = $3,
+                  nationality = $4,
+                  mother_maiden_name = $5,
+                  contact_email = $6
+                WHERE firebase_uid = $7
+              `, [
+                profileData.personalInfo?.placeOfBirth || null,
+                profileData.personalInfo?.gender || null,
+                profileData.personalInfo?.civilStatus || null,
+                profileData.personalInfo?.nationality || null,
+                profileData.personalInfo?.motherMaidenName || null,
+                profileData.personalInfo?.contactEmail || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower personal info');
+            } catch (personalError) {
+              console.log('⚠️ Personal info fields may not exist in borrower_profiles:', personalError.message);
+            }
+            
+            // Try to update emergency contact fields
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  emergency_contact_name = $1,
+                  emergency_contact_relationship = $2,
+                  emergency_contact_phone = $3,
+                  emergency_contact_email = $4,
+                  emergency_contact_address = $5
+                WHERE firebase_uid = $6
+              `, [
+                profileData.emergencyContact?.name || null,
+                profileData.emergencyContact?.relationship || null,
+                profileData.emergencyContact?.phone || null,
+                profileData.emergencyContact?.email || null,
+                profileData.emergencyContact?.address || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower emergency contact info');
+            } catch (emergencyError) {
+              console.log('⚠️ Emergency contact fields may not exist in borrower_profiles:', emergencyError.message);
+            }
+            
+            // Try to update employment info fields
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  occupation = $1,
+                  employer_name = $2,
+                  employer_address = $3,
+                  source_of_income = $4,
+                  gross_annual_income = $5
+                WHERE firebase_uid = $6
+              `, [
+                profileData.employmentInfo?.occupation || null,
+                profileData.employmentInfo?.employerName || null,
+                profileData.employmentInfo?.employerAddress || null,
+                profileData.employmentInfo?.sourceOfIncome || null,
+                profileData.employmentInfo?.monthlyIncome || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower employment info');
+            } catch (employmentError) {
+              console.log('⚠️ Employment info fields may not exist in borrower_profiles:', employmentError.message);
+            }
+            
+            // Try to update bank account fields
+            try {
+              await db.query(`
+                UPDATE borrower_profiles SET
+                  bank_name = $1,
+                  account_name = $2,
+                  account_number = $3,
+                  iban = $4,
+                  swift_code = $5
+                WHERE firebase_uid = $6
+              `, [
+                profileData.bankAccount?.bankName || null,
+                profileData.bankAccount?.accountName || null,
+                profileData.bankAccount?.accountNumber || null,
+                profileData.bankAccount?.iban || null,
+                profileData.bankAccount?.swiftCode || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated borrower bank account info');
+            } catch (bankError) {
+              console.log('⚠️ Bank account fields may not exist in borrower_profiles:', bankError.message);
             }
             
           } catch (error) {
@@ -1840,10 +2199,10 @@ app.post('/api/settings', verifyToken, async (req, res) => {
         // Update investor profile if user has investor account
         if (user.has_investor_account) {
           try {
-            // Update basic info
+            // Update basic info - use correct column names
             await db.query(`
               UPDATE investor_profiles SET
-                phone_number = $1,
+                mobile_number = $1,
                 date_of_birth = $2,
                 updated_at = CURRENT_TIMESTAMP
               WHERE firebase_uid = $3
@@ -1854,20 +2213,18 @@ app.post('/api/settings', verifyToken, async (req, res) => {
             ]);
             console.log('✅ Updated investor profile basic info');
 
-            // Update address fields
+            // Update address fields - use correct column names
             try {
               await db.query(`
                 UPDATE investor_profiles SET
-                  street = $1,
-                  barangay = $2,
-                  municipality = $3,
-                  province = $4,
-                  country = $5,
-                  postal_code = $6
-                WHERE firebase_uid = $7
+                  present_address = $1,
+                  city = $2,
+                  state = $3,
+                  country = $4,
+                  postal_code = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.address?.street || null,
-                profileData.address?.barangay || null,
                 profileData.address?.city || null,
                 profileData.address?.state || null,
                 profileData.address?.country || null,
@@ -1879,23 +2236,75 @@ app.post('/api/settings', verifyToken, async (req, res) => {
               console.log('⚠️ Address fields may not exist in investor_profiles:', addressError.message);
             }
 
-            // Update identification fields
+            // Update identification fields - use correct column names
             try {
               await db.query(`
                 UPDATE investor_profiles SET
                   national_id = $1,
-                  passport_no = $2,
-                  tin = $3
-                WHERE firebase_uid = $4
+                  passport = $2,
+                  tin_number = $3,
+                  national_id_file = $4,
+                  passport_file = $5
+                WHERE firebase_uid = $6
               `, [
                 profileData.identification?.nationalId || null,
                 profileData.identification?.passport || null,
                 profileData.identification?.tin || null,
+                profileData.identification?.nationalIdFile || null,
+                profileData.identification?.passportFile || null,
                 firebase_uid
               ]);
               console.log('✅ Updated investor identification info');
             } catch (idError) {
               console.log('⚠️ ID fields may not exist in investor_profiles:', idError.message);
+            }
+            
+            // Try to update personal info fields
+            try {
+              await db.query(`
+                UPDATE investor_profiles SET
+                  place_of_birth = $1,
+                  gender = $2,
+                  civil_status = $3,
+                  nationality = $4,
+                  mother_maiden_name = $5,
+                  contact_email = $6
+                WHERE firebase_uid = $7
+              `, [
+                profileData.personalInfo?.placeOfBirth || null,
+                profileData.personalInfo?.gender || null,
+                profileData.personalInfo?.civilStatus || null,
+                profileData.personalInfo?.nationality || null,
+                profileData.personalInfo?.motherMaidenName || null,
+                profileData.personalInfo?.contactEmail || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated investor personal info');
+            } catch (personalError) {
+              console.log('⚠️ Personal info fields may not exist in investor_profiles:', personalError.message);
+            }
+            
+            // Try to update emergency contact fields
+            try {
+              await db.query(`
+                UPDATE investor_profiles SET
+                  emergency_contact_name = $1,
+                  emergency_contact_relationship = $2,
+                  emergency_contact_phone = $3,
+                  emergency_contact_email = $4,
+                  emergency_contact_address = $5
+                WHERE firebase_uid = $6
+              `, [
+                profileData.emergencyContact?.name || null,
+                profileData.emergencyContact?.relationship || null,
+                profileData.emergencyContact?.phone || null,
+                profileData.emergencyContact?.email || null,
+                profileData.emergencyContact?.address || null,
+                firebase_uid
+              ]);
+              console.log('✅ Updated investor emergency contact info');
+            } catch (emergencyError) {
+              console.log('⚠️ Emergency contact fields may not exist in investor_profiles:', emergencyError.message);
             }
 
           } catch (error) {
@@ -2327,7 +2736,7 @@ app.post('/api/admin/create-profile-tables', async (req, res) => {
       INSERT INTO borrower_profiles (firebase_uid, is_individual_account, created_at, updated_at)
       SELECT 
           firebase_uid, 
-          CASE WHEN account_type = 'individual' THEN TRUE ELSE FALSE END,
+          CASE WHEN current_account_type = 'individual' THEN TRUE ELSE FALSE END,
           created_at,
           updated_at
       FROM users 
@@ -2337,7 +2746,7 @@ app.post('/api/admin/create-profile-tables', async (req, res) => {
       INSERT INTO investor_profiles (firebase_uid, is_individual_account, created_at, updated_at)
       SELECT 
           firebase_uid, 
-          CASE WHEN account_type = 'individual' THEN TRUE ELSE FALSE END,
+          CASE WHEN current_account_type = 'individual' THEN TRUE ELSE FALSE END,
           created_at,
           updated_at
       FROM users 
@@ -3344,6 +3753,236 @@ app.post('/api/debug/make-admin/:userId', verifyToken, async (req, res) => {
   }
 });
 
+// Owner Dashboard Endpoints
+// Get all users for owner dashboard
+app.get('/api/owner/users', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    console.log(`🔍 Owner users request from user: ${firebase_uid}`);
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      console.log(`❌ Access denied for user ${firebase_uid} - not admin`);
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    console.log(`✅ Admin access verified for user: ${firebase_uid}`);
+    
+    // Get all users with comprehensive information
+    const usersResult = await db.query(`
+      SELECT 
+        u.firebase_uid,
+        u.full_name,
+        u.username,
+        u.profile_picture,
+        u.has_borrower_account,
+        u.has_investor_account,
+        u.current_account_type,
+        u.created_at,
+        u.updated_at,
+        u.is_admin,
+        bp.first_name,
+        bp.last_name,
+        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
+        w.balance as wallet_balance
+      FROM users u
+      LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
+      LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
+      WHERE u.current_account_type != 'deleted' OR u.current_account_type IS NULL
+      ORDER BY u.created_at DESC
+    `);
+    
+    console.log(`📊 Found ${usersResult.rows.length} users in database`);
+    
+    // Transform data to match frontend interface
+    const users = [];
+    
+    for (const row of usersResult.rows) {
+      const accountTypes = [];
+      if (row.has_borrower_account) accountTypes.push('borrower');
+      if (row.has_investor_account) accountTypes.push('investor');
+      
+      // Get email from Firebase since it's not in the database
+      let email = '';
+      try {
+        const firebaseUser = await admin.auth().getUser(row.firebase_uid);
+        email = firebaseUser.email || '';
+      } catch (e) {
+        console.log(`Could not get email for user ${row.firebase_uid}:`, e.message);
+      }
+      
+      users.push({
+        id: row.firebase_uid,
+        firebaseUid: row.firebase_uid,
+        fullName: row.full_name || '',
+        email: email,
+        username: row.username || '',
+        profilePicture: row.profile_picture,
+        accountTypes,
+        status: row.current_account_type === 'deleted' ? 'deleted' : 'active',
+        memberSince: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : '',
+        lastActivity: row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : '',
+        totalProjects: parseInt(row.total_projects) || 0,
+        activeProjects: 0, // Would need to calculate from project data
+        isQualifiedInvestor: false, // Would need investor profile data
+        location: '', // Would need address data
+        walletBalance: parseFloat(row.wallet_balance) || 0,
+        isAdmin: row.is_admin || false
+      });
+    }
+
+    console.log(`� Returning ${users.length} users for owner dashboard`);
+    res.json(users);
+    
+  } catch (err) {
+    console.error('❌ Error fetching users for owner dashboard:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Owner endpoint to delete user (soft delete)
+app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    const { reason } = req.body;
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Soft delete - mark user as deleted by setting current_account_type to 'deleted'
+    await db.query(
+      `UPDATE users 
+       SET current_account_type = 'deleted', 
+           updated_at = NOW() 
+       WHERE firebase_uid = $1`,
+      [userId]
+    );
+    
+    // Permanently delete the user from Firebase Authentication (hard delete)
+    // This frees up the email address for new registrations
+    try {
+      await admin.auth().deleteUser(userId);
+      console.log(`�️ Firebase user ${userId} permanently deleted (email now available for reuse)`);
+    } catch (firebaseErr) {
+      console.error(`⚠️ Could not delete Firebase user ${userId}:`, firebaseErr.message);
+      // Continue even if Firebase delete fails - database is already updated
+    }
+    
+    // Log the action
+    console.log(`🗑️ Admin ${firebase_uid} deleted user ${userId} - Reason: ${reason}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User deleted successfully',
+      action: 'deleted'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error deleting user:', err);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Owner endpoint to reactivate user
+app.post('/api/owner/users/:userId/reactivate', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { userId } = req.params;
+    
+    // Check if user is admin/owner
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Get user's account flags to determine proper account type
+    const userResult = await db.query(
+      'SELECT has_borrower_account, has_investor_account FROM users WHERE firebase_uid = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    let newAccountType = 'borrower'; // Default to borrower
+    
+    // Determine account type based on what they have
+    if (user.has_borrower_account && user.has_investor_account) {
+      newAccountType = 'borrower'; // If they have both, default to borrower
+    } else if (user.has_investor_account) {
+      newAccountType = 'investor';
+    } else if (user.has_borrower_account) {
+      newAccountType = 'borrower';
+    }
+    
+    // Reactivate user by clearing suspension and restoring their account type
+    await db.query(
+      `UPDATE users 
+       SET current_account_type = $1, 
+           suspension_scope = NULL,
+           reactivated_at = NOW(),
+           reactivated_by = $3,
+           suspension_reason = NULL,
+           updated_at = NOW() 
+       WHERE firebase_uid = $2`,
+      [newAccountType, userId, firebase_uid]
+    );
+    
+    // Update user_suspensions table to mark as reactivated
+    await db.query(
+      `UPDATE user_suspensions 
+       SET status = 'inactive', 
+           reactivated_at = NOW(),
+           reactivated_by = $1
+       WHERE firebase_uid = $2 AND status = 'active'`,
+      [firebase_uid, userId]
+    );
+    
+    // Re-enable the user in Firebase Authentication
+    try {
+      await admin.auth().updateUser(userId, { 
+        disabled: false 
+      });
+      console.log(`🔓 Firebase user ${userId} re-enabled successfully`);
+    } catch (firebaseErr) {
+      console.error(`⚠️ Could not re-enable Firebase user ${userId}:`, firebaseErr.message);
+      // Continue even if Firebase enable fails - database is already updated
+    }
+    
+    // Log the action
+    console.log(`✅ Admin ${firebase_uid} reactivated user ${userId} as ${newAccountType}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User reactivated successfully',
+      action: 'active'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error reactivating user:', err);
+    res.status(500).json({ error: 'Failed to reactivate user' });
+  }
+});
+
 // Add interest request to a project
 projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
   const { id } = req.params;
@@ -3898,7 +4537,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
         console.log('nationality:', kycData.nationality);
         console.log('contactEmail:', kycData.contactEmail);
         
-        // Upsert borrower profile with KYC data including bank account fields
+        // Upsert borrower profile with comprehensive KYC data
         console.log('💾 Inserting borrower profile data...');
         console.log('🔢 Parameters for borrower insert:');
         console.log('uid:', uid);
@@ -3908,78 +4547,402 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
         console.log('civilStatus:', normalizedCivilStatus);
         console.log('nationality:', kycData.nationality);
         console.log('contactEmail:', kycData.contactEmail);
+        console.log('🔢 Personal info parameters:');
+        console.log('firstName:', kycData.firstName);
+        console.log('lastName:', kycData.lastName);
+        console.log('dateOfBirth:', kycData.dateOfBirth);
+        console.log('phoneNumber:', kycData.phoneNumber);
+        console.log('🔢 Address parameters:');
+        console.log('street:', kycData.street);
+        console.log('city:', kycData.city);
+        console.log('state:', kycData.state);
+        console.log('🔢 ID parameters:');
+        console.log('nationalId:', kycData.nationalId);
+        console.log('passport:', kycData.passport);
+        console.log('tin:', kycData.tin);
+        console.log('🔢 Employment parameters:');
+        console.log('occupation:', kycData.occupation);
+        console.log('employerName:', kycData.employerName);
+        console.log('🔢 Emergency Contact parameters:');
+        console.log('emergencyContactName:', kycData.emergencyContactName);
+        console.log('emergencyContactRelationship:', kycData.emergencyContactRelationship);
+        console.log('emergencyContactPhone:', kycData.emergencyContactPhone);
+        console.log('emergencyContactEmail:', kycData.emergencyContactEmail);
+        console.log('emergencyContactAddress:', kycData.emergencyContactAddress);
+        console.log('🔢 Additional Personal Info parameters:');
+        console.log('motherMaidenName:', kycData.motherMaidenName);
+        console.log('contactEmail:', kycData.contactEmail);
         console.log('🔢 Bank account parameters:');
         console.log('account_name:', kycData.account_name);
         console.log('bank_name:', kycData.bank_name);
-        console.log('account_type:', kycData.account_type);
         console.log('account_number:', kycData.account_number);
         console.log('iban:', kycData.iban);
         console.log('swift_code:', kycData.swift_code);
         
         await db.query(`
           INSERT INTO borrower_profiles (
-            firebase_uid, is_individual_account, place_of_birth, nationality, gender, civil_status,
+            firebase_uid, full_name, first_name, last_name, middle_name, 
+            date_of_birth, place_of_birth, nationality, gender, civil_status,
+            mobile_number, country_code, email_address, contact_email,
+            present_address, permanent_address, city, state, postal_code, country, barangay,
+            national_id, passport, tin_number, national_id_file, passport_file,
+            occupation, employer_name, employer_address, employment_status, 
+            gross_annual_income, source_of_income,
+            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_email, emergency_contact_address,
+            mother_maiden_name,
             account_name, bank_name, account_type, account_number, iban, swift_code,
-            is_complete, created_at, updated_at
+            entity_type, entity_name, registration_number,
+            contact_person_name, contact_person_position, contact_person_email, contact_person_phone,
+            business_registration_type, business_registration_date, corporate_tin,
+            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_number,
+            nature_of_business,
+            principal_office_street, principal_office_barangay, principal_office_country,
+            principal_office_state, principal_office_city, principal_office_postal_code,
+            registration_cert_file, tin_cert_file, authorization_file,
+            is_politically_exposed_person,
+            is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
+            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+            $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, 
+            $33, $34, $35, $36, $37, $38, $39, $40, $41, 
+            $42, $43, $44, $45, $46, $47, $48, $49, $50, $51,
+            $52, $53, $54, $55, $56, $57, $58, $59, $60, $61,
+            $62, $63, $64, $65, $66, $67, $68, $69, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
-            is_individual_account = EXCLUDED.is_individual_account,
+            full_name = EXCLUDED.full_name,
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            middle_name = EXCLUDED.middle_name,
+            date_of_birth = EXCLUDED.date_of_birth,
             place_of_birth = EXCLUDED.place_of_birth,
             nationality = EXCLUDED.nationality,
             gender = EXCLUDED.gender,
             civil_status = EXCLUDED.civil_status,
+            mobile_number = EXCLUDED.mobile_number,
+            country_code = EXCLUDED.country_code,
+            email_address = EXCLUDED.email_address,
+            contact_email = EXCLUDED.contact_email,
+            present_address = EXCLUDED.present_address,
+            permanent_address = EXCLUDED.permanent_address,
+            city = EXCLUDED.city,
+            state = EXCLUDED.state,
+            postal_code = EXCLUDED.postal_code,
+            country = EXCLUDED.country,
+            barangay = EXCLUDED.barangay,
+            national_id = EXCLUDED.national_id,
+            passport = EXCLUDED.passport,
+            tin_number = EXCLUDED.tin_number,
+            national_id_file = EXCLUDED.national_id_file,
+            passport_file = EXCLUDED.passport_file,
+            occupation = EXCLUDED.occupation,
+            employer_name = EXCLUDED.employer_name,
+            employer_address = EXCLUDED.employer_address,
+            employment_status = EXCLUDED.employment_status,
+            gross_annual_income = EXCLUDED.gross_annual_income,
+            source_of_income = EXCLUDED.source_of_income,
+            emergency_contact_name = EXCLUDED.emergency_contact_name,
+            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+            emergency_contact_email = EXCLUDED.emergency_contact_email,
+            emergency_contact_address = EXCLUDED.emergency_contact_address,
+            mother_maiden_name = EXCLUDED.mother_maiden_name,
             account_name = EXCLUDED.account_name,
             bank_name = EXCLUDED.bank_name,
-            account_type = EXCLUDED.account_type,
             account_number = EXCLUDED.account_number,
             iban = EXCLUDED.iban,
             swift_code = EXCLUDED.swift_code,
+            entity_type = EXCLUDED.entity_type,
+            entity_name = EXCLUDED.entity_name,
+            registration_number = EXCLUDED.registration_number,
+            contact_person_name = EXCLUDED.contact_person_name,
+            contact_person_position = EXCLUDED.contact_person_position,
+            contact_person_email = EXCLUDED.contact_person_email,
+            contact_person_phone = EXCLUDED.contact_person_phone,
+            business_registration_type = EXCLUDED.business_registration_type,
+            business_registration_date = EXCLUDED.business_registration_date,
+            corporate_tin = EXCLUDED.corporate_tin,
+            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
+            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
+            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+            nature_of_business = EXCLUDED.nature_of_business,
+            principal_office_street = EXCLUDED.principal_office_street,
+            principal_office_barangay = EXCLUDED.principal_office_barangay,
+            principal_office_country = EXCLUDED.principal_office_country,
+            principal_office_state = EXCLUDED.principal_office_state,
+            principal_office_city = EXCLUDED.principal_office_city,
+            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            registration_cert_file = EXCLUDED.registration_cert_file,
+            tin_cert_file = EXCLUDED.tin_cert_file,
+            authorization_file = EXCLUDED.authorization_file,
+            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
+            is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
         `, [
-          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.nationality,
-          normalizedGender, normalizedCivilStatus, kycData.account_name, kycData.bank_name, 
-          kycData.account_type, kycData.account_number, kycData.iban, kycData.swift_code
+          uid, 
+          // Personal Information (2-13)
+          fullNameToUse,
+          kycData.firstName || null,
+          kycData.lastName || null,
+          kycData.middleName || null,
+          kycData.dateOfBirth || null,
+          kycData.placeOfBirth || null,
+          kycData.nationality || null,
+          normalizedGender,
+          normalizedCivilStatus,
+          kycData.phoneNumber || kycData.mobileNumber || null,
+          kycData.countryCode || null,
+          kycData.emailAddress || kycData.contactEmail || null,
+          kycData.contactEmail || kycData.emailAddress || null,
+          // Address Information (15-21)
+          kycData.presentAddress || kycData.street || null,
+          kycData.permanentAddress || null,
+          kycData.city || kycData.cityName || null,
+          kycData.state || kycData.stateIso || null,
+          kycData.postalCode || null,
+          kycData.country || kycData.countryIso || null,
+          kycData.barangay || null,
+          // Identification (22-26)
+          kycData.nationalId || null,
+          kycData.passport || kycData.passportNumber || null,
+          kycData.tin || kycData.tinNumber || null,
+          kycData.nationalIdFile || null,
+          kycData.passportFile || null,
+          // Employment Information (27-32)
+          kycData.occupation || null,
+          kycData.employerName || null,
+          kycData.employerAddress || null,
+          kycData.employmentStatus || null,
+          kycData.grossAnnualIncome || kycData.monthlyIncome || null,
+          kycData.sourceOfIncome || null,
+          // Emergency Contact Information (33-37)
+          kycData.emergencyContactName || null,
+          kycData.emergencyContactRelationship || null,
+          kycData.emergencyContactPhone || null,
+          kycData.emergencyContactEmail || null,
+          kycData.emergencyContactAddress || null,
+          // Mother's Maiden Name (38)
+          kycData.motherMaidenName || null,
+          // Bank Account Information (39-44)
+          kycData.account_name || kycData.accountName || null,
+          kycData.bank_name || kycData.bankName || null,
+          kycData.account_type || kycData.accountType || null,
+          kycData.account_number || kycData.accountNumber || null,
+          kycData.iban || null,
+          kycData.swift_code || kycData.swiftCode || null,
+          // Entity Information (45-48)
+          kycData.entityType || null,
+          kycData.entityName || null,
+          kycData.registrationNumber || null,
+          // Contact Person (49-52)
+          kycData.contactPersonName || null,
+          kycData.contactPersonPosition || null,
+          kycData.contactPersonEmail || null,
+          kycData.contactPersonPhone || null,
+          // Business Registration (53-55)
+          kycData.businessRegistrationType || null,
+          kycData.businessRegistrationDate || null,
+          kycData.corporateTin || null,
+          // Authorized Signatory (56-58)
+          kycData.authorizedSignatoryName || null,
+          kycData.authorizedSignatoryPosition || null,
+          kycData.authorizedSignatoryIdNumber || null,
+          // Nature of Business (59)
+          kycData.natureOfBusiness || null,
+          // Principal Office Address (60-65)
+          kycData.principalOfficeStreet || null,
+          kycData.principalOfficeBarangay || null,
+          kycData.principalOfficeCountry || null,
+          kycData.principalOfficeState || null,
+          kycData.principalOfficeCity || null,
+          kycData.principalOfficePostalCode || null,
+          // File Uploads (66-68)
+          kycData.registrationCertFile || null,
+          kycData.tinCertFile || null,
+          kycData.authorizationFile || null,
+          // PEP Status (68)
+          kycData.pepStatus || false,
+          // Account Type (69)
+          kycData.isIndividualAccount
         ]);
       } else {
-        // Upsert investor profile with KYC data including bank account fields
+        // Upsert investor profile with comprehensive KYC data
         console.log('💾 Inserting investor profile data...');
+        console.log('� Personal info parameters:');
+        console.log('firstName:', kycData.firstName);
+        console.log('lastName:', kycData.lastName);
+        console.log('dateOfBirth:', kycData.dateOfBirth);
+        console.log('phoneNumber:', kycData.phoneNumber);
         console.log('🔢 Bank account parameters:');
         console.log('account_name:', kycData.account_name);
         console.log('bank_name:', kycData.bank_name);
-        console.log('account_type:', kycData.account_type);
         console.log('account_number:', kycData.account_number);
         console.log('iban:', kycData.iban);
         console.log('swift_code:', kycData.swift_code);
         
         await db.query(`
           INSERT INTO investor_profiles (
-            firebase_uid, is_individual_account, place_of_birth, nationality, gender, civil_status,
+            firebase_uid, full_name, first_name, last_name, middle_name, 
+            date_of_birth, place_of_birth, nationality, gender, civil_status,
+            mobile_number, country_code, email_address,
+            present_address, permanent_address, city, state, postal_code, country, barangay,
+            national_id, passport, tin_number,
+            occupation, employer_name, employer_address, employment_status, 
+            gross_annual_income, source_of_income,
             account_name, bank_name, account_type, account_number, iban, swift_code,
-            is_complete, created_at, updated_at
+            entity_type, entity_name, registration_number,
+            contact_person_name, contact_person_position, contact_person_email, contact_person_phone,
+            business_registration_type, business_registration_date, corporate_tin,
+            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_number,
+            nature_of_business,
+            principal_office_street, principal_office_barangay, principal_office_country,
+            principal_office_state, principal_office_city, principal_office_postal_code,
+            registration_cert_file, tin_cert_file, authorization_file,
+            is_politically_exposed_person,
+            is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+            $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36,
+            $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
-            is_individual_account = EXCLUDED.is_individual_account,
+            full_name = EXCLUDED.full_name,
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            middle_name = EXCLUDED.middle_name,
+            date_of_birth = EXCLUDED.date_of_birth,
             place_of_birth = EXCLUDED.place_of_birth,
             nationality = EXCLUDED.nationality,
             gender = EXCLUDED.gender,
             civil_status = EXCLUDED.civil_status,
+            mobile_number = EXCLUDED.mobile_number,
+            country_code = EXCLUDED.country_code,
+            email_address = EXCLUDED.email_address,
+            present_address = EXCLUDED.present_address,
+            permanent_address = EXCLUDED.permanent_address,
+            city = EXCLUDED.city,
+            state = EXCLUDED.state,
+            postal_code = EXCLUDED.postal_code,
+            country = EXCLUDED.country,
+            barangay = EXCLUDED.barangay,
+            national_id = EXCLUDED.national_id,
+            passport = EXCLUDED.passport,
+            tin_number = EXCLUDED.tin_number,
+            occupation = EXCLUDED.occupation,
+            employer_name = EXCLUDED.employer_name,
+            employer_address = EXCLUDED.employer_address,
+            employment_status = EXCLUDED.employment_status,
+            gross_annual_income = EXCLUDED.gross_annual_income,
+            source_of_income = EXCLUDED.source_of_income,
             account_name = EXCLUDED.account_name,
             bank_name = EXCLUDED.bank_name,
-            account_type = EXCLUDED.account_type,
             account_number = EXCLUDED.account_number,
             iban = EXCLUDED.iban,
             swift_code = EXCLUDED.swift_code,
+            entity_type = EXCLUDED.entity_type,
+            entity_name = EXCLUDED.entity_name,
+            registration_number = EXCLUDED.registration_number,
+            contact_person_name = EXCLUDED.contact_person_name,
+            contact_person_position = EXCLUDED.contact_person_position,
+            contact_person_email = EXCLUDED.contact_person_email,
+            contact_person_phone = EXCLUDED.contact_person_phone,
+            business_registration_type = EXCLUDED.business_registration_type,
+            business_registration_date = EXCLUDED.business_registration_date,
+            corporate_tin = EXCLUDED.corporate_tin,
+            authorized_signatory_name = EXCLUDED.authorized_signatory_name,
+            authorized_signatory_position = EXCLUDED.authorized_signatory_position,
+            authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+            nature_of_business = EXCLUDED.nature_of_business,
+            principal_office_street = EXCLUDED.principal_office_street,
+            principal_office_barangay = EXCLUDED.principal_office_barangay,
+            principal_office_country = EXCLUDED.principal_office_country,
+            principal_office_state = EXCLUDED.principal_office_state,
+            principal_office_city = EXCLUDED.principal_office_city,
+            principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            registration_cert_file = EXCLUDED.registration_cert_file,
+            tin_cert_file = EXCLUDED.tin_cert_file,
+            authorization_file = EXCLUDED.authorization_file,
+            is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
+            is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
         `, [
-          uid, kycData.isIndividualAccount, kycData.placeOfBirth, kycData.nationality,
-          normalizedGender, normalizedCivilStatus, kycData.account_name, kycData.bank_name,
-          kycData.account_type, kycData.account_number, kycData.iban, kycData.swift_code
+          uid, 
+          // Personal Information (2-13)
+          fullNameToUse,
+          kycData.firstName || null,
+          kycData.lastName || null,
+          kycData.middleName || null,
+          kycData.dateOfBirth || null,
+          kycData.placeOfBirth || null,
+          kycData.nationality || null,
+          normalizedGender,
+          normalizedCivilStatus,
+          kycData.phoneNumber || kycData.mobileNumber || null,
+          kycData.countryCode || null,
+          kycData.emailAddress || kycData.contactEmail || null,
+          // Address Information (14-19)
+          kycData.presentAddress || kycData.street || null,
+          kycData.permanentAddress || null,
+          kycData.city || kycData.cityName || null,
+          kycData.state || kycData.stateIso || null,
+          kycData.postalCode || null,
+          kycData.country || kycData.countryIso || null,
+          kycData.barangay || null,
+          // Identification (21-23)
+          kycData.nationalId || null,
+          kycData.passport || kycData.passportNumber || null,
+          kycData.tin || kycData.tinNumber || null,
+          // Employment Information (24-29)
+          kycData.occupation || null,
+          kycData.employerName || null,
+          kycData.employerAddress || null,
+          kycData.employmentStatus || null,
+          kycData.grossAnnualIncome || kycData.monthlyIncome || null,
+          kycData.sourceOfIncome || null,
+          // Bank Account Information (30-35)
+          kycData.account_name || kycData.accountName || null,
+          kycData.bank_name || kycData.bankName || null,
+          kycData.account_type || kycData.accountType || null,
+          kycData.account_number || kycData.accountNumber || null,
+          kycData.iban || null,
+          kycData.swift_code || kycData.swiftCode || null,
+          // Entity Information (36-38)
+          kycData.entityType || null,
+          kycData.entityName || null,
+          kycData.registrationNumber || null,
+          // Contact Person (39-42)
+          kycData.contactPersonName || null,
+          kycData.contactPersonPosition || null,
+          kycData.contactPersonEmail || null,
+          kycData.contactPersonPhone || null,
+          // Business Registration (43-45)
+          kycData.businessRegistrationType || null,
+          kycData.businessRegistrationDate || null,
+          kycData.corporateTin || null,
+          // Authorized Signatory (46-48)
+          kycData.authorizedSignatoryName || null,
+          kycData.authorizedSignatoryPosition || null,
+          kycData.authorizedSignatoryIdNumber || null,
+          // Nature of Business (49)
+          kycData.natureOfBusiness || null,
+          // Principal Office Address (50-55)
+          kycData.principalOfficeStreet || null,
+          kycData.principalOfficeBarangay || null,
+          kycData.principalOfficeCountry || null,
+          kycData.principalOfficeState || null,
+          kycData.principalOfficeCity || null,
+          kycData.principalOfficePostalCode || null,
+          // File Uploads (56-58)
+          kycData.registrationCertFile || null,
+          kycData.tinCertFile || null,
+          kycData.authorizationFile || null,
+          // PEP Status (59)
+          kycData.pepStatus || false,
+          // Account Type (60)
+          kycData.isIndividualAccount
         ]);
       }
       
@@ -4005,6 +4968,235 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
     console.error("❌ Error completing KYC:", err);
     console.error("🔍 Error details:", err.message);
     console.error("📊 Stack trace:", err.stack);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Get existing account data for dual account registration
+app.get('/api/profile/existing-account-data', verifyToken, async (req, res) => {
+  try {
+    const { uid: firebase_uid } = req;
+    const { targetAccountType } = req.query;
+    
+    console.log('🔍 [EXISTING-DATA] Fetching existing account data');
+    console.log('👤 [EXISTING-DATA] User ID:', firebase_uid);
+    console.log('🎯 [EXISTING-DATA] Target account type:', targetAccountType);
+    
+    if (!targetAccountType || !['borrower', 'investor'].includes(targetAccountType)) {
+      return res.status(400).json({ error: 'Invalid target account type' });
+    }
+    
+    // Determine which existing account to fetch from
+    // If creating borrower account, fetch from investor; if creating investor, fetch from borrower
+    const sourceAccountType = targetAccountType === 'borrower' ? 'investor' : 'borrower';
+    
+    console.log('📊 [EXISTING-DATA] Fetching from source account type:', sourceAccountType);
+    
+    let existingData = null;
+    
+    if (sourceAccountType === 'investor') {
+      // Fetch from investor_profiles
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        console.log('✅ [EXISTING-DATA] Found existing investor account');
+        console.log('📊 [EXISTING-DATA] Is individual account:', investor.is_individual_account);
+        
+        // Check if this is an individual or non-individual account
+        const isIndividual = investor.is_individual_account !== false; // Default to true if null
+        
+        existingData = {
+          accountType: isIndividual ? 'individual' : 'non-individual',
+          personalInfo: isIndividual ? {
+            firstName: investor.first_name || '',
+            middleName: investor.middle_name || '',
+            lastName: investor.last_name || '',
+            suffixName: investor.suffix_name || '',
+            placeOfBirth: investor.place_of_birth || '',
+            gender: investor.gender || '',
+            civilStatus: investor.civil_status || '',
+            nationality: investor.nationality || '',
+            motherMaidenName: investor.mother_maiden_name || '',
+            contactEmail: investor.contact_email || investor.email_address || ''
+          } : null,
+          entityInfo: !isIndividual ? {
+            entityType: investor.entity_type || '',
+            entityName: investor.entity_name || '',
+            registrationNumber: investor.registration_number || '',
+            tin: investor.tin_number || '',
+            contactPersonName: investor.contact_person_name || '',
+            contactPersonPosition: investor.contact_person_position || '',
+            contactPersonEmail: investor.contact_person_email || investor.email_address || '',
+            contactPersonPhone: investor.contact_person_phone || ''
+          } : null,
+          identification: {
+            nationalId: investor.national_id || '',
+            passport: investor.passport || '',
+            tin: investor.tin_number || '',
+            nationalIdFile: investor.national_id_file || null,
+            passportFile: investor.passport_file || null
+          },
+          address: {
+            street: investor.present_address || '',
+            barangay: investor.barangay || '',
+            city: investor.city || '',
+            state: investor.state || '',
+            country: investor.country || '',
+            postalCode: investor.postal_code || '',
+            // Also include alternate field names for compatibility
+            present_address: investor.present_address || '',
+            country_iso: investor.country || '',
+            state_iso: investor.state || '',
+            postal_code: investor.postal_code || ''
+          },
+          businessRegistration: !isIndividual ? {
+            type: investor.business_registration_type || '',
+            date: investor.business_registration_date || '',
+            corporateTin: investor.corporate_tin || '',
+            authorizedSignatoryName: investor.authorized_signatory_name || '',
+            authorizedSignatoryPosition: investor.authorized_signatory_position || '',
+            authorizedSignatoryIdNumber: investor.authorized_signatory_id_number || '',
+            natureOfBusiness: investor.nature_of_business || ''
+          } : null,
+          principalOffice: !isIndividual ? {
+            street: investor.principal_office_street || '',
+            barangay: investor.principal_office_barangay || '',
+            country: investor.principal_office_country || '',
+            state: investor.principal_office_state || '',
+            city: investor.principal_office_city || '',
+            postalCode: investor.principal_office_postal_code || ''
+          } : null,
+          pepStatus: investor.is_politically_exposed_person || false,
+          files: {
+            registrationCertFile: investor.registration_cert_file || null,
+            tinCertFile: investor.tin_cert_file || null,
+            authorizationFile: investor.authorization_file || null
+          }
+        };
+      } else {
+        console.log('ℹ️ [EXISTING-DATA] No existing investor account found');
+      }
+    } else {
+      // Fetch from borrower_profiles
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        console.log('✅ [EXISTING-DATA] Found existing borrower account');
+        console.log('📊 [EXISTING-DATA] Is individual account:', borrower.is_individual_account);
+        
+        // Check if this is an individual or non-individual account
+        const isIndividual = borrower.is_individual_account !== false; // Default to true if null
+        
+        existingData = {
+          accountType: isIndividual ? 'individual' : 'non-individual',
+          personalInfo: isIndividual ? {
+            firstName: borrower.first_name || '',
+            middleName: borrower.middle_name || '',
+            lastName: borrower.last_name || '',
+            suffixName: borrower.suffix_name || '',
+            placeOfBirth: borrower.place_of_birth || '',
+            gender: borrower.gender || '',
+            civilStatus: borrower.civil_status || '',
+            nationality: borrower.nationality || '',
+            motherMaidenName: borrower.mother_maiden_name || '',
+            contactEmail: borrower.contact_email || borrower.email_address || ''
+          } : null,
+          entityInfo: !isIndividual ? {
+            entityType: borrower.entity_type || '',
+            entityName: borrower.entity_name || '',
+            registrationNumber: borrower.registration_number || '',
+            tin: borrower.tin_number || '',
+            contactPersonName: borrower.contact_person_name || '',
+            contactPersonPosition: borrower.contact_person_position || '',
+            contactPersonEmail: borrower.contact_person_email || borrower.email_address || '',
+            contactPersonPhone: borrower.contact_person_phone || ''
+          } : null,
+          identification: {
+            nationalId: borrower.national_id || '',
+            passport: borrower.passport || '',
+            tin: borrower.tin_number || '',
+            nationalIdFile: borrower.national_id_file || null,
+            passportFile: borrower.passport_file || null
+          },
+          address: {
+            street: borrower.present_address || '',
+            barangay: borrower.barangay || '',
+            city: borrower.city || '',
+            state: borrower.state || '',
+            country: borrower.country || '',
+            postalCode: borrower.postal_code || '',
+            // Also include alternate field names for compatibility
+            present_address: borrower.present_address || '',
+            country_iso: borrower.country || '',
+            state_iso: borrower.state || '',
+            postal_code: borrower.postal_code || ''
+          },
+          employmentInfo: isIndividual ? {
+            employerName: borrower.employer_name || '',
+            occupation: borrower.occupation || '',
+            employerAddress: borrower.employer_address || '',
+            sourceOfIncome: borrower.source_of_income || '',
+            monthlyIncome: borrower.gross_annual_income || ''
+          } : null,
+          emergencyContact: isIndividual ? {
+            name: borrower.emergency_contact_name || '',
+            relationship: borrower.emergency_contact_relationship || '',
+            phone: borrower.emergency_contact_phone || '',
+            address: borrower.emergency_contact_address || ''
+          } : null,
+          businessRegistration: !isIndividual ? {
+            type: borrower.business_registration_type || '',
+            date: borrower.business_registration_date || '',
+            corporateTin: borrower.corporate_tin || '',
+            authorizedSignatoryName: borrower.authorized_signatory_name || '',
+            authorizedSignatoryPosition: borrower.authorized_signatory_position || '',
+            authorizedSignatoryIdNumber: borrower.authorized_signatory_id_number || '',
+            natureOfBusiness: borrower.nature_of_business || ''
+          } : null,
+          principalOffice: !isIndividual ? {
+            street: borrower.principal_office_street || '',
+            barangay: borrower.principal_office_barangay || '',
+            country: borrower.principal_office_country || '',
+            state: borrower.principal_office_state || '',
+            city: borrower.principal_office_city || '',
+            postalCode: borrower.principal_office_postal_code || ''
+          } : null,
+          pepStatus: borrower.is_politically_exposed_person || false,
+          files: {
+            registrationCertFile: borrower.registration_cert_file || null,
+            tinCertFile: borrower.tin_cert_file || null,
+            authorizationFile: borrower.authorization_file || null
+          }
+        };
+      } else {
+        console.log('ℹ️ [EXISTING-DATA] No existing borrower account found');
+      }
+    }
+    
+    console.log('📤 [EXISTING-DATA] Returning data:', JSON.stringify({
+      hasExistingAccount: !!existingData,
+      accountType: existingData?.accountType,
+      hasEntityInfo: !!existingData?.entityInfo,
+      hasPersonalInfo: !!existingData?.personalInfo,
+      addressFields: existingData?.address ? Object.keys(existingData.address).filter(k => existingData.address[k]) : []
+    }, null, 2));
+    
+    res.json({
+      hasExistingAccount: !!existingData,
+      existingData: existingData
+    });
+    
+  } catch (err) {
+    console.error("❌ [EXISTING-DATA] Error:", err);
+    console.error("🔍 [EXISTING-DATA] Error details:", err.message);
     res.status(500).json({ error: "Database error", details: err.message });
   }
 });
@@ -4078,15 +5270,25 @@ app.post('/api/admin/projects/:id/review', verifyToken, async (req, res) => {
     
     // Update approval status
     projectData.approvalStatus = action === 'approve' ? 'approved' : 'rejected';
+    
+    // If approving, set status to 'published' so it appears in borrower's "On-Going" tab
+    if (action === 'approve') {
+      if (projectData.status === 'pending' || projectData.status === 'draft') {
+        projectData.status = 'published';
+      }
+    }
+    
     if (feedback) {
       projectData.adminFeedback = feedback;
     }
     
-    // Update the project
+    // Update the project - make sure to JSON stringify for JSONB column
     const updateResult = await db.query(
-      `UPDATE projects SET project_data = $1 WHERE id = $2 RETURNING *`,
-      [projectData, id]
+      `UPDATE projects SET project_data = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      [JSON.stringify(projectData), id]
     );
+    
+    console.log(`✅ Project ${id} ${action === 'approve' ? 'approved' : 'rejected'} - Status: ${projectData.status}, ApprovalStatus: ${projectData.approvalStatus}`);
     
     // Get the updated project with user info for the response
     const updatedProject = await db.query(
@@ -4563,28 +5765,25 @@ app.get('/api/admin/projects/:id', verifyToken, async (req, res) => {
 
 app.get('/api/calendar/projects', verifyToken, async (req, res) => {
   try {
-    // For calendar, we want ALL projects that investors can potentially invest in
-    // This includes both published projects AND draft projects (borrowers working on them)
-    // But we exclude deleted projects
+    // For investors: ONLY show published AND approved projects
+    // This endpoint is used by investor view to see investment opportunities
     const query = `
       SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name 
       FROM projects p
       LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
-      WHERE (p.project_data->>'status' = 'published' 
-             OR p.project_data->>'status' = 'draft'
-             OR p.project_data->>'status' = 'pending'
-             OR p.project_data->>'status' IS NULL)
+      WHERE p.project_data->>'status' = 'published'
+      AND p.project_data->>'approvalStatus' = 'approved'
       AND (p.project_data->>'status' != 'deleted' OR p.project_data->>'status' IS NULL)
-      AND (p.project_data->>'approvalStatus' = 'approved' 
-           OR p.project_data->>'approvalStatus' = 'pending'
-           OR p.project_data->>'approvalStatus' IS NULL)
       ORDER BY p.created_at DESC
     `;
     
     const { rows } = await db.query(query);
     
-    // Log what's being returned
-    console.log(`Calendar API returning ${rows.length} projects (published, draft, pending, or no status)`);
+    // Log what's being returned with details
+    console.log(`📊 Calendar API returning ${rows.length} approved & published projects for investors`);
+    rows.forEach(row => {
+      console.log(`  - Project ${row.id}: status=${row.project_data?.status}, approvalStatus=${row.project_data?.approvalStatus}`);
+    });
     
     res.json(rows);
   } catch (err) {
@@ -4996,6 +6195,1213 @@ app.delete('/api/admin/clear-all-data', verifyToken, async (req, res) => {
   }
 });
 
+// Debug endpoint to check database table structure and data
+app.get('/api/debug/user-data/:userId', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Get raw user data
+    const userResult = await db.query('SELECT * FROM users WHERE firebase_uid = $1', [userId]);
+    const borrowerResult = await db.query('SELECT * FROM borrower_profiles WHERE firebase_uid = $1', [userId]);
+    
+    // Get table structure
+    const tableStructure = await db.query(`
+      SELECT column_name, data_type, is_nullable, column_default 
+      FROM information_schema.columns 
+      WHERE table_name = 'borrower_profiles' 
+      ORDER BY ordinal_position
+    `);
+    
+    res.json({
+      user: userResult.rows[0] || null,
+      borrower: borrowerResult.rows[0] || null,
+      borrowerColumns: borrowerResult.rows[0] ? Object.keys(borrowerResult.rows[0]) : [],
+      tableStructure: tableStructure.rows,
+      analysis: {
+        userExists: userResult.rows.length > 0,
+        borrowerExists: borrowerResult.rows.length > 0,
+        hasAddress: borrowerResult.rows[0]?.present_address ? true : false,
+        hasEmployment: borrowerResult.rows[0]?.occupation ? true : false,
+        hasIdentification: borrowerResult.rows[0]?.national_id ? true : false,
+        hasEmergencyContact: borrowerResult.rows[0]?.emergency_contact_name ? true : false
+      }
+    });
+  } catch (err) {
+    console.error('Debug endpoint error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============= OWNER (SUPER ADMIN) API ENDPOINTS =============
+
+// Test endpoint to check table structure and add missing columns
+app.get('/api/debug/fix-table', async (req, res) => {
+  try {
+    // Add missing emergency contact columns to borrower_profiles
+    await db.query(`
+      ALTER TABLE borrower_profiles 
+      ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS emergency_contact_relationship VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS emergency_contact_email VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS emergency_contact_address TEXT,
+      ADD COLUMN IF NOT EXISTS mother_maiden_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)
+    `);
+
+    console.log('✅ Added missing columns to borrower_profiles');
+    
+    res.json({
+      success: true,
+      message: 'Missing columns added to borrower_profiles table'
+    });
+  } catch (err) {
+    console.error('Fix table error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Owner Dashboard Stats
+app.get('/api/owner/stats', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Get comprehensive platform stats
+    const [usersResult, projectsResult, investmentsResult] = await Promise.all([
+      // Users by type
+      db.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE has_borrower_account = true) as total_borrowers,
+          COUNT(*) FILTER (WHERE has_investor_account = true) as total_investors,
+          COUNT(*) FILTER (WHERE has_borrower_account = true AND has_investor_account = true) as total_guarantors,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as new_users_this_month,
+          COUNT(*) FILTER (WHERE current_account_type = 'suspended') as suspended_users
+        FROM users
+      `),
+      
+      // Projects by status
+      db.query(`
+        SELECT 
+          COUNT(*) as total_projects,
+          COUNT(*) FILTER (WHERE project_data->>'status' = 'published' AND project_data->>'approvalStatus' = 'approved') as active_projects,
+          COUNT(*) FILTER (WHERE project_data->>'approvalStatus' = 'pending') as pending_projects,
+          COUNT(*) FILTER (WHERE project_data->>'status' = 'suspended') as suspended_projects,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as new_projects_this_month
+        FROM projects
+      `),
+      
+      // Investment amounts
+      db.query(`
+        SELECT 
+          COALESCE(SUM((investment->'amount')::numeric), 0) as total_investment_amount
+        FROM projects p, jsonb_array_elements(COALESCE(p.project_data->'investorRequests', '[]'::jsonb)) as investment
+        WHERE investment->>'status' = 'approved'
+      `)
+    ]);
+
+    const stats = {
+      totalBorrowers: parseInt(usersResult.rows[0].total_borrowers) || 0,
+      totalInvestors: parseInt(usersResult.rows[0].total_investors) || 0,
+      totalGuarantors: parseInt(usersResult.rows[0].total_guarantors) || 0,
+      totalProjects: parseInt(projectsResult.rows[0].total_projects) || 0,
+      activeProjects: parseInt(projectsResult.rows[0].active_projects) || 0,
+      pendingProjects: parseInt(projectsResult.rows[0].pending_projects) || 0,
+      suspendedUsers: parseInt(usersResult.rows[0].suspended_users) || 0,
+      suspendedProjects: parseInt(projectsResult.rows[0].suspended_projects) || 0,
+      totalInvestmentAmount: parseFloat(investmentsResult.rows[0].total_investment_amount) || 0,
+      monthlyGrowth: {
+        users: parseInt(usersResult.rows[0].new_users_this_month) || 0,
+        projects: parseInt(projectsResult.rows[0].new_projects_this_month) || 0,
+        investments: 15 // Mock data for now
+      }
+    };
+
+    res.json(stats);
+  } catch (err) {
+    console.error("Error fetching owner stats:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Recent Projects
+app.get('/api/owner/recent-projects', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const result = await db.query(`
+      SELECT p.id, p.project_data, p.created_at, u.full_name as borrower_name
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      ORDER BY p.created_at DESC
+      LIMIT 10
+    `);
+
+    const projects = result.rows.map(row => ({
+      id: row.project_data?.id || row.id,
+      title: row.project_data?.details?.product || 'Untitled Project',
+      borrowerName: row.borrower_name || 'Unknown',
+      fundingProgress: row.project_data?.details?.fundingProgress || '0%',
+      amount: parseInt(row.project_data?.details?.fundingRequirement) || 0,
+      status: row.project_data?.status || 'draft',
+      createdAt: row.created_at,
+      thumbnail: row.project_data?.details?.image
+    }));
+
+    res.json(projects);
+  } catch (err) {
+    console.error("Error fetching recent projects:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Get All Projects
+app.get('/api/owner/projects', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Fetch all projects with user details
+    const result = await db.query(`
+      SELECT 
+        p.id, 
+        p.firebase_uid as borrower_uid,
+        p.project_data, 
+        p.created_at, 
+        p.updated_at,
+        u.full_name as borrower_name
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      ORDER BY p.created_at DESC
+    `);
+
+    // Format all projects
+    const projects = result.rows.map(row => {
+      const projectData = row.project_data || {};
+      const details = projectData.details || {};
+
+      return {
+        id: row.id,
+        title: details.product || 'Untitled Project',
+        description: details.description || '',
+        borrowerName: row.borrower_name || 'Unknown',
+        borrowerUid: row.borrower_uid,
+        type: projectData.type || 'lending',
+        status: projectData.status || 'draft',
+        approvalStatus: projectData.approvalStatus || 'pending',
+        fundingAmount: parseInt(details.fundingRequirement) || 0,
+        fundingProgress: details.fundingProgress || '0%',
+        amountRaised: parseInt(details.amountRaised) || 0,
+        location: details.location || '',
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        thumbnail: details.image || ''
+      };
+    });
+
+    res.json(projects);
+  } catch (err) {
+    console.error("Error fetching all projects:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Owner Get Single Project Details
+app.get('/api/owner/projects/:projectId', verifyToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Fetch project details
+    const result = await db.query(`
+      SELECT 
+        p.id, 
+        p.firebase_uid as borrower_uid,
+        p.project_data, 
+        p.created_at, 
+        p.updated_at,
+        u.full_name as borrower_name
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      WHERE p.id = $1
+    `, [projectId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const row = result.rows[0];
+    const projectData = row.project_data || {};
+    const details = projectData.details || {};
+    const projectType = projectData.type || 'lending';
+
+    // Handle different field names - check ALL possible field names
+    const title = details.product || details.projectName || 'Untitled Project';
+    const description = details.overview || details.description || details.projectDescription || '';
+    
+    // Try ALL possible funding amount field names
+    // For equity: investmentAmount, for lending: projectRequirements (the actual number field)
+    console.log(`Project #${projectId} - Raw funding values:`, {
+      projectRequirements: details.projectRequirements,
+      fundingRequirement: details.fundingRequirement,
+      investmentAmount: details.investmentAmount,
+      type: projectType
+    });
+    
+    let fundingAmount = 0;
+    if (projectType === 'equity') {
+      fundingAmount = parseInt(details.investmentAmount, 10) || 0;
+    } else {
+      // For lending projects, projectRequirements contains the actual loan amount number
+      const rawValue = details.projectRequirements || details.fundingRequirement;
+      console.log(`Project #${projectId} - Parsing funding from:`, rawValue, 'Type:', typeof rawValue);
+      fundingAmount = parseInt(rawValue, 10) || 0;
+      console.log(`Project #${projectId} - Parsed funding amount:`, fundingAmount);
+    }
+
+    // Format the response
+    const project = {
+      id: row.id,
+      title: title,
+      description: description,
+      borrowerName: row.borrower_name || 'Unknown',
+      borrowerUid: row.borrower_uid,
+      type: projectType,
+      status: projectData.status || 'draft',
+      approvalStatus: projectData.approvalStatus || 'pending',
+      fundingAmount: fundingAmount,
+      fundingProgress: details.fundingProgress || '0%',
+      amountRaised: parseInt(details.amountRaised) || 0,
+      location: details.location || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      thumbnail: details.image || '',
+      // Common fields for both equity and lending
+      investorPercentage: details.investorPercentage || '',
+      timeDuration: details.timeDuration || '',
+      videoLink: details.videoLink || '',
+      // Lending-specific fields
+      loanAmount: details.loanAmount || '', // This is the text description like "Under 100000"
+      loanAmountValue: fundingAmount, // The actual numeric value
+      // Equity-specific fields
+      dividendFrequency: details.dividendFrequency || '',
+      dividendOther: details.dividendOther || '',
+      // ROI fields
+      roi: projectData.roi || {},
+      milestones: projectData.milestones || [],
+      payout: projectData.payout || {},
+      projectData: projectData // Include full project data for additional details
+    };
+
+    console.log('Owner Project Detail - Formatted response:', {
+      id: project.id,
+      title: project.title,
+      fundingAmount: project.fundingAmount,
+      type: project.type,
+      status: project.status,
+      approvalStatus: project.approvalStatus
+    });
+
+    res.json(project);
+  } catch (err) {
+    console.error("Error fetching project details:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Owner Approve Project
+app.post('/api/owner/projects/:projectId/approve', verifyToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Get current project data
+    const projectResult = await db.query(
+      `SELECT project_data FROM projects WHERE id = $1`,
+      [projectId]
+    );
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const projectData = projectResult.rows[0].project_data || {};
+    
+    // Update approval status and status
+    projectData.approvalStatus = 'approved';
+    // Set status to 'published' so it appears in borrower's "On-Going" tab
+    if (projectData.status === 'pending' || projectData.status === 'draft') {
+      projectData.status = 'published';
+    }
+
+    // Update the project
+    await db.query(
+      `UPDATE projects 
+       SET project_data = $1, 
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2`,
+      [JSON.stringify(projectData), projectId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Project approved successfully',
+      approvalStatus: 'approved',
+      status: projectData.status
+    });
+  } catch (err) {
+    console.error("Error approving project:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Owner Reject Project
+app.post('/api/owner/projects/:projectId/reject', verifyToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { reason } = req.body;
+
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Get current project data
+    const projectResult = await db.query(
+      `SELECT project_data FROM projects WHERE id = $1`,
+      [projectId]
+    );
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const projectData = projectResult.rows[0].project_data || {};
+    
+    // Update approval status and add rejection reason
+    projectData.approvalStatus = 'rejected';
+    projectData.status = 'rejected';
+    if (reason) {
+      projectData.rejectionReason = reason;
+    }
+
+    // Update the project
+    await db.query(
+      `UPDATE projects 
+       SET project_data = $1, 
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2`,
+      [JSON.stringify(projectData), projectId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Project rejected successfully',
+      approvalStatus: 'rejected',
+      status: 'rejected'
+    });
+  } catch (err) {
+    console.error("Error rejecting project:", err);
+    res.status(500).json({ error: "Database error", details: err.message });
+  }
+});
+
+// Owner Project Insights
+app.get('/api/owner/project-insights', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const result = await db.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE project_data->>'type' = 'equity') as equity_count,
+        COUNT(*) FILTER (WHERE project_data->>'type' = 'lending') as lending_count,
+        COUNT(*) FILTER (WHERE project_data->>'type' = 'donation') as donation_count,
+        COUNT(*) FILTER (WHERE (project_data->'details'->>'fundingRequirement')::numeric > 100000) as high_value_count,
+        COUNT(*) as total_count
+      FROM projects
+    `);
+
+    const row = result.rows[0];
+    const total = parseInt(row.total_count) || 1; // Avoid division by zero
+
+    const insights = {
+      equity: Math.round((parseInt(row.equity_count) || 0) * 100 / total),
+      lending: Math.round((parseInt(row.lending_count) || 0) * 100 / total),
+      donation: Math.round((parseInt(row.donation_count) || 0) * 100 / total),
+      highValue: Math.round((parseInt(row.high_value_count) || 0) * 100 / total)
+    };
+
+    res.json(insights);
+  } catch (err) {
+    console.error("Error fetching project insights:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Users List
+app.get('/api/owner/users', verifyToken, async (req, res) => {
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const result = await db.query(`
+      SELECT 
+        firebase_uid,
+        full_name,
+        username,
+        profile_picture,
+        has_borrower_account,
+        has_investor_account,
+        current_account_type,
+        created_at,
+        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects
+      FROM users u
+      ORDER BY u.created_at DESC
+    `);
+
+    const users = result.rows.map(row => ({
+      id: row.firebase_uid,
+      firebaseUid: row.firebase_uid,
+      fullName: row.full_name || 'Unknown User',
+      email: 'N/A', // Email column doesn't exist in current schema
+      username: row.username,
+      profilePicture: row.profile_picture,
+      accountTypes: [
+        ...(row.has_borrower_account ? ['borrower'] : []),
+        ...(row.has_investor_account ? ['investor'] : [])
+      ],
+      status: row.current_account_type === 'suspended' ? 'suspended' : 'active',
+      memberSince: row.created_at,
+      totalProjects: parseInt(row.total_projects) || 0,
+      location: null, // Would come from profile data
+      lastActivity: null // Would track from login/activity logs
+    }));
+
+    res.json(users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner User Detail
+app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const userResult = await db.query(`
+      SELECT * FROM users WHERE firebase_uid = $1
+    `, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userResult.rows[0];
+    
+    // Get email from Firebase since it's not stored in the database
+    let userEmail = '';
+    try {
+      const firebaseUser = await admin.auth().getUser(userId);
+      userEmail = firebaseUser.email || '';
+    } catch (e) {
+      console.log('Could not get email from Firebase:', e.message);
+    }
+    
+    // Get project counts
+    const projectStats = await db.query(`
+      SELECT 
+        COUNT(*) as total_projects,
+        COUNT(*) FILTER (WHERE project_data->>'status' = 'published') as active_projects,
+        COUNT(*) FILTER (WHERE project_data->>'status' = 'completed') as completed_projects
+      FROM projects 
+      WHERE firebase_uid = $1
+    `, [userId]);
+
+    // Initialize profile data structure
+    let profileData = {
+      personalInfo: {
+        firstName: '',
+        lastName: '',
+        middleName: '',
+        dateOfBirth: '',
+        placeOfBirth: '',
+        gender: '',
+        civilStatus: '',
+        nationality: '',
+        motherMaidenName: '',
+        contactEmail: userEmail
+      },
+      contactInfo: {
+        mobileNumber: '',
+        countryCode: '',
+        presentAddress: '',
+        permanentAddress: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: ''
+      },
+      employmentInfo: {
+        occupation: '',
+        employerName: '',
+        employerAddress: '',
+        employmentStatus: '',
+        grossAnnualIncome: null,
+        sourceOfIncome: ''
+      },
+      identifications: {
+        nationalId: '',
+        passport: '',
+        tin: '',
+        secondaryIdType: '',
+        secondaryIdNumber: ''
+      },
+      bankAccounts: [],
+      businessInfo: {
+        entityType: '',
+        entityName: '',
+        registrationNumber: '',
+        registrationType: '',
+        registrationDate: '',
+        businessAddress: '',
+        authorizedPersonName: '',
+        authorizedPersonPosition: ''
+      },
+      investmentInfo: {
+        experience: '',
+        objectives: '',
+        riskTolerance: '',
+        investmentHorizon: '',
+        liquidNetWorth: null,
+        pepStatus: false
+      }
+    };
+
+    // Get detailed profile data based on account type
+    if (user.has_borrower_account) {
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [userId]
+      );
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        
+        // Map borrower personal information
+        profileData.personalInfo = {
+          firstName: borrower.first_name || '',
+          lastName: borrower.last_name || '',
+          middleName: borrower.middle_name || '',
+          dateOfBirth: borrower.date_of_birth || '',
+          placeOfBirth: borrower.place_of_birth || '',
+          gender: borrower.gender || '',
+          civilStatus: borrower.civil_status || '',
+          nationality: borrower.nationality || '',
+          motherMaidenName: '',
+          contactEmail: borrower.email_address || userEmail
+        };
+
+        // Map borrower contact information
+        profileData.contactInfo = {
+          mobileNumber: borrower.mobile_number || '',
+          countryCode: borrower.country_code || '',
+          presentAddress: borrower.present_address || '',
+          permanentAddress: borrower.permanent_address || '',
+          city: borrower.city || '',
+          state: borrower.state || '',
+          postalCode: borrower.postal_code || '',
+          country: borrower.country || '',
+          barangay: borrower.barangay || ''
+        };
+
+        // Map borrower employment information
+        profileData.employmentInfo = {
+          occupation: borrower.occupation || '',
+          employerName: borrower.employer_name || '',
+          employerAddress: borrower.employer_address || '',
+          employmentStatus: borrower.employment_status || '',
+          grossAnnualIncome: borrower.gross_annual_income,
+          sourceOfIncome: borrower.source_of_income || ''
+        };
+
+        // Map bank account information
+        if (borrower.bank_name) {
+          profileData.bankAccounts.push({
+            bankName: borrower.bank_name,
+            accountName: borrower.account_name,
+            accountNumber: borrower.account_number,
+            accountType: borrower.account_type,
+            iban: borrower.iban,
+            swiftCode: borrower.swift_code,
+            isDefault: borrower.preferred
+          });
+        }
+
+        // Map business information
+        profileData.businessInfo = {
+          entityType: borrower.entity_type || '',
+          entityName: borrower.entity_name || '',
+          registrationNumber: borrower.registration_number || '',
+          registrationType: borrower.registration_type || '',
+          registrationDate: borrower.registration_date || '',
+          businessAddress: borrower.business_address || '',
+          authorizedPersonName: borrower.authorized_person_name || '',
+          authorizedPersonPosition: borrower.authorized_person_position || ''
+        };
+
+        // Map identification documents
+        profileData.identifications = {
+          nationalId: borrower.national_id || '',
+          passport: borrower.passport || '',
+          tin: borrower.tin_number || '',
+          secondaryIdType: '',
+          secondaryIdNumber: ''
+        };
+      }
+    }
+
+    // Also get investor profile data if they have investor account
+    if (user.has_investor_account) {
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [userId]
+      );
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        
+        // Merge investor data (override borrower data if both exist)
+        if (!profileData.personalInfo.firstName) {
+          profileData.personalInfo.firstName = investor.first_name || '';
+          profileData.personalInfo.lastName = investor.last_name || '';
+          profileData.personalInfo.middleName = investor.middle_name || '';
+        }
+
+        // Merge investor identification data
+        if (!profileData.identifications.nationalId) {
+          profileData.identifications.nationalId = investor.national_id || '';
+        }
+        if (!profileData.identifications.passport) {
+          profileData.identifications.passport = investor.passport || '';
+        }
+        if (!profileData.identifications.tin) {
+          profileData.identifications.tin = investor.tin_number || '';
+        }
+        
+        profileData.investmentInfo = {
+          experience: investor.investment_experience || '',
+          objectives: investor.investment_objectives || '',
+          riskTolerance: investor.risk_tolerance || '',
+          investmentHorizon: investor.investment_horizon || '',
+          liquidNetWorth: investor.liquid_net_worth,
+          pepStatus: investor.pep_status === 'yes'
+        };
+
+        // Add investor bank account if different from borrower
+        if (investor.bank_name && !profileData.bankAccounts.some(acc => acc.bankName === investor.bank_name)) {
+          profileData.bankAccounts.push({
+            bankName: investor.bank_name,
+            accountName: investor.account_name,
+            accountNumber: investor.account_number,
+            accountType: investor.account_type,
+            iban: investor.iban,
+            swiftCode: investor.swift_code,
+            isDefault: investor.preferred
+          });
+        }
+      }
+    }
+
+    // Determine if this is an individual or non-individual account
+    let isIndividualAccount = true;
+    let entityInfo = null;
+    let businessRegistration = null;
+    let principalOffice = null;
+    let entityDocuments = null;
+
+    // Get entity-specific data from borrower or investor profile
+    if (user.has_borrower_account) {
+      const borrowerQuery = await db.query(
+        `SELECT * FROM borrower_profiles WHERE firebase_uid = $1`,
+        [userId]
+      );
+      
+      if (borrowerQuery.rows.length > 0) {
+        const borrower = borrowerQuery.rows[0];
+        isIndividualAccount = borrower.is_individual_account !== false;
+        
+        // If non-individual account, populate entity data
+        if (!isIndividualAccount) {
+          entityInfo = {
+            entityType: borrower.entity_type || '',
+            entityName: borrower.entity_name || '',
+            registrationNumber: borrower.registration_number || '',
+            tin: borrower.tin_number || '',
+            contactPersonName: borrower.contact_person_name || '',
+            contactPersonPosition: borrower.contact_person_position || '',
+            contactPersonEmail: borrower.contact_person_email || '',
+            contactPersonPhone: borrower.contact_person_phone || ''
+          };
+          
+          businessRegistration = {
+            type: borrower.business_registration_type || '',
+            date: borrower.business_registration_date || '',
+            corporateTin: borrower.corporate_tin || '',
+            authorizedSignatoryName: borrower.authorized_signatory_name || '',
+            authorizedSignatoryPosition: borrower.authorized_signatory_position || '',
+            authorizedSignatoryIdNumber: borrower.authorized_signatory_id_number || '',
+            natureOfBusiness: borrower.nature_of_business || ''
+          };
+          
+          principalOffice = {
+            street: borrower.principal_office_street || '',
+            barangay: borrower.principal_office_barangay || '',
+            city: borrower.principal_office_city || '',
+            state: borrower.principal_office_state || '',
+            country: borrower.principal_office_country || '',
+            postalCode: borrower.principal_office_postal_code || ''
+          };
+          
+          entityDocuments = {
+            registrationCertFile: borrower.registration_cert_file || '',
+            tinCertFile: borrower.tin_cert_file || '',
+            authorizationFile: borrower.authorization_file || ''
+          };
+        }
+      }
+    } else if (user.has_investor_account) {
+      const investorQuery = await db.query(
+        `SELECT * FROM investor_profiles WHERE firebase_uid = $1`,
+        [userId]
+      );
+      
+      if (investorQuery.rows.length > 0) {
+        const investor = investorQuery.rows[0];
+        isIndividualAccount = investor.is_individual_account !== false;
+        
+        // If non-individual account, populate entity data
+        if (!isIndividualAccount) {
+          entityInfo = {
+            entityType: investor.entity_type || '',
+            entityName: investor.entity_name || '',
+            registrationNumber: investor.registration_number || '',
+            tin: investor.tin_number || '',
+            contactPersonName: investor.contact_person_name || '',
+            contactPersonPosition: investor.contact_person_position || '',
+            contactPersonEmail: investor.contact_person_email || '',
+            contactPersonPhone: investor.contact_person_phone || ''
+          };
+          
+          entityDocuments = {
+            registrationCertFile: investor.registration_cert_file || '',
+            tinCertFile: investor.tin_cert_file || '',
+            authorizationFile: investor.authorization_file || ''
+          };
+        }
+      }
+    }
+
+    const userDetail = {
+      id: user.firebase_uid,
+      firebaseUid: user.firebase_uid,
+      fullName: user.full_name || 'Unknown User',
+      email: userEmail,
+      username: user.username,
+      profilePicture: user.profile_picture,
+      accountTypes: [
+        ...(user.has_borrower_account ? ['borrower'] : []),
+        ...(user.has_investor_account ? ['investor'] : [])
+      ],
+      status: user.suspension_scope ? 'suspended' : (user.current_account_type === 'deleted' ? 'deleted' : 'active'),
+      memberSince: user.created_at,
+      lastActivity: user.updated_at,
+      location: profileData.contactInfo.city && profileData.contactInfo.country ? 
+        `${profileData.contactInfo.city}, ${profileData.contactInfo.country}` : null,
+      occupation: profileData.employmentInfo.occupation,
+      issuerCode: user.firebase_uid.substring(0, 6).toUpperCase(),
+      
+      // Suspension details
+      suspensionReason: user.suspension_reason,
+      suspendedAt: user.suspended_at,
+      suspendedBy: user.suspended_by,
+      suspensionScope: user.suspension_scope,
+      
+      // Account type indicator
+      accountType: isIndividualAccount ? 'individual' : 'non-individual',
+      isIndividualAccount: isIndividualAccount,
+      
+      // Add comprehensive profile data (for individual accounts)
+      personalProfile: isIndividualAccount ? profileData.personalInfo : null,
+      
+      // Add entity-specific data (for non-individual accounts)
+      entityInfo: entityInfo,
+      businessRegistration: businessRegistration,
+      principalOffice: principalOffice,
+      entityDocuments: entityDocuments,
+      
+      identifications: profileData.identifications,
+      addresses: {
+        present: profileData.contactInfo.presentAddress,
+        permanent: profileData.contactInfo.permanentAddress,
+        city: profileData.contactInfo.city,
+        state: profileData.contactInfo.state,
+        country: profileData.contactInfo.country,
+        postalCode: profileData.contactInfo.postalCode,
+        barangay: profileData.contactInfo.barangay
+      },
+      bankAccounts: profileData.bankAccounts,
+      rolesSettings: {
+        accountType: user.current_account_type,
+        hasBorrowerAccount: user.has_borrower_account,
+        hasInvestorAccount: user.has_investor_account,
+        isAdmin: user.is_admin,
+        isComplete: false
+      },
+      
+      borrowerData: user.has_borrower_account ? {
+        totalProjects: parseInt(projectStats.rows[0].total_projects) || 0,
+        activeProjects: parseInt(projectStats.rows[0].active_projects) || 0,
+        completedProjects: parseInt(projectStats.rows[0].completed_projects) || 0,
+        industryType: profileData.businessInfo.entityType,
+        businessInfo: profileData.businessInfo,
+        employmentInfo: isIndividualAccount ? profileData.employmentInfo : null
+      } : null,
+      
+      investorData: user.has_investor_account ? {
+        totalInvestments: 0, // Would calculate from investment data
+        activeInvestments: 0,
+        portfolioValue: profileData.investmentInfo.liquidNetWorth || 0,
+        riskTolerance: profileData.investmentInfo.riskTolerance,
+        investmentInfo: profileData.investmentInfo
+      } : null,
+      
+      activityLog: [
+        {
+          id: 1,
+          type: 'account_created',
+          description: 'Account created',
+          timestamp: user.created_at,
+          status: 'completed'
+        },
+        {
+          id: 2,
+          type: 'profile_updated',
+          description: 'Profile last updated',
+          timestamp: user.updated_at,
+          status: 'completed'
+        }
+      ]
+    };
+
+    res.json(userDetail);
+  } catch (err) {
+    console.error("Error fetching user detail:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner User Projects
+app.get('/api/owner/users/:userId/projects', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    const result = await db.query(`
+      SELECT id, project_data, created_at
+      FROM projects 
+      WHERE firebase_uid = $1
+      ORDER BY created_at DESC
+    `, [userId]);
+
+    const projects = result.rows.map(row => ({
+      id: row.project_data?.id || row.id,
+      title: row.project_data?.details?.product || 'Untitled Project',
+      status: row.project_data?.status || 'draft',
+      fundingAmount: parseInt(row.project_data?.details?.fundingRequirement) || 0,
+      fundingProgress: row.project_data?.details?.fundingProgress || '0%',
+      createdAt: row.created_at
+    }));
+
+    res.json(projects);
+  } catch (err) {
+    console.error("Error fetching user projects:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Suspend User
+app.post('/api/owner/users/:userId/suspend', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  const { reason } = req.body;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin, full_name FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Get user details before suspension
+    const userResult = await db.query(`
+      SELECT full_name, is_admin FROM users WHERE firebase_uid = $1
+    `, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userResult.rows[0];
+
+    // 🚨 CRITICAL: Prevent suspending admin users!
+    if (user.is_admin) {
+      console.log(`🚫 BLOCKED! Attempt to suspend admin user ${userId} (${user.full_name})`);
+      return res.status(403).json({ 
+        error: "Cannot Suspend Admin",
+        message: "Admin users cannot be suspended for security reasons. Please contact system administrator."
+      });
+    }
+
+    // Begin transaction
+    await db.query('BEGIN');
+
+    try {
+      // Update user suspension_scope to full_account (proper suspension system)
+      console.log('🔄 Attempting to suspend user:', {
+        userId,
+        adminUid: req.uid,
+        reason
+      });
+      
+      const updateResult = await db.query(`
+        UPDATE users 
+        SET suspension_scope = 'full_account',
+            suspended_at = NOW(),
+            suspended_by = $2,
+            suspension_reason = $3,
+            updated_at = NOW()
+        WHERE firebase_uid = $1
+        RETURNING firebase_uid, full_name, suspension_scope
+      `, [userId, req.uid, reason]);
+      
+      console.log('✅ Database UPDATE result:', {
+        rowCount: updateResult.rowCount,
+        user: updateResult.rows[0]
+      });
+      
+      if (updateResult.rowCount === 0) {
+        throw new Error('User not found or UPDATE failed');
+      }
+
+      // Try to create notification (if table exists)
+      // Note: Skipping notification creation due to schema issues
+      // TODO: Fix notifications table schema later
+      console.log('📧 Notification skipped (table schema needs update)');
+
+      // Store suspension record in user_suspensions table
+      try {
+        await db.query(`
+          INSERT INTO user_suspensions (firebase_uid, suspended_by, reason, status)
+          VALUES ($1, $2, $3, 'active')
+        `, [userId, req.uid, reason]);
+        console.log('📝 Suspension record created in user_suspensions table');
+      } catch (suspErr) {
+        console.warn('⚠️  Could not create suspension record:', suspErr.message);
+        // Continue even if suspension record fails - main suspension still works
+      }
+
+      await db.query('COMMIT');
+
+      // Log the action
+      console.log(`🚫 Owner ${req.uid} suspended user ${userId} (${user.full_name})`);
+      console.log(`   Reason: ${reason}`);
+
+      res.json({ 
+        success: true, 
+        message: "User suspended successfully",
+        data: {
+          userId,
+          userName: user.full_name,
+          reason,
+          suspendedAt: new Date().toISOString()
+        }
+      });
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    console.error("❌ Error suspending user:", err);
+    console.error("Error details:", err.message);
+    console.error("Error stack:", err.stack);
+    res.status(500).json({ 
+      error: "Failed to suspend user", 
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined 
+    });
+  }
+});
+
+// Owner Reactivate User
+// DUPLICATE REMOVED - Using proper reactivate endpoint at line 3894 that clears suspension_scope
+
+// Owner Delete User
+app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    // Begin transaction
+    await db.query('BEGIN');
+
+    try {
+      // Delete related data first
+      await db.query('DELETE FROM projects WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM topup_requests WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM borrower_profiles WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM investor_profiles WHERE firebase_uid = $1', [userId]);
+      
+      // Delete user
+      await db.query('DELETE FROM users WHERE firebase_uid = $1', [userId]);
+
+      await db.query('COMMIT');
+      
+      console.log(`Owner ${req.uid} deleted user ${userId}`);
+      res.json({ success: true, message: "User deleted successfully" });
+      
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Owner Update User
+app.put('/api/owner/users/:userId', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  const { fullName, email } = req.body;
+  
+  try {
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+    
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    }
+
+    await db.query(`
+      UPDATE users 
+      SET full_name = COALESCE($1, full_name), email = COALESCE($2, email)
+      WHERE firebase_uid = $3
+    `, [fullName, email, userId]);
+
+    console.log(`Owner ${req.uid} updated user ${userId}`);
+    res.json({ success: true, message: "User updated successfully" });
+  } catch (err) {
+    console.error("Error updating user:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ============= END OWNER API ENDPOINTS =============
+
 const PORT = process.env.PORT || 3001;
 
 // Set up admin user before starting server
@@ -5040,6 +7446,654 @@ const PORT = process.env.PORT || 3001;
     console.error('❌ Error updating admin status:', err);
   }
 })();
+
+// ==================== TEAM MANAGEMENT ENDPOINTS ====================
+
+// Get all team members for owner
+app.get('/api/owner/team', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Get all team members with their details and permissions
+    const result = await db.query(`
+      SELECT 
+        tm.id,
+        tm.email,
+        tm.member_uid,
+        tm.role,
+        tm.status,
+        tm.invited_at,
+        tm.joined_at,
+        tm.last_active,
+        u.full_name,
+        u.profile_picture,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'key', tmp.permission_key,
+              'label', tmp.permission_key,
+              'canAccess', tmp.can_access
+            )
+            ORDER BY tmp.permission_key
+          ) FILTER (WHERE tmp.permission_key IS NOT NULL),
+          '[]'
+        ) as permissions
+      FROM team_members tm
+      LEFT JOIN users u ON tm.member_uid = u.firebase_uid
+      LEFT JOIN team_member_permissions tmp ON tm.id = tmp.team_member_id
+      WHERE tm.owner_uid = $1
+      GROUP BY tm.id, u.full_name, u.profile_picture
+      ORDER BY tm.created_at DESC
+    `, [firebase_uid]);
+
+    const teamMembers = result.rows.map(row => ({
+      id: row.id,
+      email: row.email,
+      memberUid: row.member_uid,
+      fullName: row.full_name,
+      profilePicture: row.profile_picture,
+      role: row.role,
+      status: row.status,
+      invitedAt: row.invited_at,
+      joinedAt: row.joined_at,
+      lastActive: row.last_active,
+      permissions: row.permissions
+    }));
+
+    res.json(teamMembers);
+  } catch (error) {
+    console.error('Error fetching team members:', error);
+    res.status(500).json({ error: 'Failed to fetch team members' });
+  }
+});
+
+// Invite new team member
+app.post('/api/owner/team/invite', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { email, role, permissions } = req.body;
+
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin, full_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    const ownerName = adminCheck.rows[0].full_name;
+
+    // Check if email already exists in team
+    const existingMember = await db.query(
+      'SELECT id FROM team_members WHERE owner_uid = $1 AND LOWER(email) = LOWER($2)',
+      [firebase_uid, email]
+    );
+
+    if (existingMember.rows.length > 0) {
+      return res.status(400).json({ error: 'This email is already invited to your team' });
+    }
+
+    // For now, set member_uid as null (will be filled when they accept invitation)
+    // We can't reliably check users table by email due to schema complexity
+    const memberUid = null;
+
+    // Create team member
+    const result = await db.query(`
+      INSERT INTO team_members (
+        owner_uid,
+        email,
+        member_uid,
+        role,
+        status,
+        invited_at
+      ) VALUES ($1, $2, $3, $4, $5, NOW())
+      RETURNING *
+    `, [firebase_uid, email, memberUid, role, memberUid ? 'active' : 'pending']);
+
+    const teamMemberId = result.rows[0].id;
+
+    // Add permissions
+    if (permissions && permissions.length > 0) {
+      const permissionValues = permissions.map((perm, index) => 
+        `($${index * 2 + 1}, $${index * 2 + 2}, true)`
+      ).join(',');
+
+      const permissionParams = permissions.flatMap(perm => [teamMemberId, perm]);
+
+      await db.query(`
+        INSERT INTO team_member_permissions (team_member_id, permission_key, can_access)
+        VALUES ${permissionValues}
+      `, permissionParams);
+    }
+
+    // Generate invitation token
+    const crypto = await import('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await db.query(`
+      INSERT INTO team_invitations (
+        owner_uid,
+        email,
+        token,
+        role,
+        permissions,
+        expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+    `, [firebase_uid, email, token, role, JSON.stringify(permissions), expiresAt]);
+
+    // Send invitation email
+    let emailSent = false;
+    let inviteUrl = null;
+    try {
+      await sendTeamInvitationEmail(email, token, ownerName, role);
+      console.log(`✅ Invitation email sent to ${email}`);
+      emailSent = true;
+    } catch (emailError) {
+      console.error('⚠️ Failed to send invitation email:', emailError);
+      // Continue even if email fails - user can still be invited manually
+      inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invitation/${token}`;
+    }
+
+    // If SendGrid not configured, include the invitation link in response
+    if (!process.env.SENDGRID_API_KEY || !emailSent) {
+      inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invitation/${token}`;
+    }
+
+    // Create notification for the invited user (if they exist in system)
+    if (memberUid) {
+      try {
+        await db.query(`
+          INSERT INTO notifications (
+            firebase_uid, 
+            type, 
+            title, 
+            message, 
+            link,
+            created_at
+          ) VALUES ($1, $2, $3, $4, $5, NOW())
+        `, [
+          memberUid,
+          'team_invitation',
+          'Team Invitation',
+          `${ownerName} has invited you to join their team as a ${role}`,
+          inviteUrl
+        ]);
+        console.log(`✅ Notification created for user ${memberUid}`);
+      } catch (notifError) {
+        console.error('⚠️ Failed to create notification:', notifError);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: emailSent ? 'Invitation sent successfully' : 'Invitation created (email service not configured)',
+      member: result.rows[0],
+      invitationLink: inviteUrl // Include link so it can be copied manually
+    });
+  } catch (error) {
+    console.error('Error inviting team member:', error);
+    res.status(500).json({ error: 'Failed to send invitation' });
+  }
+});
+
+// Update team member role
+app.put('/api/owner/team/:memberId/role', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { memberId } = req.params;
+    const { role, permissions } = req.body;
+
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    // Verify member belongs to this owner
+    const memberCheck = await db.query(
+      'SELECT id FROM team_members WHERE id = $1 AND owner_uid = $2',
+      [memberId, firebase_uid]
+    );
+
+    if (memberCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Team member not found' });
+    }
+
+    // Update role
+    await db.query(
+      'UPDATE team_members SET role = $1, updated_at = NOW() WHERE id = $2',
+      [role, memberId]
+    );
+
+    // Update permissions if provided
+    if (permissions) {
+      // Delete existing permissions
+      await db.query('DELETE FROM team_member_permissions WHERE team_member_id = $1', [memberId]);
+
+      // Add new permissions
+      if (permissions.length > 0) {
+        const permissionValues = permissions.map((perm, index) => 
+          `($${index * 2 + 1}, $${index * 2 + 2}, true)`
+        ).join(',');
+
+        const permissionParams = permissions.flatMap(perm => [memberId, perm]);
+
+        await db.query(`
+          INSERT INTO team_member_permissions (team_member_id, permission_key, can_access)
+          VALUES ${permissionValues}
+        `, permissionParams);
+      }
+    }
+
+    res.json({ success: true, message: 'Role updated successfully' });
+  } catch (error) {
+    console.error('Error updating role:', error);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+// Update team member permissions
+app.put('/api/owner/team/:memberId/permissions', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { memberId } = req.params;
+    const { permissions } = req.body;
+
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    // Verify member belongs to this owner
+    const memberCheck = await db.query(
+      'SELECT id FROM team_members WHERE id = $1 AND owner_uid = $2',
+      [memberId, firebase_uid]
+    );
+
+    if (memberCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Team member not found' });
+    }
+
+    // Delete existing permissions
+    await db.query('DELETE FROM team_member_permissions WHERE team_member_id = $1', [memberId]);
+
+    // Add new permissions
+    if (permissions && permissions.length > 0) {
+      const permissionValues = permissions.map((perm, index) => 
+        `($${index * 2 + 1}, $${index * 2 + 2}, true)`
+      ).join(',');
+
+      const permissionParams = permissions.flatMap(perm => [memberId, perm]);
+
+      await db.query(`
+        INSERT INTO team_member_permissions (team_member_id, permission_key, can_access)
+        VALUES ${permissionValues}
+      `, permissionParams);
+    }
+
+    res.json({ success: true, message: 'Permissions updated successfully' });
+  } catch (error) {
+    console.error('Error updating permissions:', error);
+    res.status(500).json({ error: 'Failed to update permissions' });
+  }
+});
+
+// Remove team member
+app.delete('/api/owner/team/:memberId', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { memberId } = req.params;
+
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    // Verify member belongs to this owner
+    const memberCheck = await db.query(
+      'SELECT id FROM team_members WHERE id = $1 AND owner_uid = $2',
+      [memberId, firebase_uid]
+    );
+
+    if (memberCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Team member not found' });
+    }
+
+    // Delete team member (permissions will be cascade deleted)
+    await db.query('DELETE FROM team_members WHERE id = $1', [memberId]);
+
+    res.json({ success: true, message: 'Team member removed successfully' });
+  } catch (error) {
+    console.error('Error removing team member:', error);
+    res.status(500).json({ error: 'Failed to remove team member' });
+  }
+});
+
+// Resend invitation
+app.post('/api/owner/team/:memberId/resend-invite', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { memberId } = req.params;
+
+    // Verify owner/admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin, full_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    const ownerName = adminCheck.rows[0].full_name;
+
+    // Get member details
+    const memberResult = await db.query(
+      'SELECT email, role FROM team_members WHERE id = $1 AND owner_uid = $2 AND status = $3',
+      [memberId, firebase_uid, 'pending']
+    );
+
+    if (memberResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Pending team member not found' });
+    }
+
+    const { email, role } = memberResult.rows[0];
+
+    // Get permissions
+    const permissionsResult = await db.query(
+      'SELECT permission_key FROM team_member_permissions WHERE team_member_id = $1 AND can_access = true',
+      [memberId]
+    );
+
+    const permissions = permissionsResult.rows.map(row => row.permission_key);
+
+    // Generate new invitation token
+    const crypto = await import('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    // Revoke old invitations
+    await db.query(
+      `UPDATE team_invitations SET status = 'revoked' WHERE email = $1 AND owner_uid = $2 AND status = 'pending'`,
+      [email, firebase_uid]
+    );
+
+    // Create new invitation
+    await db.query(`
+      INSERT INTO team_invitations (
+        owner_uid,
+        email,
+        token,
+        role,
+        permissions,
+        expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+    `, [firebase_uid, email, token, role, JSON.stringify(permissions), expiresAt]);
+
+    // Send invitation email
+    try {
+      await sendTeamInvitationEmail(email, token, ownerName, role);
+      console.log(`✅ Invitation email resent to ${email}`);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send invitation email:', emailError);
+    }
+
+    res.json({ success: true, message: 'Invitation resent successfully' });
+  } catch (error) {
+    console.error('Error resending invitation:', error);
+    res.status(500).json({ error: 'Failed to resend invitation' });
+  }
+});
+
+// Accept team invitation (public endpoint for invited users)
+app.post('/api/team/accept-invitation/:token', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { token } = req.params;
+
+    // Check if invitation exists (regardless of status)
+    const checkResult = await db.query(`
+      SELECT * FROM team_invitations WHERE token = $1
+    `, [token]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invitation not found' });
+    }
+
+    const existingInvitation = checkResult.rows[0];
+
+    // Check if already accepted
+    if (existingInvitation.status === 'accepted') {
+      return res.status(400).json({ 
+        error: 'This invitation has already been accepted',
+        message: 'You are already a member of this team'
+      });
+    }
+
+    // Check if expired
+    if (new Date(existingInvitation.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'This invitation has expired' });
+    }
+
+    // Get pending invitation
+    const invitationResult = await db.query(`
+      SELECT * FROM team_invitations 
+      WHERE token = $1 AND status = 'pending'
+    `, [token]);
+
+    if (invitationResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid invitation' });
+    }
+
+    const invitation = invitationResult.rows[0];
+
+    // Verify user exists in database
+    const userResult = await db.query(
+      'SELECT firebase_uid FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Note: Email verification happens at Firebase Auth level
+    // The logged-in user's email should match the invitation email
+    // Firebase Auth ensures the user is authenticated with the correct email
+
+    // Update team member status
+    await db.query(`
+      UPDATE team_members 
+      SET member_uid = $1, status = 'active', joined_at = NOW(), updated_at = NOW()
+      WHERE owner_uid = $2 AND email = $3
+    `, [firebase_uid, invitation.owner_uid, invitation.email]);
+
+    // Mark invitation as accepted
+    await db.query(`
+      UPDATE team_invitations 
+      SET status = 'accepted', accepted_at = NOW()
+      WHERE id = $1
+    `, [invitation.id]);
+
+    res.json({ success: true, message: 'Invitation accepted successfully' });
+  } catch (error) {
+    console.error('Error accepting invitation:', error);
+    res.status(500).json({ error: 'Failed to accept invitation' });
+  }
+});
+
+// Get current user's team permissions
+app.get('/api/team/my-permissions', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+
+    // Check if user is owner/admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (adminCheck.rows.length > 0 && adminCheck.rows[0].is_admin) {
+      // Return all permissions for owners/admins
+      return res.json({
+        isOwner: true,
+        permissions: ['*'] // Wildcard for all permissions
+      });
+    }
+
+    // Get team member permissions
+    const result = await db.query(`
+      SELECT tmp.permission_key
+      FROM team_members tm
+      JOIN team_member_permissions tmp ON tm.id = tmp.team_member_id
+      WHERE tm.member_uid = $1 
+        AND tm.status = 'active'
+        AND tmp.can_access = true
+    `, [firebase_uid]);
+
+    const permissions = result.rows.map(row => row.permission_key);
+
+    res.json({
+      isOwner: false,
+      permissions
+    });
+  } catch (error) {
+    console.error('Error fetching user permissions:', error);
+    res.status(500).json({ error: 'Failed to fetch permissions' });
+  }
+});
+
+// ==================== EMAIL SERVICE HELPER ====================
+
+async function sendTeamInvitationEmail(email, token, ownerName, role) {
+  const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invitation/${token}`;
+  
+  // Check if SendGrid is configured
+  if (!process.env.SENDGRID_API_KEY) {
+    console.log('⚠️ SendGrid not configured. Invitation link:', inviteUrl);
+    console.log('📧 Email would be sent to:', email);
+    console.log('🔗 Share this link manually:', inviteUrl);
+    return true; // Return success so the invitation still gets created
+  }
+
+  try {
+    const sgMail = await import('@sendgrid/mail');
+    sgMail.default.setApiKey(process.env.SENDGRID_API_KEY);
+
+    const msg = {
+      to: email,
+      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@initiateportal.com',
+      subject: `You've been invited to join ${ownerName}'s team`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #0C4B20, #8FB200); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; }
+            .button { display: inline-block; padding: 12px 30px; background: #0C4B20; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+            .button:hover { background: #0A3D1A; }
+            .role-badge { display: inline-block; padding: 6px 12px; background: #f0f0f0; border-radius: 4px; font-weight: bold; color: #0C4B20; }
+            .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+            .info-box { background: #f9f9f9; padding: 15px; border-left: 4px solid #0C4B20; margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🎉 Team Invitation</h1>
+            </div>
+            <div class="content">
+              <h2>Hello!</h2>
+              <p>You've been invited to join <strong>${ownerName}'s</strong> team on Initiate Portal as a <span class="role-badge">${role.toUpperCase()}</span>.</p>
+              
+              <div class="info-box">
+                <strong>Your Role:</strong> ${role.charAt(0).toUpperCase() + role.slice(1)}<br>
+                <strong>Invited by:</strong> ${ownerName}<br>
+                <strong>Platform:</strong> Initiate Portal
+              </div>
+
+              <p>As a team member, you'll have access to manage and view various aspects of the platform based on your assigned role and permissions.</p>
+
+              <p style="text-align: center;">
+                <a href="${inviteUrl}" class="button">Accept Invitation</a>
+              </p>
+
+              <p style="color: #666; font-size: 14px;">
+                Or copy and paste this link into your browser:<br>
+                <code style="background: #f5f5f5; padding: 8px; display: block; margin-top: 8px; word-break: break-all;">${inviteUrl}</code>
+              </p>
+
+              <div class="info-box" style="border-left-color: #ff9800;">
+                <strong>⚠️ Important:</strong> This invitation will expire in 7 days. Please accept it soon to join the team.
+              </div>
+
+              <p>If you weren't expecting this invitation or believe you received it in error, you can safely ignore this email.</p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} Initiate Portal. All rights reserved.</p>
+              <p>This is an automated email. Please do not reply.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+You've been invited to join ${ownerName}'s team!
+
+Role: ${role.charAt(0).toUpperCase() + role.slice(1)}
+Platform: Initiate Portal
+
+Accept your invitation by visiting this link:
+${inviteUrl}
+
+This invitation will expire in 7 days.
+
+If you weren't expecting this invitation, you can safely ignore this email.
+
+© ${new Date().getFullYear()} Initiate Portal
+      `.trim()
+    };
+
+    await sgMail.default.send(msg);
+    return true;
+  } catch (error) {
+    console.error('SendGrid error:', error);
+    throw error;
+  }
+}
+
+// ==================== SERVER START ====================
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

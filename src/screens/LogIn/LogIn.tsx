@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  AlertCircle,
   ArrowLeftIcon,
   EyeIcon,
   EyeOffIcon,
@@ -18,6 +19,7 @@ import { fetchProfile } from '../../lib/profile';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase"; // your client init
 import { generateProfileCode } from "../../lib/profileUtils";
+import { RiskStatementModal } from "../../components/RiskStatementModal";
 
 
 export const LogIn = (): JSX.Element => {
@@ -28,7 +30,34 @@ export const LogIn = (): JSX.Element => {
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [showLoadingOverlay, setShowLoadingOverlay] = React.useState(false);
+  const [showRiskModal, setShowRiskModal] = React.useState(false);
   const { setProfile } = useAuth();
+
+  // Check if redirected due to suspension
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('suspended') === 'true') {
+      // Get suspension reason from sessionStorage if available
+      const suspensionReason = sessionStorage.getItem('suspensionReason');
+      if (suspensionReason) {
+        setError(suspensionReason);
+        // Clear it after displaying
+        sessionStorage.removeItem('suspensionReason');
+      } else {
+        setError("Your account has been suspended. Please contact support for assistance.");
+      }
+      // Clear the URL parameter
+      window.history.replaceState({}, document.title, "/");
+    }
+  }, []);
+
+  // Show risk statement modal on first visit
+  React.useEffect(() => {
+    const hasSeenRiskStatement = sessionStorage.getItem('hasSeenRiskStatement_login');
+    if (!hasSeenRiskStatement) {
+      setShowRiskModal(true);
+    }
+  }, []);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -186,7 +215,26 @@ export const LogIn = (): JSX.Element => {
             </div>
           </div>
 
-          {error && <p className="text-red-500 mt-4">{error}</p>}
+          {error && (
+            <div className="mt-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg w-full md:max-w-[65%]">
+              <div className="flex items-start">
+                <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-red-800 mb-1">
+                    {error.toLowerCase().includes('suspended') ? 'Account Suspended' : 'Login Error'}
+                  </h3>
+                  <p className="text-sm text-red-700 whitespace-pre-wrap leading-relaxed">
+                    {error}
+                  </p>
+                  {error.toLowerCase().includes('suspended') && !error.includes('info@initiate.ph') && (
+                    <p className="text-xs text-red-600 mt-3 pt-2 border-t border-red-200">
+                      Please contact <a href="mailto:info@initiate.ph" className="font-semibold underline hover:text-red-800">info@initiate.ph</a> for assistance.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           <p className="text-center text-sm mt-6">
             Don’t have an account?{' '}
@@ -200,6 +248,18 @@ export const LogIn = (): JSX.Element => {
       <LoadingOverlay 
         show={showLoadingOverlay} 
         message="Signing you in..." 
+      />
+
+      <RiskStatementModal
+        isOpen={showRiskModal}
+        onClose={() => {
+          setShowRiskModal(false);
+          sessionStorage.setItem('hasSeenRiskStatement_login', 'true');
+        }}
+        onAccept={() => {
+          setShowRiskModal(false);
+          sessionStorage.setItem('hasSeenRiskStatement_login', 'true');
+        }}
       />
 
       <div className="hidden md:block md:w-1/3 flex-shrink-0">

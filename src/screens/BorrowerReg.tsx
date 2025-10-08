@@ -1,8 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { Country, State, City } from "country-state-city";
 import { Testimonials } from "../screens/LogIn/Testimonials";
+import { auth } from "../lib/firebase";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -15,9 +16,16 @@ import {
   SelectContent,
   SelectItem,
 } from "../components/ui/select";
+import { Combobox, type ComboboxOption } from "../components/ui/combobox";
 
 export const BorrowerReg = (): JSX.Element => {
   const [accountType, setAccountType] = useState("individual");
+
+  // Personal Profile
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [suffixName, setSuffixName] = useState("");
 
   // Identification
   const [nationalId, setNationalId] = useState("");
@@ -27,7 +35,6 @@ export const BorrowerReg = (): JSX.Element => {
   // File uploads
   const [nationalIdFile, setNationalIdFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
-  const passportFileRef = useRef<HTMLInputElement>(null);
 
   // Additional KYC fields for Individual accounts
   const [placeOfBirth, setPlaceOfBirth] = useState("");
@@ -48,6 +55,9 @@ export const BorrowerReg = (): JSX.Element => {
 
   // Validation errors state
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+  
+  // Track if we have existing account data
+  const [hasExistingAccount, setHasExistingAccount] = useState(false);
 
   // Address
   const [street, setStreet] = useState("");
@@ -63,8 +73,185 @@ export const BorrowerReg = (): JSX.Element => {
   const states = countryIso ? State.getStatesOfCountry(countryIso) : [];
   const cities = stateIso ? City.getCitiesOfState(countryIso, stateIso) : [];
 
+  // Convert to ComboboxOption format for searchable dropdowns
+  const countryOptions: ComboboxOption[] = countries.map(c => ({
+    value: c.isoCode,
+    label: c.name
+  }));
+
+  const stateOptions: ComboboxOption[] = states.map(s => ({
+    value: s.isoCode,
+    label: s.name
+  }));
+
+  const cityOptions: ComboboxOption[] = cities.map(c => ({
+    value: c.name,
+    label: c.name
+  }));
+
+  const genderOptions: ComboboxOption[] = [
+    { value: "male", label: "Male" },
+    { value: "female", label: "Female" },
+    { value: "prefer-not-to-say", label: "Prefer not to say" }
+  ];
+
+  const civilStatusOptions: ComboboxOption[] = [
+    { value: "single", label: "Single" },
+    { value: "married", label: "Married" },
+    { value: "divorced", label: "Divorced" },
+    { value: "widowed", label: "Widowed" },
+    { value: "separated", label: "Separated" }
+  ];
+
+  const sourceOfIncomeOptions: ComboboxOption[] = [
+    { value: "employment", label: "Employment/Salary" },
+    { value: "business", label: "Business Income" },
+    { value: "investments", label: "Investment Income" },
+    { value: "pension", label: "Pension/Retirement" },
+    { value: "remittances", label: "Remittances" },
+    { value: "other", label: "Other" }
+  ];
+
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
+
+  // Fetch existing account data if user already has an investor account
+  useEffect(() => {
+    const fetchExistingData = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const token = await user.getIdToken();
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const fullUrl = `${apiUrl}/api/profile/existing-account-data?targetAccountType=borrower`;
+        
+        console.log('🔍 Fetching existing account data from:', fullUrl);
+        console.log('👤 User authenticated:', !!user);
+        console.log('🔑 Token exists:', !!token);
+        
+        const response = await fetch(fullUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response content-type:', response.headers.get('content-type'));
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Failed to fetch existing account data:', response.status, errorText);
+          return;
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const htmlText = await response.text();
+          console.error('❌ Expected JSON but got HTML:', htmlText.substring(0, 200));
+          return;
+        }
+
+        const data = await response.json();
+        console.log('📦 Received existing account data:', data);
+        
+        if (data.hasExistingAccount && data.existingData) {
+          const existingData = data.existingData;
+          console.log('✅ Has existing account data, pre-populating fields...');
+          setHasExistingAccount(true);
+          
+          // Pre-populate personal profile fields
+          if (existingData.personalInfo) {
+            console.log('👤 Personal profile data:', existingData.personalInfo);
+            setFirstName(existingData.personalInfo.firstName || "");
+            setMiddleName(existingData.personalInfo.middleName || "");
+            setLastName(existingData.personalInfo.lastName || "");
+            setSuffixName(existingData.personalInfo.suffixName || "");
+          }
+            
+            // Pre-populate address fields
+            if (existingData.address) {
+              console.log('📍 Address data:', existingData.address);
+              setStreet(existingData.address.street || existingData.address.present_address || "");
+              setBarangay(existingData.address.barangay || "");
+              // Handle both new (countryIso) and old (country) field names
+              setCountryIso(existingData.address.countryIso || existingData.address.country_iso || "");
+              setStateIso(existingData.address.stateIso || existingData.address.state_iso || "");
+              setCityName(existingData.address.cityName || existingData.address.city || "");
+              setPostalCode(existingData.address.postalCode || existingData.address.postal_code || "");
+            }
+            
+            // Pre-populate identification fields
+            if (existingData.identification) {
+              console.log('🆔 Identification data:', existingData.identification);
+              setNationalId(existingData.identification.nationalId || "");
+              setPassport(existingData.identification.passport || "");
+              setTin(existingData.identification.tin || "");
+              
+              // Convert base64 images to File objects
+              if (existingData.identification.nationalIdFile) {
+                fetch(existingData.identification.nationalIdFile)
+                  .then(res => res.blob())
+                  .then(blob => {
+                    const file = new File([blob], 'national-id.jpg', { type: 'image/jpeg' });
+                    setNationalIdFile(file);
+                  })
+                  .catch(err => console.error('Error converting national ID file:', err));
+              }
+              
+              if (existingData.identification.passportFile) {
+                fetch(existingData.identification.passportFile)
+                  .then(res => res.blob())
+                  .then(blob => {
+                    const file = new File([blob], 'passport.jpg', { type: 'image/jpeg' });
+                    setPassportFile(file);
+                  })
+                  .catch(err => console.error('Error converting passport file:', err));
+              }
+            }
+            
+            // Pre-populate personal info
+            if (existingData.personalInfo) {
+              console.log('👤 Personal info data:', existingData.personalInfo);
+              setPlaceOfBirth(existingData.personalInfo.placeOfBirth || "");
+              setGender(existingData.personalInfo.gender || "");
+              setCivilStatus(existingData.personalInfo.civilStatus || "");
+              setNationality(existingData.personalInfo.nationality || "");
+              setMotherMaidenName(existingData.personalInfo.motherMaidenName || "");
+            } else {
+              console.log('⚠️ No personalInfo in existing data');
+            }
+            
+            // Pre-populate employment info
+            if (existingData.employmentInfo) {
+              setEmployerName(existingData.employmentInfo.employerName || "");
+              setOccupation(existingData.employmentInfo.occupation || "");
+              setEmployerAddress(existingData.employmentInfo.employerAddress || "");
+              setSourceOfIncome(existingData.employmentInfo.sourceOfIncome || "");
+              setMonthlyIncome(existingData.employmentInfo.monthlyIncome?.toString() || "");
+            }
+            
+            // Pre-populate emergency contact
+            if (existingData.emergencyContact) {
+              setEmergencyContactName(existingData.emergencyContact.name || "");
+              setEmergencyContactRelationship(existingData.emergencyContact.relationship || "");
+              setEmergencyContactPhone(existingData.emergencyContact.phone || "");
+              setEmergencyContactAddress(existingData.emergencyContact.address || "");
+            }
+            
+          // Pre-populate PEP status
+          if (typeof existingData.pepStatus === 'boolean') {
+            setPepStatus(existingData.pepStatus);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching existing account data:', error);
+      }
+    };
+
+    fetchExistingData();
+  }, []);
 
   const handleAccountTypeSelect = (type: string) => {
     console.log("Account type selected:", type);
@@ -82,24 +269,16 @@ export const BorrowerReg = (): JSX.Element => {
     }
   };
 
-  // File upload handlers
-  const handlePassportUpload = () => {
-    passportFileRef.current?.click();
-  };
-
-  const handlePassportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPassportFile(file);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation for mandatory fields
+    // Determine if user is from Philippines
+    const isPhilippines = countryIso === 'PH';
+    
+    // Validation for mandatory fields (excluding nationalId which is conditional)
     const requiredFields = [
-      { field: nationalId, name: "nationalId" },
+      { field: firstName, name: "firstName" },
+      { field: lastName, name: "lastName" },
       { field: tin, name: "tin" },
       { field: street, name: "street" },
       { field: barangay, name: "barangay" },
@@ -134,10 +313,27 @@ export const BorrowerReg = (): JSX.Element => {
       }
     });
 
-    // Check file uploads
-    if (!nationalIdFile) {
-      errors["nationalIdFile"] = true;
-      hasErrors = true;
+    // Conditional validation based on country
+    if (isPhilippines) {
+      // Philippines: National ID is required
+      if (!nationalId || nationalId.trim() === "") {
+        errors["nationalId"] = true;
+        hasErrors = true;
+      }
+      if (!nationalIdFile) {
+        errors["nationalIdFile"] = true;
+        hasErrors = true;
+      }
+    } else {
+      // Non-Philippines: Passport is required
+      if (!passport || passport.trim() === "") {
+        errors["passport"] = true;
+        hasErrors = true;
+      }
+      if (!passportFile) {
+        errors["passportFile"] = true;
+        hasErrors = true;
+      }
     }
 
     // Update validation errors state
@@ -153,6 +349,11 @@ export const BorrowerReg = (): JSX.Element => {
       ...reg,
       accountType,
       details: {
+        // Personal profile
+        firstName,
+        middleName,
+        lastName,
+        suffixName,
         // Basic identification
         nationalId,
         passport,
@@ -261,16 +462,100 @@ export const BorrowerReg = (): JSX.Element => {
               noValidate
             >
 
+          {/* Success Banner - Show when existing account data found */}
+          {hasExistingAccount && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-green-800 font-semibold flex items-center gap-2">
+                  <span>🎉</span>
+                  <span>We found your existing information!</span>
+                </h4>
+                <p className="text-green-700 text-sm mt-1">
+                  Your personal details, identification, and address from your investor account have been automatically filled. You can review and update them if needed. Just add your borrower-specific details to complete registration.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Personal Profile */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">Personal Profile</h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* First Name */}
+              <ValidatedInput
+                label="First Name"
+                required
+                hasError={validationErrors.firstName}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter here"
+              />
+
+              {/* Middle Name */}
+              <ValidatedInput
+                label="Middle Name"
+                hasError={false}
+                value={middleName}
+                onChange={(e) => setMiddleName(e.target.value)}
+                placeholder="Enter here"
+              />
+
+              {/* Last Name */}
+              <ValidatedInput
+                label="Last Name"
+                required
+                hasError={validationErrors.lastName}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Enter here"
+              />
+
+              {/* Suffix Name */}
+              <ValidatedInput
+                label="Suffix Name"
+                hasError={false}
+                value={suffixName}
+                onChange={(e) => setSuffixName(e.target.value)}
+                placeholder="Jr, Sr, III"
+              />
+            </div>
+          </section>
+
           {/* Identification */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">
-              Personal Identification (Individual)
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">
+                Personal Identification (Individual)
+              </h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* National ID */}
               <ValidatedInput
-                label="National/Government ID No."
-                required
+                label={`National/Government ID No.${countryIso === 'PH' ? '*' : ''}`}
+                required={countryIso === 'PH'}
                 hasError={validationErrors.nationalId}
                 value={nationalId}
                 onChange={(e) => setNationalId(e.target.value)}
@@ -278,46 +563,47 @@ export const BorrowerReg = (): JSX.Element => {
               />
               {/* Upload ID Copy */}
               <ValidatedFileUpload
-                label="Upload ID Copy"
-                required
+                label={`Upload ID Copy${countryIso === 'PH' ? '*' : ''}`}
+                required={countryIso === 'PH'}
                 hasError={validationErrors.nationalIdFile}
                 file={nationalIdFile}
                 onFileChange={setNationalIdFile}
                 buttonText="Upload"
               />
+              {countryIso === 'PH' && (
+                <p className="text-sm text-amber-600 -mt-2">
+                  📌 Required for Philippines residents
+                </p>
+              )}
               {/* Passport */}
               <div className="space-y-2">
-                <Label>Passport Number*</Label>
+                <Label>Passport Number{countryIso && countryIso !== 'PH' ? '*' : ''}</Label>
                 <Input
-                  required
+                  required={!!(countryIso && countryIso !== 'PH')}
                   value={passport}
                   onChange={e => setPassport(e.target.value)}
                   placeholder="Enter here"
                   className="h-14 rounded-2xl"
                 />
-                <p className="text-sm text-gray-600">
-                  (required for funding of &gt;Php100,000)
-                </p>
+                {countryIso && countryIso !== 'PH' ? (
+                  <p className="text-sm text-amber-600">
+                    📌 Required for non-Philippines residents
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    (required for funding of &gt;Php100,000)
+                  </p>
+                )}
               </div>
               {/* Upload Passport */}
-              <div className="space-y-2">
-                <Label>Upload Passport Copy</Label>
-                <input
-                  type="file"
-                  ref={passportFileRef}
-                  onChange={handlePassportFileChange}
-                  accept="image/*,.pdf"
-                  className="hidden"
-                />
-                <Button 
-                  type="button"
-                  onClick={handlePassportUpload}
-                  className="w-full h-14 bg-[#0C4B20] hover:bg-[#8FB200] rounded-2xl flex items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">+</span> 
-                  {passportFile ? `Selected: ${passportFile.name}` : 'Upload'}
-                </Button>
-              </div>
+              <ValidatedFileUpload
+                label={`Upload Passport Copy${countryIso && countryIso !== 'PH' ? '*' : ''}`}
+                required={!!(countryIso && countryIso !== 'PH')}
+                hasError={validationErrors.passportFile}
+                file={passportFile}
+                onFileChange={setPassportFile}
+                buttonText="Upload"
+              />
               {/* TIN */}
               <div className="sm:col-span-2">
                 <ValidatedInput
@@ -334,9 +620,19 @@ export const BorrowerReg = (): JSX.Element => {
 
           {/* Personal Information - Individual only */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">
-              Personal Information
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">
+                Personal Information
+              </h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Place of Birth */}
               <ValidatedInput
@@ -363,22 +659,13 @@ export const BorrowerReg = (): JSX.Element => {
               {/* Civil Status */}
               <div className="space-y-2">
                 <Label>Civil Status*</Label>
-                <Select
-                  required
+                <Combobox
+                  options={civilStatusOptions}
                   value={civilStatus}
                   onValueChange={setCivilStatus}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select civil status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single">Single</SelectItem>
-                    <SelectItem value="married">Married</SelectItem>
-                    <SelectItem value="divorced">Divorced</SelectItem>
-                    <SelectItem value="widowed">Widowed</SelectItem>
-                    <SelectItem value="separated">Separated</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="Select civil status"
+                  searchPlaceholder="Search..."
+                />
               </div>
               {/* Nationality */}
               <div className="space-y-2">
@@ -443,23 +730,13 @@ export const BorrowerReg = (): JSX.Element => {
               {/* Source of Income */}
               <div className="space-y-2">
                 <Label>Primary Source of Income*</Label>
-                <Select
-                  required
+                <Combobox
+                  options={sourceOfIncomeOptions}
                   value={sourceOfIncome}
                   onValueChange={setSourceOfIncome}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select source of income" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="employment">Employment/Salary</SelectItem>
-                    <SelectItem value="business">Business Income</SelectItem>
-                    <SelectItem value="investments">Investment Income</SelectItem>
-                    <SelectItem value="pension">Pension/Retirement</SelectItem>
-                    <SelectItem value="remittances">Remittances</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="Select source of income"
+                  searchPlaceholder="Search income sources..."
+                />
               </div>
               {/* Monthly Income */}
               <div className="space-y-2">
@@ -596,70 +873,44 @@ export const BorrowerReg = (): JSX.Element => {
               {/* Country */}
               <div className="space-y-2">
                 <Label>Country*</Label>
-                <Select
-                  required
+                <Combobox
+                  options={countryOptions}
                   value={countryIso}
                   onValueChange={iso => {
                     setCountryIso(iso);
                     setStateIso("");
                     setCityName("");
                   }}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map(c => (
-                      <SelectItem key={c.isoCode} value={c.isoCode}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select country"
+                  searchPlaceholder="Search countries..."
+                />
               </div>
               {/* State/Province */}
               <div className="space-y-2">
                 <Label>State / Province*</Label>
-                <Select
-                  required
+                <Combobox
+                  options={stateOptions}
                   value={stateIso}
                   onValueChange={iso => {
                     setStateIso(iso);
                     setCityName("");
                   }}
+                  placeholder="Select state"
+                  searchPlaceholder="Search states..."
                   disabled={!countryIso}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {states.map(s => (
-                      <SelectItem key={s.isoCode} value={s.isoCode}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
               {/* City */}
               <div className="space-y-2">
                 <Label>City*</Label>
-                <Select
+                <Combobox
+                  options={cityOptions}
                   value={cityName}
                   onValueChange={setCityName}
+                  placeholder="Select city"
+                  searchPlaceholder="Search cities..."
                   disabled={!stateIso}
-                >
-                  <SelectTrigger className="h-14 rounded-2xl">
-                    <SelectValue placeholder="Select city" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map(ci => (
-                      <SelectItem key={ci.name} value={ci.name}>
-                        {ci.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
               {/* Postal Code */}
               <div className="space-y-2">

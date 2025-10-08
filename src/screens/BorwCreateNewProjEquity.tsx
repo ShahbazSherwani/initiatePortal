@@ -98,20 +98,32 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
     return <Navigate to="/login" />;
   }
 
-
 const [showAmountTooltip, setShowAmountTooltip] = useState(false);
+const [showPercentageTooltip, setShowPercentageTooltip] = useState(false);
 
 const amountPattern = /^\d*(\.\d{0,2})?$/;
+const percentagePattern = /^(100(\.0{0,2})?|(\d{1,2})(\.\d{0,2})?)$/;
 
 const handleProjectRequirements = (event: React.ChangeEvent<HTMLInputElement>) => {
   const rawValue = event.target.value;
-  const cleanedValue = rawValue.replace(/[^\d.]/g, "");     // strips e, +, -
+  const cleanedValue = rawValue.replace(/[^\d.]/g, "");
   const isValid = cleanedValue === rawValue && amountPattern.test(cleanedValue);
 
   setProjectRequirements(cleanedValue);
   setShowAmountTooltip(!isValid && rawValue !== "");
 };
 
+const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const rawValue = event.target.value;
+  const cleanedValue = rawValue.replace(/[^\d.]/g, "");
+  const isValid =
+    cleanedValue === rawValue &&
+    cleanedValue !== "" &&
+    percentagePattern.test(cleanedValue);
+
+  setInvestorPercentage(cleanedValue);
+  setShowPercentageTooltip(!isValid);
+};
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">

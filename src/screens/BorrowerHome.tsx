@@ -213,7 +213,7 @@ export const BorrowerHome: React.FC = () => {
                       {/* Legal Name */}
                       <div className="text-center md:text-left">
                         <h2 className="text-xl opacity-70">Account Name:</h2>
-                        <p className="text-2xl font-semibold">{profile?.name}</p>
+                        <p className="text-2xl font-semibold">{profile?.fullName || profile?.name}</p>
                         <p className="mt-1 text-sm opacity-60">
                           Member since {profile ? new Date(profile.joined).toLocaleDateString() : "--"}
                         </p>
@@ -266,7 +266,7 @@ export const BorrowerHome: React.FC = () => {
                           Username:
                         </div>
                         <div className="font-poppins font-medium text-black text-base md:text-xl">
-                          {profile?.email?.split('@')[0] || 'alexa_john'}
+                          {profile?.username || profile?.email?.split('@')[0] || 'alexa_john'}
                         </div>
                       </div>
 

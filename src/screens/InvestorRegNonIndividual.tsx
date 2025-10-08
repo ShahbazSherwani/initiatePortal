@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { Country, State, City } from "country-state-city";
 import { Testimonials } from "../screens/LogIn/Testimonials";
+import { auth } from "../lib/firebase";
 import { Button } from "../components/ui/button";
 import { ValidatedInput, ValidatedSelect, ValidatedFileUpload } from "../components/ValidatedFormFields";
 import {
@@ -39,6 +40,9 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
   const [stateIso, setStateIso] = useState("");
   const [cityName, setCityName] = useState("");
   const [postalCode, setPostalCode] = useState("");
+
+  // Track if we have existing account data
+  const [hasExistingAccount, setHasExistingAccount] = useState(false);
 
   // Validation state
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -96,6 +100,116 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
 
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
+
+  // Fetch existing account data if user already has a borrower account
+  useEffect(() => {
+    const fetchExistingData = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const token = await user.getIdToken();
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const fullUrl = `${apiUrl}/api/profile/existing-account-data?targetAccountType=investor`;
+        
+        console.log('🔍 [INVESTOR-NON-IND] Fetching existing account data from:', fullUrl);
+        console.log('👤 [INVESTOR-NON-IND] User authenticated:', !!user);
+        console.log('🔑 [INVESTOR-NON-IND] Token exists:', !!token);
+        
+        const response = await fetch(fullUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        console.log('📡 [INVESTOR-NON-IND] Response status:', response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ [INVESTOR-NON-IND] Failed to fetch existing account data:', response.status, errorText);
+          return;
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const htmlText = await response.text();
+          console.error('❌ [INVESTOR-NON-IND] Expected JSON but got HTML:', htmlText.substring(0, 200));
+          return;
+        }
+
+        const data = await response.json();
+        console.log('📦 [INVESTOR-NON-IND] Received existing account data:', data);
+        
+        if (data.hasExistingAccount && data.existingData) {
+          const existingData = data.existingData;
+          console.log('✅ [INVESTOR-NON-IND] Has existing account data, pre-populating fields...');
+          setHasExistingAccount(true);
+          
+          // Pre-populate entity information (non-individual specific)
+          if (existingData.entityInfo) {
+            console.log('🏢 [INVESTOR-NON-IND] Entity info data:', existingData.entityInfo);
+            setEntityType(existingData.entityInfo.entityType || "");
+            setEntityName(existingData.entityInfo.entityName || "");
+            setRegistrationNumber(existingData.entityInfo.registrationNumber || "");
+            setTin(existingData.entityInfo.tin || "");
+            setContactPersonName(existingData.entityInfo.contactPersonName || "");
+            setContactPersonPosition(existingData.entityInfo.contactPersonPosition || "");
+            setContactPersonEmail(existingData.entityInfo.contactPersonEmail || "");
+            setContactPersonPhone(existingData.entityInfo.contactPersonPhone || "");
+          }
+          
+          // Pre-populate address fields
+          if (existingData.address) {
+            console.log('📍 [INVESTOR-NON-IND] Address data:', existingData.address);
+            setStreet(existingData.address.street || existingData.address.present_address || "");
+            setBarangay(existingData.address.barangay || "");
+            setCountryIso(existingData.address.countryIso || existingData.address.country_iso || "");
+            setStateIso(existingData.address.stateIso || existingData.address.state_iso || "");
+            setCityName(existingData.address.cityName || existingData.address.city || "");
+            setPostalCode(existingData.address.postalCode || existingData.address.postal_code || "");
+          }
+          
+          // Convert base64 images to File objects for file uploads
+          if (existingData.files) {
+            if (existingData.files.registrationCertFile) {
+              fetch(existingData.files.registrationCertFile)
+                .then(res => res.blob())
+                .then(blob => {
+                  const file = new File([blob], 'registration-cert.pdf', { type: 'application/pdf' });
+                  setRegistrationCertFile(file);
+                })
+                .catch(err => console.error('❌ [INVESTOR-NON-IND] Error converting registration cert:', err));
+            }
+            
+            if (existingData.files.tinCertFile) {
+              fetch(existingData.files.tinCertFile)
+                .then(res => res.blob())
+                .then(blob => {
+                  const file = new File([blob], 'tin-cert.pdf', { type: 'application/pdf' });
+                  setTinCertFile(file);
+                })
+                .catch(err => console.error('❌ [INVESTOR-NON-IND] Error converting tin cert:', err));
+            }
+            
+            if (existingData.files.authorizationFile) {
+              fetch(existingData.files.authorizationFile)
+                .then(res => res.blob())
+                .then(blob => {
+                  const file = new File([blob], 'authorization.pdf', { type: 'application/pdf' });
+                  setAuthorizationFile(file);
+                })
+                .catch(err => console.error('❌ [INVESTOR-NON-IND] Error converting authorization:', err));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ [INVESTOR-NON-IND] Error fetching existing account data:', error);
+      }
+    };
+
+    fetchExistingData();
+  }, []);
 
   // Entity type options for investors (matching borrower categories)
   const entityTypes = [
@@ -175,9 +289,39 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
             <h2 className="text-2xl md:text-3xl font-bold">Invest/Lender - Entity Registration</h2>
           </div>
 
+          {/* Success Banner - Show when existing account data found */}
+          {hasExistingAccount && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-green-800 font-semibold flex items-center gap-2">
+                  <span>🎉</span>
+                  <span>We found your existing information!</span>
+                </h4>
+                <p className="text-green-700 text-sm mt-1">
+                  Your entity details and address from your borrower account have been automatically filled. You can review and update them if needed.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Entity Type Selection */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">Entity Information</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl md:text-2xl font-semibold">Entity Information</h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <ValidatedSelect
               label="Entity Type"
               required
@@ -319,7 +463,17 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
 
           {/* Address Information */}
           <section className="space-y-4">
-            <h3 className="text-xl font-semibold">Business Address</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-semibold">Business Address</h3>
+              {hasExistingAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Auto-filled
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Street */}
               <div className="sm:col-span-2">
@@ -414,7 +568,7 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
           <div className="flex justify-end pt-6">
             <Button
               type="submit"
-              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#8FB200] text-black font-semibold px-8 py-3 rounded-2xl h-14"
+              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold px-8 py-3 rounded-2xl h-14"
             >
               Continue to Income Details
             </Button>
