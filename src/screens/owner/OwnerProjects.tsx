@@ -31,7 +31,7 @@ interface Project {
   borrowerName: string;
   borrowerUid: string;
   type: 'equity' | 'lending' | 'donation';
-  status: 'pending' | 'active' | 'completed' | 'default' | 'suspended';
+  status: 'pending' | 'active' | 'published' | 'completed' | 'default' | 'suspended';
   approvalStatus: 'pending' | 'approved' | 'rejected';
   fundingAmount: number;
   fundingProgress: string;
@@ -155,6 +155,12 @@ export const OwnerProjects: React.FC = () => {
     if (activeTab !== 'all') {
       if (activeTab === 'pending') {
         filtered = filtered.filter(p => p.approvalStatus === 'pending');
+      } else if (activeTab === 'active') {
+        // Active tab shows approved projects that are published/active
+        filtered = filtered.filter(p => 
+          p.approvalStatus === 'approved' && 
+          (p.status === 'active' || p.status === 'published')
+        );
       } else {
         filtered = filtered.filter(p => p.status === activeTab);
       }
@@ -264,17 +270,23 @@ export const OwnerProjects: React.FC = () => {
 
   const handleApproveProject = async (projectId: string) => {
     try {
-      await authFetch(`${API_BASE_URL}/owner/projects/${projectId}/approve`, {
+      const response = await authFetch(`${API_BASE_URL}/owner/projects/${projectId}/approve`, {
         method: 'POST'
       });
       
+      // Update project with response from backend
       setProjects(projects.map(p => 
         p.id === projectId 
-          ? { ...p, approvalStatus: 'approved', status: 'active' }
+          ? { ...p, approvalStatus: 'approved', status: response.status || 'active' }
           : p
       ));
       
-      toast.success('Project approved successfully');
+      toast.success('Project approved successfully! It is now live and visible to borrowers.');
+      
+      // Reload the projects list to get the updated data
+      setTimeout(() => {
+        fetchProjects();
+      }, 500);
     } catch (error) {
       console.error('Error approving project:', error);
       toast.error('Failed to approve project');
@@ -293,7 +305,14 @@ export const OwnerProjects: React.FC = () => {
           : p
       ));
       
-      toast.success('Project rejected');
+      toast.success('Project rejected. View it in the "All" tab.');
+      
+      // If we're on the pending tab, switch to all tab to show all projects
+      if (activeTab === 'pending') {
+        setTimeout(() => {
+          handleTabChange('all');
+        }, 1500);
+      }
     } catch (error) {
       console.error('Error rejecting project:', error);
       toast.error('Failed to reject project');
@@ -314,15 +333,15 @@ export const OwnerProjects: React.FC = () => {
 
   return (
     <OwnerLayout activePage="projects">
-      <div className="p-8 space-y-6">
+      <div className="p-4 md:p-6 lg:p-8 space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Projects</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Projects</h1>
           <p className="text-gray-600">Manage all projects across the platform</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-white shadow-sm border-0">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">

@@ -50,11 +50,14 @@ import { InvestorRegNonIndividual } from "../screens/InvestorRegNonIndividual";
 import { InvestorRegDirectLender } from "../screens/InvestorRegDirectLender";
 
 // Owner Flow Components
+import { OwnerLayout } from "../layouts/OwnerLayout";
 import { OwnerDashboard } from "../screens/owner/OwnerDashboard";
 import { OwnerUsers } from "../screens/owner/OwnerUsers";
 import { OwnerUserDetail } from "../screens/owner/OwnerUserDetail";
 import { OwnerProjects } from "../screens/owner/OwnerProjects";
 import { OwnerProjectDetail } from "../screens/owner/OwnerProjectDetail";
+import { OwnerTeam } from "../screens/owner/OwnerTeam";
+import { AcceptInvitation } from "../screens/team/AcceptInvitation";
 import { OwnerTopUpRequests } from "../screens/owner/OwnerTopUpRequests";
 import { OwnerInvestmentRequests } from "../screens/owner/OwnerInvestmentRequests";
 import { InvestorRegIncomeDetails } from "../screens/InvestorRegIncomeDetails";
@@ -224,6 +227,11 @@ export const AppRoutes: React.FC = () => {
             {/* Auth routes - no layout needed */}
             <Route path="/" element={<LogIn />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/accept-invitation/:token" element={
+              <PrivateRoute>
+                <AcceptInvitation />
+              </PrivateRoute>
+            } />
             
             {/* All other routes with MainLayout */}
             <Route element={<MainLayout />}>
@@ -568,7 +576,9 @@ export const AppRoutes: React.FC = () => {
                 path="/admin/projects" 
                 element={
                   <PrivateRoute>
-                    <AdminProjectsList />
+                    <OwnerLayout activePage="admin-projects">
+                      <AdminProjectsList />
+                    </OwnerLayout>
                   </PrivateRoute>
                 } 
               />
@@ -576,7 +586,9 @@ export const AppRoutes: React.FC = () => {
                 path="/admin/project/:projectId" 
                 element={
                   <PrivateRoute>
-                    <AdminProjectApproval />
+                    <OwnerLayout activePage="admin-projects">
+                      <AdminProjectApproval />
+                    </OwnerLayout>
                   </PrivateRoute>
                 } 
               />
@@ -584,7 +596,9 @@ export const AppRoutes: React.FC = () => {
                 path="/admin/projects/:projectId" 
                 element={
                   <PrivateRoute>
-                    <AdminProjectView />
+                    <OwnerLayout activePage="admin-projects">
+                      <AdminProjectView />
+                    </OwnerLayout>
                   </PrivateRoute>
                 } 
               />
@@ -592,7 +606,9 @@ export const AppRoutes: React.FC = () => {
                 path="/admin/topup-requests" 
                 element={
                   <PrivateRoute>
-                    <AdminTopUpRequests />
+                    <OwnerLayout activePage="admin-topup">
+                      <AdminTopUpRequests />
+                    </OwnerLayout>
                   </PrivateRoute>
                 } 
               />
@@ -600,7 +616,9 @@ export const AppRoutes: React.FC = () => {
                 path="/admin/investment-requests" 
                 element={
                   <PrivateRoute>
-                    <AdminInvestmentRequests />
+                    <OwnerLayout activePage="admin-investment">
+                      <AdminInvestmentRequests />
+                    </OwnerLayout>
                   </PrivateRoute>
                 } 
               />
@@ -644,6 +662,14 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <AdminRoute>
                     <OwnerProjectDetail />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/team" 
+                element={
+                  <AdminRoute>
+                    <OwnerTeam />
                   </AdminRoute>
                 } 
               />

@@ -1,9 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { DashboardLayout } from '../layouts/DashboardLayout';
 import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
+import {
+  DollarSignIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  SearchIcon,
+  UserIcon,
+  CreditCardIcon,
+  CalendarIcon,
+  FileTextIcon,
+  AlertCircleIcon,
+  Building2Icon,
+  HashIcon
+} from 'lucide-react';
 
 interface TopUpRequest {
   id: number;
@@ -30,6 +47,8 @@ export const AdminTopUpRequests: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<TopUpRequest | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [reviewing, setReviewing] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadRequests();
@@ -79,16 +98,15 @@ export const AdminTopUpRequests: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
     switch (status) {
       case 'pending':
-        return `${baseClasses} bg-yellow-100 text-yellow-800`;
+        return <Badge className="bg-yellow-100 text-yellow-800 border-0">Pending</Badge>;
       case 'approved':
-        return `${baseClasses} bg-green-100 text-green-800`;
+        return <Badge className="bg-green-100 text-green-800 border-0">Approved</Badge>;
       case 'rejected':
-        return `${baseClasses} bg-red-100 text-red-800`;
+        return <Badge className="bg-red-100 text-red-800 border-0">Rejected</Badge>;
       default:
-        return `${baseClasses} bg-gray-100 text-gray-800`;
+        return <Badge className="bg-gray-100 text-gray-800 border-0">Unknown</Badge>;
     }
   };
 
@@ -102,217 +120,359 @@ export const AdminTopUpRequests: React.FC = () => {
     });
   };
 
+  const formatCurrency = (amount: number, currency: string) => {
+    return `${currency} ${amount.toLocaleString()}`;
+  };
+
+  // Filter requests
+  const filteredRequests = requests.filter(request => {
+    const matchesFilter = filter === 'all' || request.status === filter;
+    const matchesSearch = !searchQuery || 
+      request.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.reference?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.bank_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  // Get counts
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const approvedCount = requests.filter(r => r.status === 'approved').length;
+  const rejectedCount = requests.filter(r => r.status === 'rejected').length;
+
   if (loading) {
     return (
-      <DashboardLayout activePage="admin-topup">
-        <div className="flex-1 flex items-center justify-center">
-          <div>Loading...</div>
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg text-gray-600">Loading top-up requests...</div>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout activePage="admin-topup">
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Top-Up Requests</h1>
-            
-            {requests.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-500">No top-up requests found</div>
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Top-Up Requests</h1>
+          <p className="text-gray-600 mt-1">Review and manage wallet top-up requests</p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-white shadow-sm border-0">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total</p>
+                <p className="text-2xl font-bold text-gray-900">{requests.length}</p>
               </div>
-            ) : (
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          User
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Amount
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Transfer Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Reference
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Submitted
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {requests.map((request) => (
-                        <tr key={request.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {request.full_name || 'Unknown User'}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                ID: {request.firebase_uid.substring(0, 8)}...
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {request.currency} {request.amount.toLocaleString()}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(request.transfer_date).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {request.reference}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={getStatusBadge(request.status)}>
-                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(request.created_at)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <Button
-                              onClick={() => setSelectedRequest(request)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
-                            >
-                              Review
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <DollarSignIcon className="w-8 h-8 text-gray-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white shadow-sm border-0">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
+              </div>
+              <ClockIcon className="w-8 h-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white shadow-sm border-0">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Approved</p>
+                <p className="text-2xl font-bold text-green-600">{approvedCount}</p>
+              </div>
+              <CheckCircleIcon className="w-8 h-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white shadow-sm border-0">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Rejected</p>
+                <p className="text-2xl font-bold text-red-600">{rejectedCount}</p>
+              </div>
+              <XCircleIcon className="w-8 h-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Input
+            type="text"
+            placeholder="Search by name, reference, or bank..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-white border-gray-200"
+          />
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          <Button
+            variant={filter === 'all' ? 'default' : 'outline'}
+            onClick={() => setFilter('all')}
+            className={filter === 'all' ? 'bg-[#0C4B20] hover:bg-[#0A3D1A]' : ''}
+          >
+            All <Badge className="ml-2 bg-white text-[#0C4B20]">{requests.length}</Badge>
+          </Button>
+          <Button
+            variant={filter === 'pending' ? 'default' : 'outline'}
+            onClick={() => setFilter('pending')}
+            className={filter === 'pending' ? 'bg-[#0C4B20] hover:bg-[#0A3D1A]' : ''}
+          >
+            Pending <Badge className="ml-2 bg-white text-[#0C4B20]">{pendingCount}</Badge>
+          </Button>
+          <Button
+            variant={filter === 'approved' ? 'default' : 'outline'}
+            onClick={() => setFilter('approved')}
+            className={filter === 'approved' ? 'bg-[#0C4B20] hover:bg-[#0A3D1A]' : ''}
+          >
+            Approved <Badge className="ml-2 bg-white text-[#0C4B20]">{approvedCount}</Badge>
+          </Button>
+          <Button
+            variant={filter === 'rejected' ? 'default' : 'outline'}
+            onClick={() => setFilter('rejected')}
+            className={filter === 'rejected' ? 'bg-[#0C4B20] hover:bg-[#0A3D1A]' : ''}
+          >
+            Rejected <Badge className="ml-2 bg-white text-[#0C4B20]">{rejectedCount}</Badge>
+          </Button>
+        </div>
+      </div>
+
+      {/* Requests List */}
+      {filteredRequests.length === 0 ? (
+        <Card className="bg-white shadow-sm border-0">
+          <CardContent className="p-12 text-center">
+            <AlertCircleIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">No top-up requests found</p>
+            <p className="text-gray-400 text-sm mt-2">
+              {searchQuery ? 'Try adjusting your search' : 'Requests will appear here once submitted'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {filteredRequests.map((request) => (
+            <Card key={request.id} className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  {/* Left Section - User & Amount Info */}
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-[#0C4B20] bg-opacity-10 rounded-full flex items-center justify-center">
+                          <UserIcon className="w-6 h-6 text-[#0C4B20]" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{request.full_name || 'Unknown User'}</h3>
+                          <p className="text-sm text-gray-500">ID: {request.firebase_uid.substring(0, 12)}...</p>
+                        </div>
+                      </div>
+                      {getStatusBadge(request.status)}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <DollarSignIcon className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-600">Amount:</span>
+                        <span className="font-semibold text-[#0C4B20]">{formatCurrency(request.amount, request.currency)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-600">Transfer Date:</span>
+                        <span className="font-medium text-gray-900">{new Date(request.transfer_date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Building2Icon className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-600">Bank:</span>
+                        <span className="font-medium text-gray-900">{request.bank_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <HashIcon className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-600">Reference:</span>
+                        <span className="font-medium text-gray-900">{request.reference}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CreditCardIcon className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-600">Account:</span>
+                        <span className="font-medium text-gray-900">{request.account_number}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <ClockIcon className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-600">Submitted:</span>
+                        <span className="font-medium text-gray-900">{formatDate(request.created_at)}</span>
+                      </div>
+                    </div>
+
+                    {request.admin_notes && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">Admin Notes:</p>
+                        <p className="text-sm text-gray-800">{request.admin_notes}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Section - Actions */}
+                  <div className="flex flex-col gap-2 lg:min-w-[140px]">
+                    {request.proof_of_transfer && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const url = request.proof_of_transfer;
+                          if (url) {
+                            // Handle both relative and absolute URLs
+                            const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                          } else {
+                            toast.error('Proof of transfer not available');
+                          }
+                        }}
+                        className="w-full"
+                      >
+                        <FileTextIcon className="w-4 h-4 mr-2" />
+                        View Proof
+                      </Button>
+                    )}
+                    {request.status === 'pending' && (
+                      <Button
+                        onClick={() => setSelectedRequest(request)}
+                        className="bg-[#0C4B20] hover:bg-[#0A3D1A] text-white w-full"
+                      >
+                        Review
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Review Modal */}
       {selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">Review Top-Up Request</h2>
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CardContent className="p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-bold mb-4">Review Top-Up Request</h2>
+              
+              <div className="space-y-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">User</p>
+                    <p className="font-semibold">{selectedRequest.full_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Amount</p>
+                    <p className="font-semibold text-[#0C4B20]">{formatCurrency(selectedRequest.amount, selectedRequest.currency)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Bank</p>
+                    <p className="font-semibold">{selectedRequest.bank_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Account Number</p>
+                    <p className="font-semibold">{selectedRequest.account_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Reference</p>
+                    <p className="font-semibold">{selectedRequest.reference}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Transfer Date</p>
+                    <p className="font-semibold">{new Date(selectedRequest.transfer_date).toLocaleDateString()}</p>
+                  </div>
+                </div>
 
-            <div className="space-y-4">
-              {/* User Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">User</label>
-                  <div className="text-sm text-gray-900">{selectedRequest?.full_name || 'Unknown User'}</div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Amount</label>
-                  <div className="text-sm text-gray-900">{selectedRequest?.currency} {selectedRequest?.amount.toLocaleString()}</div>
-                </div>
-              </div>
+                {selectedRequest.proof_of_transfer && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Proof of Transfer</p>
+                    <div className="relative group">
+                      <img 
+                        src={selectedRequest.proof_of_transfer.startsWith('http') 
+                          ? selectedRequest.proof_of_transfer 
+                          : `${API_BASE_URL}${selectedRequest.proof_of_transfer}`
+                        } 
+                        alt="Proof of transfer" 
+                        className="w-full rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => {
+                          const url = selectedRequest.proof_of_transfer.startsWith('http') 
+                            ? selectedRequest.proof_of_transfer 
+                            : `${API_BASE_URL}${selectedRequest.proof_of_transfer}`;
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        }}
+                        onError={(e) => {
+                          console.error('Failed to load image:', selectedRequest.proof_of_transfer);
+                          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23f0f0f0" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3EImage not available%3C/text%3E%3C/svg%3E';
+                        }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-30 rounded-lg">
+                        <span className="text-white text-sm font-medium">Click to open in new tab</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-              {/* Transfer Details */}
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Transfer Date</label>
-                  <div className="text-sm text-gray-900">{new Date(selectedRequest.transfer_date).toLocaleDateString()}</div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Reference</label>
-                  <div className="text-sm text-gray-900">{selectedRequest.reference}</div>
-                </div>
-              </div>
-
-              {/* Account Details */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Account Details</label>
-                <div className="text-sm text-gray-900">
-                  <div>{selectedRequest.account_name}</div>
-                  <div>{selectedRequest.bank_name}</div>
-                  <div>Account: {selectedRequest.account_number}</div>
-                </div>
-              </div>
-
-              {/* Proof of Transfer */}
-              {selectedRequest.proof_of_transfer && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Proof of Transfer</label>
-                  <img 
-                    src={selectedRequest.proof_of_transfer} 
-                    alt="Proof of transfer" 
-                    className="max-w-full h-auto rounded-lg border"
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Admin Notes (Optional)
+                  </label>
+                  <Textarea
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    placeholder="Add notes about this review..."
+                    rows={4}
+                    className="w-full"
                   />
                 </div>
-              )}
-
-              {/* Admin Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Admin Notes</label>
-                <textarea
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  placeholder="Add notes about this review..."
-                  className="w-full p-3 border border-gray-300 rounded-lg"
-                  rows={3}
-                />
               </div>
 
-              {/* Action Buttons */}
-              {selectedRequest.status === 'pending' && (
-                <div className="flex space-x-4">
-                  <Button
-                    onClick={() => handleReview(selectedRequest.id, 'approved')}
-                    disabled={reviewing}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    {reviewing ? 'Processing...' : 'Approve & Add to Wallet'}
-                  </Button>
-                  <Button
-                    onClick={() => handleReview(selectedRequest.id, 'rejected')}
-                    disabled={reviewing}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    {reviewing ? 'Processing...' : 'Reject'}
-                  </Button>
-                </div>
-              )}
-
-              {selectedRequest.status !== 'pending' && (
-                <div className="text-center p-4 bg-gray-100 rounded-lg">
-                  <div className="text-sm text-gray-600">
-                    This request has been {selectedRequest.status} by {selectedRequest.reviewed_by} 
-                    on {formatDate(selectedRequest.reviewed_at)}
-                  </div>
-                  {selectedRequest.admin_notes && (
-                    <div className="mt-2 text-sm text-gray-700">
-                      <strong>Notes:</strong> {selectedRequest.admin_notes}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={() => handleReview(selectedRequest.id, 'approved')}
+                  disabled={reviewing}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckCircleIcon className="w-4 h-4 mr-2" />
+                  {reviewing ? 'Processing...' : 'Approve'}
+                </Button>
+                <Button
+                  onClick={() => handleReview(selectedRequest.id, 'rejected')}
+                  disabled={reviewing}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <XCircleIcon className="w-4 h-4 mr-2" />
+                  {reviewing ? 'Processing...' : 'Reject'}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSelectedRequest(null);
+                    setReviewNotes('');
+                  }}
+                  disabled={reviewing}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
-      </div>
-    </DashboardLayout>
+    </div>
   );
 };

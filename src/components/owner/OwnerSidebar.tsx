@@ -12,14 +12,21 @@ import {
   WalletIcon,
   TrendingUpIcon,
   LogOutIcon,
-  UserCogIcon
+  UserCogIcon,
+  XIcon
 } from 'lucide-react';
 
 interface OwnerSidebarProps {
   activePage?: string;
+  isMobileMenuOpen?: boolean;
+  setIsMobileMenuOpen?: (open: boolean) => void;
 }
 
-export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ activePage = '' }) => {
+export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ 
+  activePage = '', 
+  isMobileMenuOpen = false, 
+  setIsMobileMenuOpen 
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, profile } = useAuth();
@@ -55,38 +62,69 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ activePage = '' }) =
     }
   };
 
+  const handleNavClick = () => {
+    if (setIsMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
   return (
-    <div className="w-[280px] h-screen bg-white shadow-lg flex flex-col fixed left-0 top-0 z-10">
-      {/* Header */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center">
-          <div className="w-10 h-10 bg-gradient-to-br from-[#0C4B20] to-[#8FB200] rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">I</span>
-          </div>
-          <div className="ml-3">
-            <h1 className="text-xl font-bold text-gray-900">Investie</h1>
-            <p className="text-sm text-gray-500">Owner Portal</p>
+    <>
+      {/* Mobile overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen && setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        w-[280px] h-screen bg-white shadow-lg flex flex-col fixed left-0 top-0 z-50
+        transition-transform duration-300 ease-in-out lg:transform-none
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0
+      `}>
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#0C4B20] to-[#8FB200] rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">I</span>
+              </div>
+              <div className="ml-3">
+                <h1 className="text-xl font-bold text-gray-900">Investie</h1>
+                <p className="text-sm text-gray-500">Owner Portal</p>
+              </div>
+            </div>
+            {/* Close button for mobile */}
+            <button
+              onClick={() => setIsMobileMenuOpen && setIsMobileMenuOpen(false)}
+              className="lg:hidden text-gray-500 hover:text-gray-700"
+            >
+              <XIcon className="w-6 h-6" />
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {ownerNavItems.map((item) => (
-          <Link
-            key={item.key}
-            to={item.to}
-            className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
-              isActiveNavItem(item)
-                ? 'bg-[#0C4B20] text-white'
-                : 'text-gray-700 hover:bg-gray-100 hover:text-[#0C4B20]'
-            }`}
-          >
-            {item.icon}
-            <span className="ml-3">{item.label}</span>
-          </Link>
-        ))}
-      </nav>
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {ownerNavItems.map((item) => (
+            <Link
+              key={item.key}
+              to={item.to}
+              onClick={handleNavClick}
+              className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                isActiveNavItem(item)
+                  ? 'bg-[#0C4B20] text-white'
+                  : 'text-gray-700 hover:bg-gray-100 hover:text-[#0C4B20]'
+              }`}
+            >
+              {item.icon}
+              <span className="ml-3">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200">
@@ -112,6 +150,7 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ activePage = '' }) =
           Log Out
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 };

@@ -1,11 +1,14 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Navbar } from '../components/Navigation/navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { DebugAccountState } from '../components/DebugAccountState';
 
 export const MainLayout = () => {
   const { profile } = useAuth();
+
+  const location = useLocation();
+  const hideNavbarPaths = ['/owner/dashboard', '/owner/projects', '/owner/users', '/owner/team', '/owner/settings', '/calendar','/admin/projects', '/admin/topup-requests', '/admin/investment-requests'];
   
   return (
     <div className="flex flex-col min-h-screen w-full">
@@ -13,7 +16,9 @@ export const MainLayout = () => {
 
       
       {/* ONLY navbar */}
-      <Navbar activePage="" showAuthButtons={!profile} />
+      {!hideNavbarPaths.includes(location.pathname) && (
+        <Navbar activePage="" showAuthButtons={!profile} />
+      )}
       
       {/* Content */}
       <div className="flex-1 w-full overflow-hidden">

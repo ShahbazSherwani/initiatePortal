@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjects } from '../contexts/ProjectsContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Sidebar } from '../components/Sidebar/Sidebar';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'react-hot-toast';
@@ -134,14 +133,8 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
   }
   
   return (
-    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <div className="flex flex-1 overflow-hidden">
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <Sidebar activePage="admin" />
-        </div>
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-6">
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="bg-white rounded-xl shadow-md p-6">
             <h1 className="text-2xl font-bold mb-6">Review Project</h1>
             
             <div className="mb-8">
@@ -227,8 +220,6 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
                 Cancel
               </Button>
             </div>
-          </div>
-        </main>
       </div>
     </div>
   );

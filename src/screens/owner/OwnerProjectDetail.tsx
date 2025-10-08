@@ -30,7 +30,6 @@ interface ProjectDetail {
   description: string;
   borrowerName: string;
   borrowerUid: string;
-  borrowerEmail: string;
   type: string;
   status: string;
   approvalStatus: string;
@@ -41,6 +40,20 @@ interface ProjectDetail {
   createdAt: string;
   updatedAt: string;
   thumbnail?: string;
+  // Common fields
+  investorPercentage?: string;
+  timeDuration?: string;
+  videoLink?: string;
+  // Lending-specific fields
+  loanAmount?: string;
+  loanAmountValue?: number;
+  // Equity-specific fields
+  dividendFrequency?: string;
+  dividendOther?: string;
+  // ROI and milestone data
+  roi?: any;
+  milestones?: any[];
+  payout?: any;
   projectData?: any;
 }
 
@@ -60,6 +73,9 @@ export const OwnerProjectDetail: React.FC = () => {
     try {
       setLoading(true);
       const data = await authFetch(`${API_BASE_URL}/owner/projects/${projectId}`);
+      console.log('Fetched project data:', data);
+      console.log('Project title:', data.title);
+      console.log('Funding amount:', data.fundingAmount);
       setProject(data);
     } catch (error) {
       console.error('Error fetching project details:', error);
@@ -145,7 +161,7 @@ export const OwnerProjectDetail: React.FC = () => {
 
   return (
     <OwnerLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 lg:p-8 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button
@@ -262,10 +278,6 @@ export const OwnerProjectDetail: React.FC = () => {
                 <p className="text-sm text-gray-600">UID</p>
                 <p className="font-medium text-gray-900">{project.borrowerUid}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium text-gray-900">{project.borrowerEmail}</p>
-              </div>
               <Button
                 variant="outline"
                 className="w-full mt-4"
@@ -277,22 +289,325 @@ export const OwnerProjectDetail: React.FC = () => {
           </Card>
         </div>
 
-        {/* Project Data */}
-        {project.projectData && (
+        {/* Project Images */}
+        {project.thumbnail && (
+          <Card className="bg-white shadow-sm border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-[#0C4B20]" />
+                Project Images
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <img 
+                  src={project.thumbnail} 
+                  alt={project.title}
+                  className="w-full h-64 rounded-lg object-cover border border-gray-200 hover:scale-105 transition-transform cursor-pointer"
+                  onClick={() => window.open(project.thumbnail, '_blank')}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Project Type Specific Information */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Financial/Investment Details */}
+          <Card className="bg-white shadow-sm border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSignIcon className="w-5 h-5 text-[#0C4B20]" />
+                {project.type === 'equity' ? 'Investment Details' : 'Loan Details'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {project.type === 'equity' ? (
+                <>
+                  {project.investorPercentage && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-gray-600">Investor Percentage</span>
+                      <span className="font-semibold text-[#0C4B20]">{project.investorPercentage}%</span>
+                    </div>
+                  )}
+                  {project.dividendFrequency && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-gray-600">Dividend Frequency</span>
+                      <span className="font-semibold text-gray-900">{project.dividendFrequency}</span>
+                    </div>
+                  )}
+                  {project.dividendOther && (
+                    <div className="pt-2">
+                      <p className="text-sm text-gray-600 mb-2">Dividend Details</p>
+                      <p className="text-gray-800">{project.dividendOther}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {project.loanAmount && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-gray-600">Loan Amount Category</span>
+                      <span className="font-semibold text-gray-900">{project.loanAmount}</span>
+                    </div>
+                  )}
+                  {project.loanAmountValue && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-gray-600">Exact Loan Amount</span>
+                      <span className="font-semibold text-[#0C4B20]">{formatCurrency(project.loanAmountValue)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {project.timeDuration && (
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">Duration</span>
+                  <span className="font-semibold text-gray-900">
+                    {new Date(project.timeDuration).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Project Specifications */}
+          <Card className="bg-white shadow-sm border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileTextIcon className="w-5 h-5 text-[#0C4B20]" />
+                Project Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {project.location && (
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">Location</span>
+                  <span className="font-semibold text-gray-900">{project.location}</span>
+                </div>
+              )}
+              
+              {project.videoLink && (
+                <div className="py-2 border-b">
+                  <p className="text-sm text-gray-600 mb-2">Video Link</p>
+                  <a 
+                    href={project.videoLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[#0C4B20] hover:underline flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                    Watch Project Video
+                  </a>
+                </div>
+              )}
+              
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-600">Created Date</span>
+                <span className="font-semibold text-gray-900">{formatDate(project.createdAt)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-600">Last Updated</span>
+                <span className="font-semibold text-gray-900">{formatDate(project.updatedAt)}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ROI Information */}
+        {project.roi && Object.keys(project.roi).length > 0 && (
           <Card className="bg-white shadow-sm border-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUpIcon className="w-5 h-5 text-[#0C4B20]" />
-                Additional Project Data
+                ROI & Financial Projections
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <pre className="bg-gray-50 p-4 rounded-lg overflow-auto text-sm">
-                {JSON.stringify(project.projectData, null, 2)}
-              </pre>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {project.roi.totalAmount && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Total Amount</p>
+                    <p className="text-xl font-bold text-gray-900">{project.roi.totalAmount}</p>
+                  </div>
+                )}
+                {project.roi.pricePerUnit && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Price Per Unit</p>
+                    <p className="text-xl font-bold text-gray-900">{project.roi.pricePerUnit}</p>
+                  </div>
+                )}
+                {project.roi.unitOfMeasure && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Unit of Measure</p>
+                    <p className="text-xl font-bold text-gray-900">{project.roi.unitOfMeasure}</p>
+                  </div>
+                )}
+              </div>
+              {project.roi.expenseDetail && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">Expense Details</p>
+                  <p className="text-gray-800">{project.roi.expenseDetail}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
+
+        {/* Milestones */}
+        {project.milestones && project.milestones.length > 0 && (
+          <Card className="bg-white shadow-sm border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircleIcon className="w-5 h-5 text-[#0C4B20]" />
+                Project Milestones
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {project.milestones.map((milestone: any, index: number) => (
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-semibold text-gray-900">Milestone {index + 1}</h4>
+                      {milestone.date && (
+                        <span className="text-sm text-gray-600">
+                          {new Date(milestone.date).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      {milestone.amount && (
+                        <div>
+                          <span className="text-gray-600">Amount: </span>
+                          <span className="font-medium">{formatCurrency(parseInt(milestone.amount))}</span>
+                        </div>
+                      )}
+                      {milestone.percentage && (
+                        <div>
+                          <span className="text-gray-600">Percentage: </span>
+                          <span className="font-medium">{milestone.percentage}%</span>
+                        </div>
+                      )}
+                    </div>
+                    {milestone.description && (
+                      <p className="mt-2 text-gray-700">{milestone.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Payout Schedule */}
+        {project.payout && Object.keys(project.payout).length > 0 && (
+          <Card className="bg-white shadow-sm border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5 text-[#0C4B20]" />
+                Payout Schedule
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {project.payout.scheduleDate && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Schedule Date</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {new Date(project.payout.scheduleDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+                {project.payout.scheduleAmount && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Schedule Amount</p>
+                    <p className="text-lg font-semibold text-[#0C4B20]">
+                      {formatCurrency(parseInt(project.payout.scheduleAmount))}
+                    </p>
+                  </div>
+                )}
+                {project.payout.payoutPercentage && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Payout Percentage</p>
+                    <p className="text-lg font-semibold text-gray-900">{project.payout.payoutPercentage}%</p>
+                  </div>
+                )}
+                {project.payout.netIncome && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Net Income</p>
+                    <p className="text-lg font-semibold text-gray-900">{project.payout.netIncome}</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Business Model & Revenue (if available) */}
+        {(project.projectData?.details?.businessModel || project.projectData?.details?.revenueModel) && (
+          <Card className="bg-white shadow-sm border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUpIcon className="w-5 h-5 text-[#0C4B20]" />
+                Business & Revenue Model
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {project.projectData.details.businessModel && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Business Model</h4>
+                  <p className="text-gray-700">{project.projectData.details.businessModel}</p>
+                </div>
+              )}
+              {project.projectData.details.revenueModel && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Revenue Model</h4>
+                  <p className="text-gray-700">{project.projectData.details.revenueModel}</p>
+                </div>
+              )}
+              {project.projectData.details.competitiveAdvantage && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Competitive Advantage</h4>
+                  <p className="text-gray-700">{project.projectData.details.competitiveAdvantage}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Project Status & Timestamps */}
+        <Card className="bg-white shadow-sm border-0">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ClockIcon className="w-5 h-5 text-[#0C4B20]" />
+              Project Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-1">
+                <p className="text-sm text-gray-600">Created Date</p>
+                <p className="font-medium text-gray-900">{formatDate(project.createdAt)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-gray-600">Last Updated</p>
+                <p className="font-medium text-gray-900">{formatDate(project.updatedAt)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-gray-600">Approval Status</p>
+                <div className="flex items-center gap-2">
+                  {project.approvalStatus === 'approved' && <CheckCircleIcon className="w-5 h-5 text-green-500" />}
+                  {project.approvalStatus === 'pending' && <ClockIcon className="w-5 h-5 text-yellow-500" />}
+                  {project.approvalStatus === 'rejected' && <XCircleIcon className="w-5 h-5 text-red-500" />}
+                  <span className="font-medium text-gray-900 capitalize">{project.approvalStatus}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </OwnerLayout>
   );

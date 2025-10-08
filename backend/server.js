@@ -3339,15 +3339,25 @@ app.post('/api/admin/projects/:id/review', verifyToken, async (req, res) => {
     
     // Update approval status
     projectData.approvalStatus = action === 'approve' ? 'approved' : 'rejected';
+    
+    // If approving, set status to 'published' so it appears in borrower's "On-Going" tab
+    if (action === 'approve') {
+      if (projectData.status === 'pending' || projectData.status === 'draft') {
+        projectData.status = 'published';
+      }
+    }
+    
     if (feedback) {
       projectData.adminFeedback = feedback;
     }
     
-    // Update the project
+    // Update the project - make sure to JSON stringify for JSONB column
     const updateResult = await db.query(
-      `UPDATE projects SET project_data = $1 WHERE id = $2 RETURNING *`,
-      [projectData, id]
+      `UPDATE projects SET project_data = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      [JSON.stringify(projectData), id]
     );
+    
+    console.log(`✅ Project ${id} ${action === 'approve' ? 'approved' : 'rejected'} - Status: ${projectData.status}, ApprovalStatus: ${projectData.approvalStatus}`);
     
     // Get the updated project with user info for the response
     const updatedProject = await db.query(
