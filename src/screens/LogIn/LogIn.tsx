@@ -20,6 +20,8 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase"; // your client init
 import { generateProfileCode } from "../../lib/profileUtils";
 import { RiskStatementModal } from "../../components/RiskStatementModal";
+import { TermsAndConditionsModal } from "../../components/TermsAndConditionsModal";
+import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 
 
 export const LogIn = (): JSX.Element => {
@@ -31,6 +33,8 @@ export const LogIn = (): JSX.Element => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [showLoadingOverlay, setShowLoadingOverlay] = React.useState(false);
   const [showRiskModal, setShowRiskModal] = React.useState(false);
+  const [showTermsModal, setShowTermsModal] = React.useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = React.useState(false);
   const { setProfile } = useAuth();
 
   // Check if redirected due to suspension
@@ -51,11 +55,19 @@ export const LogIn = (): JSX.Element => {
     }
   }, []);
 
-  // Show risk statement modal on first visit
+  // Show modals sequentially on first visit
   React.useEffect(() => {
     const hasSeenRiskStatement = sessionStorage.getItem('hasSeenRiskStatement_login');
+    const hasSeenTerms = sessionStorage.getItem('hasSeenTerms_login');
+    const hasSeenPrivacy = sessionStorage.getItem('hasSeenPrivacy_login');
+    
+    // Show modals in sequence: Risk → Terms → Privacy
     if (!hasSeenRiskStatement) {
       setShowRiskModal(true);
+    } else if (!hasSeenTerms) {
+      setShowTermsModal(true);
+    } else if (!hasSeenPrivacy) {
+      setShowPrivacyModal(true);
     }
   }, []);
 
@@ -259,6 +271,34 @@ export const LogIn = (): JSX.Element => {
         onAccept={() => {
           setShowRiskModal(false);
           sessionStorage.setItem('hasSeenRiskStatement_login', 'true');
+          // Show Terms modal next
+          setShowTermsModal(true);
+        }}
+      />
+
+      <TermsAndConditionsModal
+        isOpen={showTermsModal}
+        onClose={() => {
+          setShowTermsModal(false);
+          sessionStorage.setItem('hasSeenTerms_login', 'true');
+        }}
+        onAccept={() => {
+          setShowTermsModal(false);
+          sessionStorage.setItem('hasSeenTerms_login', 'true');
+          // Show Privacy modal next
+          setShowPrivacyModal(true);
+        }}
+      />
+
+      <PrivacyPolicyModal
+        isOpen={showPrivacyModal}
+        onClose={() => {
+          setShowPrivacyModal(false);
+          sessionStorage.setItem('hasSeenPrivacy_login', 'true');
+        }}
+        onAccept={() => {
+          setShowPrivacyModal(false);
+          sessionStorage.setItem('hasSeenPrivacy_login', 'true');
         }}
       />
 
