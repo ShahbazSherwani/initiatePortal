@@ -36,10 +36,11 @@ interface PendingInvestment {
 }
 
 export const AdminInvestmentRequests: React.FC = () => {
-  const [pendingInvestments, setPendingInvestments] = useState<PendingInvestment[]>([]);
+  const [allInvestments, setAllInvestments] = useState<PendingInvestment[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingInvestments, setProcessingInvestments] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,15 +49,15 @@ export const AdminInvestmentRequests: React.FC = () => {
 
   const fetchPendingInvestments = async () => {
     try {
-      console.log("Fetching pending investment requests...");
+      console.log("Fetching all investment requests...");
       const result = await authFetch(`${API_BASE_URL}/admin/investment-requests`);
-      console.log("Pending investments result:", result);
+      console.log("All investments result:", result);
       
-      setPendingInvestments(result || []);
+      setAllInvestments(result || []);
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching pending investments:", error);
-      toast.error("Failed to fetch pending investment requests");
+      console.error("Error fetching investment requests:", error);
+      toast.error("Failed to fetch investment requests");
       setLoading(false);
     }
   };
@@ -78,12 +79,16 @@ export const AdminInvestmentRequests: React.FC = () => {
       
       console.log("Investment review response:", response);
       
-      if (response.success) {
+        if (response.success) {
         toast.success(`Investment request ${action}d successfully`);
         
-        // Remove the processed investment from the list
-        setPendingInvestments(prev => 
-          prev.filter(inv => !(inv.projectId === projectId && inv.investorId === investorId))
+        // Update the investment status in the list instead of removing
+        setAllInvestments(prev => 
+          prev.map(inv => 
+            inv.projectId === projectId && inv.investorId === investorId
+              ? { ...inv, status: action === 'approve' ? 'approved' : 'rejected' }
+              : inv
+          )
         );
       } else {
         toast.error(`Failed to ${action} investment request`);
@@ -111,8 +116,14 @@ export const AdminInvestmentRequests: React.FC = () => {
     }).format(amount);
   };
 
-  // Filter investments
-  const filteredInvestments = pendingInvestments.filter(investment => {
+  // Filter investments by status and search
+  const filteredInvestments = allInvestments.filter(investment => {
+    // Filter by tab
+    if (activeTab !== 'all' && investment.status !== activeTab) {
+      return false;
+    }
+    
+    // Filter by search
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -122,6 +133,11 @@ export const AdminInvestmentRequests: React.FC = () => {
       investment.projectId?.toLowerCase().includes(query)
     );
   });
+
+  // Calculate stats for each tab
+  const pendingCount = allInvestments.filter(i => i.status === 'pending').length;
+  const approvedCount = allInvestments.filter(i => i.status === 'approved').length;
+  const rejectedCount = allInvestments.filter(i => i.status === 'rejected').length;
 
   if (loading) {
     return (
@@ -148,6 +164,55 @@ export const AdminInvestmentRequests: React.FC = () => {
         </Button>
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-8 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'all'
+                ? 'border-[#0C4B20] text-[#0C4B20]'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            All Requests ({allInvestments.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'pending'
+                ? 'border-[#0C4B20] text-[#0C4B20]'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <ClockIcon className="w-4 h-4 inline mr-1" />
+            Pending ({pendingCount})
+          </button>
+          <button
+            onClick={() => setActiveTab('approved')}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'approved'
+                ? 'border-[#0C4B20] text-[#0C4B20]'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <CheckCircleIcon className="w-4 h-4 inline mr-1" />
+            Approved ({approvedCount})
+          </button>
+          <button
+            onClick={() => setActiveTab('rejected')}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'rejected'
+                ? 'border-[#0C4B20] text-[#0C4B20]'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <XCircleIcon className="w-4 h-4 inline mr-1" />
+            Rejected ({rejectedCount})
+          </button>
+        </nav>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-white shadow-sm border-0">
@@ -155,7 +220,7 @@ export const AdminInvestmentRequests: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Requests</p>
-                <p className="text-2xl font-bold text-gray-900">{pendingInvestments.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{allInvestments.length}</p>
               </div>
               <TrendingUpIcon className="w-8 h-8 text-[#0C4B20]" />
             </div>
@@ -167,9 +232,7 @@ export const AdminInvestmentRequests: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Pending Review</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {pendingInvestments.filter(i => i.status === 'pending').length}
-                </p>
+                <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
               </div>
               <ClockIcon className="w-8 h-8 text-yellow-600" />
             </div>
@@ -182,7 +245,7 @@ export const AdminInvestmentRequests: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-600">Total Amount</p>
                 <p className="text-2xl font-bold text-[#0C4B20]">
-                  {formatCurrency(pendingInvestments.reduce((sum, inv) => sum + inv.amount, 0))}
+                  {formatCurrency(filteredInvestments.reduce((sum, inv) => sum + inv.amount, 0))}
                 </p>
               </div>
               <DollarSignIcon className="w-8 h-8 text-[#0C4B20]" />
@@ -211,7 +274,12 @@ export const AdminInvestmentRequests: React.FC = () => {
           <CardContent className="p-12 text-center">
             <AlertCircleIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">
-              {searchQuery ? 'No matching investment requests found' : 'No pending investment requests'}
+              {searchQuery 
+                ? 'No matching investment requests found' 
+                : activeTab === 'all' 
+                  ? 'No investment requests yet' 
+                  : `No ${activeTab} investment requests`
+              }
             </p>
             <p className="text-gray-400 text-sm mt-2">
               {searchQuery ? 'Try adjusting your search' : 'Requests will appear here when investors make investments'}

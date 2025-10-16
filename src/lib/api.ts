@@ -45,29 +45,38 @@ export async function authFetch(url: string, options: RequestInit = {}) {
       const text = await response.text();
       console.error("❌ HTTP error response:", text.substring(0, 300));
       
-      // Special handling for suspended accounts
-      if (response.status === 403) {
-        try {
-          const errorData = JSON.parse(text);
-          if (errorData.suspended) {
-            console.log("🚫 Account is suspended - logging out user", {
-              reason: errorData.reason || errorData.message
-            });
-            // Store suspension reason in sessionStorage so login page can display it
-            const suspensionMessage = errorData.reason || errorData.message || "Your account has been suspended. Please contact support.";
-            sessionStorage.setItem('suspensionReason', suspensionMessage);
-            // Log out the user
-            await auth.signOut();
-            // Redirect to home/login page with suspension message
-            window.location.href = "/?suspended=true";
-            throw new Error(suspensionMessage);
-          }
-        } catch (parseError) {
-          // If not a suspension error, fall through to generic error
+      // Try to parse as JSON for structured error messages
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = JSON.parse(text);
+        
+        // Special handling for suspended accounts
+        if (response.status === 403 && errorData.suspended) {
+          console.log("🚫 Account is suspended - logging out user", {
+            reason: errorData.reason || errorData.message
+          });
+          // Store suspension reason in sessionStorage so login page can display it
+          const suspensionMessage = errorData.reason || errorData.message || "Your account has been suspended. Please contact support.";
+          sessionStorage.setItem('suspensionReason', suspensionMessage);
+          // Log out the user
+          await auth.signOut();
+          // Redirect to home/login page with suspension message
+          window.location.href = "/?suspended=true";
+          throw new Error(suspensionMessage);
+        }
+        
+        // Use error or message field from JSON response
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch (parseError) {
+        // If JSON parsing fails, use the text response
+        if (text && text.length > 0 && text.length < 500) {
+          errorMessage = text;
+        } else {
+          errorMessage = `${errorMessage}. Response: ${text.substring(0, 200)}`;
         }
       }
       
-      throw new Error(`HTTP error! status: ${response.status}. Response: ${text.substring(0, 200)}`);
+      throw new Error(errorMessage);
     }
     
     const contentType = response.headers.get("content-type");

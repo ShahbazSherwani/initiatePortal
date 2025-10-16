@@ -23,25 +23,36 @@ export const AcceptInvitation: React.FC = () => {
     }
 
     try {
-      const response = await authFetch(`${API_BASE_URL}/team/accept-invitation/${token}`, {
+      // authFetch already handles errors and throws, so we just await the result
+      const data = await authFetch(`${API_BASE_URL}/team/accept-invitation/${token}`, {
         method: 'POST',
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to accept invitation');
-      }
-
+      // If we reach here, the request was successful
       setStatus('success');
-      setMessage('Invitation accepted successfully!');
+      setMessage(data.message || 'Invitation accepted successfully!');
       
-      // Redirect to dashboard after 3 seconds
+      // Redirect to projects page (team members can access) after 3 seconds
       setTimeout(() => {
-        navigate('/owner/dashboard');
+        navigate('/owner/projects');
       }, 3000);
     } catch (error: any) {
       setStatus('error');
-      setMessage(error.message || 'Failed to accept invitation');
+      // Extract a user-friendly error message
+      const errorMessage = error.message || 'Failed to accept invitation';
+      
+      // Parse common error scenarios from the error message
+      if (errorMessage.includes('already been accepted')) {
+        setMessage('This invitation has already been accepted. You are already a member of this team.');
+      } else if (errorMessage.includes('expired')) {
+        setMessage('This invitation has expired. Please ask the team owner to send a new invitation.');
+      } else if (errorMessage.includes('not found')) {
+        setMessage('Invitation not found. The link may be invalid or incomplete.');
+      } else if (errorMessage.includes('User not found')) {
+        setMessage('Please ensure you are logged in with the email address that received the invitation.');
+      } else {
+        setMessage(errorMessage);
+      }
     }
   };
 
@@ -75,10 +86,10 @@ export const AcceptInvitation: React.FC = () => {
               </p>
               <div className="mt-6">
                 <button
-                  onClick={() => navigate('/owner/dashboard')}
+                  onClick={() => navigate('/owner/projects')}
                   className="inline-flex items-center px-6 py-3 bg-[#0C4B20] text-white rounded-lg hover:bg-[#0A3D1A] transition-colors font-medium"
                 >
-                  Go to Dashboard Now
+                  View Projects Now
                 </button>
               </div>
             </>

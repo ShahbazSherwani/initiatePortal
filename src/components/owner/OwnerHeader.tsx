@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   SearchIcon, 
-  BellIcon, 
   ChevronDownIcon,
   SettingsIcon,
   LogOutIcon,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
+import NotificationDropdown from '../Notifications/NotificationDropdown';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,10 +85,7 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({ onMenuClick }) => {
         {/* Right section */}
         <div className="flex items-center gap-2 md:gap-4 ml-auto">
           {/* Notifications */}
-          <Button variant="ghost" size="sm" className="p-2">
-            <BellIcon className="w-5 h-5 text-gray-600" />
-            <span className="sr-only">Notifications</span>
-          </Button>
+          <NotificationDropdown />
 
           {/* Profile dropdown */}
           <DropdownMenu>

@@ -82,7 +82,6 @@ const AdminRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
   const authContext = useContext(AuthContext);
   const { profile, loading } = useAuth();
   const { currentAccountType } = useAccount();
-  const navigate = useNavigate();
 
   const token = authContext?.token;
   
@@ -105,21 +104,176 @@ const AdminRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
     // Not an admin, redirect to appropriate dashboard
     console.log('🚫 Admin access denied for user:', profile);
     
-    // Redirect based on current account type
-    if (currentAccountType === 'investor') {
-      navigate("/investor/discover", { replace: true });
-    } else {
-      navigate("/borrow", { replace: true });
+    // Use Navigate component instead of imperative navigate() to avoid setState during render
+    const redirectPath = currentAccountType === 'investor' ? "/investor/discover" : "/borrow";
+    return <Navigate to={redirectPath} replace />;
+  }
+
+  console.log('✅ Admin access granted for user:', profile);
+  return children;
+};
+
+// A wrapper for routes accessible by admin OR team members with permissions
+// Smart redirect for /owner route based on admin or team member status
+const OwnerRedirect: React.FC = () => {
+  const authContext = useContext(AuthContext);
+  const { profile, loading } = useAuth();
+  const { currentAccountType } = useAccount();
+  const [redirect, setRedirect] = React.useState<string | null>(null);
+
+  const token = authContext?.token;
+
+  React.useEffect(() => {
+    const determineRedirect = async () => {
+      if (!profile) return;
+
+      // Admin goes to dashboard
+      if (profile.isAdmin) {
+        setRedirect('/owner/dashboard');
+        return;
+      }
+
+      // Check team member permissions
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/team/my-permissions`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Redirect based on available permissions
+          if (data.permissions.includes('projects.view')) {
+            setRedirect('/owner/projects');
+          } else if (data.permissions.includes('users.view')) {
+            setRedirect('/owner/users');
+          } else {
+            // No permissions, redirect to regular dashboard
+            setRedirect(currentAccountType === 'investor' ? '/investor/discover' : '/borrow');
+          }
+        } else {
+          // Not a team member, redirect to regular dashboard
+          setRedirect(currentAccountType === 'investor' ? '/investor/discover' : '/borrow');
+        }
+      } catch (error) {
+        console.error('Error checking permissions:', error);
+        setRedirect(currentAccountType === 'investor' ? '/investor/discover' : '/borrow');
+      }
+    };
+
+    if (profile && !loading) {
+      determineRedirect();
     }
-    
+  }, [profile, loading, token, currentAccountType]);
+
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (loading || !profile || !redirect) {
     return <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
-        <p className="text-red-600">Access denied. Redirecting...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0C4B20] mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading...</p>
       </div>
     </div>;
   }
 
-  console.log('✅ Admin access granted for user:', profile);
+  return <Navigate to={redirect} replace />;
+};
+
+const TeamOrAdminRoute: React.FC<{ 
+  children: JSX.Element; 
+  requiredPermission?: string;
+  requiredPermissions?: string[]; // Support array of permissions
+}> = ({ children, requiredPermission, requiredPermissions }) => {
+  const authContext = useContext(AuthContext);
+  const { profile, loading } = useAuth();
+  const { currentAccountType } = useAccount();
+  const [hasAccess, setHasAccess] = React.useState<boolean | null>(null);
+  const [checkingPermissions, setCheckingPermissions] = React.useState(true);
+
+  const token = authContext?.token;
+  
+  React.useEffect(() => {
+    const checkTeamPermissions = async () => {
+      if (!profile || profile.isAdmin) {
+        // Admin has full access, no need to check team permissions
+        setHasAccess(profile?.isAdmin || false);
+        setCheckingPermissions(false);
+        return;
+      }
+
+      try {
+        // Check if user is a team member with permissions
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/team/my-permissions`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Check if user has required permission or is owner
+          if (data.isOwner) {
+            setHasAccess(true);
+          } else if (!requiredPermission && !requiredPermissions) {
+            // No specific permission required
+            setHasAccess(true);
+          } else {
+            // Check if user has any of the required permissions or wildcard
+            const permsToCheck = requiredPermissions || (requiredPermission ? [requiredPermission] : []);
+            const hasAnyPermission = permsToCheck.some(perm => 
+              data.permissions.includes('*') || 
+              data.permissions.includes(perm) ||
+              // Also check for edit permission if view is required
+              (perm.endsWith('.view') && data.permissions.includes(perm.replace('.view', '.edit')))
+            );
+            console.log(`🔐 Route access check: Required [${permsToCheck.join(', ')}], User has [${data.permissions.join(', ')}], Access: ${hasAnyPermission ? '✅' : '❌'}`);
+            setHasAccess(hasAnyPermission);
+          }
+        } else {
+          setHasAccess(false);
+        }
+      } catch (error) {
+        console.error('Error checking team permissions:', error);
+        setHasAccess(false);
+      } finally {
+        setCheckingPermissions(false);
+      }
+    };
+
+    if (profile) {
+      checkTeamPermissions();
+    }
+  }, [profile, token, requiredPermission, requiredPermissions]);
+  
+  if (!token) {
+    // not authenticated, redirect to login
+    return <Navigate to="/" replace />;
+  }
+
+  if (loading || !profile || checkingPermissions) {
+    // Still loading profile or checking permissions, show loading state
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0C4B20] mx-auto mb-4"></div>
+        <p className="text-gray-600">Verifying access...</p>
+      </div>
+    </div>;
+  }
+
+  if (hasAccess === false) {
+    // No access, redirect to appropriate dashboard
+    console.log('🚫 Access denied for user:', profile);
+    const redirectPath = currentAccountType === 'investor' ? "/investor/discover" : "/borrow";
+    return <Navigate to={redirectPath} replace />;
+  }
+
+  console.log('✅ Access granted for user:', profile);
   return children;
 };
 
@@ -623,46 +777,46 @@ export const AppRoutes: React.FC = () => {
                 } 
               />
 
-              {/* Owner routes - Admin only */}
-              <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
+              {/* Owner routes - Admin and Team Members */}
+              <Route path="/owner" element={<OwnerRedirect />} />
               <Route 
                 path="/owner/dashboard" 
                 element={
-                  <AdminRoute>
+                  <TeamOrAdminRoute>
                     <OwnerDashboard />
-                  </AdminRoute>
+                  </TeamOrAdminRoute>
                 } 
               />
               <Route 
                 path="/owner/users" 
                 element={
-                  <AdminRoute>
+                  <TeamOrAdminRoute requiredPermission="users.view">
                     <OwnerUsers />
-                  </AdminRoute>
+                  </TeamOrAdminRoute>
                 } 
               />
               <Route 
                 path="/owner/users/:userId" 
                 element={
-                  <AdminRoute>
+                  <TeamOrAdminRoute requiredPermission="users.view">
                     <OwnerUserDetail />
-                  </AdminRoute>
+                  </TeamOrAdminRoute>
                 } 
               />
               <Route 
                 path="/owner/projects" 
                 element={
-                  <AdminRoute>
+                  <TeamOrAdminRoute requiredPermission="projects.view">
                     <OwnerProjects />
-                  </AdminRoute>
+                  </TeamOrAdminRoute>
                 } 
               />
               <Route 
                 path="/owner/projects/:projectId" 
                 element={
-                  <AdminRoute>
+                  <TeamOrAdminRoute requiredPermission="projects.view">
                     <OwnerProjectDetail />
-                  </AdminRoute>
+                  </TeamOrAdminRoute>
                 } 
               />
               <Route 

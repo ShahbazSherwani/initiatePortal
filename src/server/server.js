@@ -1,17 +1,19 @@
 // ---------- server.js ----------
 import dotenv from 'dotenv';
-dotenv.config();
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from project root (2 levels up from src/server/)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import express from 'express';
 import cors from 'cors';
 import admin from 'firebase-admin';
 import { Pool } from 'pg';
 import { readFileSync } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Initialize Firebase Admin SDK
 let serviceAccount;
@@ -87,9 +89,10 @@ try {
     // Optimized settings for Supabase
     max: 10,                    // Reduced max connections
     idleTimeoutMillis: 60000,   // 1 minute idle timeout
-    connectionTimeoutMillis: 10000,  // 10 seconds connection timeout
-    acquireTimeoutMillis: 10000,     // 10 seconds to acquire connection
-    query_timeout: 30000,       // 30 seconds query timeout
+    connectionTimeoutMillis: 15000,  // 15 seconds connection timeout
+    acquireTimeoutMillis: 15000,     // 15 seconds to acquire connection
+    query_timeout: 60000,       // 60 seconds query timeout (increased from 30s)
+    statement_timeout: 60000,   // 60 seconds statement timeout
   });
 
   // Add error handling for database connection
@@ -3677,23 +3680,23 @@ app.get('/api/admin/investment-requests', verifyToken, async (req, res) => {
     
     console.log(`📊 Found ${result.rows.length} projects with potential investment requests`);
     
-    // Process results to extract pending investment requests
-    const pendingInvestments = [];
+    // Process results to extract ALL investment requests (pending, approved, rejected)
+    const allInvestments = [];
     
     for (const row of result.rows) {
       const projectData = row.project_data;
-      const pendingRequests = projectData.investorRequests?.filter(req => req.status === 'pending') || [];
+      const allRequests = projectData.investorRequests || [];
       
-      console.log(`📋 Project ${row.id} has ${pendingRequests.length} pending investment requests`);
+      console.log(`📋 Project ${row.id} has ${allRequests.length} total investment requests`);
       
-      for (const request of pendingRequests) {
+      for (const request of allRequests) {
         // Get investor details
         const investorResult = await db.query(
           `SELECT full_name FROM users WHERE firebase_uid = $1`,
           [request.investorId]
         );
         
-        pendingInvestments.push({
+        allInvestments.push({
           projectId: row.id,
           projectTitle: projectData.details?.projectTitle || 'Untitled Project',
           borrowerName: row.borrower_name,
@@ -3702,14 +3705,17 @@ app.get('/api/admin/investment-requests', verifyToken, async (req, res) => {
           investorName: investorResult.rows[0]?.full_name || 'Unknown Investor',
           amount: request.amount,
           date: request.date,
-          status: request.status,
+          status: request.status || 'pending',
           projectData: projectData
         });
       }
     }
     
-    console.log(`📤 Returning ${pendingInvestments.length} pending investment requests to admin`);
-    res.json(pendingInvestments);
+    console.log(`📤 Returning ${allInvestments.length} total investment requests to admin`);
+    console.log(`   - Pending: ${allInvestments.filter(i => i.status === 'pending').length}`);
+    console.log(`   - Approved: ${allInvestments.filter(i => i.status === 'approved').length}`);
+    console.log(`   - Rejected: ${allInvestments.filter(i => i.status === 'rejected').length}`);
+    res.json(allInvestments);
     
   } catch (err) {
     console.error("Error fetching pending investment requests:", err);
@@ -3766,12 +3772,29 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
       [firebase_uid]
     );
     
-    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
-      console.log(`❌ Access denied for user ${firebase_uid} - not admin`);
-      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
-    }
+    const isAdmin = adminCheck.rows.length > 0 && adminCheck.rows[0].is_admin;
     
-    console.log(`✅ Admin access verified for user: ${firebase_uid}`);
+    // If not admin, check if user is a team member with users.view or users.edit permission
+    if (!isAdmin) {
+      const teamPermCheck = await db.query(`
+        SELECT tmp.permission_key
+        FROM team_members tm
+        JOIN team_member_permissions tmp ON tm.id = tmp.team_member_id
+        WHERE tm.member_uid = $1 
+          AND tm.status = 'active'
+          AND tmp.can_access = true
+          AND (tmp.permission_key = 'users.view' OR tmp.permission_key = 'users.edit')
+      `, [firebase_uid]);
+      
+      if (teamPermCheck.rows.length === 0) {
+        console.log(`❌ Access denied for user ${firebase_uid} - not admin or team member with users permission`);
+        return res.status(403).json({ error: 'Access denied - Admin or users.view permission required' });
+      }
+      
+      console.log(`✅ Team member access verified for user: ${firebase_uid}`);
+    } else {
+      console.log(`✅ Admin access verified for user: ${firebase_uid}`);
+    }
     
     // Get all users with comprehensive information
     const usersResult = await db.query(`
@@ -4157,6 +4180,65 @@ projectsRouter.post('/:id/interest-reject', verifyToken, async (req, res) => {
     }
   } catch (err) {
     console.error("DB error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// GET /api/projects route MUST come BEFORE app.use("/api/projects", projectsRouter)
+app.get('/api/projects', verifyToken, async (req, res) => {
+  const { approved, status } = req.query;
+  
+  try {
+    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name, 
+                        bp.is_individual_account as creator_is_individual
+                FROM projects p
+                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+                LEFT JOIN borrower_profiles bp ON p.firebase_uid = bp.firebase_uid`;
+    
+    const params = [];
+    let conditions = [];
+    
+    // Always exclude deleted projects unless specifically requested
+    if (status !== 'deleted') {
+      conditions.push(`(p.project_data->>'status' != 'deleted' OR p.project_data->>'status' IS NULL)`);
+    }
+    
+    // Handle status parameter
+    if (status && status !== 'deleted') {
+      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
+      params.push(status);
+    } else if (status === 'deleted') {
+      // Only show deleted projects if explicitly requested
+      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
+      params.push('deleted');
+    }
+    
+    // Check if we need to filter for approved projects
+    if (approved === 'true') {
+      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
+      params.push('published');
+      
+      // Include approved projects and also projects without approval status (for backward compatibility)
+      conditions.push(`(p.project_data->>'approvalStatus' = $${params.length + 1} 
+                      OR p.project_data->>'approvalStatus' = $${params.length + 2}
+                      OR p.project_data->>'approvalStatus' IS NULL)`);
+      params.push('approved');
+      params.push('pending');
+    }
+    
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+    
+    console.log("Projects query:", query);
+    console.log("With params:", params);
+    
+    const { rows } = await db.query(query, params);
+    console.log(`Returning ${rows.length} projects`);
+    
+    res.json(rows);
+  } catch (err) {
+    console.error("Error fetching projects:", err);
     res.status(500).json({ error: "Database error" });
   }
 });
@@ -5322,64 +5404,7 @@ app.post('/api/admin/projects/:id/review', verifyToken, async (req, res) => {
   }
 });
 
-// Modify the existing GET projects endpoint to filter by approval
-app.get('/api/projects', verifyToken, async (req, res) => {
-  const { approved, status } = req.query;
-  
-  try {
-    let query = `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name, 
-                        bp.is_individual_account as creator_is_individual
-                FROM projects p
-                LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
-                LEFT JOIN borrower_profiles bp ON p.firebase_uid = bp.firebase_uid`;
-    
-    const params = [];
-    let conditions = [];
-    
-    // Always exclude deleted projects unless specifically requested
-    if (status !== 'deleted') {
-      conditions.push(`(p.project_data->>'status' != 'deleted' OR p.project_data->>'status' IS NULL)`);
-    }
-    
-    // Handle status parameter
-    if (status && status !== 'deleted') {
-      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
-      params.push(status);
-    } else if (status === 'deleted') {
-      // Only show deleted projects if explicitly requested
-      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
-      params.push('deleted');
-    }
-    
-    // Check if we need to filter for approved projects
-    if (approved === 'true') {
-      conditions.push(`p.project_data->>'status' = $${params.length + 1}`);
-      params.push('published');
-      
-      // Include approved projects and also projects without approval status (for backward compatibility)
-      conditions.push(`(p.project_data->>'approvalStatus' = $${params.length + 1} 
-                      OR p.project_data->>'approvalStatus' = $${params.length + 2}
-                      OR p.project_data->>'approvalStatus' IS NULL)`);
-      params.push('approved');
-      params.push('pending');
-    }
-    
-    if (conditions.length > 0) {
-      query += ` WHERE ${conditions.join(' AND ')}`;
-    }
-    
-    console.log("Projects query:", query);
-    console.log("With params:", params);
-    
-    const { rows } = await db.query(query, params);
-    console.log(`Returning ${rows.length} projects for investor`);
-    
-    res.json(rows);
-  } catch (err) {
-    console.error("Error fetching projects:", err);
-    res.status(500).json({ error: "Database error" });
-  }
-});
+// REMOVED DUPLICATE: app.get('/api/projects') is now defined earlier in the file before app.use("/api/projects", projectsRouter)
 
 // Get investment eligibility and limits for a user
 app.get('/api/user/investment-eligibility', verifyToken, async (req, res) => {
@@ -6264,14 +6289,17 @@ app.get('/api/debug/fix-table', async (req, res) => {
 // Owner Dashboard Stats
 app.get('/api/owner/stats', verifyToken, async (req, res) => {
   try {
+    const firebase_uid = req.uid;
+    
     // Verify owner/admin status
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
-      [req.uid]
+      [firebase_uid]
     );
     
     if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+      console.log(`❌ /api/owner/stats access denied for user: ${firebase_uid} (not admin)`);
+      return res.status(403).json({ error: "Unauthorized: Admin privileges required for dashboard" });
     }
 
     // Get comprehensive platform stats
@@ -6334,14 +6362,17 @@ app.get('/api/owner/stats', verifyToken, async (req, res) => {
 // Owner Recent Projects
 app.get('/api/owner/recent-projects', verifyToken, async (req, res) => {
   try {
+    const firebase_uid = req.uid;
+    
     // Verify owner/admin status
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
-      [req.uid]
+      [firebase_uid]
     );
     
     if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+      console.log(`❌ /api/owner/recent-projects access denied for user: ${firebase_uid} (not admin)`);
+      return res.status(403).json({ error: "Unauthorized: Admin privileges required for dashboard" });
     }
 
     const result = await db.query(`
@@ -6373,53 +6404,81 @@ app.get('/api/owner/recent-projects', verifyToken, async (req, res) => {
 // Owner Get All Projects
 app.get('/api/owner/projects', verifyToken, async (req, res) => {
   try {
-    // Verify owner/admin status
+    // Verify owner/admin status or team member with projects permission
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
       [req.uid]
     );
     
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    const isAdmin = adminCheck.rows[0]?.is_admin;
+    
+    // If not admin, check if user is a team member with projects.view or projects.edit permission
+    if (!isAdmin) {
+      const teamPermCheck = await db.query(`
+        SELECT tmp.permission_key
+        FROM team_members tm
+        JOIN team_member_permissions tmp ON tm.id = tmp.team_member_id
+        WHERE tm.member_uid = $1 
+          AND tm.status = 'active'
+          AND tmp.can_access = true
+          AND (tmp.permission_key = 'projects.view' OR tmp.permission_key = 'projects.edit')
+      `, [req.uid]);
+      
+      if (teamPermCheck.rows.length === 0) {
+        return res.status(403).json({ error: "Unauthorized: Owner access or projects.view permission required" });
+      }
     }
 
-    // Fetch all projects with user details
+    console.log('📊 Fetching projects for user:', req.uid, 'isAdmin:', isAdmin);
+    
+    // Fetch all projects with only needed fields (NOT entire project_data JSONB)
+    // This avoids transferring 2.8MB per project over the network
+    const startTime = Date.now();
     const result = await db.query(`
       SELECT 
         p.id, 
         p.firebase_uid as borrower_uid,
-        p.project_data, 
         p.created_at, 
         p.updated_at,
-        u.full_name as borrower_name
+        u.full_name as borrower_name,
+        -- Extract only needed fields from JSONB to avoid huge data transfer
+        p.project_data->>'type' as project_type,
+        p.project_data->>'status' as status,
+        p.project_data->>'approvalStatus' as approval_status,
+        p.project_data->'details'->>'product' as title,
+        p.project_data->'details'->>'description' as description,
+        p.project_data->'details'->>'fundingRequirement' as funding_requirement,
+        p.project_data->'details'->>'fundingProgress' as funding_progress,
+        p.project_data->'details'->>'amountRaised' as amount_raised,
+        p.project_data->'details'->>'location' as location,
+        p.project_data->'details'->>'image' as thumbnail
       FROM projects p
       LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
       ORDER BY p.created_at DESC
+      LIMIT 1000
     `);
+    
+    const queryTime = Date.now() - startTime;
+    console.log(`✅ Projects query completed in ${queryTime}ms, returned ${result.rows.length} projects`);
 
-    // Format all projects
-    const projects = result.rows.map(row => {
-      const projectData = row.project_data || {};
-      const details = projectData.details || {};
-
-      return {
-        id: row.id,
-        title: details.product || 'Untitled Project',
-        description: details.description || '',
-        borrowerName: row.borrower_name || 'Unknown',
-        borrowerUid: row.borrower_uid,
-        type: projectData.type || 'lending',
-        status: projectData.status || 'draft',
-        approvalStatus: projectData.approvalStatus || 'pending',
-        fundingAmount: parseInt(details.fundingRequirement) || 0,
-        fundingProgress: details.fundingProgress || '0%',
-        amountRaised: parseInt(details.amountRaised) || 0,
-        location: details.location || '',
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        thumbnail: details.image || ''
-      };
-    });
+    // Format all projects (data already extracted from JSONB)
+    const projects = result.rows.map(row => ({
+      id: row.id,
+      title: row.title || 'Untitled Project',
+      description: row.description || '',
+      borrowerName: row.borrower_name || 'Unknown',
+      borrowerUid: row.borrower_uid,
+      type: row.project_type || 'lending',
+      status: row.status || 'draft',
+      approvalStatus: row.approval_status || 'pending',
+      fundingAmount: parseInt(row.funding_requirement) || 0,
+      fundingProgress: row.funding_progress || '0%',
+      amountRaised: parseInt(row.amount_raised) || 0,
+      location: row.location || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      thumbnail: row.thumbnail || ''
+    }));
 
     res.json(projects);
   } catch (err) {
@@ -6433,14 +6492,29 @@ app.get('/api/owner/projects/:projectId', verifyToken, async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    // Verify owner/admin status
+    // Verify owner/admin status or team member with projects.view permission
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
       [req.uid]
     );
     
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    const isAdmin = adminCheck.rows[0]?.is_admin;
+    
+    // If not admin, check if user is a team member with projects.view permission
+    if (!isAdmin) {
+      const teamPermCheck = await db.query(`
+        SELECT tmp.permission_key
+        FROM team_members tm
+        JOIN team_member_permissions tmp ON tm.id = tmp.team_member_id
+        WHERE tm.member_uid = $1 
+          AND tm.status = 'active'
+          AND tmp.can_access = true
+          AND tmp.permission_key = 'projects.view'
+      `, [req.uid]);
+      
+      if (teamPermCheck.rows.length === 0) {
+        return res.status(403).json({ error: "Unauthorized: Owner access or projects.view permission required" });
+      }
     }
 
     // Fetch project details
@@ -6654,14 +6728,17 @@ app.post('/api/owner/projects/:projectId/reject', verifyToken, async (req, res) 
 // Owner Project Insights
 app.get('/api/owner/project-insights', verifyToken, async (req, res) => {
   try {
+    const firebase_uid = req.uid;
+    
     // Verify owner/admin status
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
-      [req.uid]
+      [firebase_uid]
     );
     
     if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+      console.log(`❌ /api/owner/project-insights access denied for user: ${firebase_uid} (not admin)`);
+      return res.status(403).json({ error: "Unauthorized: Admin privileges required for dashboard" });
     }
 
     const result = await db.query(`
@@ -6691,17 +6768,32 @@ app.get('/api/owner/project-insights', verifyToken, async (req, res) => {
   }
 });
 
-// Owner Users List
+// Owner Users List (DUPLICATE - This endpoint is also defined earlier. Consider removing this duplicate)
 app.get('/api/owner/users', verifyToken, async (req, res) => {
   try {
-    // Verify owner/admin status
+    // Verify owner/admin status or team member with users permission
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
       [req.uid]
     );
     
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    const isAdmin = adminCheck.rows[0]?.is_admin;
+    
+    // If not admin, check if user is a team member with users.view or users.edit permission
+    if (!isAdmin) {
+      const teamPermCheck = await db.query(`
+        SELECT tmp.permission_key
+        FROM team_members tm
+        JOIN team_member_permissions tmp ON tm.id = tmp.team_member_id
+        WHERE tm.member_uid = $1 
+          AND tm.status = 'active'
+          AND tmp.can_access = true
+          AND (tmp.permission_key = 'users.view' OR tmp.permission_key = 'users.edit')
+      `, [req.uid]);
+      
+      if (teamPermCheck.rows.length === 0) {
+        return res.status(403).json({ error: "Unauthorized: Owner access or users.view permission required" });
+      }
     }
 
     const result = await db.query(`
@@ -6749,14 +6841,29 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
   const { userId } = req.params;
   
   try {
-    // Verify owner/admin status
+    // Verify owner/admin status or team member with users.view permission
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
       [req.uid]
     );
     
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    const isAdmin = adminCheck.rows[0]?.is_admin;
+    
+    // If not admin, check if user is a team member with users.view permission
+    if (!isAdmin) {
+      const teamPermCheck = await db.query(`
+        SELECT tmp.permission_key
+        FROM team_members tm
+        JOIN team_member_permissions tmp ON tm.id = tmp.team_member_id
+        WHERE tm.member_uid = $1 
+          AND tm.status = 'active'
+          AND tmp.can_access = true
+          AND tmp.permission_key = 'users.view'
+      `, [req.uid]);
+      
+      if (teamPermCheck.rows.length === 0) {
+        return res.status(403).json({ error: "Unauthorized: Owner access or users.view permission required" });
+      }
     }
 
     const userResult = await db.query(`
@@ -7176,14 +7283,29 @@ app.get('/api/owner/users/:userId/projects', verifyToken, async (req, res) => {
   const { userId } = req.params;
   
   try {
-    // Verify owner/admin status
+    // Verify owner/admin status or team member with users.view permission
     const adminCheck = await db.query(
       `SELECT is_admin FROM users WHERE firebase_uid = $1`,
       [req.uid]
     );
     
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: "Unauthorized: Owner access required" });
+    const isAdmin = adminCheck.rows[0]?.is_admin;
+    
+    // If not admin, check if user is a team member with users.view permission
+    if (!isAdmin) {
+      const teamPermCheck = await db.query(`
+        SELECT tmp.permission_key
+        FROM team_members tm
+        JOIN team_member_permissions tmp ON tm.id = tmp.team_member_id
+        WHERE tm.member_uid = $1 
+          AND tm.status = 'active'
+          AND tmp.can_access = true
+          AND tmp.permission_key = 'users.view'
+      `, [req.uid]);
+      
+      if (teamPermCheck.rows.length === 0) {
+        return res.status(403).json({ error: "Unauthorized: Owner access or users.view permission required" });
+      }
     }
 
     const result = await db.query(`
@@ -7545,6 +7667,13 @@ app.post('/api/owner/team/invite', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'This email is already invited to your team' });
     }
 
+    // Clean up any old/expired invitations for this email before creating new one
+    await db.query(
+      'DELETE FROM team_invitations WHERE owner_uid = $1 AND LOWER(email) = LOWER($2)',
+      [firebase_uid, email]
+    );
+    console.log(`🧹 Cleaned up old invitations for ${email}`);
+
     // For now, set member_uid as null (will be filled when they accept invitation)
     // We can't reliably check users table by email due to schema complexity
     const memberUid = null;
@@ -7702,6 +7831,38 @@ app.put('/api/owner/team/:memberId/role', verifyToken, async (req, res) => {
       }
     }
 
+    // Get member details for notification
+    const memberDetails = await db.query(
+      'SELECT member_uid, email FROM team_members WHERE id = $1',
+      [memberId]
+    );
+
+    // Get owner name for notification
+    const ownerDetails = await db.query(
+      'SELECT full_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    const ownerName = ownerDetails.rows[0]?.full_name || 'Team Admin';
+
+    // Only send notification if member has accepted invitation (has member_uid)
+    if (memberDetails.rows.length > 0 && memberDetails.rows[0].member_uid) {
+      const memberUid = memberDetails.rows[0].member_uid;
+
+      // Create notification for the team member
+      await db.query(`
+        INSERT INTO notifications (firebase_uid, type, title, message, link, created_at, is_read)
+        VALUES ($1, $2, $3, $4, $5, NOW(), false)
+      `, [
+        memberUid,
+        'team_update',
+        'Your Role Has Been Updated',
+        `${ownerName} has updated your role to ${role}. Your permissions have been updated accordingly.`,
+        '/owner'
+      ]);
+
+      console.log(`📬 Notification sent to user ${memberUid} about role update to ${role}`);
+    }
+
     res.json({ success: true, message: 'Role updated successfully' });
   } catch (error) {
     console.error('Error updating role:', error);
@@ -7753,6 +7914,39 @@ app.put('/api/owner/team/:memberId/permissions', verifyToken, async (req, res) =
       `, permissionParams);
     }
 
+    // Get member details for notification
+    const memberDetails = await db.query(
+      'SELECT member_uid, email FROM team_members WHERE id = $1',
+      [memberId]
+    );
+
+    // Get owner name for notification
+    const ownerDetails = await db.query(
+      'SELECT full_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    const ownerName = ownerDetails.rows[0]?.full_name || 'Team Admin';
+
+    // Only send notification if member has accepted invitation (has member_uid)
+    if (memberDetails.rows.length > 0 && memberDetails.rows[0].member_uid) {
+      const memberUid = memberDetails.rows[0].member_uid;
+      const permCount = permissions ? permissions.length : 0;
+
+      // Create notification for the team member
+      await db.query(`
+        INSERT INTO notifications (firebase_uid, notification_type, title, message, link, created_at, is_read, type)
+        VALUES ($1, $2, $3, $4, $5, NOW(), false, $2)
+      `, [
+        memberUid,
+        'team_update',
+        'Your Permissions Have Been Updated',
+        `${ownerName} has updated your permissions. You now have ${permCount} permission(s).`,
+        '/owner'
+      ]);
+
+      console.log(`📬 Notification sent to user ${memberUid} about permission update`);
+    }
+
     res.json({ success: true, message: 'Permissions updated successfully' });
   } catch (error) {
     console.error('Error updating permissions:', error);
@@ -7786,8 +7980,46 @@ app.delete('/api/owner/team/:memberId', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Team member not found' });
     }
 
+    // Get the email to clean up all related records
+    const memberInfo = await db.query(
+      'SELECT email, member_uid FROM team_members WHERE id = $1',
+      [memberId]
+    );
+    const memberEmail = memberInfo.rows[0].email;
+    const memberUid = memberInfo.rows[0].member_uid;
+
+    // Delete all team invitations for this email (old and pending)
+    await db.query(
+      'DELETE FROM team_invitations WHERE owner_uid = $1 AND LOWER(email) = LOWER($2)',
+      [firebase_uid, memberEmail]
+    );
+
     // Delete team member (permissions will be cascade deleted)
     await db.query('DELETE FROM team_members WHERE id = $1', [memberId]);
+
+    // Send notification to removed member if they had accepted
+    if (memberUid) {
+      const ownerDetails = await db.query(
+        'SELECT full_name FROM users WHERE firebase_uid = $1',
+        [firebase_uid]
+      );
+      const ownerName = ownerDetails.rows[0]?.full_name || 'Team Admin';
+
+      await db.query(`
+        INSERT INTO notifications (firebase_uid, type, title, message, link, created_at, is_read)
+        VALUES ($1, $2, $3, $4, $5, NOW(), false)
+      `, [
+        memberUid,
+        'team_update',
+        'Removed from Team',
+        `${ownerName} has removed you from their team. You no longer have access to the owner portal.`,
+        '/dashboard'
+      ]);
+
+      console.log(`📬 Notification sent to user ${memberUid} about team removal`);
+    }
+
+    console.log(`🗑️ Removed team member: ${memberEmail} (cleaned up all invitations)`);
 
     res.json({ success: true, message: 'Team member removed successfully' });
   } catch (error) {
@@ -7942,6 +8174,32 @@ app.post('/api/team/accept-invitation/:token', verifyToken, async (req, res) => 
       WHERE id = $1
     `, [invitation.id]);
 
+    // Get owner name for notification
+    const ownerResult = await db.query(
+      'SELECT full_name FROM users WHERE firebase_uid = $1',
+      [invitation.owner_uid]
+    );
+    const ownerName = ownerResult.rows[0]?.full_name || 'Team Owner';
+
+    // Get team member role for notification
+    const memberResult = await db.query(
+      'SELECT role FROM team_members WHERE owner_uid = $1 AND email = $2',
+      [invitation.owner_uid, invitation.email]
+    );
+    const memberRole = memberResult.rows[0]?.role || 'team member';
+
+    // Create notification for the user who accepted
+    await db.query(`
+      INSERT INTO notifications (firebase_uid, type, title, message, link, created_at, is_read)
+      VALUES ($1, $2, $3, $4, $5, NOW(), false)
+    `, [
+      firebase_uid,
+      'team_member',
+      'Welcome to the Team!',
+      `You've successfully joined ${ownerName}'s team as a ${memberRole}. You now have access to the owner portal with your assigned permissions.`,
+      '/owner'
+    ]);
+
     res.json({ success: true, message: 'Invitation accepted successfully' });
   } catch (error) {
     console.error('Error accepting invitation:', error);
@@ -7964,6 +8222,7 @@ app.get('/api/team/my-permissions', verifyToken, async (req, res) => {
       // Return all permissions for owners/admins
       return res.json({
         isOwner: true,
+        isAdmin: true, // Add this for consistency with frontend
         permissions: ['*'] // Wildcard for all permissions
       });
     }
@@ -7982,6 +8241,7 @@ app.get('/api/team/my-permissions', verifyToken, async (req, res) => {
 
     res.json({
       isOwner: false,
+      isAdmin: false, // Add this for consistency with frontend
       permissions
     });
   } catch (error) {

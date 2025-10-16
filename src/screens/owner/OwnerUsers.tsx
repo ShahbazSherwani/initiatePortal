@@ -63,8 +63,8 @@ export const OwnerUsers: React.FC = () => {
   });
 
   useEffect(() => {
-    // Only fetch users if user is authenticated and is admin
-    if (user && profile?.isAdmin) {
+    // Fetch users if authenticated (admin or team member - route guard handles permission check)
+    if (user && profile) {
       fetchUsers();
     }
   }, [user, profile]);

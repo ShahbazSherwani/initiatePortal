@@ -680,7 +680,7 @@ export const OwnerTeam: React.FC = () => {
         {/* Invitation Link Modal */}
         {showInviteLinkModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-lg">
+            <Card className="w-full max-w-lg bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                   <MailIcon className="w-6 h-6 text-[#0C4B20]" />
@@ -799,7 +799,7 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <SettingsIcon className="w-5 h-5 text-[#0C4B20]" />

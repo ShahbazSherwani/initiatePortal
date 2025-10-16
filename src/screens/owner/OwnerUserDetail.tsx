@@ -10,6 +10,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { LoadingSpinner } from '../../components/ui/loading-spinner';
 import { authFetch } from '../../lib/api';
 import { API_BASE_URL } from '../../config/environment';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   ArrowLeftIcon, 
   UserIcon, 
@@ -210,6 +211,7 @@ const USER_TABS = [
 export const OwnerUserDetail: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -218,6 +220,42 @@ export const OwnerUserDetail: React.FC = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [canEditUsers, setCanEditUsers] = useState(false);
+  const [canSuspendUsers, setCanSuspendUsers] = useState(false);
+  const [canDeleteUsers, setCanDeleteUsers] = useState(false);
+
+  // Fetch user permissions to check what actions they can perform
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      // Admins can do everything
+      if (profile?.isAdmin) {
+        setCanEditUsers(true);
+        setCanSuspendUsers(true);
+        setCanDeleteUsers(true);
+        return;
+      }
+
+      try {
+        const data = await authFetch(`${API_BASE_URL}/team/my-permissions`);
+        const permissions = data.permissions || [];
+        
+        setCanEditUsers(permissions.includes('users.edit'));
+        setCanSuspendUsers(permissions.includes('users.suspend'));
+        // Note: There's no 'users.delete' permission in the list, so we'll treat it like suspend
+        // Or we can make delete require BOTH edit AND suspend permissions
+        setCanDeleteUsers(permissions.includes('users.suspend')); // Assuming delete requires suspend permission
+      } catch (error) {
+        console.error('Error fetching permissions:', error);
+        setCanEditUsers(false);
+        setCanSuspendUsers(false);
+        setCanDeleteUsers(false);
+      }
+    };
+
+    if (profile) {
+      fetchPermissions();
+    }
+  }, [profile]);
 
   // Fetch user data based on userId
   const fetchUserData = async () => {
@@ -413,33 +451,39 @@ export const OwnerUserDetail: React.FC = () => {
 
           {/* Actions Menu */}
           <div className="flex items-center gap-2">
-            {user.status === 'suspended' ? (
-              <Button 
-                onClick={handleReactivateUser}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <ShieldIcon className="w-4 h-4 mr-2" />
-                Reactivate
-              </Button>
-            ) : (
-              <Button 
-                onClick={() => setShowSuspendDialog(true)}
-                variant="outline" 
-                className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
-              >
-                <UserXIcon className="w-4 h-4 mr-2" />
-                Suspend
-              </Button>
+            {canSuspendUsers && (
+              <>
+                {user.status === 'suspended' ? (
+                  <Button 
+                    onClick={handleReactivateUser}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <ShieldIcon className="w-4 h-4 mr-2" />
+                    Reactivate
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={() => setShowSuspendDialog(true)}
+                    variant="outline" 
+                    className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
+                  >
+                    <UserXIcon className="w-4 h-4 mr-2" />
+                    Suspend
+                  </Button>
+                )}
+              </>
             )}
 
-            <Button 
-              onClick={() => setShowDeleteDialog(true)}
-              variant="outline" 
-              className="text-red-600 border-red-600 hover:bg-red-50"
-            >
-              <TrashIcon className="w-4 h-4 mr-2" />
-              Delete
-            </Button>
+            {canDeleteUsers && (
+              <Button 
+                onClick={() => setShowDeleteDialog(true)}
+                variant="outline" 
+                className="text-red-600 border-red-600 hover:bg-red-50"
+              >
+                <TrashIcon className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
+            )}
           </div>
         </div>
 
@@ -483,14 +527,16 @@ export const OwnerUserDetail: React.FC = () => {
                 </div>
               </div>
 
-              <Button
-                variant={isEditing ? "default" : "outline"}
-                onClick={() => setIsEditing(!isEditing)}
-                className={isEditing ? "bg-[#0C4B20] text-white" : ""}
-              >
-                <EditIcon className="w-4 h-4 mr-2" />
-                {isEditing ? 'Save Changes' : 'Edit Profile'}
-              </Button>
+              {canEditUsers && (
+                <Button
+                  variant={isEditing ? "default" : "outline"}
+                  onClick={() => setIsEditing(!isEditing)}
+                  className={isEditing ? "bg-[#0C4B20] text-white" : ""}
+                >
+                  <EditIcon className="w-4 h-4 mr-2" />
+                  {isEditing ? 'Save Changes' : 'Edit Profile'}
+                </Button>
+              )}
             </div>
 
             {/* Tabs */}

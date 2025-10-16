@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BellIcon, XIcon, MessageCircle, DollarSign, FileText, TrendingUp } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -10,6 +11,7 @@ interface NotificationDropdownProps {
 
 const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onNotificationClick }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
   const { 
     notifications, 
     unreadCount, 
@@ -64,6 +66,62 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onNotificat
       fetchNotifications();
     }
   }, [isOpen, fetchNotifications]);
+
+  // Handle notification click - navigate to related page
+  const handleNotificationClick = (notification: any) => {
+    // Mark as read
+    if (!notification.is_read) {
+      markAsRead(notification.id);
+    }
+
+    // Navigate based on notification type and related data
+    if (notification.related_request_id) {
+      switch (notification.related_request_type) {
+        case 'project':
+          navigate(`/owner/projects/${notification.related_request_id}`);
+          break;
+        case 'investment':
+          navigate(`/admin/investment-requests`);
+          break;
+        case 'topup':
+          navigate(`/admin/topup-requests`);
+          break;
+        case 'user':
+          navigate(`/owner/users/${notification.related_request_id}`);
+          break;
+        default:
+          // For general notifications, go to dashboard
+          navigate('/owner/dashboard');
+      }
+    } else {
+      // Default navigation based on notification type
+      if (notification.notification_type.includes('project')) {
+        navigate('/owner/projects');
+      } else if (notification.notification_type.includes('investment')) {
+        navigate('/admin/investment-requests');
+      } else if (notification.notification_type.includes('topup')) {
+        navigate('/admin/topup-requests');
+      } else if (notification.notification_type.includes('team')) {
+        navigate('/owner/team');
+      } else {
+        navigate('/owner/dashboard');
+      }
+    }
+
+    // Close dropdown
+    setIsOpen(false);
+
+    // Call optional callback
+    if (onNotificationClick) {
+      onNotificationClick();
+    }
+  };
+
+  // Handle "View all notifications" click
+  const handleViewAll = () => {
+    navigate('/owner/dashboard'); // Navigate to dashboard where notifications are displayed
+    setIsOpen(false);
+  };
 
   return (
     <div className="relative">
@@ -133,7 +191,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onNotificat
                     className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
                       !notification.is_read ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
                     }`}
-                    onClick={() => !notification.is_read && markAsRead(notification.id)}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex items-start gap-3">
                       <div className={`flex-shrink-0 ${getNotificationColor(notification.notification_type)}`}>
@@ -165,7 +223,12 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onNotificat
           {/* Footer */}
           {notifications.length > 0 && (
             <div className="p-3 border-t border-gray-200 text-center">
-              <Button variant="ghost" size="sm" className="text-xs text-gray-500">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs text-[#0C4B20] hover:text-[#8FB200] font-medium"
+                onClick={handleViewAll}
+              >
                 View all notifications
               </Button>
             </div>

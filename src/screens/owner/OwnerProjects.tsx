@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { authFetch } from '../../lib/api';
 import { API_BASE_URL } from '../../config/environment';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   SearchIcon, 
   EyeIcon, 
@@ -58,6 +59,7 @@ const PROJECT_TYPES = [
 
 export const OwnerProjects: React.FC = () => {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
@@ -69,6 +71,31 @@ export const OwnerProjects: React.FC = () => {
     dateRange: 'all',
     fundingRange: 'all'
   });
+  const [canApproveProjects, setCanApproveProjects] = useState(false);
+
+  // Fetch user permissions to check if they can approve projects
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      // Admins can always approve
+      if (profile?.isAdmin) {
+        setCanApproveProjects(true);
+        return;
+      }
+
+      try {
+        const data = await authFetch(`${API_BASE_URL}/team/my-permissions`);
+        const hasApprovePermission = data.permissions?.includes('projects.approve') || false;
+        setCanApproveProjects(hasApprovePermission);
+      } catch (error) {
+        console.error('Error fetching permissions:', error);
+        setCanApproveProjects(false);
+      }
+    };
+
+    if (profile) {
+      fetchPermissions();
+    }
+  }, [profile]);
 
   useEffect(() => {
     fetchProjects();
@@ -82,56 +109,21 @@ export const OwnerProjects: React.FC = () => {
     try {
       setLoading(true);
       const data = await authFetch(`${API_BASE_URL}/owner/projects`);
+      console.log('✅ Projects loaded successfully:', data.length, 'projects');
       setProjects(data);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
+    } catch (error: any) {
+      console.error('❌ Error fetching projects:', error);
       
-      // Mock data for development
-      setProjects([
-        {
-          id: 'PFL4345N',
-          title: 'Securing Farming Funding for Growth and Sustainability',
-          borrowerName: 'Shahbaz Sherwani',
-          borrowerUid: '28745',
-          type: 'lending',
-          status: 'active',
-          approvalStatus: 'approved',
-          fundingAmount: 925000,
-          fundingProgress: '45%',
-          location: '452G+69X, Victoria, Laguna',
-          createdAt: '2024-01-15',
-          description: 'Rice field expansion project focusing on sustainable farming practices'
-        },
-        {
-          id: 'PFL4346N',
-          title: 'Agricultural Equipment Investment',
-          borrowerName: 'Nide Marie',
-          borrowerUid: '28746',
-          type: 'equity',
-          status: 'pending',
-          approvalStatus: 'pending',
-          fundingAmount: 750000,
-          fundingProgress: '0%',
-          location: 'Cebu, Philippines',
-          createdAt: '2024-01-10',
-          description: 'Investment in modern farming equipment'
-        },
-        {
-          id: 'PFL4347N',
-          title: 'Community Garden Initiative',
-          borrowerName: 'Maria Santos',
-          borrowerUid: '28747',
-          type: 'donation',
-          status: 'completed',
-          approvalStatus: 'approved',
-          fundingAmount: 150000,
-          fundingProgress: '100%',
-          location: 'Davao, Philippines',
-          createdAt: '2023-12-05',
-          description: 'Building community gardens for local food security'
-        }
-      ]);
+      // Check if it's a timeout or database error
+      if (error?.message?.includes('timeout') || error?.message?.includes('Database error')) {
+        toast.error('Database timeout - please contact administrator');
+        setProjects([]); // Show empty instead of mock data
+      } else {
+        toast.error('Failed to load projects');
+        setProjects([]); // Show empty instead of mock data
+      }
+      
+      // REMOVED: Mock data fallback - was hiding the real error
     } finally {
       setLoading(false);
     }
@@ -563,7 +555,7 @@ export const OwnerProjects: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col items-end gap-2 ml-6">
-                      {project.approvalStatus === 'pending' && (
+                      {project.approvalStatus === 'pending' && canApproveProjects && (
                         <div className="flex gap-2">
                           <Button
                             size="sm"

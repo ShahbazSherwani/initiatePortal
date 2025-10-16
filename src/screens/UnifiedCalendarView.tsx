@@ -1,38 +1,41 @@
 import React from 'react';
-import { Sidebar } from '../components/Sidebar/Sidebar';
+import { OwnerLayout } from '../layouts/OwnerLayout';
 import { UnifiedCalendar } from '../components/UnifiedCalendar';
 import { useAuth } from '../contexts/AuthContext';
+import { CalendarIcon } from 'lucide-react';
 
 export const UnifiedCalendarView: React.FC = () => {
   const { profile } = useAuth();
   
   return (
-    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
-      <div className="flex flex-1 overflow-hidden">
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <Sidebar activePage="Calendar" />
+    <OwnerLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#0C4B20] bg-opacity-10 rounded-lg flex items-center justify-center">
+              <CalendarIcon className="w-6 h-6 text-[#0C4B20]" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Calendar</h1>
+              <p className="text-gray-600 mt-1">
+                {profile?.isAdmin ? 'View all projects and investment schedules' : 
+                 profile?.role === 'investor' ? 'Track your investments and payouts' : 'Manage your project timelines'}
+              </p>
+            </div>
+          </div>
+          
+          {profile?.isAdmin && (
+            <div className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm rounded-lg font-medium">
+              Admin View
+            </div>
+          )}
         </div>
         
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold">
-                {profile?.isAdmin ? 'Admin Calendar' : 
-                 profile?.role === 'investor' ? 'Investor Calendar' : 'Project Calendar'}
-              </h1>
-              
-              {profile?.isAdmin && (
-                <div className="text-sm text-blue-600">
-                  Admin View: You can see all projects
-                </div>
-              )}
-            </div>
-            
-            <UnifiedCalendar />
-          </div>
-        </main>
+        {/* Calendar Component */}
+        <UnifiedCalendar />
       </div>
-    </div>
+    </OwnerLayout>
   );
 };
 

@@ -1,7 +1,9 @@
 // src/components/owner/OwnerSidebar.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { authFetch } from '../../lib/api';
+import { API_BASE_URL } from '../../config/environment';
 import { 
   HomeIcon, 
   CalendarIcon, 
@@ -22,6 +24,11 @@ interface OwnerSidebarProps {
   setIsMobileMenuOpen?: (open: boolean) => void;
 }
 
+interface TeamPermissions {
+  isAdmin: boolean;
+  permissions: string[];
+}
+
 export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({ 
   activePage = '', 
   isMobileMenuOpen = false, 
@@ -30,21 +37,128 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, profile } = useAuth();
+  const [teamPermissions, setTeamPermissions] = useState<TeamPermissions | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
-  const ownerNavItems = [
-    { icon: <HomeIcon className="w-5 h-5" />, label: "Dashboard", to: '/owner/dashboard', key: 'dashboard' },
-    { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/calendar', key: 'calendar' },
-    { icon: <UsersIcon className="w-5 h-5" />, label: "Users", to: '/owner/users', key: 'users' },
-    { icon: <FolderIcon className="w-5 h-5" />, label: "Projects", to: '/owner/projects', key: 'projects' },
-    { icon: <Users2Icon className="w-5 h-5" />, label: "My Team", to: '/owner/team', key: 'team' },
+  // Fetch team permissions to determine what menu items to show
+  const fetchPermissions = async () => {
+    // If user profile indicates admin, use that directly
+    if (profile?.isAdmin) {
+      setTeamPermissions({ isAdmin: true, permissions: ['*'] });
+      setLastFetchTime(Date.now());
+      return;
+    }
+
+    try {
+      const data = await authFetch(`${API_BASE_URL}/team/my-permissions`);
+      setTeamPermissions(data);
+      setLastFetchTime(Date.now());
+      console.log('✅ Permissions refreshed:', data);
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+      // If fetch fails, fall back to profile admin status
+      setTeamPermissions({ 
+        isAdmin: profile?.isAdmin || false, 
+        permissions: [] 
+      });
+    }
+  };
+
+  // Initial fetch when profile loads
+  useEffect(() => {
+    if (profile) {
+      fetchPermissions();
+    }
+  }, [profile]);
+
+  // Auto-refresh permissions every 30 seconds while on owner pages
+  useEffect(() => {
+    if (!profile || !location.pathname.startsWith('/owner')) return;
+
+    const interval = setInterval(() => {
+      const timeSinceLastFetch = Date.now() - lastFetchTime;
+      // Only refresh if it's been more than 25 seconds (to avoid race conditions)
+      if (timeSinceLastFetch >= 25000) {
+        console.log('🔄 Auto-refreshing permissions...');
+        fetchPermissions();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [profile, location.pathname, lastFetchTime]);
+
+  // Refresh permissions when navigating to owner pages
+  useEffect(() => {
+    if (!profile) return;
+
+    // If navigating to an owner page and it's been more than 10 seconds since last fetch
+    if (location.pathname.startsWith('/owner')) {
+      const timeSinceLastFetch = Date.now() - lastFetchTime;
+      if (timeSinceLastFetch >= 10000) {
+        console.log('🔄 Refreshing permissions on navigation...');
+        fetchPermissions();
+      }
+    }
+  }, [location.pathname, profile]);
+
+  // Listen for manual permission refresh events (triggered by notifications)
+  useEffect(() => {
+    const handleRefreshPermissions = () => {
+      console.log('🔔 Permission refresh triggered by notification');
+      fetchPermissions();
+    };
+
+    window.addEventListener('refreshPermissions', handleRefreshPermissions);
+    return () => window.removeEventListener('refreshPermissions', handleRefreshPermissions);
+  }, [profile]);
+
+  // Define all possible nav items with their required permissions
+  // Note: requiredPermissions can be an array - if user has ANY of them, they can access
+  const allNavItems = [
+    { icon: <HomeIcon className="w-5 h-5" />, label: "Dashboard", to: '/owner/dashboard', key: 'dashboard', adminOnly: false },
+    { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/calendar', key: 'calendar', adminOnly: false },
+    { icon: <UsersIcon className="w-5 h-5" />, label: "Users", to: '/owner/users', key: 'users', requiredPermissions: ['users.view', 'users.edit'] },
+    { icon: <FolderIcon className="w-5 h-5" />, label: "Projects", to: '/owner/projects', key: 'projects', requiredPermissions: ['projects.view', 'projects.edit'] },
+    { icon: <Users2Icon className="w-5 h-5" />, label: "My Team", to: '/owner/team', key: 'team', adminOnly: true },
     
     // Existing Admin Tools
-    { icon: <SettingsIcon className="w-5 h-5" />, label: "Admin Projects", to: '/admin/projects', key: 'admin-projects' },
-    { icon: <WalletIcon className="w-5 h-5" />, label: "Top-up Requests", to: '/admin/topup-requests', key: 'admin-topup' },
-    { icon: <TrendingUpIcon className="w-5 h-5" />, label: "Investment Requests", to: '/admin/investment-requests', key: 'admin-investments' },
+    { icon: <SettingsIcon className="w-5 h-5" />, label: "Admin Projects", to: '/admin/projects', key: 'admin-projects', adminOnly: true },
+    { icon: <WalletIcon className="w-5 h-5" />, label: "Top-up Requests", to: '/admin/topup-requests', key: 'admin-topup', adminOnly: true },
+    { icon: <TrendingUpIcon className="w-5 h-5" />, label: "Investment Requests", to: '/admin/investment-requests', key: 'admin-investments', requiredPermissions: ['investments.view', 'investments.edit'] },
     
-    { icon: <UserCogIcon className="w-5 h-5" />, label: "Settings", to: '/owner/settings', key: 'settings' },
+    { icon: <UserCogIcon className="w-5 h-5" />, label: "Settings", to: '/owner/settings', key: 'settings', adminOnly: false },
   ];
+
+  // Filter nav items based on permissions
+  const ownerNavItems = allNavItems.filter((item) => {
+    // Still loading permissions
+    if (!teamPermissions) return false;
+
+    // Admin can see everything
+    if (teamPermissions.isAdmin) {
+      console.log(`✅ Admin access - showing item: ${item.label}`);
+      return true;
+    }
+
+    // Admin-only item
+    if (item.adminOnly) {
+      console.log(`❌ Hiding admin-only item: ${item.label}`);
+      return false;
+    }
+
+    // Item requires specific permissions (array)
+    if (item.requiredPermissions) {
+      const hasPermission = item.requiredPermissions.some(perm => 
+        teamPermissions.permissions.includes(perm)
+      );
+      console.log(`${hasPermission ? '✅' : '❌'} ${item.label}: Required [${item.requiredPermissions.join(', ')}], Has: [${teamPermissions.permissions.join(', ')}]`);
+      return hasPermission;
+    }
+
+    // No specific requirement, show it
+    console.log(`✅ Showing public item: ${item.label}`);
+    return true;
+  });
 
   const isActiveNavItem = (navItem: any): boolean => {
     const currentPath = location.pathname;

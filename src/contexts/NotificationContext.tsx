@@ -123,6 +123,19 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   }, [token, fetchNotifications]);
 
+  // Check for team update notifications and trigger permission refresh
+  useEffect(() => {
+    const teamUpdateNotifications = notifications.filter(
+      n => (n.notification_type === 'team_update' || n.notification_type === 'team_member') && !n.is_read
+    );
+
+    if (teamUpdateNotifications.length > 0) {
+      console.log('🔔 Team update notification detected, triggering permission refresh...');
+      // Dispatch custom event that OwnerSidebar can listen to
+      window.dispatchEvent(new CustomEvent('refreshPermissions'));
+    }
+  }, [notifications]);
+
   // Set up polling for new notifications every 60 seconds
   useEffect(() => {
     if (!token) return;

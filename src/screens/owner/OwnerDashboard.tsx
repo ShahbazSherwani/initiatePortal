@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/badge';
 import { LoadingSpinner } from '../../components/ui/loading-spinner';
 import { authFetch } from '../../lib/api';
 import { API_BASE_URL } from '../../config/environment';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { 
   UsersIcon, 
   UserCheckIcon, 
@@ -21,7 +22,12 @@ import {
   EyeIcon,
   PieChart,
   BarChart3Icon,
-  Settings2Icon
+  Settings2Icon,
+  BellIcon,
+  CheckCircleIcon,
+  MessageCircle,
+  DollarSign,
+  FileTextIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -66,10 +72,19 @@ export const OwnerDashboard: React.FC = () => {
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [projectInsights, setProjectInsights] = useState<ProjectInsights | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Use notifications context
+  const { 
+    notifications, 
+    unreadCount, 
+    fetchNotifications, 
+    markAsRead 
+  } = useNotifications();
 
   useEffect(() => {
     fetchOwnerData();
-  }, []);
+    fetchNotifications(); // Fetch notifications on mount
+  }, [fetchNotifications]);
 
   const fetchOwnerData = async () => {
     try {
@@ -86,9 +101,18 @@ export const OwnerDashboard: React.FC = () => {
       setRecentProjects(projectsRes);
       setProjectInsights(insightsRes);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching owner data:', error);
-      toast.error('Failed to load dashboard data');
+      
+      // Check if it's an authorization error
+      if (error?.message?.includes('Unauthorized') || error?.message?.includes('403')) {
+        toast.error('Access denied: Admin privileges required');
+        console.error('❌ Dashboard access denied - user is not an admin');
+        setLoading(false);
+        return; // Don't show mock data for unauthorized users
+      }
+      
+      toast.error('Failed to load dashboard data - using cached data');
       
       // Set mock data for development
       setStats({
@@ -148,6 +172,45 @@ export const OwnerDashboard: React.FC = () => {
       currency: 'PHP',
       minimumFractionDigits: 0
     }).format(amount);
+  };
+
+  // Handle notification click - navigate to related page
+  const handleNotificationClick = (notification: any) => {
+    // Mark as read
+    if (!notification.is_read) {
+      markAsRead(notification.id);
+    }
+
+    // Navigate based on notification type and related data
+    if (notification.related_request_id) {
+      switch (notification.related_request_type) {
+        case 'project':
+          navigate(`/owner/projects/${notification.related_request_id}`);
+          break;
+        case 'investment':
+          navigate(`/admin/investment-requests`);
+          break;
+        case 'topup':
+          navigate(`/admin/topup-requests`);
+          break;
+        case 'user':
+          navigate(`/owner/users/${notification.related_request_id}`);
+          break;
+        default:
+          navigate('/owner/dashboard');
+      }
+    } else {
+      // Default navigation based on notification type
+      if (notification.notification_type.includes('project')) {
+        navigate('/owner/projects');
+      } else if (notification.notification_type.includes('investment')) {
+        navigate('/admin/investment-requests');
+      } else if (notification.notification_type.includes('topup')) {
+        navigate('/admin/topup-requests');
+      } else if (notification.notification_type.includes('team')) {
+        navigate('/owner/team');
+      }
+    }
   };
 
   if (loading) {
@@ -249,7 +312,7 @@ export const OwnerDashboard: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Recent Projects */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
             <Card className="bg-white shadow-sm border-0">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-xl font-semibold">Recent Projects</CardTitle>
@@ -310,6 +373,103 @@ export const OwnerDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+
+            {/* Recent Notifications */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                  <BellIcon className="w-5 h-5 text-[#0C4B20]" />
+                  Recent Notifications
+                  {unreadCount > 0 && (
+                    <Badge variant="destructive" className="ml-2">
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <BellIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No notifications yet</p>
+                  </div>
+                ) : (
+                  <>
+                    {notifications.slice(0, 5).map((notification) => (
+                      <div
+                        key={notification.id}
+                        onClick={() => handleNotificationClick(notification)}
+                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                          notification.is_read
+                            ? 'bg-white border-gray-200 hover:bg-gray-50'
+                            : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                            notification.notification_type.includes('approved') || notification.notification_type.includes('submitted')
+                              ? 'bg-green-100'
+                              : notification.notification_type.includes('rejected') || notification.notification_type.includes('failed')
+                              ? 'bg-red-100'
+                              : 'bg-blue-100'
+                          }`}>
+                            {notification.notification_type.includes('project') ? (
+                              <FileTextIcon className={`w-4 h-4 ${
+                                notification.notification_type.includes('approved')
+                                  ? 'text-green-600'
+                                  : notification.notification_type.includes('rejected')
+                                  ? 'text-red-600'
+                                  : 'text-blue-600'
+                              }`} />
+                            ) : notification.notification_type.includes('investment') ? (
+                              <TrendingUpIcon className={`w-4 h-4 ${
+                                notification.notification_type.includes('approved')
+                                  ? 'text-green-600'
+                                  : notification.notification_type.includes('rejected')
+                                  ? 'text-red-600'
+                                  : 'text-blue-600'
+                              }`} />
+                            ) : notification.notification_type.includes('topup') ? (
+                              <DollarSign className={`w-4 h-4 ${
+                                notification.notification_type.includes('approved')
+                                  ? 'text-green-600'
+                                  : notification.notification_type.includes('rejected')
+                                  ? 'text-red-600'
+                                  : 'text-blue-600'
+                              }`} />
+                            ) : (
+                              <MessageCircle className="w-4 h-4 text-blue-600" />
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">
+                              {notification.title}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(notification.created_at).toLocaleDateString()} at{' '}
+                              {new Date(notification.created_at).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </p>
+                          </div>
+                          
+                          {notification.is_read ? (
+                            <CheckCircleIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
+                          ) : (
+                            <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
