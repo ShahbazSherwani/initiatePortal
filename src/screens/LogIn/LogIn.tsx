@@ -90,6 +90,19 @@ export const LogIn = (): JSX.Element => {
   
       // 2) Fetch their profile with complete data
       const prof = await fetchProfile(idToken);
+      
+      // Check if user is suspended
+      if (prof.suspended || prof.error === 'Account Suspended' || prof.error === 'Borrower Account Suspended' || prof.error === 'Investor Account Suspended') {
+        // Sign out the user
+        await auth.signOut();
+        localStorage.removeItem("fb_token");
+        
+        setError(prof.message || "Your account has been suspended. Please contact support at info@initiate.ph for assistance.");
+        setShowLoadingOverlay(false);
+        setIsLoading(false);
+        return;
+      }
+      
       setProfile({ 
         id: cred.user.uid,
         email: cred.user.email,
@@ -98,12 +111,42 @@ export const LogIn = (): JSX.Element => {
         joined: prof.created_at,
         hasCompletedRegistration: prof.has_completed_registration || false,
         isAdmin: prof.is_admin || false,
-        profileCode: generateProfileCode(cred.user.uid)
+        profileCode: generateProfileCode(cred.user.uid),
+        emailVerified: prof.email_verified || false
       });
   
-      // 3) Navigate into the protected area
-      navigate("/borrow");
+      // 3) Check email verification before allowing access
+      // Exception: Admin users and owner email bypass email verification
+      const isAdmin = prof.is_admin || cred.user.email === 'm.shahbazsherwani@gmail.com';
+      const isOwner = cred.user.email === 'm.shahbazsherwani@gmail.com';
+      
+      if (!prof.email_verified && !isAdmin) {
+        console.log('📧 Email not verified - redirecting to verification pending');
+        navigate("/verification-pending");
+        return;
+      }
+      
+      // 4) Navigate into the protected area
+      // Owner goes to owner dashboard, everyone else goes to borrow
+      if (isOwner) {
+        navigate("/owner/dashboard");
+      } else {
+        navigate("/borrow");
+      }
     } catch (err: any) {
+      // Check if error message contains suspension-related text
+      const errorMessage = err?.message || err?.toString() || '';
+      if (errorMessage.includes('403') || errorMessage.includes('suspended') || errorMessage.includes('Suspended')) {
+        // Sign out the user
+        await auth.signOut();
+        localStorage.removeItem("fb_token");
+        
+        setError("Your account has been suspended. Please contact support at info@initiate.ph for assistance.");
+        setShowLoadingOverlay(false);
+        setIsLoading(false);
+        return;
+      }
+      
       // Handle Firebase authentication errors with user-friendly messages
       // Note: Firebase v9+ returns 'auth/invalid-credential' for security reasons
       // instead of specific 'auth/user-not-found' or 'auth/wrong-password' errors

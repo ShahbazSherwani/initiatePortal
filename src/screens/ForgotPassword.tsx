@@ -90,7 +90,7 @@ export const ForgotPassword: React.FC = () => {
                 </Button>
                 
                 <Button 
-                  onClick={() => navigate("/login")}
+                  onClick={() => navigate("/")}
                   className="w-full bg-[#0C4B20] hover:bg-[#8FB200] text-black"
                 >
                   Back to Login

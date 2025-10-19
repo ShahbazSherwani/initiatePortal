@@ -65,6 +65,9 @@ import { InvestorRegBankDetails } from "../screens/InvestorRegBankDetails";
 import Settings from "../screens/Settings";
 import BorwCreateNewProjDonation from "../screens/BorwCreateNewProjDonation";
 import BorwCreateNewProjRewards from "../screens/BorwCreateNewProjRewards";
+import { EmailVerification } from "../screens/EmailVerification";
+import { EmailVerificationPending } from "../screens/EmailVerificationPending";
+import { ResetPassword } from "../screens/ResetPassword";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -336,6 +339,30 @@ export const AppRoutes: React.FC = () => {
         return; // Profile is still loading, don't redirect yet
       }
       
+      // Check email verification - redirect to verification pending if not verified
+      // Exceptions: 
+      // 1. Admin users bypass email verification
+      // 2. Owner email bypasses email verification
+      // 3. verification-pending and verify-email pages
+      const isAdmin = profile.isAdmin || user.email === 'm.shahbazsherwani@gmail.com';
+      
+      if (!profile.emailVerified && 
+          !isAdmin &&
+          currentPath !== "/verification-pending" && 
+          !currentPath.startsWith("/verify-email/")) {
+        console.log('📧 Email not verified - redirecting to verification pending page');
+        navigate("/verification-pending", { replace: true });
+        return;
+      }
+      
+      // Special redirect for owner email - always go to /owner
+      if (user.email === 'm.shahbazsherwani@gmail.com') {
+        if (currentPath === "/" || currentPath === "/register") {
+          navigate("/owner", { replace: true });
+          return;
+        }
+      }
+      
       // If user has completed registration and has accounts
       if (profile.hasCompletedRegistration) {
         // Don't redirect if already on a valid page or registration/auth pages
@@ -358,12 +385,15 @@ export const AppRoutes: React.FC = () => {
         }
       }
       // If user needs to set up accounts
-      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrower-reg-non-individual" && currentPath !== "/borrower-bank-details-non-individual" && currentPath !== "/borrowocu" && currentPath !== "/borrowWallet" && currentPath !== "/investor/register" && currentPath !== "/investor-reg-individual" && currentPath !== "/investor-reg-non-individual" && currentPath !== "/investor-reg-direct-lender" && currentPath !== "/investor-reg-income-details" && currentPath !== "/investor-reg-bank-details" && currentPath !== "/register") {
+      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrower-reg-non-individual" && currentPath !== "/borrower-bank-details-non-individual" && currentPath !== "/borrowocu" && currentPath !== "/borrowWallet" && currentPath !== "/investor/register" && currentPath !== "/investor-reg-individual" && currentPath !== "/investor-reg-non-individual" && currentPath !== "/investor-reg-direct-lender" && currentPath !== "/investor-reg-income-details" && currentPath !== "/investor-reg-bank-details" && currentPath !== "/register" && currentPath !== "/verification-pending" && !currentPath.startsWith("/verify-email/")) {
         navigate("/borrow", { replace: true });
       }
     } else if (!loading && !user) {
-      // User not logged in, allow access to login and register pages
-      if (window.location.pathname !== "/" && window.location.pathname !== "/register") {
+      // User not logged in, allow access to login, register, and password reset pages
+      const allowedPaths = ["/", "/register", "/forgot-password"];
+      const isResetPasswordPath = window.location.pathname.startsWith("/reset-password/");
+      
+      if (!allowedPaths.includes(window.location.pathname) && !isResetPasswordPath) {
         navigate("/", { replace: true });
       }
     }
@@ -381,6 +411,13 @@ export const AppRoutes: React.FC = () => {
             {/* Auth routes - no layout needed */}
             <Route path="/" element={<LogIn />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/verify-email/:token" element={<EmailVerification />} />
+            <Route path="/verification-pending" element={
+              <PrivateRoute>
+                <EmailVerificationPending />
+              </PrivateRoute>
+            } />
             <Route path="/accept-invitation/:token" element={
               <PrivateRoute>
                 <AcceptInvitation />

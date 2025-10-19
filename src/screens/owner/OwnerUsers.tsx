@@ -41,10 +41,10 @@ interface User {
 }
 
 const USER_TABS = [
-  { key: 'all', label: 'All Users', icon: <Users2Icon className="w-4 h-4" /> },
-  { key: 'borrower', label: 'Issuers/Borrowers', icon: <UserIcon className="w-4 h-4" /> },
-  { key: 'investor', label: 'Investors', icon: <TrendingUpIcon className="w-4 h-4" /> },
-  { key: 'guarantor', label: 'Guarantors', icon: <ShieldCheckIcon className="w-4 h-4" /> },
+  { key: 'all', label: 'All Users', shortLabel: 'All', icon: <Users2Icon className="w-4 h-4" /> },
+  { key: 'borrower', label: 'Issuers/Borrowers', shortLabel: 'Issuers', icon: <UserIcon className="w-4 h-4" /> },
+  { key: 'investor', label: 'Investors', shortLabel: 'Investors', icon: <TrendingUpIcon className="w-4 h-4" /> },
+  { key: 'guarantor', label: 'Guarantors', shortLabel: 'Guarantors', icon: <ShieldCheckIcon className="w-4 h-4" /> },
 ];
 
 export const OwnerUsers: React.FC = () => {
@@ -246,22 +246,25 @@ export const OwnerUsers: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8">
+        <div className="border-b border-gray-200 overflow-x-auto">
+          <nav className="flex space-x-4 md:space-x-8 min-w-max md:min-w-0">
             {USER_TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => handleTabChange(tab.key)}
-                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`flex items-center py-3 md:py-4 px-1 border-b-2 font-medium text-xs md:text-sm whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'border-[#0C4B20] text-[#0C4B20]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 {tab.icon}
-                <span className="ml-2">{tab.label}</span>
+                <span className="ml-1.5 md:ml-2">
+                  <span className="hidden md:inline">{tab.label}</span>
+                  <span className="md:hidden">{tab.shortLabel}</span>
+                </span>
                 {activeTab === tab.key && (
-                  <Badge className="ml-2 bg-[#0C4B20] text-white border-0">
+                  <Badge className="ml-1.5 md:ml-2 bg-[#0C4B20] text-white border-0 text-xs">
                     {filteredUsers.length}
                   </Badge>
                 )}

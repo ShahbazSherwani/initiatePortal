@@ -14,6 +14,8 @@ import cors from 'cors';
 import admin from 'firebase-admin';
 import { Pool } from 'pg';
 import { readFileSync } from 'fs';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 // Initialize Firebase Admin SDK
 let serviceAccount;
@@ -86,13 +88,13 @@ try {
     ssl: {
       rejectUnauthorized: false,  // Supabase requires SSL
     },
-    // Optimized settings for Supabase
-    max: 10,                    // Reduced max connections
-    idleTimeoutMillis: 60000,   // 1 minute idle timeout
-    connectionTimeoutMillis: 15000,  // 15 seconds connection timeout
-    acquireTimeoutMillis: 15000,     // 15 seconds to acquire connection
-    query_timeout: 60000,       // 60 seconds query timeout (increased from 30s)
-    statement_timeout: 60000,   // 60 seconds statement timeout
+    // Optimized settings for Supabase - balanced for performance and reliability
+    max: 15,                    // Moderate max connections (not too many)
+    min: 2,                     // Keep minimum 2 connections ready
+    idleTimeoutMillis: 60000,   // 60 seconds idle timeout
+    connectionTimeoutMillis: 10000,  // 10 seconds connection timeout
+    statement_timeout: 90000,   // 90 seconds statement timeout (INCREASED back)
+    allowExitOnIdle: false,     // Keep pool alive for better performance
   });
 
   // Add error handling for database connection
@@ -457,6 +459,46 @@ try {
   dbConnected = false;
 }
 
+// ==================== EMAIL TRANSPORTER SETUP ====================
+
+// Create email transporter for GoDaddy SMTP
+let emailTransporter = null;
+
+async function createEmailTransporter() {
+  if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+    try {
+      emailTransporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: parseInt(process.env.EMAIL_PORT) || 465,
+        secure: process.env.EMAIL_SECURE === 'true' || process.env.EMAIL_PORT === '465',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD
+        },
+        tls: {
+          rejectUnauthorized: false // For GoDaddy SSL certificates
+        }
+      });
+
+      // Verify connection
+      await emailTransporter.verify();
+      console.log('✅ Email transporter ready (GoDaddy SMTP)');
+      return true;
+    } catch (error) {
+      console.error('⚠️ Email configuration error:', error.message);
+      console.log('📧 Emails will be logged to console instead');
+      emailTransporter = null;
+      return false;
+    }
+  } else {
+    console.log('⚠️ Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD in .env');
+    return false;
+  }
+}
+
+// Initialize email on server start
+createEmailTransporter();
+
 // Handle uncaught exceptions and unhandled rejections
 process.on('uncaughtException', (error) => {
   console.error('❌ Uncaught Exception:', error);
@@ -492,10 +534,140 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Database pool status endpoint (for debugging)
+app.get('/api/pool-status', async (req, res) => {
+  try {
+    const poolInfo = {
+      totalCount: db.totalCount,
+      idleCount: db.idleCount,
+      waitingCount: db.waitingCount,
+      maxConnections: 20,
+      dbConnected: dbConnected
+    };
+    res.json(poolInfo);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   // Serve static files from the dist directory
   app.use(express.static(path.join(__dirname, '../../dist')));
+}
+
+// ==================== EMAIL SENDING FUNCTIONS ====================
+
+// Generic email sending function
+async function sendEmail({ to, subject, html }) {
+  if (!emailTransporter) {
+    console.log('📧 Email not configured. Would send to:', to);
+    console.log('Subject:', subject);
+    console.log('Content:', html.substring(0, 200) + '...');
+    return { success: false, messageId: null };
+  }
+
+  try {
+    const info = await emailTransporter.sendMail({
+      from: `"${process.env.EMAIL_FROM_NAME || 'Initiate PH'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
+      // Add these headers to improve deliverability
+      headers: {
+        'X-Priority': '1',
+        'X-MSMail-Priority': 'High',
+        'Importance': 'high',
+        'X-Mailer': 'Initiate PH Platform',
+        'Reply-To': process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        // Help avoid spam filters
+        'List-Unsubscribe': `<mailto:${process.env.EMAIL_FROM || process.env.EMAIL_USER}?subject=unsubscribe>`,
+      },
+      // Add plain text version for better deliverability
+      text: html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+    });
+
+    console.log(`✅ Email sent to ${to}:`, info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error(`❌ Failed to send email to ${to}:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Send email verification
+async function sendVerificationEmail(email, token, userName = 'User') {
+  const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email/${token}`;
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #0C4B20, #8FB200); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; }
+        .button { display: inline-block; padding: 14px 32px; background: #0C4B20; color: white !important; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .info-box { background: #f9f9f9; padding: 15px; border-left: 4px solid #0C4B20; margin: 20px 0; border-radius: 4px; }
+        a { color: #0C4B20; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Verify Your Email Address</h1>
+        </div>
+        <div class="content">
+          <h2>Hello${userName !== 'User' ? ' ' + userName : ''}!</h2>
+          <p>Welcome to Initiate PH. To complete your registration, please verify your email address.</p>
+
+          <p style="text-align: center;">
+            <a href="${verifyUrl}" class="button">Verify My Email</a>
+          </p>
+
+          <div class="info-box">
+            <strong>Why verify?</strong><br>
+            Email verification helps us keep your account secure and ensures you receive important updates about your account.
+          </div>
+
+          <p style="color: #666; font-size: 14px;">
+            If the button doesn't work, copy this link:<br>
+            <a href="${verifyUrl}" style="word-break: break-all;">${verifyUrl}</a>
+          </p>
+
+          <p style="color: #999; font-size: 13px; margin-top: 30px;">
+            This link expires in 24 hours. If you didn't register at Initiate PH, you can safely ignore this email.
+          </p>
+        </div>
+        <div class="footer">
+          <p>Initiate PH - Crowdfunding Platform</p>
+          <p>Unit 1915 Capital House, BGC, Taguig City, Philippines</p>
+          <p><a href="mailto:admin@initiateph.com">admin@initiateph.com</a></p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: 'Please Verify Your Email - Initiate PH',
+    html
+  });
 }
 
 app.get('/', (req, res) => {
@@ -511,22 +683,23 @@ async function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   
-  console.log('🔐 Token verification request:', {
-    url: req.url,
-    method: req.method,
-    hasAuthHeader: !!authHeader,
-    tokenLength: idToken?.length || 0,
-    tokenStart: idToken?.substring(0, 20) + '...'
-  });
+  // Reduced logging - only log errors and first-time verifications to reduce server stress
+  // console.log('🔐 Token verification request:', {
+  //   url: req.url,
+  //   method: req.method,
+  //   hasAuthHeader: !!authHeader,
+  //   tokenLength: idToken?.length || 0,
+  //   tokenStart: idToken?.substring(0, 20) + '...'
+  // });
   
   if (!idToken) {
-    console.log('❌ No token provided');
+    console.log('❌ No token provided for:', req.url);
     return res.status(401).json({ error: 'No authentication token provided' });
   }
   
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);
-    console.log('✅ Token verified successfully for user:', decoded.uid);
+    // console.log('✅ Token verified successfully for user:', decoded.uid);
     req.uid = decoded.uid;
     
     // 🚨 CRITICAL: Check if user is suspended in database
@@ -535,12 +708,13 @@ async function verifyToken(req, res, next) {
       [decoded.uid]
     );
     
-    console.log('🔍 Suspension check for user:', decoded.uid, {
-      found: userCheck.rows.length > 0,
-      suspensionScope: userCheck.rows[0]?.suspension_scope,
-      accountType: userCheck.rows[0]?.current_account_type,
-      name: userCheck.rows[0]?.full_name
-    });
+    // Reduced logging to prevent server stress with multiple users
+    // console.log('🔍 Suspension check for user:', decoded.uid, {
+    //   found: userCheck.rows.length > 0,
+    //   suspensionScope: userCheck.rows[0]?.suspension_scope,
+    //   accountType: userCheck.rows[0]?.current_account_type,
+    //   name: userCheck.rows[0]?.full_name
+    // });
     
     if (userCheck.rows.length > 0) {
       const user = userCheck.rows[0];
@@ -550,9 +724,7 @@ async function verifyToken(req, res, next) {
         console.log('🚫 BLOCKED! Fully suspended user attempted to access:', {
           uid: decoded.uid,
           name: user.full_name,
-          url: req.url,
-          method: req.method,
-          reason: user.suspension_reason
+          url: req.url
         });
         
         return res.status(403).json({ 
@@ -620,13 +792,18 @@ const profileRouter = express.Router();
 profileRouter.post('/', verifyToken, async (req, res) => {
   const { fullName, role } = req.body;
   try {
+    // Insert with suspension_scope = 'none' to ensure account is NOT suspended
     await db.query(
-      `INSERT INTO users (firebase_uid, full_name, role)
-       VALUES ($1, $2, $3)
+      `INSERT INTO users (firebase_uid, full_name, role, suspension_scope)
+       VALUES ($1, $2, $3, 'none')
        ON CONFLICT (firebase_uid) DO UPDATE
-         SET full_name = EXCLUDED.full_name, role = EXCLUDED.role`,
+         SET full_name = EXCLUDED.full_name, 
+             role = EXCLUDED.role,
+             suspension_scope = COALESCE(users.suspension_scope, 'none')`,
       [req.uid, fullName, role || 'borrower']
     );
+    
+    console.log(`✅ User profile created/updated: ${fullName} (${req.uid})`);
     res.json({ success: true });
   } catch (err) {
     console.error('DB error:', err);
@@ -662,7 +839,8 @@ profileRouter.get('/', verifyToken, async (req, res) => {
       is_admin: rows[0].is_admin || false,
       has_completed_registration: rows[0].has_completed_registration || false,
       profile_picture: rows[0].profile_picture || null,
-      username: rows[0].username || null
+      username: rows[0].username || null,
+      email_verified: rows[0].email_verified || false
     };
     
     // Only add role if it exists
@@ -753,6 +931,263 @@ app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
     WHERE firebase_uid = $1
   `, [uid, amount]);
   res.json({ success: true });
+});
+
+// ==================== EMAIL VERIFICATION ENDPOINTS ====================
+
+// Send verification email after user registration
+app.post('/api/send-verification-email', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { email, name } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Get user details
+    const userResult = await db.query(
+      'SELECT full_name, email_verified FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { full_name, email_verified } = userResult.rows[0];
+    const userName = name || full_name || 'User';
+
+    if (email_verified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
+
+    // Generate verification token using crypto
+    const crypto = await import('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Delete any existing unverified tokens for this user
+    await db.query(
+      'DELETE FROM email_verifications WHERE firebase_uid = $1 AND verified = false',
+      [firebase_uid]
+    );
+
+    // Store verification token
+    await db.query(`
+      INSERT INTO email_verifications (firebase_uid, email, token, expires_at)
+      VALUES ($1, $2, $3, $4)
+    `, [firebase_uid, email, token, expiresAt]);
+
+    // Send email
+    const result = await sendVerificationEmail(email, token, userName);
+
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: 'Verification email sent successfully',
+        email: email
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to send verification email',
+        details: result.error 
+      });
+    }
+
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    res.status(500).json({ error: 'Failed to send verification email' });
+  }
+});
+
+// Verify email endpoint (public - no auth required)
+app.get('/api/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Find verification record
+    const verificationResult = await db.query(
+      `SELECT * FROM email_verifications 
+       WHERE token = $1 AND verified = false`,
+      [token]
+    );
+
+    if (verificationResult.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'Invalid or expired verification link',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    const verification = verificationResult.rows[0];
+
+    // Check if token expired
+    if (new Date() > new Date(verification.expires_at)) {
+      return res.status(400).json({ 
+        error: 'Verification link has expired. Please request a new one.',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+
+    // Mark as verified
+    await db.query(
+      `UPDATE email_verifications 
+       SET verified = true, verified_at = NOW() 
+       WHERE token = $1`,
+      [token]
+    );
+
+    // Update user table
+    await db.query(
+      `UPDATE users 
+       SET email_verified = true, email_verified_at = NOW() 
+       WHERE firebase_uid = $1`,
+      [verification.firebase_uid]
+    );
+
+    console.log(`✅ Email verified for user ${verification.firebase_uid}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Email verified successfully!',
+      email: verification.email
+    });
+
+  } catch (error) {
+    console.error('Error verifying email:', error);
+    res.status(500).json({ error: 'Failed to verify email' });
+  }
+});
+
+// Check email verification status
+app.get('/api/check-email-verification', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+
+    const result = await db.query(
+      'SELECT email_verified, email_verified_at FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      emailVerified: result.rows[0].email_verified || false,
+      verifiedAt: result.rows[0].email_verified_at
+    });
+
+  } catch (error) {
+    console.error('Error checking email verification:', error);
+    res.status(500).json({ error: 'Failed to check verification status' });
+  }
+});
+
+// Resend verification email
+app.post('/api/resend-verification-email', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+
+    // Get user details from users table (no email column in users table)
+    const userResult = await db.query(
+      'SELECT full_name, email_verified FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { full_name, email_verified } = userResult.rows[0];
+
+    if (email_verified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
+
+    // Get email from verification records or Firebase
+    let email = null;
+    
+    const emailResult = await db.query(
+      'SELECT email FROM email_verifications WHERE firebase_uid = $1 ORDER BY created_at DESC LIMIT 1',
+      [firebase_uid]
+    );
+
+    if (emailResult.rows.length > 0) {
+      email = emailResult.rows[0].email;
+    } else {
+      // No verification record - get email from Firebase
+      try {
+        const firebaseUser = await admin.auth().getUser(firebase_uid);
+        email = firebaseUser.email;
+      } catch (err) {
+        console.error('Error getting Firebase user:', err);
+        return res.status(404).json({ error: 'Could not retrieve user email. Please contact support.' });
+      }
+    }
+
+    if (!email) {
+      return res.status(404).json({ error: 'No email address found for this account.' });
+    }
+
+    // Check if there's a recent verification email (within last 2 minutes)
+    const recentCheck = await db.query(
+      `SELECT created_at FROM email_verifications 
+       WHERE firebase_uid = $1 
+       ORDER BY created_at DESC LIMIT 1`,
+      [firebase_uid]
+    );
+
+    if (recentCheck.rows.length > 0) {
+      const timeSinceLastEmail = Date.now() - new Date(recentCheck.rows[0].created_at).getTime();
+      const minutesSinceLastEmail = timeSinceLastEmail / 1000 / 60;
+      
+      if (minutesSinceLastEmail < 2) {
+        const waitMinutes = Math.ceil(2 - minutesSinceLastEmail);
+        return res.status(429).json({ 
+          error: `Please wait ${waitMinutes} minute${waitMinutes > 1 ? 's' : ''} before requesting another verification email`
+        });
+      }
+    }
+
+    // Generate new token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // Delete old unverified tokens
+    await db.query(
+      'DELETE FROM email_verifications WHERE firebase_uid = $1 AND verified = false',
+      [firebase_uid]
+    );
+
+    // Create new verification
+    await db.query(`
+      INSERT INTO email_verifications (firebase_uid, email, token, expires_at)
+      VALUES ($1, $2, $3, $4)
+    `, [firebase_uid, email, token, expiresAt]);
+
+    console.log(`📧 Resending verification email to: ${email} for user: ${full_name}`);
+
+    // Send email
+    const result = await sendVerificationEmail(email, token, full_name);
+
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: 'Verification email resent successfully'
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to resend verification email',
+        details: result.error 
+      });
+    }
+
+  } catch (error) {
+    console.error('Error resending verification email:', error);
+    res.status(500).json({ error: 'Failed to resend verification email' });
+  }
 });
 
 // Profile picture upload endpoint
@@ -2404,11 +2839,80 @@ app.post('/api/settings/change-password', verifyToken, async (req, res) => {
 });
 
 // Forgot password route
+// Password Reset Email Template
+async function sendPasswordResetEmail(email, token, userName = 'User') {
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${token}`;
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #0C4B20, #8FB200); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; }
+        .button { display: inline-block; padding: 14px 32px; background: #0C4B20; color: white !important; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .info-box { background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; border-radius: 4px; }
+        .warning-box { background: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0; border-radius: 4px; }
+        a { color: #0C4B20; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Reset Your Password</h1>
+        </div>
+        <div class="content">
+          <h2>Hello${userName !== 'User' ? ' ' + userName : ''}!</h2>
+          <p>We received a request to reset your password for your Initiate PH account.</p>
+
+          <p style="text-align: center;">
+            <a href="${resetUrl}" class="button">Reset Password</a>
+          </p>
+
+          <div class="info-box">
+            <strong>⏰ This link expires in 1 hour</strong><br>
+            For security reasons, this password reset link will only be valid for 1 hour from the time of this email.
+          </div>
+
+          <p style="color: #666; font-size: 14px;">
+            If the button doesn't work, copy and paste this link into your browser:<br>
+            <a href="${resetUrl}" style="word-break: break-all;">${resetUrl}</a>
+          </p>
+
+          <div class="warning-box">
+            <strong>⚠️ Didn't request this?</strong><br>
+            If you didn't request a password reset, please ignore this email and ensure your account is secure. Consider changing your password if you think someone else may have access to your account.
+          </div>
+        </div>
+        <div class="footer">
+          <p>Initiate PH - Crowdfunding Platform</p>
+          <p>Unit 1915 Capital House, BGC, Taguig City, Philippines</p>
+          <p><a href="mailto:admin@initiateph.com">admin@initiateph.com</a></p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: 'Reset Your Password - Initiate PH',
+    html
+  });
+}
+
+// Forgot Password - Send reset email
 app.post('/api/settings/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     
-    console.log("Forgot password request for email:", email);
+    console.log("📧 Forgot password request for email:", email);
     
     if (!email) {
       return res.status(400).json({ 
@@ -2417,44 +2921,186 @@ app.post('/api/settings/forgot-password', async (req, res) => {
       });
     }
     
-    // Check if user exists in Firebase
+    // Check if user exists in Firebase and database
     let userExists = false;
+    let userName = 'User';
+    let firebase_uid = null;
+    
     try {
-      await admin.auth().getUserByEmail(email);
-      userExists = true;
+      const firebaseUser = await admin.auth().getUserByEmail(email);
+      firebase_uid = firebaseUser.uid;
+      
+      // Get user details from database
+      const userQuery = await db.query(
+        'SELECT full_name FROM users WHERE firebase_uid = $1',
+        [firebase_uid]
+      );
+      
+      if (userQuery.rows.length > 0) {
+        userExists = true;
+        userName = userQuery.rows[0].full_name || 'User';
+      }
     } catch (error) {
       // User doesn't exist, but we don't want to reveal this for security
-      console.log("User not found for email:", email);
+      console.log("⚠️ User not found for email:", email);
     }
     
-    if (userExists) {
-      // Generate a password reset link
-      const resetLink = await admin.auth().generatePasswordResetLink(email);
+    if (userExists && firebase_uid) {
+      // Generate a custom reset token (valid for 1 hour)
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
       
-      console.log("Reset link generated for:", email);
-      console.log("Reset link (dev only):", resetLink);
+      // Store reset token in database
+      await db.query(
+        `INSERT INTO password_reset_tokens (firebase_uid, email, token, expires_at, used)
+         VALUES ($1, $2, $3, $4, false)
+         ON CONFLICT (firebase_uid) 
+         DO UPDATE SET token = $3, expires_at = $4, used = false, created_at = NOW()`,
+        [firebase_uid, email, resetToken, expiresAt]
+      );
       
-      // In production, you would send this via email
-      // For development, we'll return it in the response
+      console.log("✅ Reset token generated for:", email);
+      
+      // Send password reset email
+      try {
+        const emailResult = await sendPasswordResetEmail(email, resetToken, userName);
+        
+        if (emailResult.success) {
+          console.log("✅ Password reset email sent to:", email);
+        } else {
+          console.error("❌ Failed to send reset email:", emailResult.error);
+        }
+      } catch (emailError) {
+        console.error("❌ Error sending reset email:", emailError);
+        // Don't fail the request if email fails, token is still valid
+      }
+      
       res.json({ 
         success: true, 
-        message: "Password reset link sent",
-        resetLink: resetLink // Remove this in production
+        message: "If an account exists, a password reset link has been sent to your email"
       });
     } else {
       // Still return success to prevent email enumeration
+      console.log("⚠️ No user found, but returning success for security");
       res.json({ 
         success: true, 
-        message: "If an account exists, a password reset link has been sent"
+        message: "If an account exists, a password reset link has been sent to your email"
       });
     }
     
   } catch (error) {
-    console.error("Error processing forgot password:", error);
+    console.error("❌ Error processing forgot password:", error);
     res.status(500).json({ 
       success: false, 
       error: "Failed to process password reset request" 
     });
+  }
+});
+
+// Validate Reset Token
+app.get('/api/validate-reset-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+    
+    // Check if token exists and is valid
+    const result = await db.query(
+      `SELECT firebase_uid, email, expires_at, used 
+       FROM password_reset_tokens 
+       WHERE token = $1`,
+      [token]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid reset link' });
+    }
+    
+    const tokenData = result.rows[0];
+    
+    // Check if token has been used
+    if (tokenData.used) {
+      return res.status(400).json({ error: 'This reset link has already been used' });
+    }
+    
+    // Check if token has expired
+    if (new Date() > new Date(tokenData.expires_at)) {
+      return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
+    }
+    
+    // Token is valid
+    res.json({ 
+      success: true,
+      email: tokenData.email 
+    });
+    
+  } catch (error) {
+    console.error("Error validating reset token:", error);
+    res.status(500).json({ error: 'Failed to validate reset token' });
+  }
+});
+
+// Reset Password with Token
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+    
+    // Validate password strength
+    if (newPassword.length < 12) {
+      return res.status(400).json({ error: 'Password must be at least 12 characters long' });
+    }
+    
+    // Get token data
+    const result = await db.query(
+      `SELECT firebase_uid, email, expires_at, used 
+       FROM password_reset_tokens 
+       WHERE token = $1`,
+      [token]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid reset link' });
+    }
+    
+    const tokenData = result.rows[0];
+    
+    // Check if token has been used
+    if (tokenData.used) {
+      return res.status(400).json({ error: 'This reset link has already been used' });
+    }
+    
+    // Check if token has expired
+    if (new Date() > new Date(tokenData.expires_at)) {
+      return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
+    }
+    
+    // Update password in Firebase
+    await admin.auth().updateUser(tokenData.firebase_uid, {
+      password: newPassword
+    });
+    
+    // Mark token as used
+    await db.query(
+      'UPDATE password_reset_tokens SET used = true WHERE token = $1',
+      [token]
+    );
+    
+    console.log("✅ Password reset successful for:", tokenData.email);
+    
+    res.json({ 
+      success: true,
+      message: 'Password has been reset successfully' 
+    });
+    
+  } catch (error) {
+    console.error("❌ Error resetting password:", error);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 
@@ -4477,8 +5123,8 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
       
       // Ensure user exists in the users table first (upsert)
       const upsertResult = await db.query(
-        `INSERT INTO users (firebase_uid, full_name, role, has_completed_registration, created_at, updated_at)
-         VALUES ($1, $2, $3, true, NOW(), NOW())
+        `INSERT INTO users (firebase_uid, full_name, role, has_completed_registration, suspension_scope, created_at, updated_at)
+         VALUES ($1, $2, $3, true, 'none', NOW(), NOW())
          ON CONFLICT (firebase_uid) DO UPDATE
          SET role = EXCLUDED.role, 
              full_name = CASE 
@@ -4486,6 +5132,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
                ELSE users.full_name
              END,
              has_completed_registration = EXCLUDED.has_completed_registration,
+             suspension_scope = COALESCE(users.suspension_scope, 'none'),
              updated_at = NOW()
          RETURNING firebase_uid, role, full_name`,
         [uid, fullNameToUse, accountType]
@@ -7847,6 +8494,7 @@ app.put('/api/owner/team/:memberId/role', verifyToken, async (req, res) => {
     // Only send notification if member has accepted invitation (has member_uid)
     if (memberDetails.rows.length > 0 && memberDetails.rows[0].member_uid) {
       const memberUid = memberDetails.rows[0].member_uid;
+      const memberEmail = memberDetails.rows[0].email;
 
       // Create notification for the team member
       await db.query(`
@@ -7861,6 +8509,15 @@ app.put('/api/owner/team/:memberId/role', verifyToken, async (req, res) => {
       ]);
 
       console.log(`📬 Notification sent to user ${memberUid} about role update to ${role}`);
+
+      // Send email notification about role update
+      try {
+        await sendRoleAssignmentEmail(memberEmail, ownerName, role, permissions);
+        console.log(`📧 Email sent to ${memberEmail} about role update`);
+      } catch (emailError) {
+        console.error('⚠️ Failed to send role assignment email:', emailError);
+        // Continue even if email fails - notification was still created
+      }
     }
 
     res.json({ success: true, message: 'Role updated successfully' });
@@ -8252,6 +8909,101 @@ app.get('/api/team/my-permissions', verifyToken, async (req, res) => {
 
 // ==================== EMAIL SERVICE HELPER ====================
 
+// Send role assignment email to existing team member
+async function sendRoleAssignmentEmail(email, ownerName, role, permissions) {
+  // Check if SendGrid is configured
+  if (!process.env.SENDGRID_API_KEY) {
+    console.log('⚠️ SendGrid not configured. Role assignment email not sent to:', email);
+    console.log('📧 Email would notify:', email, 'about role:', role);
+    return true; // Return success so the role update still completes
+  }
+
+  try {
+    const sgMail = await import('@sendgrid/mail');
+    sgMail.default.setApiKey(process.env.SENDGRID_API_KEY);
+
+    // Format permissions list
+    const permissionsList = permissions && permissions.length > 0 
+      ? permissions.map(p => `<li style="margin: 5px 0;">${p.replace('.', ' - ').replace(/\b\w/g, l => l.toUpperCase())}</li>`).join('')
+      : '<li style="margin: 5px 0;">No specific permissions assigned</li>';
+
+    const msg = {
+      to: email,
+      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@initiate.ph',
+      subject: `Your team role has been updated - Initiate PH`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #0C4B20, #8FB200); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; }
+            .button { display: inline-block; padding: 12px 30px; background: #0C4B20; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+            .button:hover { background: #0A3D1A; }
+            .role-badge { display: inline-block; padding: 8px 16px; background: #0C4B20; border-radius: 4px; font-weight: bold; color: white; text-transform: uppercase; }
+            .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+            .info-box { background: #f9f9f9; padding: 15px; border-left: 4px solid #0C4B20; margin: 20px 0; }
+            .permissions-list { list-style-type: none; padding: 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🔄 Role Update</h1>
+            </div>
+            <div class="content">
+              <h2>Hello!</h2>
+              <p><strong>${ownerName}</strong> has updated your role on the Initiate PH platform.</p>
+              
+              <div class="info-box">
+                <strong>Your New Role:</strong><br>
+                <div style="margin-top: 10px;">
+                  <span class="role-badge">${role}</span>
+                </div>
+              </div>
+
+              <div class="info-box">
+                <strong>Updated Permissions:</strong>
+                <ul class="permissions-list">
+                  ${permissionsList}
+                </ul>
+              </div>
+
+              <p>These changes are effective immediately. You can now access the platform with your new permissions.</p>
+
+              <p style="text-align: center;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/owner" class="button">Go to Dashboard</a>
+              </p>
+
+              <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                If you have any questions about your new role or permissions, please contact your team administrator.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} Initiate PH. All rights reserved.</p>
+              <p>Unit 1915 Capital House 9th Avenue, corner 34th Bonifacio Global City ‬Taguig City</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    await sgMail.default.send(msg);
+    console.log(`✅ Role assignment email sent to ${email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send role assignment email:', error);
+    if (error.response) {
+      console.error('SendGrid error response:', error.response.body);
+    }
+    return false;
+  }
+}
+
 async function sendTeamInvitationEmail(email, token, ownerName, role) {
   const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invitation/${token}`;
   
@@ -8355,12 +9107,48 @@ If you weren't expecting this invitation, you can safely ignore this email.
 
 // ==================== SERVER START ====================
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('🚀 Server is ready to accept connections');
+});
+
+// Graceful shutdown handler
+const gracefulShutdown = async (signal) => {
+  console.log(`\n📴 ${signal} signal received: closing HTTP server`);
   
-  // Keep the process alive
-  setInterval(() => {
-    // This empty interval keeps the process running
-  }, 30000); // Every 30 seconds
+  server.close(async () => {
+    console.log('🔌 HTTP server closed');
+    
+    try {
+      if (db) {
+        await db.end();
+        console.log('🔌 Database pool closed');
+      }
+      console.log('✅ Graceful shutdown completed');
+      process.exit(0);
+    } catch (err) {
+      console.error('❌ Error during shutdown:', err);
+      process.exit(1);
+    }
+  });
+  
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error('⚠️ Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught errors
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  gracefulShutdown('UNCAUGHT_EXCEPTION');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
 });

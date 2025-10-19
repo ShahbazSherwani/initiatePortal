@@ -20,6 +20,7 @@ interface AuthContextType {
     isAdmin?: boolean; // Add this property
     profileCode?: string; // Add profile code
     profilePicture?: string | null; // Add profile picture
+    emailVerified?: boolean; // Add email verification status
   } | null;
   setProfile: React.Dispatch<React.SetStateAction<any>>;
   profilePicture: string | null;
@@ -90,8 +91,31 @@ export const AuthProvider = ({ children }) => {
               }
             });
             
+            if (response.status === 403) {
+              // User is suspended - sign them out
+              console.log('🚫 User account suspended - signing out');
+              await auth.signOut();
+              setUser(null);
+              setToken(null);
+              setProfile(null);
+              setLoading(false);
+              return;
+            }
+            
             if (response.ok) {
               const profileData = await response.json();
+              
+              // Double-check for suspension in the response data
+              if (profileData.suspended || profileData.error === 'Account Suspended') {
+                console.log('🚫 User account suspended - signing out');
+                await auth.signOut();
+                setUser(null);
+                setToken(null);
+                setProfile(null);
+                setLoading(false);
+                return;
+              }
+              
               setProfile({
                 id: user.uid,
                 email: user.email,
@@ -103,7 +127,8 @@ export const AuthProvider = ({ children }) => {
                 hasCompletedRegistration: profileData.has_completed_registration || false,
                 isAdmin: profileData.is_admin || false, // Add this line
                 profileCode: generateProfileCode(user.uid), // Generate profile code for existing users
-                profilePicture: profileData.profile_picture || null
+                profilePicture: profileData.profile_picture || null,
+                emailVerified: profileData.email_verified || false
               });
               
               // Set profile picture in state
@@ -111,6 +136,16 @@ export const AuthProvider = ({ children }) => {
             }
           } catch (error) {
             console.error("Error fetching profile:", error);
+            // If it's a 403 error, sign out
+            if (error.message && error.message.includes('403')) {
+              console.log('🚫 User account suspended - signing out');
+              await auth.signOut();
+              setUser(null);
+              setToken(null);
+              setProfile(null);
+              setLoading(false);
+              return;
+            }
           }
         } catch (error) {
           console.error("Error setting up user:", error);
@@ -162,7 +197,8 @@ export const AuthProvider = ({ children }) => {
           hasCompletedRegistration: profileData.has_completed_registration || false,
           isAdmin: profileData.is_admin || false,
           profileCode: generateProfileCode(user.uid),
-          profilePicture: profileData.profile_picture || null
+          profilePicture: profileData.profile_picture || null,
+          emailVerified: profileData.email_verified || false
         });
         
         // Set profile picture in state

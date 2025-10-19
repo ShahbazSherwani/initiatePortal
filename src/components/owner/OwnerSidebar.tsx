@@ -200,16 +200,15 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({
         lg:translate-x-0
       `}>
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-4 lg:p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#0C4B20] to-[#8FB200] rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">I</span>
-              </div>
-              <div className="ml-3">
-                <h1 className="text-xl font-bold text-gray-900">Investie</h1>
-                <p className="text-sm text-gray-500">Owner Portal</p>
-              </div>
+            <div className="flex flex-col gap-1 flex-1 min-w-0 items-center lg:items-start">
+              <img 
+                src="/Initiate_Logo_full.png" 
+                alt="Initiate Logo" 
+                className="h-6 lg:h-8 w-auto object-contain max-w-[140px] lg:max-w-[180px]"
+              />
+              <p className="text-xs lg:text-sm text-gray-500 text-center lg:text-left">Owner Portal</p>
             </div>
             {/* Close button for mobile */}
             <button

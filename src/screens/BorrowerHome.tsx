@@ -31,6 +31,48 @@ export const BorrowerHome: React.FC = () => {
   const [switching, setSwitching] = useState(false);
   const navigate = useNavigate();
   
+  // TEMPORARILY DISABLED: Email verification check (causing infinite redirect loop)
+  // TODO: Re-enable after fixing the redirect loop issue
+  const [checkingVerification, setCheckingVerification] = useState(false); // Changed to false
+  
+  // Commented out to stop the infinite redirect loop
+  /*
+  useEffect(() => {
+    // Check email verification status on mount
+    const checkEmailVerification = async () => {
+      if (!token) {
+        setCheckingVerification(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('http://localhost:3001/api/check-email-verification', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const data = await response.json();
+        
+        if (!data.emailVerified) {
+          // Redirect to verification pending page
+          console.log('⚠️ Email not verified, redirecting...');
+          navigate('/verification-pending', { replace: true });
+          return;
+        }
+        
+        console.log('✅ Email verified, allowing access');
+      } catch (error) {
+        console.error('Error checking email verification:', error);
+      } finally {
+        setCheckingVerification(false);
+      }
+    };
+
+    checkEmailVerification();
+  }, [token, navigate]);
+  */
+  
   // NEW: Track if registration is complete
   const [isNewUser, setIsNewUser] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -146,6 +188,18 @@ export const BorrowerHome: React.FC = () => {
   };
 
   const SHOW_ACCOUNT_SECTION = true; 
+  
+  // Show loading while checking email verification
+  if (checkingVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0C4B20] mx-auto mb-4"></div>
+          <p className="text-gray-600">Verifying your account...</p>
+        </div>
+      </div>
+    );
+  }
       
   return (
     <>

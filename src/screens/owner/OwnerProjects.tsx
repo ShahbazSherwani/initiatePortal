@@ -43,11 +43,11 @@ interface Project {
 }
 
 const PROJECT_TABS = [
-  { key: 'all', label: 'All Projects', icon: <FolderIcon className="w-4 h-4" /> },
-  { key: 'pending', label: 'Pending Approval', icon: <ClockIcon className="w-4 h-4" /> },
-  { key: 'active', label: 'Active', icon: <ShieldCheckIcon className="w-4 h-4" /> },
-  { key: 'completed', label: 'Completed', icon: <CheckCircleIcon className="w-4 h-4" /> },
-  { key: 'suspended', label: 'Suspended', icon: <PauseCircleIcon className="w-4 h-4" /> },
+  { key: 'all', label: 'All Projects', shortLabel: 'All', icon: <FolderIcon className="w-4 h-4" /> },
+  { key: 'pending', label: 'Pending Approval', shortLabel: 'Pending', icon: <ClockIcon className="w-4 h-4" /> },
+  { key: 'active', label: 'Active', shortLabel: 'Active', icon: <ShieldCheckIcon className="w-4 h-4" /> },
+  { key: 'completed', label: 'Completed', shortLabel: 'Completed', icon: <CheckCircleIcon className="w-4 h-4" /> },
+  { key: 'suspended', label: 'Suspended', shortLabel: 'Suspended', icon: <PauseCircleIcon className="w-4 h-4" /> },
 ];
 
 const PROJECT_TYPES = [
@@ -390,22 +390,25 @@ export const OwnerProjects: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8">
+        <div className="border-b border-gray-200 overflow-x-auto">
+          <nav className="flex space-x-4 md:space-x-8 min-w-max md:min-w-0">
             {PROJECT_TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => handleTabChange(tab.key)}
-                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`flex items-center py-3 md:py-4 px-1 border-b-2 font-medium text-xs md:text-sm whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'border-[#0C4B20] text-[#0C4B20]'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 {tab.icon}
-                <span className="ml-2">{tab.label}</span>
+                <span className="ml-1.5 md:ml-2">
+                  <span className="hidden md:inline">{tab.label}</span>
+                  <span className="md:hidden">{tab.shortLabel}</span>
+                </span>
                 {activeTab === tab.key && (
-                  <Badge className="ml-2 bg-[#0C4B20] text-white border-0">
+                  <Badge className="ml-1.5 md:ml-2 bg-[#0C4B20] text-white border-0 text-xs">
                     {filteredProjects.length}
                   </Badge>
                 )}

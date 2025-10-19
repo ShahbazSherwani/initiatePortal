@@ -247,7 +247,7 @@ export const RegisterStep = (): JSX.Element => {
       await upsertProfile(idToken, fullName);
       const prof = await fetchProfile(idToken);
     
-      // 3) populate context + navigate - set complete profile data
+      // 3) populate context - set complete profile data
       setProfile({ 
         id: cred.user.uid,
         email: cred.user.email,
@@ -259,8 +259,37 @@ export const RegisterStep = (): JSX.Element => {
         profileCode: generateProfileCode(cred.user.uid)
       });
       
-      // Navigate to KYC form instead of directly to borrow page
-      navigate("/register-kyc", { state: { accountType: 'borrower' } });
+      // 4) Send verification email
+      try {
+        const response = await fetch('http://localhost:3001/api/send-verification-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            email: cred.user.email,
+            name: fullName,
+            firebase_uid: cred.user.uid
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('⚠️ Failed to send verification email:', errorData);
+          throw new Error(errorData.error || 'Failed to send verification email');
+        }
+
+        const result = await response.json();
+        console.log('✅ Verification email sent successfully:', result);
+      } catch (emailError) {
+        console.error('⚠️ Failed to send verification email:', emailError);
+        // Don't block registration, just log the error
+        // User can resend from the pending page
+      }
+      
+      // 5) Navigate to email verification pending page
+      navigate("/verification-pending");
     } catch (err: any) {
       // Handle Firebase authentication errors with user-friendly messages
       if (err.code === "auth/email-already-in-use") {

@@ -37,10 +37,10 @@ interface TopUpRequest {
 }
 
 const STATUS_TABS = [
-  { key: 'all', label: 'All Requests', icon: <ArrowUpCircleIcon className="w-4 h-4" /> },
-  { key: 'pending', label: 'Pending', icon: <ClockIcon className="w-4 h-4" /> },
-  { key: 'approved', label: 'Approved', icon: <CheckCircleIcon className="w-4 h-4" /> },
-  { key: 'rejected', label: 'Rejected', icon: <XCircleIcon className="w-4 h-4" /> },
+  { key: 'all', label: 'All Requests', shortLabel: 'All', icon: <ArrowUpCircleIcon className="w-4 h-4" /> },
+  { key: 'pending', label: 'Pending', shortLabel: 'Pending', icon: <ClockIcon className="w-4 h-4" /> },
+  { key: 'approved', label: 'Approved', shortLabel: 'Approved', icon: <CheckCircleIcon className="w-4 h-4" /> },
+  { key: 'rejected', label: 'Rejected', shortLabel: 'Rejected', icon: <XCircleIcon className="w-4 h-4" /> },
 ];
 
 export const OwnerTopUpRequests: React.FC = () => {
@@ -149,7 +149,7 @@ export const OwnerTopUpRequests: React.FC = () => {
 
   if (loading) {
     return (
-      <OwnerLayout>
+      <OwnerLayout activePage="admin-topup">
         <div className="flex items-center justify-center min-h-screen">
           <LoadingSpinner />
         </div>
@@ -158,7 +158,7 @@ export const OwnerTopUpRequests: React.FC = () => {
   }
 
   return (
-    <OwnerLayout>
+    <OwnerLayout activePage="admin-topup">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -175,15 +175,16 @@ export const OwnerTopUpRequests: React.FC = () => {
               key={tab.key}
               variant={activeTab === tab.key ? 'default' : 'outline'}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 ${
+              className={`flex items-center gap-1.5 md:gap-2 text-xs md:text-sm whitespace-nowrap ${
                 activeTab === tab.key 
                   ? 'bg-[#0C4B20] hover:bg-[#0C4B20]/90' 
                   : 'hover:bg-gray-50'
               }`}
             >
               {tab.icon}
-              {tab.label}
-              <Badge variant="secondary" className="ml-1">
+              <span className="hidden md:inline">{tab.label}</span>
+              <span className="md:hidden">{tab.shortLabel}</span>
+              <Badge variant="secondary" className="ml-1 text-xs">
                 {getTabCount(tab.key)}
               </Badge>
             </Button>
