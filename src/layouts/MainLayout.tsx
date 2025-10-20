@@ -10,8 +10,11 @@ export const MainLayout = () => {
   const location = useLocation();
   const hideNavbarPaths = ['/owner/dashboard', '/owner/projects', '/owner/users', '/owner/team', '/owner/settings', '/calendar','/admin/projects', '/admin/topup-requests', '/admin/investment-requests'];
   
-  // Check if navbar should be hidden (exact match or starts with /owner/users/)
-  const shouldHideNavbar = hideNavbarPaths.includes(location.pathname) || location.pathname.startsWith('/owner/users/');
+  // Check if navbar should be hidden (exact match or starts with /owner/users/ or /owner/projects/ or /projects/)
+  const shouldHideNavbar = hideNavbarPaths.includes(location.pathname) || 
+                          location.pathname.startsWith('/owner/users/') ||
+                          location.pathname.startsWith('/owner/projects/') ||
+                          location.pathname.startsWith('/projects/');
   
   return (
     <div className="flex flex-col min-h-screen w-full">

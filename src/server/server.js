@@ -156,11 +156,11 @@ try {
       rejectUnauthorized: false,  // Supabase requires SSL
     },
     // Optimized settings for Supabase - balanced for performance and reliability
-    max: 20,                    // Increased connections for better concurrency
+    max: 30,                    // Increased connections for better concurrency
     min: 5,                     // Keep 5 warm connections ready
     idleTimeoutMillis: 30000,   // 30 seconds idle timeout
-    connectionTimeoutMillis: 10000,  // 10 seconds connection timeout
-    statement_timeout: 30000,   // 30 seconds statement timeout (fail fast)
+    connectionTimeoutMillis: 15000,  // 15 seconds connection timeout
+    statement_timeout: 120000,  // 120 seconds statement timeout (allow slower queries)
     allowExitOnIdle: false,     // Keep pool alive for better performance
   });
 
@@ -767,13 +767,9 @@ async function sendEmail({ to, subject, html }) {
       to,
       subject,
       html,
-      // Add these headers to improve deliverability and avoid spam
+      // Minimal headers for best deliverability
       headers: {
-        'X-Mailer': 'Initiate PH Platform',
         'Reply-To': process.env.EMAIL_FROM || process.env.EMAIL_USER,
-        'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
-        // Remove spam-triggering priority headers
-        'List-Unsubscribe': `<mailto:${process.env.EMAIL_FROM || process.env.EMAIL_USER}?subject=unsubscribe>`,
       },
       // Add plain text version for better deliverability
       text: html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
@@ -797,62 +793,55 @@ async function sendVerificationEmail(email, token, userName = 'User') {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Email Verification - Initiate PH</title>
+      <title>Verify Your Email - Initiate PH</title>
     </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
       <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
         <tr>
           <td align="center">
-            <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
               <!-- Header -->
               <tr>
-                <td style="background: linear-gradient(135deg, #0C4B20, #8FB200); color: white; padding: 40px 30px; text-align: center;">
-                  <h1 style="margin: 0; font-size: 26px; font-weight: 600;">Verify Your Email</h1>
+                <td style="background-color: #0C4B20; color: white; padding: 30px; text-align: center;">
+                  <h1 style="margin: 0; font-size: 24px; font-weight: normal;">Verify Your Email</h1>
                 </td>
               </tr>
               
               <!-- Content -->
               <tr>
                 <td style="padding: 40px 30px;">
-                  <h2 style="color: #0C4B20; font-size: 20px; margin: 0 0 20px 0;">Hello${userName !== 'User' ? ' ' + userName : ''}!</h2>
+                  <p style="margin: 0 0 20px 0; font-size: 16px;">Hello${userName !== 'User' ? ' ' + userName : ''},</p>
                   
-                  <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">Thank you for registering with Initiate PH. Please verify your email address to activate your account.</p>
+                  <p style="margin: 0 0 25px 0; font-size: 15px;">Thank you for registering with Initiate PH. Click the button below to verify your email address:</p>
                   
                   <!-- Button -->
-                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
                     <tr>
                       <td align="center">
-                        <a href="${verifyUrl}" style="display: inline-block; padding: 16px 40px; background-color: #0C4B20; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Verify Email Address</a>
+                        <a href="${verifyUrl}" style="display: inline-block; padding: 14px 35px; background-color: #0C4B20; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px;">Verify Email</a>
                       </td>
                     </tr>
                   </table>
                   
-                  <p style="margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-left: 4px solid #0C4B20; border-radius: 4px; font-size: 14px;">
-                    <strong>Security Note:</strong> Email verification ensures your account security and enables you to receive important notifications.
+                  <p style="margin: 25px 0 0 0; font-size: 14px; color: #666;">
+                    Or copy this link:
                   </p>
-                  
-                  <p style="margin: 20px 0 0 0; font-size: 14px; color: #666;">
-                    If the button above doesn't work, copy and paste this link into your browser:
-                  </p>
-                  <p style="margin: 10px 0; font-size: 13px; color: #0C4B20; word-break: break-all;">
+                  <p style="margin: 10px 0 30px 0; font-size: 13px; color: #0C4B20; word-break: break-all;">
                     ${verifyUrl}
                   </p>
                   
-                  <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
-                  
-                  <p style="margin: 0; font-size: 13px; color: #999;">
-                    This verification link will expire in 24 hours. If you did not create an account with Initiate PH, please disregard this email.
+                  <p style="margin: 0; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 13px; color: #999;">
+                    This link expires in 24 hours. If you did not sign up for Initiate PH, you can ignore this email.
                   </p>
                 </td>
               </tr>
               
               <!-- Footer -->
               <tr>
-                <td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;">
-                  <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #0C4B20;">Initiate PH</p>
-                  <p style="margin: 0 0 5px 0; font-size: 12px; color: #666;">Crowdfunding Platform</p>
+                <td style="background-color: #f9f9f9; padding: 25px; text-align: center; border-top: 1px solid #e0e0e0;">
+                  <p style="margin: 0 0 5px 0; font-size: 14px; font-weight: bold; color: #0C4B20;">Initiate PH</p>
                   <p style="margin: 0 0 5px 0; font-size: 12px; color: #666;">Unit 1915 Capital House, BGC, Taguig City, Philippines</p>
-                  <p style="margin: 10px 0 0 0; font-size: 12px;">
+                  <p style="margin: 5px 0 0 0; font-size: 12px;">
                     <a href="mailto:admin@initiateph.com" style="color: #0C4B20; text-decoration: none;">admin@initiateph.com</a>
                   </p>
                 </td>
@@ -867,7 +856,7 @@ async function sendVerificationEmail(email, token, userName = 'User') {
 
   return sendEmail({
     to: email,
-    subject: 'Please Verify Your Email - Initiate PH',
+    subject: 'Verify Your Email - Initiate PH',
     html
   });
 }
