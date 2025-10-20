@@ -162,9 +162,17 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({
 
   const isActiveNavItem = (navItem: any): boolean => {
     const currentPath = location.pathname;
-    return currentPath === navItem.to || 
-           activePage === navItem.key || 
-           (navItem.key === 'dashboard' && currentPath.includes('/owner'));
+    
+    // Exact path match
+    if (currentPath === navItem.to) return true;
+    
+    // Active page prop match
+    if (activePage === navItem.key) return true;
+    
+    // Dashboard should only be active on exact dashboard path
+    if (navItem.key === 'dashboard' && currentPath === '/owner/dashboard') return true;
+    
+    return false;
   };
 
   const handleLogout = async () => {

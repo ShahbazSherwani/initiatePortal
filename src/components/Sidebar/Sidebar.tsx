@@ -410,26 +410,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
                   >
                     <span className="font-semibold">Lending</span>
                   </button>
-                  <button
-                    onClick={() => setSelectedType("donation")}
-                    className={`py-4 rounded-xl border-2 transition-all duration-200 ${
-                      selectedType === "donation"
-                        ? "bg-[#0C4B20] text-white border-[#0C4B20]"
-                        : "bg-white text-[#0C4B20] border-gray-300 hover:border-[#0C4B20]"
-                    }`}
-                  >
-                    <span className="font-semibold">Donation</span>
-                  </button>
-                  <button
-                    onClick={() => setSelectedType("rewards")}
-                    className={`py-4 rounded-xl border-2 transition-all duration-200 ${
-                      selectedType === "rewards"
-                        ? "bg-[#0C4B20] text-white border-[#0C4B20]"
-                        : "bg-white text-[#0C4B20] border-gray-300 hover:border-[#0C4B20]"
-                    }`}
-                  >
-                    <span className="font-semibold">Rewards</span>
-                  </button>
+                  {/* Donation and Rewards options hidden */}
                 </div>
 
                 <Button

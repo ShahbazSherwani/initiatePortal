@@ -417,22 +417,7 @@ const handleContinue = () => {
             >
               Lending
             </button>
-            <button
-              onClick={() => setSelectedType("donation")}
-              className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "donation" ? "bg-[#0C4B20] text-white" : "bg-white"
-              }`}
-            >
-              Donation
-            </button>
-            <button
-              onClick={() => setSelectedType("rewards")}
-              className={`flex-1 py-3 rounded-2xl border ${
-                selectedType === "rewards" ? "bg-[#0C4B20] text-white" : "bg-white"
-              }`}
-            >
-              Rewards
-            </button>
+            {/* Donation and Rewards options hidden */}
           </div>
 
           {/* continue */}
