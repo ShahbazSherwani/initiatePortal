@@ -9446,14 +9446,17 @@ If you weren't expecting this invitation, you can safely ignore this email.
 // IMPORTANT: This must be AFTER all API routes but BEFORE app.listen
 // Serve index.html for all non-API routes (SPA fallback)
 if (process.env.NODE_ENV === 'production') {
-  // Handle 404 for API routes that don't exist
-  // CRITICAL: Use app.all() instead of app.use() to avoid intercepting existing routes
-  app.all('/api/*', (req, res) => {
-    res.status(404).json({ error: `API endpoint not found: ${req.originalUrl}` });
-  });
-  
-  // Serve index.html for all other routes (SPA fallback)
-  app.get('*', (req, res) => {
+  // Catch-all middleware - runs ONLY if no earlier route handled the request
+  app.use((req, res, next) => {
+    // If it's an API route, send JSON 404
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ 
+        error: 'API endpoint not found',
+        path: req.path 
+      });
+    }
+    
+    // For all other routes, serve index.html (SPA)
     res.sendFile(path.join(__dirname, '../../dist/index.html'), (err) => {
       if (err) {
         console.error('Error serving index.html:', err);
