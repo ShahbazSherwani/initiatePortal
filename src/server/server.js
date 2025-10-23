@@ -9442,6 +9442,19 @@ If you weren't expecting this invitation, you can safely ignore this email.
   }
 }
 
+// ==================== CATCH-ALL ROUTE FOR SPA ====================
+// IMPORTANT: This must be AFTER all API routes but BEFORE app.listen
+// Serve index.html for all non-API routes (SPA fallback)
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(__dirname, '../../dist/index.html'));
+  });
+}
+
 // ==================== SERVER START ====================
 
 const server = app.listen(PORT, () => {
