@@ -9446,12 +9446,19 @@ If you weren't expecting this invitation, you can safely ignore this email.
 // IMPORTANT: This must be AFTER all API routes but BEFORE app.listen
 // Serve index.html for all non-API routes (SPA fallback)
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    // Don't serve index.html for API routes
+  // Use a function to handle all remaining routes (avoids path-to-regexp issues)
+  app.use((req, res, next) => {
+    // Skip if it's an API route (let it 404 naturally)
     if (req.path.startsWith('/api/')) {
-      return res.status(404).json({ error: 'API endpoint not found' });
+      return next();
     }
-    res.sendFile(path.join(__dirname, '../../dist/index.html'));
+    
+    // Serve index.html for all other routes (SPA fallback)
+    res.sendFile(path.join(__dirname, '../../dist/index.html'), (err) => {
+      if (err) {
+        res.status(500).send('Error loading application');
+      }
+    });
   });
 }
 
