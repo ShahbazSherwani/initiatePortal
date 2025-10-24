@@ -1198,7 +1198,9 @@ app.post('/api/send-verification-email', verifyToken, async (req, res) => {
     `, [firebase_uid, email, token, expiresAt]);
 
     // Send email
+    console.log('📧 Attempting to send verification email to:', email);
     const result = await sendVerificationEmail(email, token, userName);
+    console.log('📧 Email send result:', result);
 
     if (result.success) {
       res.json({ 
@@ -1207,15 +1209,20 @@ app.post('/api/send-verification-email', verifyToken, async (req, res) => {
         email: email
       });
     } else {
+      console.error('❌ Email failed:', result.error);
       res.status(500).json({ 
         error: 'Failed to send verification email',
-        details: result.error 
+        details: result.error,
+        message: IS_DEVELOPMENT ? result.error : 'Email service error'
       });
     }
 
   } catch (error) {
-    console.error('Error sending verification email:', error);
-    res.status(500).json({ error: 'Failed to send verification email' });
+    console.error('❌ Exception sending verification email:', error.message, error.stack);
+    res.status(500).json({ 
+      error: 'Failed to send verification email',
+      details: IS_DEVELOPMENT ? error.message : 'Internal server error'
+    });
   }
 });
 
