@@ -652,22 +652,35 @@ let emailTransporter = null;
 async function createEmailTransporter() {
   if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
     try {
+      const port = parseInt(process.env.EMAIL_PORT) || 587;
+      const isSecure = process.env.EMAIL_SECURE === 'true' || port === 465;
+      
       emailTransporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
-        port: parseInt(process.env.EMAIL_PORT) || 465,
-        secure: process.env.EMAIL_SECURE === 'true' || process.env.EMAIL_PORT === '465',
+        port: port,
+        secure: isSecure, // true for 465, false for other ports
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASSWORD
         },
         tls: {
-          rejectUnauthorized: false // For GoDaddy SSL certificates
-        }
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 10000,
+        socketTimeout: 10000
       });
 
-      // Verify connection
-      await emailTransporter.verify();
-      console.log('✅ Email transporter ready (GoDaddy SMTP)');
+      console.log(`📧 Attempting email connection to ${process.env.EMAIL_HOST}:${port} (secure: ${isSecure})`);
+      
+      // Verify connection with timeout
+      await Promise.race([
+        emailTransporter.verify(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Verification timeout')), 15000))
+      ]);
+      
+      console.log('✅ Email transporter ready (Office365/GoDaddy SMTP)');
       return true;
     } catch (error) {
       console.error('⚠️ Email configuration error:', error.message);
@@ -9463,15 +9476,29 @@ If you weren't expecting this invitation, you can safely ignore this email.
 
 // ==================== CATCH-ALL ROUTE FOR SPA ====================
 // IMPORTANT: This must be AFTER all API routes
-if (process.env.NODE_ENV === 'production') {
+// Only serve static files if dist folder exists (for local development)
+const distPath = path.join(__dirname, '../../dist/index.html');
+const fs = await import('fs');
+
+if (process.env.NODE_ENV === 'production' && fs.existsSync(distPath)) {
+  console.log('📁 Serving frontend from dist/ folder');
   // Serve index.html for ALL non-API routes using regex
   // Regex matches any path that does NOT start with /api/
   app.get(/^(?!\/api\/).*/, (req, res) => {
-    res.sendFile(path.join(__dirname, '../../dist/index.html'), (err) => {
+    res.sendFile(distPath, (err) => {
       if (err) {
         console.error('Error serving index.html:', err);
         res.status(500).send('Error loading application');
       }
+    });
+  });
+} else if (process.env.NODE_ENV === 'production') {
+  console.log('ℹ️ No dist/ folder found - API-only mode (frontend served separately)');
+  // Just return 404 for non-API routes
+  app.get(/^(?!\/api\/).*/, (req, res) => {
+    res.status(404).json({ 
+      error: 'Not found',
+      message: 'This is an API server. Frontend is served separately.' 
     });
   });
 }
