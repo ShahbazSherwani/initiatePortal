@@ -719,6 +719,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// ==================== PREVENT CDN/CLOUDFLARE CACHING OF API RESPONSES ====================
+// Add no-cache headers to ALL API routes to prevent Cloudflare from caching responses
+app.use('/api', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, private',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store'
+  });
+  next();
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
