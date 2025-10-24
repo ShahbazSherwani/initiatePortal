@@ -9443,16 +9443,12 @@ If you weren't expecting this invitation, you can safely ignore this email.
 }
 
 // ==================== CATCH-ALL ROUTE FOR SPA ====================
-// IMPORTANT: This must be AFTER all API routes but BEFORE app.listen
+// IMPORTANT: This must be AFTER all API routes
 if (process.env.NODE_ENV === 'production') {
-  // Catch-all for SPA - only runs if no earlier route matched
-  app.use((req, res, next) => {
-    // Check if response has already been sent
-    if (res.headersSent) {
-      return next();
-    }
-    
-    // If it's an API route that wasn't handled, return JSON 404
+  // Serve index.html for ALL non-API routes
+  // Express will automatically skip this if an earlier route matched
+  app.get('*', (req, res) => {
+    // Double-check it's not an API route
     if (req.path.startsWith('/api/')) {
       return res.status(404).json({ 
         error: 'API endpoint not found',
@@ -9460,7 +9456,7 @@ if (process.env.NODE_ENV === 'production') {
       });
     }
     
-    // For all other unhandled routes, serve index.html (SPA)
+    // Serve SPA for all other routes
     res.sendFile(path.join(__dirname, '../../dist/index.html'), (err) => {
       if (err) {
         console.error('Error serving index.html:', err);
