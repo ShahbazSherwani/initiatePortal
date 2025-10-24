@@ -22,6 +22,6 @@ export const IS_PRODUCTION = environment === 'production';
 
 console.log('Environment:', environment);
 console.log('API Base URL:', API_BASE_URL);
-console.log('Force Local Dev:', forceLocalDev);
+console.log('IS_PRODUCTION:', IS_PRODUCTION);
 
 export default config[environment as keyof typeof config];
