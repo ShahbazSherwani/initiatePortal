@@ -4,6 +4,7 @@ import { useAccount } from '../contexts/AccountContext';
 import { getWalletBalance } from "../lib/wallet";
 import { TopUpModal } from '../components/TopUpModal';
 import { generateProfileCode } from '../lib/profileUtils';
+import { API_BASE_URL } from '../config/environment';
 
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
@@ -46,7 +47,7 @@ export const BorrowerHome: React.FC = () => {
       }
 
       try {
-        const response = await fetch('http://localhost:3001/api/check-email-verification', {
+        const response = await fetch(`${API_BASE_URL}/check-email-verification`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

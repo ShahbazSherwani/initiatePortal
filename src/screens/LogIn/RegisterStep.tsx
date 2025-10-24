@@ -26,6 +26,7 @@ import { generateProfileCode } from "../../lib/profileUtils";
 import { RiskStatementModal } from "../../components/RiskStatementModal";
 import { TermsAndConditionsModal } from "../../components/TermsAndConditionsModal";
 import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
+import { API_BASE_URL } from "../../config/environment";
 
 export const RegisterStep = (): JSX.Element => {
   const navigate = useNavigate();
@@ -261,7 +262,7 @@ export const RegisterStep = (): JSX.Element => {
       
       // 4) Send verification email
       try {
-        const response = await fetch('http://localhost:3001/api/send-verification-email', {
+        const response = await fetch(`${API_BASE_URL}/send-verification-email`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
