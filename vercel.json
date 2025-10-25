@@ -1,16 +1,24 @@
 {
   "version": 2,
+  "github": {
+    "silent": true
+  },
+  "cacheControl": {
+    "max-age": 0,
+    "must-revalidate": true
+  },
   "builds": [
     {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"
+        "distDir": "dist",
+        "zeroConfig": false
       }
     }
   ],
   "buildCommand": "npm run vercel-build",
-  "installCommand": "npm ci",
+  "installCommand": "npm ci --no-cache",
   "routes": [
     {
       "handle": "filesystem"
