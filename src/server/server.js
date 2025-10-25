@@ -14,7 +14,7 @@ import cors from 'cors';
 import admin from 'firebase-admin';
 import { Pool } from 'pg';
 import { readFileSync } from 'fs';
-import nodemailer from 'nodemailer';
+import Mailjet from 'node-mailjet';
 import crypto from 'crypto';
 
 // Environment and logging configuration
@@ -647,47 +647,29 @@ try {
 // ==================== EMAIL TRANSPORTER SETUP ====================
 
 // Create email transporter for GoDaddy SMTP
-let emailTransporter = null;
+let mailjetClient = null;
 
 async function createEmailTransporter() {
-  if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+  if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
     try {
-      const port = parseInt(process.env.EMAIL_PORT) || 587;
-      const isSecure = process.env.EMAIL_SECURE === 'true' || port === 465;
-      
-      // Optimized configuration for Office365 SMTP
-      emailTransporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST,
-        port: port,
-        secure: isSecure,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD
-        },
-        tls: {
-          minVersion: 'TLSv1.2',
-          rejectUnauthorized: false
-        },
-        connectionTimeout: 60000, // 60 seconds for Office365
-        greetingTimeout: 30000,
-        socketTimeout: 60000
-      });
+      // Initialize Mailjet client
+      mailjetClient = Mailjet.apiConnect(
+        process.env.MAILJET_API_KEY,
+        process.env.MAILJET_SECRET_KEY
+      );
 
-      console.log(`📧 Email transporter configured for ${process.env.EMAIL_HOST}:${port} (secure: ${isSecure})`);
-      console.log(`📧 Will send emails from: ${process.env.EMAIL_FROM} via ${process.env.EMAIL_USER}`);
-      
-      // Skip verification - it often times out on cloud servers
-      // We'll verify when actually sending emails
-      console.log('✅ Email transporter ready (verification will happen on first send)');
+      console.log(`📧 Mailjet email service configured`);
+      console.log(`📧 Will send emails from: ${process.env.EMAIL_FROM || 'admin@initiateph.com'}`);
+      console.log('✅ Mailjet client ready');
       return true;
     } catch (error) {
-      console.error('⚠️ Email configuration error:', error.message);
+      console.error('⚠️ Mailjet configuration error:', error.message);
       console.log('📧 Emails will be logged to console instead');
-      emailTransporter = null;
+      mailjetClient = null;
       return false;
     }
   } else {
-    console.log('⚠️ Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD in .env');
+    console.log('⚠️ Mailjet not configured. Set MAILJET_API_KEY and MAILJET_SECRET_KEY in .env');
     return false;
   }
 }
@@ -777,31 +759,40 @@ if (process.env.NODE_ENV === 'production') {
 
 // Generic email sending function
 async function sendEmail({ to, subject, html }) {
-  if (!emailTransporter) {
-    console.log('📧 Email not configured. Would send to:', to);
+  if (!mailjetClient) {
+    console.log('📧 Mailjet not configured. Would send to:', to);
     console.log('Subject:', subject);
     console.log('Content:', html.substring(0, 200) + '...');
     return { success: false, messageId: null };
   }
 
   try {
-    const info = await emailTransporter.sendMail({
-      from: `"${process.env.EMAIL_FROM_NAME || 'Initiate PH'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-      // Minimal headers for best deliverability
-      headers: {
-        'Reply-To': process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      },
-      // Add plain text version for better deliverability
-      text: html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
-    });
+    const request = mailjetClient
+      .post('send', { version: 'v3.1' })
+      .request({
+        Messages: [
+          {
+            From: {
+              Email: process.env.EMAIL_FROM || 'admin@initiateph.com',
+              Name: process.env.EMAIL_FROM_NAME || 'Initiate PH'
+            },
+            To: [
+              {
+                Email: to
+              }
+            ],
+            Subject: subject,
+            HTMLPart: html,
+            TextPart: html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+          }
+        ]
+      });
 
-    console.log(`✅ Email sent to ${to}:`, info.messageId);
-    return { success: true, messageId: info.messageId };
+    const result = await request;
+    console.log(`✅ Email sent to ${to} via Mailjet`);
+    return { success: true, messageId: result.body.Messages[0].To[0].MessageID };
   } catch (error) {
-    console.error(`❌ Failed to send email to ${to}:`, error);
+    console.error(`❌ Failed to send email to ${to}:`, error.statusCode || error.message);
     return { success: false, error: error.message };
   }
 }
