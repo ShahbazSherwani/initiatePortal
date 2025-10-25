@@ -655,25 +655,22 @@ async function createEmailTransporter() {
       const port = parseInt(process.env.EMAIL_PORT) || 587;
       const isSecure = process.env.EMAIL_SECURE === 'true' || port === 465;
       
+      // Optimized configuration for Office365 SMTP
       emailTransporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
-        port: parseInt(process.env.EMAIL_PORT || '587', 10),
-        secure: false, // true for 465, false for other ports
-        authMethod: 'LOGIN',
-        requireTLS: true,
+        port: port,
+        secure: isSecure,
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASSWORD
         },
         tls: {
-          rejectUnauthorized: false
+          ciphers: 'TLSv1.2',
+          minVersion: 'TLSv1.2'
         },
-        connectionTimeout: 30000, // 30 seconds
+        connectionTimeout: 60000, // 60 seconds for Office365
         greetingTimeout: 30000,
-        socketTimeout: 30000,
-        pool: true, // Use pooled connections
-        maxConnections: 5,
-        maxMessages: 100
+        socketTimeout: 60000
       });
 
       console.log(`📧 Email transporter configured for ${process.env.EMAIL_HOST}:${port} (secure: ${isSecure})`);
