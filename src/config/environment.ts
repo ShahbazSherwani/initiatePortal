@@ -11,10 +11,10 @@ const config = {
 const environment = (import.meta.env.MODE as string) || 'development';
 
 // Use appropriate API based on environment
-// In production, use the same origin (relative API calls)
+// In production, use the Render backend URL
 // In development, use localhost:3001
 const finalApiUrl = environment === 'production'
-  ? '/api'  // Relative URL - same origin as frontend
+  ? 'https://initiate-portal-api.onrender.com/api'  // Full URL to Render backend
   : 'http://localhost:3001/api';
 
 export const API_BASE_URL = finalApiUrl;
