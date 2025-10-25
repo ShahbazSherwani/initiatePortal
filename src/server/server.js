@@ -667,20 +667,20 @@ async function createEmailTransporter() {
           ciphers: 'SSLv3',
           rejectUnauthorized: false
         },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 10000,
-        socketTimeout: 10000
+        connectionTimeout: 30000, // 30 seconds
+        greetingTimeout: 30000,
+        socketTimeout: 30000,
+        pool: true, // Use pooled connections
+        maxConnections: 5,
+        maxMessages: 100
       });
 
-      console.log(`📧 Attempting email connection to ${process.env.EMAIL_HOST}:${port} (secure: ${isSecure})`);
+      console.log(`📧 Email transporter configured for ${process.env.EMAIL_HOST}:${port} (secure: ${isSecure})`);
+      console.log(`📧 Will send emails from: ${process.env.EMAIL_FROM} via ${process.env.EMAIL_USER}`);
       
-      // Verify connection with timeout
-      await Promise.race([
-        emailTransporter.verify(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Verification timeout')), 15000))
-      ]);
-      
-      console.log('✅ Email transporter ready (Office365/GoDaddy SMTP)');
+      // Skip verification - it often times out on cloud servers
+      // We'll verify when actually sending emails
+      console.log('✅ Email transporter ready (verification will happen on first send)');
       return true;
     } catch (error) {
       console.error('⚠️ Email configuration error:', error.message);
