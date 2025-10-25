@@ -657,14 +657,15 @@ async function createEmailTransporter() {
       
       emailTransporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
-        port: port,
-        secure: isSecure, // true for 465, false for other ports
+        port: parseInt(process.env.EMAIL_PORT || '587', 10),
+        secure: false, // true for 465, false for other ports
+        authMethod: 'LOGIN',
+        requireTLS: true,
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASSWORD
         },
         tls: {
-          ciphers: 'SSLv3',
           rejectUnauthorized: false
         },
         connectionTimeout: 30000, // 30 seconds
