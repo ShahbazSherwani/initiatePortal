@@ -665,8 +665,8 @@ async function createEmailTransporter() {
           pass: process.env.EMAIL_PASSWORD
         },
         tls: {
-          ciphers: 'TLSv1.2',
-          minVersion: 'TLSv1.2'
+          minVersion: 'TLSv1.2',
+          rejectUnauthorized: false
         },
         connectionTimeout: 60000, // 60 seconds for Office365
         greetingTimeout: 30000,
