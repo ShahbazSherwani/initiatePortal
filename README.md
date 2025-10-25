@@ -1,6 +1,7 @@
-# IntiatePH
+# InitiatePH
 
 This Project is a part of a large scale Module name Lightbox
+<!-- Cache bust: 2025-10-25 -->
 
 ## Getting started
 
