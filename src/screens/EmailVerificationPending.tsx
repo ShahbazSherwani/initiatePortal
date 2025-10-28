@@ -4,7 +4,7 @@ import { Mail, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
-import { auth } from '../config/firebase';
+import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 
 export const EmailVerificationPending: React.FC = () => {
