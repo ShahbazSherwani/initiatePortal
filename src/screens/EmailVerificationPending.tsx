@@ -4,6 +4,8 @@ import { Mail, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
+import { auth } from '../config/firebase';
+import { signOut } from 'firebase/auth';
 
 export const EmailVerificationPending: React.FC = () => {
   const navigate = useNavigate();
@@ -70,6 +72,19 @@ export const EmailVerificationPending: React.FC = () => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleBackToLogin = async () => {
+    try {
+      // Sign out the user from Firebase
+      await signOut(auth);
+      // Navigate to login page
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Navigate anyway even if signout fails
+      navigate('/', { replace: true });
+    }
   };
 
   return (
@@ -156,7 +171,7 @@ export const EmailVerificationPending: React.FC = () => {
               </button>
 
               <button
-                onClick={() => navigate('/login')}
+                onClick={handleBackToLogin}
                 className="w-full text-gray-600 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
               >
                 Back to Login
