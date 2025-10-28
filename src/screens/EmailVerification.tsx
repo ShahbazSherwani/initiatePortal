@@ -22,10 +22,13 @@ export const EmailVerification: React.FC = () => {
 
       if (response.ok) {
         setStatus('success');
-        setMessage('Your email has been verified successfully! You can now log in to your account.');
+        setMessage('Your email has been verified successfully! Redirecting to login...');
         setEmail(data.email);
         
-        // No automatic redirect - let user click the login button
+        // Automatically redirect to login page after 3 seconds
+        setTimeout(() => {
+          navigate('/');
+        }, 3000);
       } else {
         setStatus('error');
         setMessage(data.error || 'Verification failed');
