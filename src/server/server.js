@@ -8594,18 +8594,19 @@ app.get('/api/owner/analytics/monthly-payments', verifyToken, async (req, res) =
     
     const selectedYear = year || new Date().getFullYear();
     
-    // Aggregate monthly payments from top-ups, investments, and any other transactions
+    // Aggregate monthly payments from top-ups (approved only)
     const result = await db.query(`
       WITH monthly_stats AS (
         SELECT 
           TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as month,
           SUM(amount) as total_amount,
           COUNT(*) as transaction_count,
-          SUM(CASE WHEN transaction_type = 'topup' THEN amount ELSE 0 END) as topups,
-          SUM(CASE WHEN transaction_type = 'investment' THEN amount ELSE 0 END) as investments,
-          SUM(CASE WHEN transaction_type = 'repayment' THEN amount ELSE 0 END) as repayments
-        FROM wallet_transactions
+          SUM(amount) as topups,
+          0 as investments,
+          0 as repayments
+        FROM topup_requests
         WHERE EXTRACT(YEAR FROM created_at) = $1
+          AND status = 'approved'
         GROUP BY DATE_TRUNC('month', created_at)
         ORDER BY month DESC
       )
@@ -8642,33 +8643,75 @@ app.get('/api/owner/analytics/issuer-analytics', verifyToken, async (req, res) =
     
     const selectedMonth = month || new Date().toISOString().slice(0, 7);
     
-    // Get issuer (borrower) analytics
-    const result = await db.query(`
-      WITH issuer_stats AS (
-        SELECT 
-          p.firebase_uid as issuer_id,
-          u.full_name as issuer_name,
-          u.email as issuer_email,
-          COUNT(DISTINCT p.id) as total_projects,
-          COALESCE(SUM(CAST(p.project_data->>'targetAmount' AS NUMERIC)), 0) as total_funded,
-          COALESCE(SUM(CAST(p.project_data->>'repaidAmount' AS NUMERIC)), 0) as total_repaid,
-          COUNT(DISTINCT i.investor_uid) as active_investors,
-          COALESCE(AVG(EXTRACT(DAY FROM (i.updated_at - i.created_at))), 0) as avg_repayment_time,
-          CASE 
-            WHEN COUNT(p.id) > 0 THEN
-              (COUNT(CASE WHEN p.project_data->>'status' = 'completed' THEN 1 END)::FLOAT / COUNT(p.id)::FLOAT * 100)
-            ELSE 0
-          END as success_rate
-        FROM projects p
-        LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
-        LEFT JOIN investments i ON p.id = CAST(i.project_id AS INTEGER)
-        WHERE TO_CHAR(p.created_at, 'YYYY-MM') = $1
-          OR TO_CHAR(i.created_at, 'YYYY-MM') = $1
-        GROUP BY p.firebase_uid, u.full_name, u.email
-      )
-      SELECT * FROM issuer_stats
-      ORDER BY total_funded DESC
-    `, [selectedMonth]);
+    // Get issuer (borrower) analytics from actual project data
+    const projectsResult = await db.query(`
+      SELECT 
+        p.id,
+        p.firebase_uid,
+        p.project_data,
+        p.created_at,
+        u.full_name,
+        u.email
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      WHERE p.created_at IS NOT NULL
+      ORDER BY p.created_at DESC
+    `);
+    
+    // Process projects to aggregate issuer stats
+    const issuerMap = new Map();
+    
+    projectsResult.rows.forEach(project => {
+      const issuerId = project.firebase_uid;
+      const projectData = project.project_data || {};
+      const targetAmount = parseFloat(projectData.targetAmount) || 0;
+      const currentAmount = parseFloat(projectData.currentAmount) || 0;
+      const status = projectData.status;
+      const investorRequests = projectData.investorRequests || [];
+      const approvedInvestors = investorRequests.filter(inv => inv.status === 'approved');
+      
+      if (!issuerMap.has(issuerId)) {
+        issuerMap.set(issuerId, {
+          issuer_id: issuerId,
+          issuer_name: project.full_name || 'Unknown',
+          issuer_email: project.email || '',
+          total_projects: 0,
+          total_funded: 0,
+          total_repaid: 0,
+          active_investors: new Set(),
+          completed_projects: 0,
+          success_rate: 0
+        });
+      }
+      
+      const issuer = issuerMap.get(issuerId);
+      issuer.total_projects += 1;
+      issuer.total_funded += currentAmount; // Actual funded amount
+      
+      // Count unique investors
+      approvedInvestors.forEach(inv => {
+        issuer.active_investors.add(inv.investorId);
+      });
+      
+      // Track completed projects
+      if (status === 'completed' || status === 'funded') {
+        issuer.completed_projects += 1;
+      }
+    });
+    
+    // Calculate success rates and convert Set to count
+    const issuerData = Array.from(issuerMap.values()).map(issuer => ({
+      ...issuer,
+      active_investors: issuer.active_investors.size,
+      success_rate: issuer.total_projects > 0 
+        ? (issuer.completed_projects / issuer.total_projects * 100) 
+        : 0
+    }));
+    
+    // Sort by total funded
+    issuerData.sort((a, b) => b.total_funded - a.total_funded);
+    
+    const result = { rows: issuerData };
     
     res.json({ 
       success: true,
@@ -8806,11 +8849,12 @@ app.post('/api/owner/analytics/export', verifyToken, async (req, res) => {
             TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as month,
             SUM(amount) as total_amount,
             COUNT(*) as transaction_count,
-            SUM(CASE WHEN transaction_type = 'topup' THEN amount ELSE 0 END) as topups,
-            SUM(CASE WHEN transaction_type = 'investment' THEN amount ELSE 0 END) as investments,
-            SUM(CASE WHEN transaction_type = 'repayment' THEN amount ELSE 0 END) as repayments
-          FROM wallet_transactions
+            SUM(amount) as topups,
+            0 as investments,
+            0 as repayments
+          FROM topup_requests
           WHERE EXTRACT(YEAR FROM created_at) = $1
+            AND status = 'approved'
           GROUP BY DATE_TRUNC('month', created_at)
           ORDER BY month DESC
         `, [year]);
