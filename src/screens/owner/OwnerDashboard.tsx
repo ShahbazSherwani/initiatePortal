@@ -30,6 +30,7 @@ import {
   FileTextIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { PaymentAnalytics } from '../../components/owner/PaymentAnalytics';
 
 interface OwnerStats {
   totalBorrowers: number;
@@ -559,6 +560,9 @@ export const OwnerDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Payment Analytics Section */}
+        <PaymentAnalytics />
       </div>
     </OwnerLayout>
   );
