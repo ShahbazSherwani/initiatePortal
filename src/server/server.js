@@ -16,6 +16,9 @@ import { Pool } from 'pg';
 import { readFileSync } from 'fs';
 import Mailjet from 'node-mailjet';
 import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import { AuditLogger, auditMiddleware, AuditActionTypes } from './audit-logger.js';
 
 // Environment and logging configuration
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -200,6 +203,10 @@ try {
   };
 
   testConnection();
+  
+  // Initialize Audit Logger
+  const auditLogger = new AuditLogger(db);
+  console.log('📝 Audit logger initialized');
   
   // Check if migrations have been run
   const checkMigrationsTable = async () => {
@@ -711,6 +718,68 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// ==================== SECURITY MIDDLEWARE ====================
+
+// 1. Helmet - Security Headers (CSP, HSTS, X-Frame-Options, etc.)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: {
+    action: 'deny' // Prevent clickjacking
+  },
+  xssFilter: true,
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
+
+// 2. Rate Limiting - Prevent Brute Force Attacks
+// General API rate limiter
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Strict rate limiter for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login attempts per windowMs
+  message: 'Too many login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to all API routes
+app.use('/api', apiLimiter);
+
+// Apply stricter rate limiting to auth routes
+app.use('/api/auth', authLimiter);
+app.use('/api/login', authLimiter);
+app.use('/api/signup', authLimiter);
+app.use('/api/forgot-password', authLimiter);
+app.use('/api/reset-password', authLimiter);
+
+// 3. Audit Logging - Track sensitive actions
+app.use('/api', auditMiddleware(auditLogger));
 
 // ==================== PREVENT CDN/CLOUDFLARE CACHING OF API RESPONSES ====================
 // Add no-cache headers to ALL API routes to prevent Cloudflare from caching responses
@@ -7007,6 +7076,127 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
   } catch (err) {
     console.error("Error reviewing top-up request:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ==================== AUDIT LOG ENDPOINTS ====================
+
+// Get audit logs (Admin only)
+app.get('/api/admin/audit-logs', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const {
+      userId,
+      actionCategory,
+      actionType,
+      resourceType,
+      resourceId,
+      status,
+      startDate,
+      endDate,
+      limit = 100,
+      offset = 0
+    } = req.query;
+    
+    const logs = await auditLogger.query({
+      userId,
+      actionCategory,
+      actionType,
+      resourceType,
+      resourceId,
+      status,
+      startDate,
+      endDate,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+    
+    res.json({ success: true, logs, count: logs.length });
+  } catch (err) {
+    console.error('Error fetching audit logs:', err);
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
+
+// Get audit log statistics (Admin only)
+app.get('/api/admin/audit-logs/stats', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const { startDate, endDate } = req.query;
+    
+    const stats = await auditLogger.getStats({ startDate, endDate });
+    
+    res.json({ success: true, stats });
+  } catch (err) {
+    console.error('Error fetching audit stats:', err);
+    res.status(500).json({ error: 'Failed to fetch audit statistics' });
+  }
+});
+
+// Export audit logs as CSV (Admin only)
+app.get('/api/admin/audit-logs/export', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const { startDate, endDate } = req.query;
+    
+    const logs = await auditLogger.query({
+      startDate,
+      endDate,
+      limit: 10000 // Max export limit
+    });
+    
+    // Log the export action
+    await auditLogger.log({
+      userId: firebase_uid,
+      userEmail: req.userEmail,
+      actionType: AuditActionTypes.ADMIN.DATA_EXPORT,
+      actionCategory: 'ADMIN',
+      description: `Exported ${logs.length} audit log records`,
+      ipAddress: req.ip || req.headers['x-forwarded-for'],
+      userAgent: req.headers['user-agent'],
+      requestMethod: req.method,
+      requestUrl: req.originalUrl,
+      status: 'success',
+      metadata: { recordCount: logs.length, startDate, endDate }
+    });
+    
+    res.json({ success: true, logs, count: logs.length });
+  } catch (err) {
+    console.error('Error exporting audit logs:', err);
+    res.status(500).json({ error: 'Failed to export audit logs' });
   }
 });
 
