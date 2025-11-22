@@ -20,6 +20,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { AuditLogger, auditMiddleware, AuditActionTypes } from './audit-logger.js';
 import { encrypt, decrypt, encryptFields, decryptFields, ENCRYPTED_FIELDS } from './encryption.js';
+import IntrusionDetectionSystem, { intrusionDetectionMiddleware, ThreatLevel, SecurityEventType } from './intrusion-detection.js';
 
 // Environment and logging configuration
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -208,6 +209,10 @@ try {
   // Initialize Audit Logger
   const auditLogger = new AuditLogger(db);
   console.log('📝 Audit logger initialized');
+  
+  // Initialize Intrusion Detection System
+  const ids = new IntrusionDetectionSystem(db);
+  console.log('🛡️  Intrusion detection system initialized');
   
   // Check if migrations have been run
   const checkMigrationsTable = async () => {
@@ -781,6 +786,9 @@ app.use('/api/reset-password', authLimiter);
 
 // 3. Audit Logging - Track sensitive actions
 app.use('/api', auditMiddleware(auditLogger));
+
+// 4. Intrusion Detection - Monitor for security threats
+app.use('/api', intrusionDetectionMiddleware(ids));
 
 // ==================== PREVENT CDN/CLOUDFLARE CACHING OF API RESPONSES ====================
 // Add no-cache headers to ALL API routes to prevent Cloudflare from caching responses
@@ -7231,6 +7239,296 @@ app.get('/api/admin/audit-logs/export', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('Error exporting audit logs:', err);
     res.status(500).json({ error: 'Failed to export audit logs' });
+  }
+});
+
+// ===== INTRUSION DETECTION SYSTEM ENDPOINTS =====
+
+// Get security events (Admin only)
+app.get('/api/admin/security-events', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const { 
+      ip, 
+      severity, 
+      eventType, 
+      startDate, 
+      endDate, 
+      limit = 100, 
+      offset = 0 
+    } = req.query;
+    
+    let query = 'SELECT * FROM security_events WHERE 1=1';
+    const params = [];
+    let paramIndex = 1;
+    
+    if (ip) {
+      query += ` AND ip_address = $${paramIndex}`;
+      params.push(ip);
+      paramIndex++;
+    }
+    
+    if (severity) {
+      query += ` AND severity = $${paramIndex}`;
+      params.push(severity);
+      paramIndex++;
+    }
+    
+    if (eventType) {
+      query += ` AND event_type = $${paramIndex}`;
+      params.push(eventType);
+      paramIndex++;
+    }
+    
+    if (startDate) {
+      query += ` AND created_at >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      query += ` AND created_at <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
+    
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(parseInt(limit), parseInt(offset));
+    
+    const result = await db.query(query, params);
+    
+    // Get total count
+    let countQuery = 'SELECT COUNT(*) FROM security_events WHERE 1=1';
+    const countParams = params.slice(0, -2); // Remove limit and offset
+    
+    if (ip) countQuery += ` AND ip_address = $1`;
+    if (severity) countQuery += ` AND severity = $${ip ? 2 : 1}`;
+    if (eventType) countQuery += ` AND event_type = $${ip && severity ? 3 : (ip || severity ? 2 : 1)}`;
+    
+    const countResult = await db.query(countQuery, countParams);
+    
+    res.json({
+      events: result.rows,
+      total: parseInt(countResult.rows[0].count),
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+    
+  } catch (err) {
+    console.error('Error fetching security events:', err);
+    res.status(500).json({ error: 'Failed to fetch security events' });
+  }
+});
+
+// Get security statistics (Admin only)
+app.get('/api/admin/security-stats', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const { startDate, endDate } = req.query;
+    
+    // Get statistics by severity
+    let severityQuery = `
+      SELECT severity, COUNT(*) as count
+      FROM security_events
+      WHERE 1=1
+    `;
+    const severityParams = [];
+    let paramIndex = 1;
+    
+    if (startDate) {
+      severityQuery += ` AND created_at >= $${paramIndex}`;
+      severityParams.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      severityQuery += ` AND created_at <= $${paramIndex}`;
+      severityParams.push(endDate);
+      paramIndex++;
+    }
+    
+    severityQuery += ` GROUP BY severity ORDER BY count DESC`;
+    
+    const severityResult = await db.query(severityQuery, severityParams);
+    
+    // Get statistics by event type
+    let typeQuery = `
+      SELECT event_type, COUNT(*) as count
+      FROM security_events
+      WHERE 1=1
+    `;
+    const typeParams = [];
+    paramIndex = 1;
+    
+    if (startDate) {
+      typeQuery += ` AND created_at >= $${paramIndex}`;
+      typeParams.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      typeQuery += ` AND created_at <= $${paramIndex}`;
+      typeParams.push(endDate);
+      paramIndex++;
+    }
+    
+    typeQuery += ` GROUP BY event_type ORDER BY count DESC LIMIT 10`;
+    
+    const typeResult = await db.query(typeQuery, typeParams);
+    
+    // Get top offending IPs
+    let ipQuery = `
+      SELECT ip_address, COUNT(*) as count, MAX(severity) as max_severity
+      FROM security_events
+      WHERE 1=1
+    `;
+    const ipParams = [];
+    paramIndex = 1;
+    
+    if (startDate) {
+      ipQuery += ` AND created_at >= $${paramIndex}`;
+      ipParams.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      ipQuery += ` AND created_at <= $${paramIndex}`;
+      ipParams.push(endDate);
+      paramIndex++;
+    }
+    
+    ipQuery += ` GROUP BY ip_address ORDER BY count DESC LIMIT 20`;
+    
+    const ipResult = await db.query(ipQuery, ipParams);
+    
+    // Get IDS system stats
+    const idsStats = ids.getStats();
+    
+    res.json({
+      bySeverity: severityResult.rows,
+      byEventType: typeResult.rows,
+      topIPs: ipResult.rows,
+      idsStats
+    });
+    
+  } catch (err) {
+    console.error('Error fetching security statistics:', err);
+    res.status(500).json({ error: 'Failed to fetch security statistics' });
+  }
+});
+
+// Block IP address (Admin only)
+app.post('/api/admin/security/block-ip', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin, full_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const { ip, reason } = req.body;
+    
+    if (!ip) {
+      return res.status(400).json({ error: 'IP address is required' });
+    }
+    
+    // Block IP in IDS
+    ids.blockIP(ip);
+    
+    // Log the action
+    await ids.logSecurityEvent(
+      ip,
+      firebase_uid,
+      SecurityEventType.IP_BLACKLISTED,
+      ThreatLevel.CRITICAL,
+      `IP manually blocked by admin: ${reason || 'No reason provided'}`,
+      { admin: adminCheck.rows[0].full_name, reason }
+    );
+    
+    res.json({ 
+      success: true, 
+      message: `IP ${ip} has been blocked`,
+      blockedIP: ip
+    });
+    
+  } catch (err) {
+    console.error('Error blocking IP:', err);
+    res.status(500).json({ error: 'Failed to block IP' });
+  }
+});
+
+// Unblock IP address (Admin only)
+app.post('/api/admin/security/unblock-ip', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin, full_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const { ip, reason } = req.body;
+    
+    if (!ip) {
+      return res.status(400).json({ error: 'IP address is required' });
+    }
+    
+    // Unblock IP in IDS
+    ids.unblockIP(ip);
+    
+    // Log the action
+    await auditLogger.log({
+      userId: firebase_uid,
+      userEmail: null,
+      actionType: 'IP_UNBLOCKED',
+      actionCategory: 'ADMIN',
+      description: `IP ${ip} unblocked by admin${reason ? ': ' + reason : ''}`,
+      status: 'success',
+      metadata: { ip, reason, admin: adminCheck.rows[0].full_name }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `IP ${ip} has been unblocked`,
+      unblockedIP: ip
+    });
+    
+  } catch (err) {
+    console.error('Error unblocking IP:', err);
+    res.status(500).json({ error: 'Failed to unblock IP' });
   }
 });
 
