@@ -21,6 +21,7 @@ import helmet from 'helmet';
 import { AuditLogger, auditMiddleware, AuditActionTypes } from './audit-logger.js';
 import { encrypt, decrypt, encryptFields, decryptFields, ENCRYPTED_FIELDS } from './encryption.js';
 import IntrusionDetectionSystem, { intrusionDetectionMiddleware, ThreatLevel, SecurityEventType } from './intrusion-detection.js';
+import VulnerabilityScanner from './vulnerability-scanner.js';
 
 // Environment and logging configuration
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -213,6 +214,45 @@ try {
   // Initialize Intrusion Detection System
   const ids = new IntrusionDetectionSystem(db);
   console.log('🛡️  Intrusion detection system initialized');
+  
+  // Initialize Vulnerability Scanner
+  const vulnerabilityScanner = new VulnerabilityScanner(db);
+  console.log('🔍 Vulnerability scanner initialized');
+  
+  // Schedule daily vulnerability scans (run at 2 AM)
+  const scheduleDailyScans = () => {
+    const now = new Date();
+    const tomorrow2AM = new Date(now);
+    tomorrow2AM.setDate(tomorrow2AM.getDate() + 1);
+    tomorrow2AM.setHours(2, 0, 0, 0);
+    
+    const timeUntilScan = tomorrow2AM.getTime() - now.getTime();
+    
+    setTimeout(async () => {
+      console.log('🔍 Running scheduled vulnerability scan...');
+      try {
+        await vulnerabilityScanner.runFullScan();
+      } catch (error) {
+        console.error('Scheduled scan failed:', error);
+      }
+      
+      // Schedule next scan (24 hours later)
+      setInterval(async () => {
+        console.log('🔍 Running scheduled vulnerability scan...');
+        try {
+          await vulnerabilityScanner.runFullScan();
+        } catch (error) {
+          console.error('Scheduled scan failed:', error);
+        }
+      }, 24 * 60 * 60 * 1000); // Every 24 hours
+    }, timeUntilScan);
+    
+    console.log(`⏰ Daily vulnerability scans scheduled (next scan in ${Math.round(timeUntilScan / 1000 / 60 / 60)}h)`);
+  };
+  
+  if (IS_PRODUCTION) {
+    scheduleDailyScans();
+  }
   
   // Check if migrations have been run
   const checkMigrationsTable = async () => {
@@ -7529,6 +7569,185 @@ app.post('/api/admin/security/unblock-ip', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('Error unblocking IP:', err);
     res.status(500).json({ error: 'Failed to unblock IP' });
+  }
+});
+
+// ===== VULNERABILITY SCANNING ENDPOINTS =====
+
+// Get latest vulnerability scan (Admin only)
+app.get('/api/admin/vulnerabilities/latest', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const latestScan = await vulnerabilityScanner.getLatestScan();
+    
+    if (!latestScan) {
+      return res.json({ 
+        message: 'No scans found',
+        scan: null
+      });
+    }
+    
+    res.json(latestScan);
+    
+  } catch (err) {
+    console.error('Error fetching latest scan:', err);
+    res.status(500).json({ error: 'Failed to fetch latest scan' });
+  }
+});
+
+// Get vulnerability scan history (Admin only)
+app.get('/api/admin/vulnerabilities/history', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const { limit = 10 } = req.query;
+    
+    const history = await vulnerabilityScanner.getScanHistory(parseInt(limit));
+    
+    res.json({ history });
+    
+  } catch (err) {
+    console.error('Error fetching scan history:', err);
+    res.status(500).json({ error: 'Failed to fetch scan history' });
+  }
+});
+
+// Trigger manual vulnerability scan (Admin only)
+app.post('/api/admin/vulnerabilities/scan', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin, full_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    // Log the manual scan trigger
+    await auditLogger.log({
+      userId: firebase_uid,
+      userEmail: null,
+      actionType: 'VULNERABILITY_SCAN_TRIGGERED',
+      actionCategory: 'ADMIN',
+      description: `Manual vulnerability scan triggered by admin: ${adminCheck.rows[0].full_name}`,
+      status: 'success'
+    });
+    
+    // Run scan asynchronously
+    vulnerabilityScanner.runFullScan()
+      .then(result => {
+        console.log(`✅ Manual scan completed: ${result.stats.total} vulnerabilities found`);
+      })
+      .catch(error => {
+        console.error('Manual scan failed:', error);
+      });
+    
+    res.json({ 
+      success: true, 
+      message: 'Vulnerability scan initiated',
+      note: 'Scan is running in the background. Check results in a few minutes.'
+    });
+    
+  } catch (err) {
+    console.error('Error triggering scan:', err);
+    res.status(500).json({ error: 'Failed to trigger scan' });
+  }
+});
+
+// Get fixable vulnerabilities (Admin only)
+app.get('/api/admin/vulnerabilities/fixable', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    const fixable = await vulnerabilityScanner.getFixableVulnerabilities();
+    
+    res.json({ 
+      count: fixable.length,
+      vulnerabilities: fixable
+    });
+    
+  } catch (err) {
+    console.error('Error fetching fixable vulnerabilities:', err);
+    res.status(500).json({ error: 'Failed to fetch fixable vulnerabilities' });
+  }
+});
+
+// Mark vulnerability as resolved (Admin only)
+app.post('/api/admin/vulnerabilities/:id/resolve', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { id } = req.params;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin, full_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+    
+    await db.query(`
+      UPDATE vulnerability_scans 
+      SET resolved = TRUE, resolved_at = NOW(), resolved_by = $1
+      WHERE id = $2
+    `, [firebase_uid, id]);
+    
+    // Log the action
+    await auditLogger.log({
+      userId: firebase_uid,
+      userEmail: null,
+      actionType: 'VULNERABILITY_RESOLVED',
+      actionCategory: 'ADMIN',
+      description: `Vulnerability ${id} marked as resolved by ${adminCheck.rows[0].full_name}`,
+      status: 'success',
+      metadata: { vulnerabilityId: id }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Vulnerability marked as resolved'
+    });
+    
+  } catch (err) {
+    console.error('Error resolving vulnerability:', err);
+    res.status(500).json({ error: 'Failed to resolve vulnerability' });
   }
 });
 
