@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { AuditLogger, auditMiddleware, AuditActionTypes } from './audit-logger.js';
+import { encrypt, decrypt, encryptFields, decryptFields, ENCRYPTED_FIELDS } from './encryption.js';
 
 // Environment and logging configuration
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -2458,17 +2459,22 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
         };
         console.log('📍 Mapped borrower address:', profileData.address);
         
-        // Map borrower identification fields (handle null values)
+        // Map borrower identification fields (handle null values and decrypt)
         profileData.identification = {
-          nationalId: borrower.national_id || '',
-          passport: borrower.passport || '',
-          tin: borrower.tin_number || borrower.corporate_tin || '',
+          nationalId: borrower.national_id ? decrypt(borrower.national_id) : '',
+          passport: borrower.passport ? decrypt(borrower.passport) : '',
+          tin: borrower.tin_number ? decrypt(borrower.tin_number) : (borrower.corporate_tin || ''),
           secondaryIdType: borrower.secondary_id_type || '',
           secondaryIdNumber: borrower.secondary_id_number || '',
           nationalIdFile: borrower.national_id_file || null,
           passportFile: borrower.passport_file || null,
         };
-        console.log('🆔 Mapped borrower identification:', profileData.identification);
+        console.log('🆔 Mapped borrower identification (decrypted):', {
+          ...profileData.identification,
+          nationalId: profileData.identification.nationalId ? '***' + profileData.identification.nationalId.slice(-4) : '',
+          passport: profileData.identification.passport ? '***' + profileData.identification.passport.slice(-4) : '',
+          tin: profileData.identification.tin ? '***' + profileData.identification.tin.slice(-4) : ''
+        });
 
         // Personal information for individual accounts
         profileData.personalInfo = {
@@ -2497,12 +2503,12 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           address: borrower.emergency_contact_address || '',
         };
 
-        // Bank account information
+        // Bank account information (decrypt account number)
         profileData.bankAccount = {
           accountName: borrower.account_name || '',
           bankName: borrower.bank_name || '',
           accountType: borrower.account_type || '',
-          accountNumber: borrower.account_number || '',
+          accountNumber: borrower.account_number ? decrypt(borrower.account_number) : '',
           iban: borrower.iban || '',
           swiftCode: borrower.swift_code || '',
         };
@@ -2600,18 +2606,18 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           newAddress: profileData.address
         });
         
-        // Only update identification fields that have actual values (merge don't overwrite)
+        // Only update identification fields that have actual values (merge don't overwrite) and decrypt
         const currentIdentification = profileData.identification;
         profileData.identification = {
-          nationalId: investor.national_id || currentIdentification.nationalId || '',
-          passport: investor.passport || currentIdentification.passport || '',
-          tin: investor.tin_number || currentIdentification.tin || '',
+          nationalId: investor.national_id ? decrypt(investor.national_id) : (currentIdentification.nationalId || ''),
+          passport: investor.passport ? decrypt(investor.passport) : (currentIdentification.passport || ''),
+          tin: investor.tin_number ? decrypt(investor.tin_number) : (currentIdentification.tin || ''),
           secondaryIdType: investor.secondary_id_type || currentIdentification.secondaryIdType || '',
           secondaryIdNumber: investor.secondary_id_number || currentIdentification.secondaryIdNumber || '',
           nationalIdFile: investor.national_id_file || null,
           passportFile: investor.passport_file || null,
         };
-        console.log('✅ Mapped identification data from investor profile:', profileData.identification);
+        console.log('✅ Mapped identification data from investor profile (decrypted)');
 
         // Only update personal info fields that have actual values (merge don't overwrite)
         profileData.personalInfo = {
@@ -2685,12 +2691,12 @@ app.get('/api/settings/profile', verifyToken, async (req, res) => {
           portfolioValue: parseFloat(investor.liquid_net_worth) || 0,
         };
 
-        // Bank account information
+        // Bank account information (decrypt account number)
         profileData.bankAccount = {
           accountName: investor.account_name || '',
           bankName: investor.bank_name || '',
           accountType: investor.account_type || '',
-          accountNumber: investor.account_number || '',
+          accountNumber: investor.account_number ? decrypt(investor.account_number) : '',
           iban: investor.iban || '',
           swiftCode: investor.swift_code || '',
         };
@@ -2890,23 +2896,29 @@ app.post('/api/settings', verifyToken, async (req, res) => {
             
             // Try to update identification fields separately - use correct column names
             try {
+              // Encrypt sensitive fields before storing
+              const nationalId = profileData.identification?.nationalId ? encrypt(profileData.identification.nationalId) : null;
+              const passport = profileData.identification?.passport ? encrypt(profileData.identification.passport) : null;
+              const tinNumber = profileData.identification?.tin ? encrypt(profileData.identification.tin) : null;
+              
               await db.query(`
                 UPDATE borrower_profiles SET
                   national_id = $1,
                   passport = $2,
                   tin_number = $3,
                   national_id_file = $4,
-                  passport_file = $5
+                  passport_file = $5,
+                  encryption_version = 1
                 WHERE firebase_uid = $6
               `, [
-                profileData.identification?.nationalId || null,
-                profileData.identification?.passport || null,
-                profileData.identification?.tin || null,
+                nationalId,
+                passport,
+                tinNumber,
                 profileData.identification?.nationalIdFile || null,
                 profileData.identification?.passportFile || null,
                 firebase_uid
               ]);
-              console.log('✅ Updated borrower identification info');
+              console.log('✅ Updated borrower identification info (encrypted)');
             } catch (idError) {
               console.log('⚠️ ID fields may not exist in borrower_profiles:', idError.message);
             }
@@ -2982,25 +2994,29 @@ app.post('/api/settings', verifyToken, async (req, res) => {
               console.log('⚠️ Employment info fields may not exist in borrower_profiles:', employmentError.message);
             }
             
-            // Try to update bank account fields
+            // Try to update bank account fields (encrypt account number)
             try {
+              const encryptedAccountNumber = profileData.bankAccount?.accountNumber ? 
+                encrypt(profileData.bankAccount.accountNumber) : null;
+              
               await db.query(`
                 UPDATE borrower_profiles SET
                   bank_name = $1,
                   account_name = $2,
                   account_number = $3,
                   iban = $4,
-                  swift_code = $5
+                  swift_code = $5,
+                  encryption_version = 1
                 WHERE firebase_uid = $6
               `, [
                 profileData.bankAccount?.bankName || null,
                 profileData.bankAccount?.accountName || null,
-                profileData.bankAccount?.accountNumber || null,
+                encryptedAccountNumber,
                 profileData.bankAccount?.iban || null,
                 profileData.bankAccount?.swiftCode || null,
                 firebase_uid
               ]);
-              console.log('✅ Updated borrower bank account info');
+              console.log('✅ Updated borrower bank account info (encrypted)');
             } catch (bankError) {
               console.log('⚠️ Bank account fields may not exist in borrower_profiles:', bankError.message);
             }
@@ -3051,25 +3067,31 @@ app.post('/api/settings', verifyToken, async (req, res) => {
               console.log('⚠️ Address fields may not exist in investor_profiles:', addressError.message);
             }
 
-            // Update identification fields - use correct column names
+            // Update identification fields - use correct column names and encrypt
             try {
+              // Encrypt sensitive fields before storing
+              const nationalId = profileData.identification?.nationalId ? encrypt(profileData.identification.nationalId) : null;
+              const passport = profileData.identification?.passport ? encrypt(profileData.identification.passport) : null;
+              const tinNumber = profileData.identification?.tin ? encrypt(profileData.identification.tin) : null;
+              
               await db.query(`
                 UPDATE investor_profiles SET
                   national_id = $1,
                   passport = $2,
                   tin_number = $3,
                   national_id_file = $4,
-                  passport_file = $5
+                  passport_file = $5,
+                  encryption_version = 1
                 WHERE firebase_uid = $6
               `, [
-                profileData.identification?.nationalId || null,
-                profileData.identification?.passport || null,
-                profileData.identification?.tin || null,
+                nationalId,
+                passport,
+                tinNumber,
                 profileData.identification?.nationalIdFile || null,
                 profileData.identification?.passportFile || null,
                 firebase_uid
               ]);
-              console.log('✅ Updated investor identification info');
+              console.log('✅ Updated investor identification info (encrypted)');
             } catch (idError) {
               console.log('⚠️ ID fields may not exist in investor_profiles:', idError.message);
             }
@@ -3530,13 +3552,16 @@ topupRouter.post("/request", verifyToken, async (req, res) => {
     console.log("Creating top-up request for user:", uid);
     console.log("Amount:", amount, currency);
     
+    // Encrypt account number before storing
+    const encryptedAccountNumber = accountNumber ? encrypt(accountNumber) : null;
+    
     const result = await db.query(
       `INSERT INTO topup_requests 
        (firebase_uid, amount, currency, transfer_date, account_name, 
-        account_number, bank_name, reference, proof_of_transfer)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        account_number, bank_name, reference, proof_of_transfer, encryption_version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1)
        RETURNING id`,
-      [uid, amount, currency, transferDate, accountName, accountNumber, bankName, reference, proofOfTransfer]
+      [uid, amount, currency, transferDate, accountName, encryptedAccountNumber, bankName, reference, proofOfTransfer]
     );
     
     console.log("Top-up request created with ID:", result.rows[0].id);
@@ -3574,7 +3599,13 @@ topupRouter.get("/my-requests", verifyToken, async (req, res) => {
       [uid]
     );
     
-    res.json(rows);
+    // Decrypt account numbers before sending
+    const decryptedRows = rows.map(row => ({
+      ...row,
+      account_number: row.account_number ? decrypt(row.account_number) : null
+    }));
+    
+    res.json(decryptedRows);
   } catch (err) {
     console.error("DB error:", err);
     res.status(500).json({ error: "Database error" });
@@ -7033,7 +7064,10 @@ app.post('/api/admin/topup-requests/:id/review', verifyToken, async (req, res) =
       return res.status(404).json({ error: "Top-up request not found" });
     }
     
-    const topupRequest = requestResult.rows[0];
+    const topupRequest = {
+      ...requestResult.rows[0],
+      account_number: requestResult.rows[0].account_number ? decrypt(requestResult.rows[0].account_number) : null
+    };
     
     if (topupRequest.status !== 'pending') {
       return res.status(400).json({ error: "Request has already been reviewed" });
