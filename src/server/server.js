@@ -10543,6 +10543,461 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(distPath)) {
   });
 }
 
+// =====================================================================
+// MONITORING & METRICS ENDPOINTS
+// =====================================================================
+
+// Health check endpoint (for uptime monitoring)
+app.get('/api/health', async (req, res) => {
+  try {
+    // Quick database check
+    const dbCheck = await db.query('SELECT NOW()');
+    const uptime = process.uptime();
+    
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor(uptime),
+      database: 'connected',
+      version: '1.0.0',
+      environment: IS_PRODUCTION ? 'production' : 'development'
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      error: 'Database connection failed',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Real-time user metrics
+app.get('/api/admin/metrics/users', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authorization header required' });
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Check if user is admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Get user metrics
+    const [totalUsers, newToday, newThisWeek, newThisMonth, activeToday, investors, borrowers, suspended] = await Promise.all([
+      db.query('SELECT COUNT(*) as count FROM users'),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURRENT_DATE`),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '7 days'`),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '30 days'`),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE last_login >= NOW() - INTERVAL '24 hours'`),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE account_type = 'investor'`),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE account_type = 'borrower'`),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE suspended = true`)
+    ]);
+
+    res.json({
+      total: parseInt(totalUsers.rows[0].count),
+      newToday: parseInt(newToday.rows[0].count),
+      newThisWeek: parseInt(newThisWeek.rows[0].count),
+      newThisMonth: parseInt(newThisMonth.rows[0].count),
+      activeToday: parseInt(activeToday.rows[0].count),
+      investors: parseInt(investors.rows[0].count),
+      borrowers: parseInt(borrowers.rows[0].count),
+      suspended: parseInt(suspended.rows[0].count),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching user metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch user metrics' });
+  }
+});
+
+// Investment metrics
+app.get('/api/admin/metrics/investments', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authorization header required' });
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Check if user is admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Get investment metrics
+    const [todayInvestments, weekInvestments, monthInvestments, totalInvestments, pendingInvestments] = await Promise.all([
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM investments
+        WHERE DATE(created_at) = CURRENT_DATE
+      `),
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM investments
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+      `),
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM investments
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+      `),
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM investments
+      `),
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM investments
+        WHERE status = 'pending'
+      `)
+    ]);
+
+    res.json({
+      today: {
+        count: parseInt(todayInvestments.rows[0].count),
+        amount: parseFloat(todayInvestments.rows[0].total)
+      },
+      week: {
+        count: parseInt(weekInvestments.rows[0].count),
+        amount: parseFloat(weekInvestments.rows[0].total)
+      },
+      month: {
+        count: parseInt(monthInvestments.rows[0].count),
+        amount: parseFloat(monthInvestments.rows[0].total)
+      },
+      total: {
+        count: parseInt(totalInvestments.rows[0].count),
+        amount: parseFloat(totalInvestments.rows[0].total)
+      },
+      pending: {
+        count: parseInt(pendingInvestments.rows[0].count),
+        amount: parseFloat(pendingInvestments.rows[0].total)
+      },
+      averageAmount: totalInvestments.rows[0].count > 0 
+        ? parseFloat(totalInvestments.rows[0].total) / parseInt(totalInvestments.rows[0].count)
+        : 0,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching investment metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch investment metrics' });
+  }
+});
+
+// Top-up metrics
+app.get('/api/admin/metrics/topups', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authorization header required' });
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Check if user is admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Get top-up metrics
+    const [todayTopups, weekTopups, pending, approved, rejected] = await Promise.all([
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM topup_requests
+        WHERE DATE(created_at) = CURRENT_DATE
+      `),
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM topup_requests
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+      `),
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM topup_requests
+        WHERE status = 'pending'
+      `),
+      db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM topup_requests
+        WHERE status = 'approved' AND DATE(updated_at) = CURRENT_DATE
+      `),
+      db.query(`
+        SELECT COUNT(*) as count
+        FROM topup_requests
+        WHERE status = 'rejected' AND DATE(updated_at) = CURRENT_DATE
+      `)
+    ]);
+
+    res.json({
+      today: {
+        count: parseInt(todayTopups.rows[0].count),
+        amount: parseFloat(todayTopups.rows[0].total)
+      },
+      week: {
+        count: parseInt(weekTopups.rows[0].count),
+        amount: parseFloat(weekTopups.rows[0].total)
+      },
+      pending: {
+        count: parseInt(pending.rows[0].count),
+        amount: parseFloat(pending.rows[0].total)
+      },
+      approvedToday: {
+        count: parseInt(approved.rows[0].count),
+        amount: parseFloat(approved.rows[0].total)
+      },
+      rejectedToday: parseInt(rejected.rows[0].count),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching top-up metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch top-up metrics' });
+  }
+});
+
+// Project metrics
+app.get('/api/admin/metrics/projects', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authorization header required' });
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Check if user is admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Get project metrics
+    const [totalProjects, activeProjects, fundedProjects, fundedThisWeek, totalFunded] = await Promise.all([
+      db.query('SELECT COUNT(*) as count FROM projects'),
+      db.query(`SELECT COUNT(*) as count FROM projects WHERE status = 'active'`),
+      db.query(`SELECT COUNT(*) as count FROM projects WHERE status = 'funded'`),
+      db.query(`
+        SELECT COUNT(*) as count
+        FROM projects
+        WHERE status = 'funded' AND updated_at >= NOW() - INTERVAL '7 days'
+      `),
+      db.query(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM investments
+        WHERE status = 'approved'
+      `)
+    ]);
+
+    res.json({
+      total: parseInt(totalProjects.rows[0].count),
+      active: parseInt(activeProjects.rows[0].count),
+      funded: parseInt(fundedProjects.rows[0].count),
+      fundedThisWeek: parseInt(fundedThisWeek.rows[0].count),
+      totalFundedAmount: parseFloat(totalFunded.rows[0].total),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching project metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch project metrics' });
+  }
+});
+
+// Platform performance metrics
+app.get('/api/admin/metrics/platform', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authorization header required' });
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Check if user is admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Get platform metrics
+    const uptime = process.uptime();
+    const memoryUsage = process.memoryUsage();
+    
+    const [dbConnections, securityEvents, auditLogs, vulnerabilities] = await Promise.all([
+      db.query('SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()'),
+      db.query(`
+        SELECT COUNT(*) as count
+        FROM security_events
+        WHERE created_at >= NOW() - INTERVAL '24 hours'
+      `),
+      db.query(`
+        SELECT COUNT(*) as count
+        FROM audit_logs
+        WHERE created_at >= NOW() - INTERVAL '24 hours'
+      `),
+      db.query(`
+        SELECT COUNT(*) as count
+        FROM vulnerability_scans
+        WHERE resolved = false
+      `)
+    ]);
+
+    res.json({
+      uptime: Math.floor(uptime),
+      uptimeFormatted: `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
+      memory: {
+        used: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+        total: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+        percentage: Math.round((memoryUsage.heapUsed / memoryUsage.heapTotal) * 100)
+      },
+      database: {
+        activeConnections: parseInt(dbConnections.rows[0].count),
+        maxConnections: 25
+      },
+      security: {
+        eventsLast24h: parseInt(securityEvents.rows[0].count),
+        auditLogsLast24h: parseInt(auditLogs.rows[0].count),
+        unresolvedVulnerabilities: parseInt(vulnerabilities.rows[0].count)
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching platform metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch platform metrics' });
+  }
+});
+
+// All-in-one metrics endpoint
+app.get('/api/admin/metrics/overview', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authorization header required' });
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Check if user is admin
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Fetch all metrics in parallel
+    const [
+      users,
+      investments,
+      topups,
+      projects,
+      walletBalance
+    ] = await Promise.all([
+      db.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as new_today,
+          COUNT(CASE WHEN last_login >= NOW() - INTERVAL '24 hours' THEN 1 END) as active_today
+        FROM users
+      `),
+      db.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today_count,
+          COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN amount ELSE 0 END), 0) as today_amount
+        FROM investments
+      `),
+      db.query(`
+        SELECT
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
+        FROM topup_requests
+      `),
+      db.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'active' THEN 1 END) as active
+        FROM projects
+      `),
+      db.query('SELECT COALESCE(SUM(wallet_balance), 0) as total FROM users')
+    ]);
+
+    const uptime = process.uptime();
+
+    res.json({
+      users: {
+        total: parseInt(users.rows[0].total),
+        newToday: parseInt(users.rows[0].new_today),
+        activeToday: parseInt(users.rows[0].active_today)
+      },
+      investments: {
+        total: parseInt(investments.rows[0].total),
+        todayCount: parseInt(investments.rows[0].today_count),
+        todayAmount: parseFloat(investments.rows[0].today_amount)
+      },
+      topups: {
+        pendingCount: parseInt(topups.rows[0].pending_count),
+        pendingAmount: parseFloat(topups.rows[0].pending_amount)
+      },
+      projects: {
+        total: parseInt(projects.rows[0].total),
+        active: parseInt(projects.rows[0].active)
+      },
+      platform: {
+        walletBalance: parseFloat(walletBalance.rows[0].total),
+        uptime: Math.floor(uptime),
+        status: 'operational'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching overview metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch overview metrics' });
+  }
+});
+
 // ==================== SERVER START ====================
 
 const server = app.listen(PORT, () => {
