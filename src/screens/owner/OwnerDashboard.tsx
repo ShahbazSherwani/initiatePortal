@@ -567,6 +567,44 @@ export const OwnerDashboard: React.FC = () => {
         )}
 
         {/* Payment Analytics Tab */}
+            {/* Quick Links */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
+                    onClick={() => navigate('/owner/projects')}
+                  >
+                    <Settings2Icon className="w-5 h-5 mb-1" />
+                    <span className="text-sm">All Projects</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
+                    onClick={() => navigate('/owner/topup-requests')}
+                  >
+                    <ClockIcon className="w-5 h-5 mb-1" />
+                    <span className="text-sm">Top-up Requests</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
+                    onClick={() => navigate('/owner/investment-requests')}
+                  >
+                    <TrendingUpIcon className="w-5 h-5 mb-1" />
+                    <span className="text-sm">Investment Requests</span>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Payment Analytics Tab */}
         {activeTab === 'analytics' && (
           <PaymentAnalytics />
         )}
@@ -575,48 +613,6 @@ export const OwnerDashboard: React.FC = () => {
         {activeTab === 'monitoring' && (
           <MonitoringDashboard />
         )}
-      </div>
-    </OwnerLayout>
-  );
-};      </div>
-
-        {/* Quick Links */}
-        <Card className="bg-white shadow-sm border-0">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Button
-                variant="outline"
-                className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
-                onClick={() => navigate('/owner/projects')}
-              >
-                <Settings2Icon className="w-5 h-5 mb-1" />
-                <span className="text-sm">All Projects</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
-                onClick={() => navigate('/owner/topup-requests')}
-              >
-                <ClockIcon className="w-5 h-5 mb-1" />
-                <span className="text-sm">Top-up Requests</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-16 flex flex-col items-center justify-center hover:border-[#0C4B20] hover:text-[#0C4B20]"
-                onClick={() => navigate('/owner/investment-requests')}
-              >
-                <TrendingUpIcon className="w-5 h-5 mb-1" />
-                <span className="text-sm">Investment Requests</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Payment Analytics Section */}
-        <PaymentAnalytics />
       </div>
     </OwnerLayout>
   );
