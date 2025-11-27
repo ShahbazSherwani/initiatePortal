@@ -242,11 +242,8 @@ export const OwnerDashboard: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <>
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('overview')}
               className={`${
@@ -281,11 +278,13 @@ export const OwnerDashboard: React.FC = () => {
               Live Monitoring
             </button>
           </nav>
-        </div>lassName="text-gray-600">Monitor platform-wide performance and activity</p>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <OwnerKPICard
             title="Total Issuers/Borrowers"
             value={stats?.totalBorrowers || 0}
