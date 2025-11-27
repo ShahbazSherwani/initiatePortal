@@ -563,12 +563,15 @@ export const OwnerDashboard: React.FC = () => {
                       <span className="text-sm text-gray-600">Above 100k (PHP)</span>
                     </div>
                     <span className="text-sm font-medium">{projectInsights?.highValue || 0}%</span>
-          </>
-        )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* Payment Analytics Tab */}
-            {/* Quick Links */}
-            <Card className="bg-white shadow-sm border-0">
+        {/* Quick Links */}
+        <Card className="bg-white shadow-sm border-0">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold">Quick Actions</CardTitle>
               </CardHeader>
