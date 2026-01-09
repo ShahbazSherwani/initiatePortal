@@ -9,6 +9,7 @@ import { Pool } from 'pg';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,6 +63,66 @@ admin.initializeApp({
 });
 
 console.log('Firebase Admin SDK initialized successfully');
+
+// Make.com Integration Configuration
+const MAKE_API_KEY = process.env.MAKE_API_KEY || 'your-secret-key-here-change-in-env';
+const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || null;
+
+console.log('Make.com integration:', MAKE_WEBHOOK_URL ? 'Enabled ✅' : 'Disabled ⚠️');
+
+// Helper function to notify Make.com of new user registrations
+async function notifyMakeOfNewUser(userData) {
+  if (!MAKE_WEBHOOK_URL) {
+    console.log('⚠️  Make webhook not configured, skipping sync');
+    return;
+  }
+
+  try {
+    const payload = {
+      source_system: 'PH',
+      source_event_id: crypto.randomUUID(),
+      source_timestamp: new Date().toISOString(),
+      user: {
+        email: userData.email,
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        full_name: userData.full_name || '',
+        phone_number: userData.phone_number || '',
+        role: userData.role || 'borrower',
+        firebase_uid: userData.firebase_uid,
+        ph_user_id: userData.id
+      }
+    };
+
+    console.log('🔔 Notifying Make.com of new user:', userData.email);
+
+    const response = await fetch(MAKE_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      console.error('❌ Make webhook failed:', response.status, response.statusText);
+    } else {
+      console.log('✅ Make webhook called successfully');
+    }
+  } catch (error) {
+    console.error('⚠️  Make webhook error (non-critical):', error.message);
+  }
+}
+
+// Middleware to verify Make.com requests
+const verifyMakeRequest = (req, res, next) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== MAKE_API_KEY) {
+    console.log('❌ Unauthorized Make request - invalid API key');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+};
 
 // Initialize Postgres client (Supabase) with better connection settings
 let db = null;
@@ -244,13 +305,32 @@ const profileRouter = express.Router();
 profileRouter.post('/', verifyToken, async (req, res) => {
   const { fullName, role } = req.body;
   try {
-    await db.query(
+    const result = await db.query(
       `INSERT INTO users (firebase_uid, full_name, role)
        VALUES ($1, $2, $3)
        ON CONFLICT (firebase_uid) DO UPDATE
-         SET full_name = EXCLUDED.full_name, role = EXCLUDED.role`,
+         SET full_name = EXCLUDED.full_name, role = EXCLUDED.role
+       RETURNING id, firebase_uid, full_name, email`,
       [req.uid, fullName, role || 'borrower']
     );
+    
+    // Notify Make.com of new user registration
+    if (result.rows && result.rows.length > 0) {
+      const user = result.rows[0];
+      try {
+        const firebaseUser = await admin.auth().getUser(req.uid);
+        await notifyMakeOfNewUser({
+          id: user.id,
+          firebase_uid: user.firebase_uid,
+          email: firebaseUser.email,
+          full_name: user.full_name,
+          role: role || 'borrower'
+        });
+      } catch (makeError) {
+        console.error('⚠️  Make notification error (non-critical):', makeError.message);
+      }
+    }
+    
     res.json({ success: true });
   } catch (err) {
     console.error('DB error:', err);
@@ -4435,6 +4515,164 @@ app.delete('/api/admin/clear-all-data', verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Error cleaning database:", err);
     res.status(500).json({ error: "Database cleanup failed" });
+  }
+});
+
+// Make.com Integration Endpoints
+// Check if user exists (called by Make)
+app.post('/api/check-user', verifyMakeRequest, async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const result = await db.query(
+      'SELECT id, firebase_uid, email FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (result.rows && result.rows.length > 0) {
+      return res.json({
+        exists: true,
+        user_id: result.rows[0].id,
+        firebase_uid: result.rows[0].firebase_uid
+      });
+    }
+
+    return res.json({ exists: false });
+  } catch (error) {
+    console.error('Check user error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Sync user from Make.com (create or update from InitiateGlobal)
+app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
+  try {
+    const {
+      email,
+      first_name,
+      last_name,
+      phone_number,
+      global_user_id,
+      source_system,
+      source_event_id
+    } = req.body;
+
+    console.log('📥 Sync user request from Make.com:', { email, source_system });
+
+    // Validate required fields
+    if (!email || !source_system || !source_event_id) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: email, source_system, source_event_id' 
+      });
+    }
+
+    // Loop protection: don't sync if it came from PH
+    if (source_system === 'PH') {
+      console.log('⚠️  Loop protection: Ignoring PH-originated sync');
+      return res.json({ success: true, message: 'Loop protection: ignored' });
+    }
+
+    // Check if user already exists
+    const existingUser = await db.query(
+      'SELECT id, firebase_uid, email FROM users WHERE email = $1',
+      [email]
+    );
+
+    let userId;
+    let firebaseUid;
+    const fullName = `${first_name || ''} ${last_name || ''}`.trim();
+
+    if (existingUser.rows && existingUser.rows.length > 0) {
+      // User exists - UPDATE
+      userId = existingUser.rows[0].id;
+      firebaseUid = existingUser.rows[0].firebase_uid;
+
+      await db.query(
+        `UPDATE users SET 
+          full_name = $1,
+          updated_at = NOW()
+        WHERE id = $2`,
+        [fullName, userId]
+      );
+
+      console.log(`✅ Updated existing user from Global: ${email}`);
+      
+      return res.json({
+        success: true,
+        action: 'updated',
+        user_id: userId,
+        firebase_uid: firebaseUid
+      });
+
+    } else {
+      // User doesn't exist - CREATE
+      
+      // Generate a temporary password (user will reset via email)
+      const tempPassword = crypto.randomBytes(16).toString('hex');
+      
+      try {
+        // Create Firebase user first
+        const firebaseUser = await admin.auth().createUser({
+          email: email,
+          password: tempPassword,
+          displayName: fullName
+        });
+
+        firebaseUid = firebaseUser.uid;
+
+        // Create Supabase record
+        const result = await db.query(
+          `INSERT INTO users (
+            email, 
+            firebase_uid, 
+            full_name,
+            created_at,
+            updated_at
+          ) VALUES ($1, $2, $3, NOW(), NOW())
+          RETURNING id`,
+          [
+            email,
+            firebaseUid,
+            fullName
+          ]
+        );
+
+        userId = result.rows[0].id;
+
+        console.log(`✅ Created new user from Global: ${email}`);
+
+        // Send password reset email
+        try {
+          const resetLink = await admin.auth().generatePasswordResetLink(email);
+          console.log('📧 Password reset link generated for:', email);
+        } catch (emailError) {
+          console.error('⚠️  Password reset email error:', emailError.message);
+        }
+
+        return res.json({
+          success: true,
+          action: 'created',
+          user_id: userId,
+          firebase_uid: firebaseUid,
+          message: 'User created. Password reset email sent.'
+        });
+
+      } catch (firebaseError) {
+        console.error('Firebase user creation error:', firebaseError);
+        return res.status(500).json({ 
+          error: 'Failed to create Firebase user',
+          details: firebaseError.message 
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error('Sync user error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
