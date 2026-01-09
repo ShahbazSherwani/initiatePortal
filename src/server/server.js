@@ -1660,6 +1660,45 @@ app.post('/api/resend-verification-email', verifyToken, async (req, res) => {
   }
 });
 
+// Test email endpoint - send a verification email to any address (for testing)
+app.post('/api/test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email address required' });
+    }
+
+    console.log(`📧 TEST: Sending test verification email to: ${email}`);
+    
+    // Generate test token
+    const token = crypto.randomBytes(32).toString('hex');
+    
+    // Send test email
+    const result = await sendVerificationEmail(email, token, 'Test User');
+
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: `Test email sent successfully to ${email}`,
+        messageId: result.messageId
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to send test email',
+        details: result.error 
+      });
+    }
+
+  } catch (error) {
+    console.error('Error sending test email:', error);
+    res.status(500).json({ 
+      error: 'Failed to send test email',
+      details: error.message 
+    });
+  }
+});
+
 // Admin endpoint to manually verify a user's email (for support/testing)
 app.post('/api/admin/verify-user-email', verifyToken, async (req, res) => {
   try {
