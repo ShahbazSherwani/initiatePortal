@@ -1189,17 +1189,16 @@ profileRouter.post('/', verifyToken, async (req, res) => {
     
     // Insert with suspension_scope = 'none' to ensure account is NOT suspended
     const result = await db.query(
-      `INSERT INTO users (firebase_uid, full_name, first_name, last_name, phone_number, role, suspension_scope)
-       VALUES ($1, $2, $3, $4, $5, $6, 'none')
+      `INSERT INTO users (firebase_uid, full_name, first_name, last_name, role, suspension_scope)
+       VALUES ($1, $2, $3, $4, $5, 'none')
        ON CONFLICT (firebase_uid) DO UPDATE
          SET full_name = EXCLUDED.full_name,
              first_name = EXCLUDED.first_name,
              last_name = EXCLUDED.last_name,
-             phone_number = COALESCE(EXCLUDED.phone_number, users.phone_number),
              role = EXCLUDED.role,
              suspension_scope = COALESCE(users.suspension_scope, 'none')
-       RETURNING id, firebase_uid, full_name, first_name, last_name, phone_number`,
-      [req.uid, fullName, first, last, phoneNumber || null, role || 'borrower']
+       RETURNING id, firebase_uid, full_name, first_name, last_name`,
+      [req.uid, fullName, first, last, role || 'borrower']
     );
     
     // Notify Make.com of new user registration
@@ -1214,7 +1213,7 @@ profileRouter.post('/', verifyToken, async (req, res) => {
           full_name: user.full_name,
           first_name: user.first_name,
           last_name: user.last_name,
-          phone_number: user.phone_number,
+          phone_number: phoneNumber || '',
           role: role || 'borrower'
         });
       } catch (makeError) {
