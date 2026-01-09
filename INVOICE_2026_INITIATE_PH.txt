@@ -1,0 +1,104 @@
+BUDGET
+Date: November 20, 2025
+Prepared by: Shahbaz Sherwani
+Project: Initiate PH Platform – 2026 Annual Infrastructure & Operations
+
+---
+
+1. Hosting & Platform (Current Solution: Vercel, Render, Supabase, Firebase, Mailjet)
+
+| Service                | Provider   | Plan/Tier         | Monthly (USD) | Annual (USD) | Notes                                    |
+|------------------------|------------|-------------------|---------------|--------------|-------------------------------------------|
+| Frontend Hosting       | Vercel     | Pro               | $20           | $240         | Custom domain, higher bandwidth           |
+| Backend Hosting        | Render     | Professional      | $85–$200      | $1,020–$2,400| Scalable, more RAM/CPU, better uptime     |
+| Database Hosting       | Supabase   | Paid Tier         | $25–$100      | $300–$1,200  | PostgreSQL, auto-backups, scaling         |
+| File Storage           | Firebase   | Free/Paid         | $0–$20        | $0–$240      | For user uploads, profile images, etc.    |
+| Email Service          | Mailjet    | Free/Paid         | $0–$20        | $0–$240      | Transactional emails, 200/day free        |
+| DDoS & WAF Protection   | Cloudflare  | Free/Pro ($20)    | $0–$20        | $0–$240      | DDoS protection, WAF, CDN edge security   |
+
+---
+
+2. Domain, SSL, & Add-ons
+
+| Service                | Provider   | Cost (USD)        | Notes                                    |
+|------------------------|------------|-------------------|-------------------------------------------|
+| Domain Registration    | GoDaddy    | $10–$20/year      | initiateph.com renewal                    |
+| SSL Certificate        | Vercel/Render | $0             | Free SSL (Let’s Encrypt/auto-provisioned) |
+| CDN                    | Vercel/Render | $0             | Included in hosting plans                 |
+| Backups                | Supabase/Render | $0–included  | Automated with paid plans                 |
+
+---
+
+3. Maintenance & Development
+
+| Item                   | Cost (USD)        | Notes                                    |
+|------------------------|-------------------|-------------------------------------------|
+| Ongoing Dev/Maintenance| Variable          | Feature updates, bug fixes, support       |
+| Security/Compliance    | $2,000–$5,000     | Annual audit, compliance if required      |
+| One-off Setup/Features | As needed         | Major redesign, migration, new features   |
+
+---
+
+4. Estimated Total (2026, Current Solution)
+
+| Category               | Annual (USD)      |
+|------------------------|-------------------|
+| Hosting & Platform     | $1,570–$4,320     |
+| Domain & SSL           | $10–$20           |
+| Security/Compliance    | $2,000–$5,000     |
+| **Estimated Subtotal** | **$3,580–$9,340** |
+| Ongoing Dev/Maintenance| Variable          |
+
+*All costs are estimates and may vary with actual usage, scaling, or additional requirements.*
+
+---
+
+**Why We Are Choosing Vercel and Render Over AWS**
+
+- Simplicity & Developer Experience: Easy setup, automatic deployments, less infrastructure management.
+- Cost-Effectiveness: Predictable pricing, no hidden costs, affordable for startups.
+- Built-in Features: SSL, CDN, serverless, and global edge delivery included.
+- Scalability Without Complexity: Auto-scaling, no manual intervention needed.
+- Faster Time to Market: Quick deployments, easy rollbacks, high uptime.
+- Team Collaboration: Preview deployments, environment management, team workflows.
+- Summary: Vercel and Render are modern, developer-friendly, and cost-effective for our needs. AWS is powerful but more complex and costly for our current scale.
+
+---
+
+5. AWS Migration Estimate (Alternative Option)
+
+| Service                | AWS Product         | Estimated Monthly (USD) | Estimated Annual (USD) | Notes |
+|------------------------|--------------------|------------------------|------------------------|-------|
+| Frontend Hosting       | S3 + CloudFront    | $30–$80                | $360–$960              | Static site hosting, CDN, SSL |
+| Backend Hosting        | Elastic Beanstalk / ECS / Lambda | $60–$200 | $720–$2,400 | Node.js app, auto-scaling |
+| Database Hosting       | RDS PostgreSQL     | $50–$150               | $600–$1,800            | Managed DB, daily backups |
+| File Storage           | S3                 | $10–$50                | $120–$600              | User uploads, images, etc. |
+| Email Service          | SES                | $5–$20                 | $60–$240               | Transactional emails |
+| Domain Registration    | Route 53           | $12                    | $12                    | Domain renewal |
+| SSL Certificate        | ACM                | $0                     | $0                     | Free with AWS services |
+| Monitoring/Logging     | CloudWatch         | $10–$30                | $120–$360              | Basic logs/metrics |
+| Backups                | RDS/S3 Snapshots   | Included               | Included               | With managed services |
+
+| Category               | Annual (USD)      |
+|------------------------|-------------------|
+| AWS Core Services      | $1,872–$6,372     |
+| Domain                 | $12               |
+| AWS Support (optional) | $1,200–$3,600     |
+| **Estimated Subtotal** | **$3,084–$9,984** |
+| Ongoing Dev/Maintenance| Variable          |
+
+*Assumptions: Budget estimates are based on 100,000 users, moderate usage, 2–4 backend instances, 100–500GB storage, and 10,000–50,000 emails/month. For future scaling, if user growth exceeds 100,000 users, we will consider migrating to AWS or another enterprise-grade provider based on actual user count and platform needs. AWS support plan is optional but recommended for production and large-scale operations.*
+
+---
+
+**Timeframe:**
+This invoice covers the period: January 1, 2026 – December 31, 2026 (calendar year).
+
+**Currency:**
+All amounts are in USD. If you require AED or another currency, please specify.
+
+---
+
+Prepared by:
+Shahbaz Sherwani
+Initiate PH Platform
