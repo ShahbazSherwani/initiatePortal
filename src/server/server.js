@@ -214,6 +214,9 @@ const verifyMakeRequest = (req, res, next) => {
 // Initialize Postgres client (Supabase) with better connection settings
 let db = null;
 let dbConnected = false;
+let auditLogger = null;
+let ids = null;
+let vulnerabilityScanner = null;
 
 try {
   db = new Pool({
@@ -268,15 +271,15 @@ try {
   testConnection();
   
   // Initialize Audit Logger
-  const auditLogger = new AuditLogger(db);
+  auditLogger = new AuditLogger(db);
   console.log('📝 Audit logger initialized');
   
   // Initialize Intrusion Detection System
-  const ids = new IntrusionDetectionSystem(db);
+  ids = new IntrusionDetectionSystem(db);
   console.log('🛡️  Intrusion detection system initialized');
   
   // Initialize Vulnerability Scanner
-  const vulnerabilityScanner = new VulnerabilityScanner(db);
+  vulnerabilityScanner = new VulnerabilityScanner(db);
   console.log('🔍 Vulnerability scanner initialized');
   
   // Schedule daily vulnerability scans (run at 2 AM)
