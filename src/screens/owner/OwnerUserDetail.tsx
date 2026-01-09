@@ -73,6 +73,26 @@ interface UserDetail {
     maritalStatus?: string;
     emailAddress?: string;
     mobileNumber?: string;
+    motherMaidenName?: string;
+    groupType?: string;
+  };
+  
+  // Emergency contact information (for all accounts)
+  emergencyContact?: {
+    name?: string;
+    relationship?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+  };
+  
+  // GIS fields (for business/entity accounts)
+  gisFields?: {
+    totalAssets?: number;
+    totalLiabilities?: number;
+    paidUpCapital?: number;
+    numberOfStockholders?: number;
+    numberOfEmployees?: number;
   };
   
   // Entity information (for non-individual accounts)
@@ -95,6 +115,7 @@ interface UserDetail {
     authorizedSignatoryName?: string;
     authorizedSignatoryPosition?: string;
     authorizedSignatoryIdNumber?: string;
+    authorizedSignatoryIdType?: string;
     natureOfBusiness?: string;
   };
   
@@ -103,7 +124,9 @@ interface UserDetail {
     street?: string;
     barangay?: string;
     city?: string;
+    municipality?: string;
     state?: string;
+    province?: string;
     country?: string;
     postalCode?: string;
   };
@@ -172,6 +195,7 @@ interface UserDetail {
       employerAddress?: string;
       employmentStatus?: string;
       grossAnnualIncome?: number;
+      monthlyIncome?: number;
       sourceOfIncome?: string;
     };
   };
@@ -184,6 +208,8 @@ interface UserDetail {
     qualifiedInvestor?: boolean;
     riskTolerance?: string;
     investmentLimits?: number;
+    investmentPreference?: string;
+    pepDetails?: string;
   };
 }
 
@@ -790,6 +816,51 @@ export const OwnerUserDetail: React.FC = () => {
                           <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.mobileNumber || user.phoneNumber || 'Not provided'}</div>
                         )}
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mother's Maiden Name</label>
+                        {isEditing ? (
+                          <Input placeholder="Mother's Maiden Name" defaultValue={user.personalProfile.motherMaidenName} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.motherMaidenName || 'Not provided'}</div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Group Type</label>
+                        {isEditing ? (
+                          <Input placeholder="Group Type" defaultValue={user.personalProfile.groupType} />
+                        ) : (
+                          <div className="p-3 bg-gray-50 rounded-lg">{user.personalProfile.groupType || 'Not provided'}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Emergency Contact Information */}
+                {user.emergencyContact && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.emergencyContact.name || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.emergencyContact.relationship || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.emergencyContact.phone || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.emergencyContact.email || 'Not provided'}</div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.emergencyContact.address || 'Not provided'}</div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -883,6 +954,50 @@ export const OwnerUserDetail: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
                         <div className="p-3 bg-gray-50 rounded-lg">{user.businessRegistration.authorizedSignatoryIdNumber || 'Not provided'}</div>
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">ID Type</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.businessRegistration.authorizedSignatoryIdType || 'Not provided'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* GIS Fields (General Information Sheet - Business Accounts) */}
+                {(user.accountType === 'non-individual' || user.isIndividualAccount === false) && 
+                 user.gisFields && (user.gisFields.totalAssets || user.gisFields.totalLiabilities || user.gisFields.paidUpCapital) && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">General Information Sheet (GIS)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Total Assets</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          {user.gisFields.totalAssets ? formatCurrency(user.gisFields.totalAssets) : 'Not provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Total Liabilities</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          {user.gisFields.totalLiabilities ? formatCurrency(user.gisFields.totalLiabilities) : 'Not provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Paid-Up Capital</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          {user.gisFields.paidUpCapital ? formatCurrency(user.gisFields.paidUpCapital) : 'Not provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Number of Stockholders</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          {user.gisFields.numberOfStockholders || 'Not provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Number of Employees</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          {user.gisFields.numberOfEmployees || 'Not provided'}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -907,8 +1022,12 @@ export const OwnerUserDetail: React.FC = () => {
                         <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.city || 'Not provided'}</div>
                       </div>
                       <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Municipality</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.municipality || 'Not provided'}</div>
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">State/Province</label>
-                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.state || 'Not provided'}</div>
+                        <div className="p-3 bg-gray-50 rounded-lg">{user.principalOffice.state || user.principalOffice.province || 'Not provided'}</div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
@@ -1052,6 +1171,12 @@ export const OwnerUserDetail: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Annual Income</label>
                         <div className="p-3 bg-gray-50 rounded-lg">
                           {user.borrowerData.employmentInfo.grossAnnualIncome ? formatCurrency(user.borrowerData.employmentInfo.grossAnnualIncome) : 'Not provided'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Income</label>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          {user.borrowerData.employmentInfo.monthlyIncome ? formatCurrency(user.borrowerData.employmentInfo.monthlyIncome) : 'Not provided'}
                         </div>
                       </div>
                       <div>
