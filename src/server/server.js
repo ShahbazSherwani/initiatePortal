@@ -8854,7 +8854,17 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         civilStatus: '',
         nationality: '',
         motherMaidenName: '',
-        contactEmail: userEmail
+        contactEmail: userEmail,
+        groupType: '',
+        secondaryIdType: '',
+        secondaryIdNumber: ''
+      },
+      emergencyContact: {
+        name: '',
+        relationship: '',
+        phone: '',
+        email: '',
+        address: ''
       },
       contactInfo: {
         mobileNumber: '',
@@ -8872,7 +8882,15 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         employerAddress: '',
         employmentStatus: '',
         grossAnnualIncome: null,
+        monthlyIncome: null,
         sourceOfIncome: ''
+      },
+      gisFields: {
+        totalAssets: null,
+        totalLiabilities: null,
+        paidUpCapital: null,
+        numberOfStockholders: null,
+        numberOfEmployees: null
       },
       identifications: {
         nationalId: '',
@@ -8886,11 +8904,15 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         entityType: '',
         entityName: '',
         registrationNumber: '',
+        businessRegistrationNumber: '',
         registrationType: '',
         registrationDate: '',
         businessAddress: '',
         authorizedPersonName: '',
-        authorizedPersonPosition: ''
+        authorizedPersonPosition: '',
+        natureOfBusiness: '',
+        principalOfficeMunicipality: '',
+        principalOfficeProvince: ''
       },
       investmentInfo: {
         experience: '',
@@ -8898,7 +8920,10 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         riskTolerance: '',
         investmentHorizon: '',
         liquidNetWorth: null,
-        pepStatus: false
+        pepStatus: false,
+        pepDetails: '',
+        investmentPreference: '',
+        portfolioValue: null
       }
     };
 
@@ -8922,8 +8947,20 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           gender: borrower.gender || '',
           civilStatus: borrower.civil_status || '',
           nationality: borrower.nationality || '',
-          motherMaidenName: '',
-          contactEmail: borrower.email_address || userEmail
+          motherMaidenName: borrower.mother_maiden_name || '',
+          contactEmail: borrower.contact_email || borrower.email_address || userEmail,
+          groupType: borrower.group_type || '',
+          secondaryIdType: borrower.secondary_id_type || '',
+          secondaryIdNumber: borrower.secondary_id_number || ''
+        };
+
+        // Map emergency contact information
+        profileData.emergencyContact = {
+          name: borrower.emergency_contact_name || '',
+          relationship: borrower.emergency_contact_relationship || '',
+          phone: borrower.emergency_contact_phone || '',
+          email: borrower.emergency_contact_email || '',
+          address: borrower.emergency_contact_address || ''
         };
 
         // Map borrower contact information
@@ -8946,7 +8983,17 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           employerAddress: borrower.employer_address || '',
           employmentStatus: borrower.employment_status || '',
           grossAnnualIncome: borrower.gross_annual_income,
+          monthlyIncome: borrower.monthly_income,
           sourceOfIncome: borrower.source_of_income || ''
+        };
+
+        // Map GIS (General Information Sheet) fields for business entities
+        profileData.gisFields = {
+          totalAssets: borrower.gis_total_assets,
+          totalLiabilities: borrower.gis_total_liabilities,
+          paidUpCapital: borrower.gis_paid_up_capital,
+          numberOfStockholders: borrower.gis_number_of_stockholders,
+          numberOfEmployees: borrower.gis_number_of_employees
         };
 
         // Map bank account information
@@ -8967,11 +9014,15 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           entityType: borrower.entity_type || '',
           entityName: borrower.entity_name || '',
           registrationNumber: borrower.registration_number || '',
-          registrationType: borrower.registration_type || '',
-          registrationDate: borrower.registration_date || '',
+          businessRegistrationNumber: borrower.business_registration_number || '',
+          registrationType: borrower.business_registration_type || '',
+          registrationDate: borrower.business_registration_date || '',
           businessAddress: borrower.business_address || '',
-          authorizedPersonName: borrower.authorized_person_name || '',
-          authorizedPersonPosition: borrower.authorized_person_position || ''
+          authorizedPersonName: borrower.authorized_signatory_name || '',
+          authorizedPersonPosition: borrower.authorized_signatory_position || '',
+          natureOfBusiness: borrower.nature_of_business || '',
+          principalOfficeMunicipality: borrower.principal_office_municipality || '',
+          principalOfficeProvince: borrower.principal_office_province || ''
         };
 
         // Map identification documents
@@ -8979,8 +9030,8 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           nationalId: borrower.national_id || '',
           passport: borrower.passport || '',
           tin: borrower.tin_number || '',
-          secondaryIdType: '',
-          secondaryIdNumber: ''
+          secondaryIdType: borrower.secondary_id_type || '',
+          secondaryIdNumber: borrower.secondary_id_number || ''
         };
       }
     }
@@ -9019,8 +9070,33 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           riskTolerance: investor.risk_tolerance || '',
           investmentHorizon: investor.investment_horizon || '',
           liquidNetWorth: investor.liquid_net_worth,
-          pepStatus: investor.pep_status === 'yes'
+          pepStatus: investor.is_politically_exposed_person || investor.pep_status === 'yes',
+          pepDetails: investor.pep_details || '',
+          investmentPreference: investor.investment_preference || '',
+          portfolioValue: investor.portfolio_value
         };
+
+        // Also merge investor emergency contact if not from borrower
+        if (!profileData.emergencyContact.name && investor.emergency_contact_name) {
+          profileData.emergencyContact = {
+            name: investor.emergency_contact_name || '',
+            relationship: investor.emergency_contact_relationship || '',
+            phone: investor.emergency_contact_phone || '',
+            email: investor.emergency_contact_email || '',
+            address: investor.emergency_contact_address || ''
+          };
+        }
+
+        // Merge investor GIS fields if not from borrower
+        if (!profileData.gisFields.totalAssets && investor.gis_total_assets) {
+          profileData.gisFields = {
+            totalAssets: investor.gis_total_assets,
+            totalLiabilities: investor.gis_total_liabilities,
+            paidUpCapital: investor.gis_paid_up_capital,
+            numberOfStockholders: investor.gis_number_of_stockholders,
+            numberOfEmployees: investor.gis_number_of_employees
+          };
+        }
 
         // Add investor bank account if different from borrower
         if (investor.bank_name && !profileData.bankAccounts.some(acc => acc.bankName === investor.bank_name)) {
@@ -9075,6 +9151,7 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
             authorizedSignatoryName: borrower.authorized_signatory_name || '',
             authorizedSignatoryPosition: borrower.authorized_signatory_position || '',
             authorizedSignatoryIdNumber: borrower.authorized_signatory_id_number || '',
+            authorizedSignatoryIdType: borrower.authorized_signatory_id_type || '',
             natureOfBusiness: borrower.nature_of_business || ''
           };
           
@@ -9082,7 +9159,9 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
             street: borrower.principal_office_street || '',
             barangay: borrower.principal_office_barangay || '',
             city: borrower.principal_office_city || '',
+            municipality: borrower.principal_office_municipality || '',
             state: borrower.principal_office_state || '',
+            province: borrower.principal_office_province || '',
             country: borrower.principal_office_country || '',
             postalCode: borrower.principal_office_postal_code || ''
           };
@@ -9157,6 +9236,12 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
       
       // Add comprehensive profile data (for individual accounts)
       personalProfile: isIndividualAccount ? profileData.personalInfo : null,
+      
+      // Add emergency contact (for all accounts)
+      emergencyContact: profileData.emergencyContact,
+      
+      // Add GIS fields (for business accounts)
+      gisFields: profileData.gisFields,
       
       // Add entity-specific data (for non-individual accounts)
       entityInfo: entityInfo,
