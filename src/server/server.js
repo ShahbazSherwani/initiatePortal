@@ -1189,16 +1189,17 @@ profileRouter.post('/', verifyToken, async (req, res) => {
     
     // Insert with suspension_scope = 'none' to ensure account is NOT suspended
     const result = await db.query(
-      `INSERT INTO users (firebase_uid, full_name, first_name, last_name, role, suspension_scope)
-       VALUES ($1, $2, $3, $4, $5, 'none')
+      `INSERT INTO users (firebase_uid, full_name, first_name, last_name, phone_number, role, suspension_scope)
+       VALUES ($1, $2, $3, $4, $5, $6, 'none')
        ON CONFLICT (firebase_uid) DO UPDATE
          SET full_name = EXCLUDED.full_name,
              first_name = EXCLUDED.first_name,
              last_name = EXCLUDED.last_name,
+             phone_number = COALESCE(EXCLUDED.phone_number, users.phone_number),
              role = EXCLUDED.role,
              suspension_scope = COALESCE(users.suspension_scope, 'none')
-       RETURNING id, firebase_uid, full_name, first_name, last_name`,
-      [req.uid, fullName, first, last, role || 'borrower']
+       RETURNING id, firebase_uid, full_name, first_name, last_name, phone_number`,
+      [req.uid, fullName, first, last, phoneNumber || null, role || 'borrower']
     );
     
     // Notify Make.com of new user registration
@@ -1213,7 +1214,7 @@ profileRouter.post('/', verifyToken, async (req, res) => {
           full_name: user.full_name,
           first_name: user.first_name,
           last_name: user.last_name,
-          phone_number: phoneNumber || '',
+          phone_number: user.phone_number,
           role: role || 'borrower'
         });
       } catch (makeError) {
@@ -5876,28 +5877,34 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             present_address, permanent_address, city, state, postal_code, country, barangay,
             national_id, passport, tin_number, national_id_file, passport_file,
             occupation, employer_name, employer_address, employment_status, 
-            gross_annual_income, source_of_income,
+            gross_annual_income, source_of_income, monthly_income,
             emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_email, emergency_contact_address,
             mother_maiden_name,
             account_name, bank_name, account_type, account_number, iban, swift_code,
-            entity_type, entity_name, registration_number,
+            entity_type, entity_name, registration_number, business_registration_number, business_address,
             contact_person_name, contact_person_position, contact_person_email, contact_person_phone,
             business_registration_type, business_registration_date, corporate_tin,
-            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_number,
+            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_number, authorized_signatory_id_type,
             nature_of_business,
             principal_office_street, principal_office_barangay, principal_office_country,
             principal_office_state, principal_office_city, principal_office_postal_code,
+            principal_office_municipality, principal_office_province,
             registration_cert_file, tin_cert_file, authorization_file,
-            is_politically_exposed_person,
+            is_politically_exposed_person, pep_details,
+            secondary_id_type, secondary_id_number,
+            gis_total_assets, gis_total_liabilities, gis_paid_up_capital,
+            gis_number_of_stockholders, gis_number_of_employees,
+            group_type,
             is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
             $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
-            $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, 
-            $33, $34, $35, $36, $37, $38, $39, $40, $41, 
+            $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33,
+            $34, $35, $36, $37, $38, $39, $40, $41, 
             $42, $43, $44, $45, $46, $47, $48, $49, $50, $51,
-            $52, $53, $54, $55, $56, $57, $58, $59, $60, $61,
-            $62, $63, $64, $65, $66, $67, $68, $69, TRUE, NOW(), NOW()
+            $52, $53, $54, $55, $56, $57, $58, $59, $60,
+            $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71,
+            $72, $73, $74, $75, $76, $77, $78, $79, $80, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -5931,6 +5938,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             employment_status = EXCLUDED.employment_status,
             gross_annual_income = EXCLUDED.gross_annual_income,
             source_of_income = EXCLUDED.source_of_income,
+            monthly_income = EXCLUDED.monthly_income,
             emergency_contact_name = EXCLUDED.emergency_contact_name,
             emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
             emergency_contact_phone = EXCLUDED.emergency_contact_phone,
@@ -5945,6 +5953,8 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             entity_type = EXCLUDED.entity_type,
             entity_name = EXCLUDED.entity_name,
             registration_number = EXCLUDED.registration_number,
+            business_registration_number = EXCLUDED.business_registration_number,
+            business_address = EXCLUDED.business_address,
             contact_person_name = EXCLUDED.contact_person_name,
             contact_person_position = EXCLUDED.contact_person_position,
             contact_person_email = EXCLUDED.contact_person_email,
@@ -5955,6 +5965,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             authorized_signatory_name = EXCLUDED.authorized_signatory_name,
             authorized_signatory_position = EXCLUDED.authorized_signatory_position,
             authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+            authorized_signatory_id_type = EXCLUDED.authorized_signatory_id_type,
             nature_of_business = EXCLUDED.nature_of_business,
             principal_office_street = EXCLUDED.principal_office_street,
             principal_office_barangay = EXCLUDED.principal_office_barangay,
@@ -5962,10 +5973,21 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             principal_office_state = EXCLUDED.principal_office_state,
             principal_office_city = EXCLUDED.principal_office_city,
             principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            principal_office_municipality = EXCLUDED.principal_office_municipality,
+            principal_office_province = EXCLUDED.principal_office_province,
             registration_cert_file = EXCLUDED.registration_cert_file,
             tin_cert_file = EXCLUDED.tin_cert_file,
             authorization_file = EXCLUDED.authorization_file,
             is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
+            pep_details = EXCLUDED.pep_details,
+            secondary_id_type = EXCLUDED.secondary_id_type,
+            secondary_id_number = EXCLUDED.secondary_id_number,
+            gis_total_assets = EXCLUDED.gis_total_assets,
+            gis_total_liabilities = EXCLUDED.gis_total_liabilities,
+            gis_paid_up_capital = EXCLUDED.gis_paid_up_capital,
+            gis_number_of_stockholders = EXCLUDED.gis_number_of_stockholders,
+            gis_number_of_employees = EXCLUDED.gis_number_of_employees,
+            group_type = EXCLUDED.group_type,
             is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
@@ -5999,61 +6021,79 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.tin || kycData.tinNumber || null,
           kycData.nationalIdFile || null,
           kycData.passportFile || null,
-          // Employment Information (27-32)
+          // Employment Information (27-33)
           kycData.occupation || null,
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
           kycData.grossAnnualIncome || kycData.monthlyIncome || null,
           kycData.sourceOfIncome || null,
-          // Emergency Contact Information (33-37)
+          kycData.monthlyIncome || kycData.grossAnnualIncome || null,
+          // Emergency Contact Information (34-38)
           kycData.emergencyContactName || null,
           kycData.emergencyContactRelationship || null,
           kycData.emergencyContactPhone || null,
           kycData.emergencyContactEmail || null,
           kycData.emergencyContactAddress || null,
-          // Mother's Maiden Name (38)
+          // Mother's Maiden Name (39)
           kycData.motherMaidenName || null,
-          // Bank Account Information (39-44)
+          // Bank Account Information (40-45)
           kycData.account_name || kycData.accountName || null,
           kycData.bank_name || kycData.bankName || null,
           kycData.account_type || kycData.accountType || null,
           kycData.account_number || kycData.accountNumber || null,
           kycData.iban || null,
           kycData.swift_code || kycData.swiftCode || null,
-          // Entity Information (45-48)
+          // Entity Information (46-50)
           kycData.entityType || null,
           kycData.entityName || null,
           kycData.registrationNumber || null,
+          kycData.businessRegistrationNumber || kycData.registrationNumber || null,
+          kycData.businessAddress || null,
           // Contact Person (49-52)
           kycData.contactPersonName || null,
           kycData.contactPersonPosition || null,
           kycData.contactPersonEmail || null,
           kycData.contactPersonPhone || null,
-          // Business Registration (53-55)
+          // Business Registration (55-57)
           kycData.businessRegistrationType || null,
           kycData.businessRegistrationDate || null,
           kycData.corporateTin || null,
-          // Authorized Signatory (56-58)
+          // Authorized Signatory (58-61)
           kycData.authorizedSignatoryName || null,
           kycData.authorizedSignatoryPosition || null,
           kycData.authorizedSignatoryIdNumber || null,
-          // Nature of Business (59)
+          kycData.authorizedSignatoryIdType || null,
+          // Nature of Business (62)
           kycData.natureOfBusiness || null,
-          // Principal Office Address (60-65)
+          // Principal Office Address (63-70)
           kycData.principalOfficeStreet || null,
           kycData.principalOfficeBarangay || null,
           kycData.principalOfficeCountry || null,
-          kycData.principalOfficeState || null,
-          kycData.principalOfficeCity || null,
+          kycData.principalOfficeState || kycData.principalOfficeProvince || null,
+          kycData.principalOfficeCity || kycData.principalOfficeMunicipality || null,
           kycData.principalOfficePostalCode || null,
-          // File Uploads (66-68)
+          kycData.principalOfficeMunicipality || kycData.principalOfficeCity || null,
+          kycData.principalOfficeProvince || kycData.principalOfficeState || null,
+          // File Uploads (71-73)
           kycData.registrationCertFile || null,
           kycData.tinCertFile || null,
           kycData.authorizationFile || null,
-          // PEP Status (68)
-          kycData.pepStatus || false,
-          // Account Type (69)
+          // PEP Status (74-75)
+          kycData.isPoliticallyExposedPerson || kycData.pepStatus || false,
+          kycData.pepDetails || null,
+          // Secondary ID (76-77)
+          kycData.secondaryIdType || null,
+          kycData.secondaryIdNumber || null,
+          // GIS Fields (78-82)
+          kycData.gisTotalAssets || null,
+          kycData.gisTotalLiabilities || null,
+          kycData.gisPaidUpCapital || null,
+          kycData.gisNumberOfStockholders || null,
+          kycData.gisNumberOfEmployees || null,
+          // Group Type (83)
+          kycData.groupType || null,
+          // Account Type (final param)
           kycData.isIndividualAccount
         ]);
       } else {
@@ -6075,26 +6115,38 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           INSERT INTO investor_profiles (
             firebase_uid, full_name, first_name, last_name, middle_name, 
             date_of_birth, place_of_birth, nationality, gender, civil_status,
-            mobile_number, country_code, email_address,
+            mobile_number, country_code, email_address, contact_email,
             present_address, permanent_address, city, state, postal_code, country, barangay,
-            national_id, passport, tin_number,
+            national_id, passport, tin_number, national_id_file, passport_file,
             occupation, employer_name, employer_address, employment_status, 
-            gross_annual_income, source_of_income,
+            gross_annual_income, source_of_income, monthly_income,
+            emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, emergency_contact_email, emergency_contact_address,
+            mother_maiden_name,
             account_name, bank_name, account_type, account_number, iban, swift_code,
-            entity_type, entity_name, registration_number,
+            entity_type, entity_name, registration_number, business_registration_number, business_address,
             contact_person_name, contact_person_position, contact_person_email, contact_person_phone,
             business_registration_type, business_registration_date, corporate_tin,
-            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_number,
+            authorized_signatory_name, authorized_signatory_position, authorized_signatory_id_number, authorized_signatory_id_type,
             nature_of_business,
             principal_office_street, principal_office_barangay, principal_office_country,
             principal_office_state, principal_office_city, principal_office_postal_code,
+            principal_office_municipality, principal_office_province,
             registration_cert_file, tin_cert_file, authorization_file,
-            is_politically_exposed_person,
+            is_politically_exposed_person, pep_details,
+            secondary_id_type, secondary_id_number,
+            gis_total_assets, gis_total_liabilities, gis_paid_up_capital,
+            gis_number_of_stockholders, gis_number_of_employees,
+            group_type,
+            investment_preference, portfolio_value,
             is_individual_account, is_complete, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-            $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36,
-            $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, TRUE, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+            $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34,
+            $35, $36, $37, $38, $39, $40, $41, 
+            $42, $43, $44, $45, $46, $47, $48, $49, $50, $51,
+            $52, $53, $54, $55, $56, $57, $58, $59, $60,
+            $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71,
+            $72, $73, $74, $75, $76, $77, $78, $79, $80, $81, $82, $83, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
@@ -6109,6 +6161,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             mobile_number = EXCLUDED.mobile_number,
             country_code = EXCLUDED.country_code,
             email_address = EXCLUDED.email_address,
+            contact_email = EXCLUDED.contact_email,
             present_address = EXCLUDED.present_address,
             permanent_address = EXCLUDED.permanent_address,
             city = EXCLUDED.city,
@@ -6119,12 +6172,21 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             national_id = EXCLUDED.national_id,
             passport = EXCLUDED.passport,
             tin_number = EXCLUDED.tin_number,
+            national_id_file = EXCLUDED.national_id_file,
+            passport_file = EXCLUDED.passport_file,
             occupation = EXCLUDED.occupation,
             employer_name = EXCLUDED.employer_name,
             employer_address = EXCLUDED.employer_address,
             employment_status = EXCLUDED.employment_status,
             gross_annual_income = EXCLUDED.gross_annual_income,
             source_of_income = EXCLUDED.source_of_income,
+            monthly_income = EXCLUDED.monthly_income,
+            emergency_contact_name = EXCLUDED.emergency_contact_name,
+            emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+            emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+            emergency_contact_email = EXCLUDED.emergency_contact_email,
+            emergency_contact_address = EXCLUDED.emergency_contact_address,
+            mother_maiden_name = EXCLUDED.mother_maiden_name,
             account_name = EXCLUDED.account_name,
             bank_name = EXCLUDED.bank_name,
             account_number = EXCLUDED.account_number,
@@ -6133,6 +6195,8 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             entity_type = EXCLUDED.entity_type,
             entity_name = EXCLUDED.entity_name,
             registration_number = EXCLUDED.registration_number,
+            business_registration_number = EXCLUDED.business_registration_number,
+            business_address = EXCLUDED.business_address,
             contact_person_name = EXCLUDED.contact_person_name,
             contact_person_position = EXCLUDED.contact_person_position,
             contact_person_email = EXCLUDED.contact_person_email,
@@ -6143,6 +6207,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             authorized_signatory_name = EXCLUDED.authorized_signatory_name,
             authorized_signatory_position = EXCLUDED.authorized_signatory_position,
             authorized_signatory_id_number = EXCLUDED.authorized_signatory_id_number,
+            authorized_signatory_id_type = EXCLUDED.authorized_signatory_id_type,
             nature_of_business = EXCLUDED.nature_of_business,
             principal_office_street = EXCLUDED.principal_office_street,
             principal_office_barangay = EXCLUDED.principal_office_barangay,
@@ -6150,10 +6215,23 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
             principal_office_state = EXCLUDED.principal_office_state,
             principal_office_city = EXCLUDED.principal_office_city,
             principal_office_postal_code = EXCLUDED.principal_office_postal_code,
+            principal_office_municipality = EXCLUDED.principal_office_municipality,
+            principal_office_province = EXCLUDED.principal_office_province,
             registration_cert_file = EXCLUDED.registration_cert_file,
             tin_cert_file = EXCLUDED.tin_cert_file,
             authorization_file = EXCLUDED.authorization_file,
             is_politically_exposed_person = EXCLUDED.is_politically_exposed_person,
+            pep_details = EXCLUDED.pep_details,
+            secondary_id_type = EXCLUDED.secondary_id_type,
+            secondary_id_number = EXCLUDED.secondary_id_number,
+            gis_total_assets = EXCLUDED.gis_total_assets,
+            gis_total_liabilities = EXCLUDED.gis_total_liabilities,
+            gis_paid_up_capital = EXCLUDED.gis_paid_up_capital,
+            gis_number_of_stockholders = EXCLUDED.gis_number_of_stockholders,
+            gis_number_of_employees = EXCLUDED.gis_number_of_employees,
+            group_type = EXCLUDED.group_type,
+            investment_preference = EXCLUDED.investment_preference,
+            portfolio_value = EXCLUDED.portfolio_value,
             is_individual_account = EXCLUDED.is_individual_account,
             is_complete = TRUE,
             updated_at = NOW()
@@ -6172,7 +6250,8 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.phoneNumber || kycData.mobileNumber || null,
           kycData.countryCode || null,
           kycData.emailAddress || kycData.contactEmail || null,
-          // Address Information (14-19)
+          kycData.contactEmail || kycData.emailAddress || null,
+          // Address Information (15-21)
           kycData.presentAddress || kycData.street || null,
           kycData.permanentAddress || null,
           kycData.city || kycData.cityName || null,
@@ -6180,57 +6259,88 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.postalCode || null,
           kycData.country || kycData.countryIso || null,
           kycData.barangay || null,
-          // Identification (21-23)
+          // Identification (22-26)
           kycData.nationalId || null,
           kycData.passport || kycData.passportNumber || null,
           kycData.tin || kycData.tinNumber || null,
-          // Employment Information (24-29)
+          kycData.nationalIdFile || null,
+          kycData.passportFile || null,
+          // Employment Information (27-33)
           kycData.occupation || null,
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
           kycData.grossAnnualIncome || kycData.monthlyIncome || null,
           kycData.sourceOfIncome || null,
-          // Bank Account Information (30-35)
+          kycData.monthlyIncome || kycData.grossAnnualIncome || null,
+          // Emergency Contact Information (34-38)
+          kycData.emergencyContactName || null,
+          kycData.emergencyContactRelationship || null,
+          kycData.emergencyContactPhone || null,
+          kycData.emergencyContactEmail || null,
+          kycData.emergencyContactAddress || null,
+          // Mother's Maiden Name (39)
+          kycData.motherMaidenName || null,
+          // Bank Account Information (40-45)
           kycData.account_name || kycData.accountName || null,
           kycData.bank_name || kycData.bankName || null,
           kycData.account_type || kycData.accountType || null,
           kycData.account_number || kycData.accountNumber || null,
           kycData.iban || null,
           kycData.swift_code || kycData.swiftCode || null,
-          // Entity Information (36-38)
+          // Entity Information (46-50)
           kycData.entityType || null,
           kycData.entityName || null,
           kycData.registrationNumber || null,
+          kycData.businessRegistrationNumber || kycData.registrationNumber || null,
+          kycData.businessAddress || null,
           // Contact Person (39-42)
           kycData.contactPersonName || null,
           kycData.contactPersonPosition || null,
           kycData.contactPersonEmail || null,
           kycData.contactPersonPhone || null,
-          // Business Registration (43-45)
+          // Business Registration (55-57)
           kycData.businessRegistrationType || null,
           kycData.businessRegistrationDate || null,
           kycData.corporateTin || null,
-          // Authorized Signatory (46-48)
+          // Authorized Signatory (58-61)
           kycData.authorizedSignatoryName || null,
           kycData.authorizedSignatoryPosition || null,
           kycData.authorizedSignatoryIdNumber || null,
-          // Nature of Business (49)
+          kycData.authorizedSignatoryIdType || null,
+          // Nature of Business (62)
           kycData.natureOfBusiness || null,
-          // Principal Office Address (50-55)
+          // Principal Office Address (63-70)
           kycData.principalOfficeStreet || null,
           kycData.principalOfficeBarangay || null,
           kycData.principalOfficeCountry || null,
-          kycData.principalOfficeState || null,
-          kycData.principalOfficeCity || null,
+          kycData.principalOfficeState || kycData.principalOfficeProvince || null,
+          kycData.principalOfficeCity || kycData.principalOfficeMunicipality || null,
           kycData.principalOfficePostalCode || null,
-          // File Uploads (56-58)
+          kycData.principalOfficeMunicipality || kycData.principalOfficeCity || null,
+          kycData.principalOfficeProvince || kycData.principalOfficeState || null,
+          // File Uploads (71-73)
           kycData.registrationCertFile || null,
           kycData.tinCertFile || null,
           kycData.authorizationFile || null,
-          // PEP Status (59)
-          kycData.pepStatus || false,
-          // Account Type (60)
+          // PEP Status (74-75)
+          kycData.isPoliticallyExposedPerson || kycData.pepStatus || false,
+          kycData.pepDetails || null,
+          // Secondary ID (76-77)
+          kycData.secondaryIdType || null,
+          kycData.secondaryIdNumber || null,
+          // GIS Fields (78-82)
+          kycData.gisTotalAssets || null,
+          kycData.gisTotalLiabilities || null,
+          kycData.gisPaidUpCapital || null,
+          kycData.gisNumberOfStockholders || null,
+          kycData.gisNumberOfEmployees || null,
+          // Group Type (83)
+          kycData.groupType || null,
+          // Investment-specific (84-85)
+          kycData.investmentPreference || null,
+          kycData.portfolioValue || null,
+          // Account Type (final param)
           kycData.isIndividualAccount
         ]);
       }
