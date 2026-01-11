@@ -11365,7 +11365,13 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
       email,
       first_name,
       last_name,
+      middle_name,
       phone_number,
+      date_of_birth,
+      age,
+      gender,
+      about_you,
+      display_name,
       global_user_id,
       source_system,
       source_event_id
@@ -11404,9 +11410,15 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
       await db.query(
         `UPDATE users SET 
           full_name = $1,
+          first_name = $2,
+          last_name = $3,
+          middle_name = $4,
+          phone_number = $5,
+          date_of_birth = $6,
+          gender = $7,
           updated_at = NOW()
-        WHERE id = $2`,
-        [fullName, userId]
+        WHERE id = $8`,
+        [fullName, first_name, last_name, middle_name, phone_number, date_of_birth, gender, userId]
       );
 
       console.log(`✅ Updated existing user from Global: ${email}`);
@@ -11440,14 +11452,26 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             email, 
             firebase_uid, 
             full_name,
+            first_name,
+            last_name,
+            middle_name,
+            phone_number,
+            date_of_birth,
+            gender,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, NOW(), NOW())
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
           RETURNING id`,
           [
             email,
             firebaseUid,
-            fullName
+            fullName,
+            first_name,
+            last_name,
+            middle_name,
+            phone_number,
+            date_of_birth,
+            gender
           ]
         );
 

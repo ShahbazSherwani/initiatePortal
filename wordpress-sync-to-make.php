@@ -10,8 +10,10 @@
 
 // Fire webhook to Make when user is created
 add_action('user_register', 'initiate_sync_user_to_make', 10, 1);
+error_log('InitiateGlobal Sync: Hook registered - user_register action loaded');
 
 function initiate_sync_user_to_make($user_id) {
+    error_log('InitiateGlobal Sync: Function triggered for user ID: ' . $user_id);
     // Get user data
     $user = get_userdata($user_id);
     
@@ -23,6 +25,7 @@ function initiate_sync_user_to_make($user_id) {
     // Check if user was synced FROM InitiatePH (prevent loop)
     $synced_from = get_user_meta($user_id, 'synced_from', true);
     $ph_user_id = get_user_meta($user_id, 'ph_user_id', true);
+    error_log('InitiateGlobal Sync: Loop check - synced_from: ' . ($synced_from ?: 'none') . ', ph_user_id: ' . ($ph_user_id ?: 'none'));
     
     if ($synced_from === 'PH' || !empty($ph_user_id)) {
         error_log('InitiateGlobal Sync: Loop protection - User came from PH, not syncing back');
@@ -32,12 +35,20 @@ function initiate_sync_user_to_make($user_id) {
     // Get additional user data
     $first_name = $user->first_name;
     $last_name = $user->last_name;
+    $middle_name = get_user_meta($user_id, 'middle_name', true);
     $phone_number = get_user_meta($user_id, 'phone_number', true);
+    $date_of_birth = get_user_meta($user_id, 'date_of_birth', true);
+    $age = get_user_meta($user_id, 'age', true);
+    $gender = get_user_meta($user_id, 'gender', true);
+    $about_you = get_user_meta($user_id, 'about_you', true);
+    $display_name = $user->display_name;
     
     // Get Make webhook URL from wp-config or define here
     $make_webhook_url = defined('MAKE_WEBHOOK_URL_GLOBAL_TO_PH') 
         ? MAKE_WEBHOOK_URL_GLOBAL_TO_PH 
         : 'https://hook.us2.make.com/x449d7ngzxgye64638dc9yqle76z49pk';
+    
+    error_log('InitiateGlobal Sync: Using webhook URL: ' . substr($make_webhook_url, 0, 40) . '...');
     
     // Prepare payload
     $payload = array(
@@ -48,21 +59,27 @@ function initiate_sync_user_to_make($user_id) {
             'email' => $user->user_email,
             'first_name' => $first_name,
             'last_name' => $last_name,
+            'middle_name' => $middle_name,
             'phone_number' => $phone_number,
+            'date_of_birth' => $date_of_birth,
+            'age' => $age,
+            'gender' => $gender,
+            'about_you' => $about_you,
+            'display_name' => $display_name,
             'global_user_id' => $user_id,
-            'username' => $user->user_login,
-            'display_name' => $user->display_name
+            'username' => $user->user_login
         )
     );
     
     // Log the sync attempt
     error_log('InitiateGlobal Sync: Sending user to Make.com - Email: ' . $user->user_email);
+    error_log('InitiateGlobal Sync: Payload: ' . json_encode($payload));
     
-    // Call Make webhook (non-blocking)
+    // Call Make webhook (temporarily blocking for testing)
     $response = wp_remote_post($make_webhook_url, array(
         'method' => 'POST',
-        'timeout' => 10,
-        'blocking' => false, // Don't wait for response
+        'timeout' => 15,
+        'blocking' => true, // Changed to true for detailed logging
         'headers' => array(
             'Content-Type' => 'application/json'
         ),
@@ -70,10 +87,18 @@ function initiate_sync_user_to_make($user_id) {
         'sslverify' => true
     ));
     
-    // Log result (only if blocking was true)
+    // Log detailed result
     if (is_wp_error($response)) {
-        error_log('InitiateGlobal Sync: Webhook error - ' . $response->get_error_message());
+        error_log('InitiateGlobal Sync: Webhook ERROR - ' . $response->get_error_message());
+        error_log('InitiateGlobal Sync: Error code - ' . $response->get_error_code());
+    } else {
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        error_log('InitiateGlobal Sync: Webhook SUCCESS - Status: ' . $status_code);
+        error_log('InitiateGlobal Sync: Response body: ' . $body);
     }
+    
+    error_log('InitiateGlobal Sync: Function completed for user ID: ' . $user_id);
 }
 
 // Optional: Add admin notice when sync happens
