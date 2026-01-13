@@ -11428,6 +11428,18 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
       });
     }
 
+    // Sanitize inputs - convert empty strings to null for database
+    const sanitize = (val) => (val === '' || val === undefined) ? null : val;
+    const sanitizedData = {
+      first_name: sanitize(first_name),
+      last_name: sanitize(last_name),
+      middle_name: sanitize(middle_name),
+      phone_number: sanitize(phone_number),
+      date_of_birth: sanitize(date_of_birth),
+      gender: sanitize(gender),
+      global_user_id: sanitize(global_user_id)
+    };
+
     // Loop protection: don't sync if it came from PH
     if (source_system === 'PH') {
       console.log('⚠️  Loop protection: Ignoring PH-originated sync');
@@ -11442,7 +11454,7 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
     let userId;
     let firebaseUid;
-    const fullName = `${first_name || ''} ${last_name || ''}`.trim();
+    const fullName = `${sanitizedData.first_name || ''} ${sanitizedData.last_name || ''}`.trim() || null;
 
     if (existingUser.rows && existingUser.rows.length > 0) {
       // User exists - UPDATE
@@ -11451,16 +11463,19 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
       await db.query(
         `UPDATE users SET 
-          full_name = $1,
-          first_name = $2,
-          last_name = $3,
-          middle_name = $4,
-          phone_number = $5,
-          date_of_birth = $6,
-          gender = $7,
+          full_name = COALESCE($1, full_name),
+          first_name = COALESCE($2, first_name),
+          last_name = COALESCE($3, last_name),
+          middle_name = COALESCE($4, middle_name),
+          phone_number = COALESCE($5, phone_number),
+          date_of_birth = COALESCE($6, date_of_birth),
+          gender = COALESCE($7, gender),
+          global_user_id = COALESCE($8, global_user_id),
           updated_at = NOW()
-        WHERE id = $8`,
-        [fullName, first_name, last_name, middle_name, phone_number, date_of_birth, gender, userId]
+        WHERE id = $9`,
+        [fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name, 
+         sanitizedData.phone_number, sanitizedData.date_of_birth, sanitizedData.gender, 
+         sanitizedData.global_user_id, userId]
       );
 
       console.log(`✅ Updated existing user from Global: ${email}`);
@@ -11507,13 +11522,13 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             email,
             firebaseUid,
             fullName,
-            first_name,
-            last_name,
-            middle_name,
-            phone_number,
-            date_of_birth,
-            gender,
-            global_user_id
+            sanitizedData.first_name,
+            sanitizedData.last_name,
+            sanitizedData.middle_name,
+            sanitizedData.phone_number,
+            sanitizedData.date_of_birth,
+            sanitizedData.gender,
+            sanitizedData.global_user_id
           ]
         );
 
@@ -11542,7 +11557,7 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             const firebaseUser = await admin.auth().createUser({
               email: email,
               password: tempPassword,
-              displayName: fullName
+              displayName: fullName || email.split('@')[0]
             });
 
             firebaseUid = firebaseUser.uid;
@@ -11568,13 +11583,13 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
                 email,
                 firebaseUid,
                 fullName,
-                first_name,
-                last_name,
-                middle_name,
-                phone_number,
-                date_of_birth,
-                gender,
-                global_user_id
+                sanitizedData.first_name,
+                sanitizedData.last_name,
+                sanitizedData.middle_name,
+                sanitizedData.phone_number,
+                sanitizedData.date_of_birth,
+                sanitizedData.gender,
+                sanitizedData.global_user_id
               ]
             );
 
