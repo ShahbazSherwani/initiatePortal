@@ -1266,11 +1266,19 @@ profileRouter.get('/', verifyToken, async (req, res) => {
     // Return what we have, omitting problematic fields
     const safeProfile = {
       full_name: rows[0].full_name,
+      first_name: rows[0].first_name || null,
+      last_name: rows[0].last_name || null,
+      middle_name: rows[0].middle_name || null,
+      phone_number: rows[0].phone_number || null,
+      date_of_birth: rows[0].date_of_birth || null,
+      gender: rows[0].gender || null,
+      global_user_id: rows[0].global_user_id || null,
       created_at: rows[0].created_at,
       is_admin: rows[0].is_admin || false,
       has_completed_registration: rows[0].has_completed_registration || false,
       profile_picture: rows[0].profile_picture || null,
       username: rows[0].username || null,
+      email: rows[0].email || null,
       email_verified: rows[0].email_verified || false
     };
     
@@ -2086,7 +2094,9 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
 
     // Get user base info and account flags
     const userQuery = await db.query(
-      `SELECT full_name, has_borrower_account, has_investor_account, current_account_type 
+      `SELECT full_name, first_name, last_name, middle_name, phone_number, 
+              date_of_birth, gender, email, global_user_id,
+              has_borrower_account, has_investor_account, current_account_type 
        FROM users WHERE firebase_uid = $1`,
       [firebase_uid]
     );
@@ -2159,6 +2169,14 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
     const responseData = {
       user: {
         full_name: user.full_name,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        middle_name: user.middle_name,
+        phone_number: user.phone_number,
+        date_of_birth: user.date_of_birth,
+        gender: user.gender,
+        email: user.email,
+        global_user_id: user.global_user_id,
         currentAccountType: effectiveAccountType
       },
       accounts
@@ -2206,6 +2224,16 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
     try {
       await client.query('BEGIN');
       
+      // Get base user data to pre-populate account profiles (from WordPress sync)
+      const baseUserData = await client.query(
+        `SELECT full_name, first_name, last_name, middle_name, phone_number, 
+                date_of_birth, gender, email, global_user_id
+         FROM users WHERE firebase_uid = $1`,
+        [firebase_uid]
+      );
+      
+      const baseUser = baseUserData.rows[0] || {};
+      
       if (accountType === 'borrower') {
         // Check if borrower profile already exists
         const existingBorrower = await client.query(
@@ -2218,14 +2246,22 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
           return res.status(409).json({ error: 'Borrower account already exists' });
         }
         
+        // Pre-populate from user data (synced from WordPress) or from form data
+        const fullName = profileData.fullName || baseUser.full_name || 
+                         `${baseUser.first_name || ''} ${baseUser.last_name || ''}`.trim() || 'Borrower User';
+        const phoneNumber = profileData.phoneNumber || baseUser.phone_number || null;
+        const dateOfBirth = profileData.dateOfBirth || baseUser.date_of_birth || null;
+        
         // Create borrower profile
         const borrowerResult = await client.query(
           `INSERT INTO borrower_profiles (
-            firebase_uid, full_name, is_individual_account, is_complete, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING *`,
+            firebase_uid, full_name, phone_number, date_of_birth, is_individual_account, is_complete, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
           [
             firebase_uid,
-            profileData.fullName || 'Borrower User',
+            fullName,
+            phoneNumber,
+            dateOfBirth,
             true,
             false
           ]
@@ -2265,6 +2301,12 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
           return res.status(409).json({ error: 'Investor account already exists' });
         }
         
+        // Pre-populate from user data (synced from WordPress) or from form data
+        const fullName = profileData.fullName || baseUser.full_name || 
+                         `${baseUser.first_name || ''} ${baseUser.last_name || ''}`.trim() || null;
+        const phoneNumber = profileData.phoneNumber || baseUser.phone_number || null;
+        const dateOfBirth = profileData.dateOfBirth || baseUser.date_of_birth || null;
+        
         // Create investor profile
         const investorResult = await client.query(
           `INSERT INTO investor_profiles (
@@ -2273,10 +2315,10 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
           [
             firebase_uid,
-            profileData.fullName || null,
+            fullName,
             profileData.location || null,
-            profileData.phoneNumber || null,
-            profileData.dateOfBirth || null,
+            phoneNumber,
+            dateOfBirth,
             profileData.investmentExperience || null,
             profileData.investmentPreference || 'both',
             profileData.riskTolerance || 'moderate',
