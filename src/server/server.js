@@ -11431,22 +11431,20 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
       });
 
     } else {
-      // User doesn't exist - CREATE
-      
-      // Generate a temporary password (user will reset via email)
-      const tempPassword = crypto.randomBytes(16).toString('hex');
+      // User doesn't exist in our database - check Firebase first
       
       try {
-        // Create Firebase user first
-        const firebaseUser = await admin.auth().createUser({
-          email: email,
-          password: tempPassword,
-          displayName: fullName
-        });
-
-        firebaseUid = firebaseUser.uid;
-
-        // Create Supabase record
+        // Check if user already exists in Firebase
+        const existingFirebaseUser = await admin.auth().getUserByEmail(email);
+        
+        // User EXISTS in Firebase but NOT in our database
+        // This happens when someone registered on InitiateGlobal (WordPress)
+        // and their email matches an existing Firebase account
+        console.log(`🔗 Found existing Firebase user for ${email}, linking accounts...`);
+        
+        firebaseUid = existingFirebaseUser.uid;
+        
+        // Create database record linking to existing Firebase user
         const result = await db.query(
           `INSERT INTO users (
             email, 
@@ -11458,9 +11456,10 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             phone_number,
             date_of_birth,
             gender,
+            global_user_id,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
           RETURNING id`,
           [
             email,
@@ -11471,36 +11470,107 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             middle_name,
             phone_number,
             date_of_birth,
-            gender
+            gender,
+            global_user_id
           ]
         );
 
         userId = result.rows[0].id;
 
-        console.log(`✅ Created new user from Global: ${email}`);
-
-        // Send password reset email
-        try {
-          const resetLink = await admin.auth().generatePasswordResetLink(email);
-          console.log('📧 Password reset link generated for:', email);
-        } catch (emailError) {
-          console.error('⚠️  Password reset email error:', emailError.message);
-        }
+        console.log(`✅ Linked Global user to existing Firebase account: ${email}`);
 
         return res.json({
           success: true,
-          action: 'created',
+          action: 'linked',
           user_id: userId,
           firebase_uid: firebaseUid,
-          message: 'User created. Password reset email sent.'
+          message: 'User already exists in Firebase. Accounts linked. User can login with existing password.'
         });
 
-      } catch (firebaseError) {
-        console.error('Firebase user creation error:', firebaseError);
-        return res.status(500).json({ 
-          error: 'Failed to create Firebase user',
-          details: firebaseError.message 
-        });
+      } catch (firebaseLookupError) {
+        // User does NOT exist in Firebase - CREATE new account
+        if (firebaseLookupError.code === 'auth/user-not-found') {
+          console.log(`📝 Creating new Firebase user for ${email}...`);
+          
+          // Generate a temporary password (user will reset via email)
+          const tempPassword = crypto.randomBytes(16).toString('hex');
+          
+          try {
+            // Create Firebase user
+            const firebaseUser = await admin.auth().createUser({
+              email: email,
+              password: tempPassword,
+              displayName: fullName
+            });
+
+            firebaseUid = firebaseUser.uid;
+
+            // Create Supabase record
+            const result = await db.query(
+              `INSERT INTO users (
+                email, 
+                firebase_uid, 
+                full_name,
+                first_name,
+                last_name,
+                middle_name,
+                phone_number,
+                date_of_birth,
+                gender,
+                global_user_id,
+                created_at,
+                updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+              RETURNING id`,
+              [
+                email,
+                firebaseUid,
+                fullName,
+                first_name,
+                last_name,
+                middle_name,
+                phone_number,
+                date_of_birth,
+                gender,
+                global_user_id
+              ]
+            );
+
+            userId = result.rows[0].id;
+
+            console.log(`✅ Created new user from Global: ${email}`);
+
+            // Send password reset email so user can set their password
+            try {
+              const resetLink = await admin.auth().generatePasswordResetLink(email);
+              console.log('📧 Password reset link generated for:', email);
+            } catch (emailError) {
+              console.error('⚠️  Password reset email error:', emailError.message);
+            }
+
+            return res.json({
+              success: true,
+              action: 'created',
+              user_id: userId,
+              firebase_uid: firebaseUid,
+              message: 'User created. Password reset email sent.'
+            });
+
+          } catch (firebaseError) {
+            console.error('Firebase user creation error:', firebaseError);
+            return res.status(500).json({ 
+              error: 'Failed to create Firebase user',
+              details: firebaseError.message 
+            });
+          }
+        } else {
+          // Some other Firebase error
+          console.error('Firebase lookup error:', firebaseLookupError);
+          return res.status(500).json({ 
+            error: 'Failed to check Firebase user',
+            details: firebaseLookupError.message 
+          });
+        }
       }
     }
 
