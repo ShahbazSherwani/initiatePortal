@@ -11408,10 +11408,20 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
       first_name,
       last_name,
       middle_name,
+      suffix_name,
       phone_number,
       date_of_birth,
+      place_of_birth,
       age,
       gender,
+      civil_status,
+      nationality,
+      present_address,
+      permanent_address,
+      city,
+      state,
+      postal_code,
+      country,
       about_you,
       display_name,
       global_user_id,
@@ -11421,10 +11431,10 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
     console.log('📥 Sync user request from Make.com:', { email, source_system });
 
-    // Validate required fields
-    if (!email || !source_system || !source_event_id) {
+    // Validate required fields - source_event_id now optional for flexibility
+    if (!email || !source_system) {
       return res.status(400).json({ 
-        error: 'Missing required fields: email, source_system, source_event_id' 
+        error: 'Missing required fields: email, source_system' 
       });
     }
 
@@ -11434,9 +11444,19 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
       first_name: sanitize(first_name),
       last_name: sanitize(last_name),
       middle_name: sanitize(middle_name),
+      suffix_name: sanitize(suffix_name),
       phone_number: sanitize(phone_number),
       date_of_birth: sanitize(date_of_birth),
+      place_of_birth: sanitize(place_of_birth),
       gender: sanitize(gender),
+      civil_status: sanitize(civil_status),
+      nationality: sanitize(nationality),
+      present_address: sanitize(present_address),
+      permanent_address: sanitize(permanent_address),
+      city: sanitize(city),
+      state: sanitize(state),
+      postal_code: sanitize(postal_code),
+      country: sanitize(country),
       global_user_id: sanitize(global_user_id)
     };
 
@@ -11467,14 +11487,27 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
           first_name = COALESCE($2, first_name),
           last_name = COALESCE($3, last_name),
           middle_name = COALESCE($4, middle_name),
-          phone_number = COALESCE($5, phone_number),
-          date_of_birth = COALESCE($6, date_of_birth),
-          gender = COALESCE($7, gender),
-          global_user_id = COALESCE($8, global_user_id),
+          suffix_name = COALESCE($5, suffix_name),
+          phone_number = COALESCE($6, phone_number),
+          date_of_birth = COALESCE($7, date_of_birth),
+          place_of_birth = COALESCE($8, place_of_birth),
+          gender = COALESCE($9, gender),
+          civil_status = COALESCE($10, civil_status),
+          nationality = COALESCE($11, nationality),
+          present_address = COALESCE($12, present_address),
+          permanent_address = COALESCE($13, permanent_address),
+          city = COALESCE($14, city),
+          state = COALESCE($15, state),
+          postal_code = COALESCE($16, postal_code),
+          country = COALESCE($17, country),
+          global_user_id = COALESCE($18, global_user_id),
           updated_at = NOW()
-        WHERE id = $9`,
-        [fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name, 
-         sanitizedData.phone_number, sanitizedData.date_of_birth, sanitizedData.gender, 
+        WHERE id = $19`,
+        [fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name,
+         sanitizedData.suffix_name, sanitizedData.phone_number, sanitizedData.date_of_birth,
+         sanitizedData.place_of_birth, sanitizedData.gender, sanitizedData.civil_status,
+         sanitizedData.nationality, sanitizedData.present_address, sanitizedData.permanent_address,
+         sanitizedData.city, sanitizedData.state, sanitizedData.postal_code, sanitizedData.country,
          sanitizedData.global_user_id, userId]
       );
 
@@ -11510,13 +11543,23 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             first_name,
             last_name,
             middle_name,
+            suffix_name,
             phone_number,
             date_of_birth,
+            place_of_birth,
             gender,
+            civil_status,
+            nationality,
+            present_address,
+            permanent_address,
+            city,
+            state,
+            postal_code,
+            country,
             global_user_id,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW())
           RETURNING id`,
           [
             email,
@@ -11525,9 +11568,19 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             sanitizedData.first_name,
             sanitizedData.last_name,
             sanitizedData.middle_name,
+            sanitizedData.suffix_name,
             sanitizedData.phone_number,
             sanitizedData.date_of_birth,
+            sanitizedData.place_of_birth,
             sanitizedData.gender,
+            sanitizedData.civil_status,
+            sanitizedData.nationality,
+            sanitizedData.present_address,
+            sanitizedData.permanent_address,
+            sanitizedData.city,
+            sanitizedData.state,
+            sanitizedData.postal_code,
+            sanitizedData.country,
             sanitizedData.global_user_id
           ]
         );
@@ -11571,13 +11624,23 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
                 first_name,
                 last_name,
                 middle_name,
+                suffix_name,
                 phone_number,
                 date_of_birth,
+                place_of_birth,
                 gender,
+                civil_status,
+                nationality,
+                present_address,
+                permanent_address,
+                city,
+                state,
+                postal_code,
+                country,
                 global_user_id,
                 created_at,
                 updated_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW())
               RETURNING id`,
               [
                 email,
@@ -11586,9 +11649,19 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
                 sanitizedData.first_name,
                 sanitizedData.last_name,
                 sanitizedData.middle_name,
+                sanitizedData.suffix_name,
                 sanitizedData.phone_number,
                 sanitizedData.date_of_birth,
+                sanitizedData.place_of_birth,
                 sanitizedData.gender,
+                sanitizedData.civil_status,
+                sanitizedData.nationality,
+                sanitizedData.present_address,
+                sanitizedData.permanent_address,
+                sanitizedData.city,
+                sanitizedData.state,
+                sanitizedData.postal_code,
+                sanitizedData.country,
                 sanitizedData.global_user_id
               ]
             );

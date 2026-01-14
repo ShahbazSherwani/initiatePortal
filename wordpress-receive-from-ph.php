@@ -73,16 +73,31 @@ function initiate_sync_user_from_ph($request) {
     
     error_log('Initiate Sync from PH: Received payload - ' . json_encode($params));
     
-    // Extract user data
+    // Extract user data - Basic fields
     $email = sanitize_email($params['email'] ?? '');
     $first_name = sanitize_text_field($params['first_name'] ?? '');
     $last_name = sanitize_text_field($params['last_name'] ?? '');
+    $middle_name = sanitize_text_field($params['middle_name'] ?? '');
+    $suffix_name = sanitize_text_field($params['suffix_name'] ?? '');
     $full_name = sanitize_text_field($params['full_name'] ?? '');
     $phone_number = sanitize_text_field($params['phone_number'] ?? '');
     $firebase_uid = sanitize_text_field($params['firebase_uid'] ?? '');
     $ph_user_id = sanitize_text_field($params['ph_user_id'] ?? '');
     $source_system = sanitize_text_field($params['source_system'] ?? '');
     $source_event_id = sanitize_text_field($params['source_event_id'] ?? '');
+    
+    // Additional profile fields
+    $date_of_birth = sanitize_text_field($params['date_of_birth'] ?? '');
+    $place_of_birth = sanitize_text_field($params['place_of_birth'] ?? '');
+    $gender = sanitize_text_field($params['gender'] ?? '');
+    $civil_status = sanitize_text_field($params['civil_status'] ?? '');
+    $nationality = sanitize_text_field($params['nationality'] ?? '');
+    $present_address = sanitize_textarea_field($params['present_address'] ?? '');
+    $permanent_address = sanitize_textarea_field($params['permanent_address'] ?? '');
+    $city = sanitize_text_field($params['city'] ?? '');
+    $state = sanitize_text_field($params['state'] ?? '');
+    $postal_code = sanitize_text_field($params['postal_code'] ?? '');
+    $country = sanitize_text_field($params['country'] ?? '');
     
     // Validate required fields
     if (empty($email)) {
@@ -108,7 +123,7 @@ function initiate_sync_user_from_ph($request) {
         // UPDATE existing user
         $user_id = $existing_user->ID;
         
-        // Update user meta
+        // Update user meta - Basic fields
         if (!empty($first_name)) {
             update_user_meta($user_id, 'first_name', $first_name);
             wp_update_user(array('ID' => $user_id, 'first_name' => $first_name));
@@ -116,6 +131,12 @@ function initiate_sync_user_from_ph($request) {
         if (!empty($last_name)) {
             update_user_meta($user_id, 'last_name', $last_name);
             wp_update_user(array('ID' => $user_id, 'last_name' => $last_name));
+        }
+        if (!empty($middle_name)) {
+            update_user_meta($user_id, 'middle_name', $middle_name);
+        }
+        if (!empty($suffix_name)) {
+            update_user_meta($user_id, 'suffix_name', $suffix_name);
         }
         if (!empty($phone_number)) {
             update_user_meta($user_id, 'phone_number', $phone_number);
@@ -125,6 +146,41 @@ function initiate_sync_user_from_ph($request) {
         }
         if (!empty($ph_user_id)) {
             update_user_meta($user_id, 'ph_user_id', $ph_user_id);
+        }
+        
+        // Update additional profile fields
+        if (!empty($date_of_birth)) {
+            update_user_meta($user_id, 'date_of_birth', $date_of_birth);
+        }
+        if (!empty($place_of_birth)) {
+            update_user_meta($user_id, 'place_of_birth', $place_of_birth);
+        }
+        if (!empty($gender)) {
+            update_user_meta($user_id, 'gender', $gender);
+        }
+        if (!empty($civil_status)) {
+            update_user_meta($user_id, 'civil_status', $civil_status);
+        }
+        if (!empty($nationality)) {
+            update_user_meta($user_id, 'nationality', $nationality);
+        }
+        if (!empty($present_address)) {
+            update_user_meta($user_id, 'present_address', $present_address);
+        }
+        if (!empty($permanent_address)) {
+            update_user_meta($user_id, 'permanent_address', $permanent_address);
+        }
+        if (!empty($city)) {
+            update_user_meta($user_id, 'city', $city);
+        }
+        if (!empty($state)) {
+            update_user_meta($user_id, 'state', $state);
+        }
+        if (!empty($postal_code)) {
+            update_user_meta($user_id, 'postal_code', $postal_code);
+        }
+        if (!empty($country)) {
+            update_user_meta($user_id, 'country', $country);
         }
         
         // Mark as synced from PH to prevent loop
@@ -185,7 +241,13 @@ function initiate_sync_user_from_ph($request) {
             ), 500);
         }
         
-        // Add user meta
+        // Add user meta - Basic fields
+        if (!empty($middle_name)) {
+            update_user_meta($user_id, 'middle_name', $middle_name);
+        }
+        if (!empty($suffix_name)) {
+            update_user_meta($user_id, 'suffix_name', $suffix_name);
+        }
         if (!empty($phone_number)) {
             update_user_meta($user_id, 'phone_number', $phone_number);
         }
@@ -194,6 +256,41 @@ function initiate_sync_user_from_ph($request) {
         }
         if (!empty($ph_user_id)) {
             update_user_meta($user_id, 'ph_user_id', $ph_user_id);
+        }
+        
+        // Add additional profile fields
+        if (!empty($date_of_birth)) {
+            update_user_meta($user_id, 'date_of_birth', $date_of_birth);
+        }
+        if (!empty($place_of_birth)) {
+            update_user_meta($user_id, 'place_of_birth', $place_of_birth);
+        }
+        if (!empty($gender)) {
+            update_user_meta($user_id, 'gender', $gender);
+        }
+        if (!empty($civil_status)) {
+            update_user_meta($user_id, 'civil_status', $civil_status);
+        }
+        if (!empty($nationality)) {
+            update_user_meta($user_id, 'nationality', $nationality);
+        }
+        if (!empty($present_address)) {
+            update_user_meta($user_id, 'present_address', $present_address);
+        }
+        if (!empty($permanent_address)) {
+            update_user_meta($user_id, 'permanent_address', $permanent_address);
+        }
+        if (!empty($city)) {
+            update_user_meta($user_id, 'city', $city);
+        }
+        if (!empty($state)) {
+            update_user_meta($user_id, 'state', $state);
+        }
+        if (!empty($postal_code)) {
+            update_user_meta($user_id, 'postal_code', $postal_code);
+        }
+        if (!empty($country)) {
+            update_user_meta($user_id, 'country', $country);
         }
         
         // Mark as synced from PH to prevent loop
