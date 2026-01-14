@@ -472,6 +472,40 @@ try {
       console.error('❌ Profile picture migration failed:', err.message);
     }
   };
+
+  // User profile sync fields migration function
+  const runUserSyncFieldsMigration = async () => {
+    const migrationName = 'user_sync_fields_migration';
+    if (await hasMigrationRun(migrationName)) {
+      console.log('⏭️  User sync fields migration already completed, skipping...');
+      return;
+    }
+
+    try {
+      console.log('🔧 Running user sync fields migration...');
+      
+      // Add additional profile fields to users table for sync between platforms
+      await db.query(`
+        ALTER TABLE users 
+          ADD COLUMN IF NOT EXISTS suffix_name VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS place_of_birth VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS civil_status VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS nationality VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS present_address TEXT,
+          ADD COLUMN IF NOT EXISTS permanent_address TEXT,
+          ADD COLUMN IF NOT EXISTS city VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS state VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS country VARCHAR(100)
+      `);
+      
+      console.log('✅ User sync fields added to users table');
+      await recordMigration(migrationName);
+      
+    } catch (err) {
+      console.error('❌ User sync fields migration failed:', err.message);
+    }
+  };
   
   // Investor KYC fields migration function
   const runInvestorKycMigration = async () => {
@@ -698,6 +732,7 @@ try {
   const runAllMigrations = async () => {
     await checkMigrationsTable();
     await runProfilePictureMigration();
+    await runUserSyncFieldsMigration();
     await runInvestorKycMigration();
     await runBorrowerKycMigration();
     await runAccountTypeMigration();
