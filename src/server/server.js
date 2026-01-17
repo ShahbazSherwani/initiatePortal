@@ -165,20 +165,33 @@ async function notifyMakeOfNewUser(userData) {
   }
 
   try {
+    // Send flat structure for easier Make.com mapping
     const payload = {
       source_system: 'PH',
       source_event_id: crypto.randomUUID(),
       source_timestamp: new Date().toISOString(),
-      user: {
-        email: userData.email,
-        first_name: userData.first_name || '',
-        last_name: userData.last_name || '',
-        full_name: userData.full_name || '',
-        phone_number: userData.phone_number || '',
-        role: userData.role || 'borrower',
-        firebase_uid: userData.firebase_uid,
-        ph_user_id: userData.id
-      }
+      // User data - flat structure
+      email: userData.email || '',
+      first_name: userData.first_name || '',
+      last_name: userData.last_name || '',
+      middle_name: userData.middle_name || '',
+      suffix_name: userData.suffix_name || '',
+      full_name: userData.full_name || '',
+      phone_number: userData.phone_number || '',
+      date_of_birth: userData.date_of_birth || '',
+      place_of_birth: userData.place_of_birth || '',
+      gender: userData.gender || '',
+      civil_status: userData.civil_status || '',
+      nationality: userData.nationality || '',
+      present_address: userData.present_address || '',
+      permanent_address: userData.permanent_address || '',
+      city: userData.city || '',
+      state: userData.state || '',
+      postal_code: userData.postal_code || '',
+      country: userData.country || '',
+      role: userData.role || 'borrower',
+      firebase_uid: userData.firebase_uid || '',
+      ph_user_id: userData.id || ''
     };
 
     console.log('🔔 Notifying Make.com of new user:', userData.email);
