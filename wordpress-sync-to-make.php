@@ -50,25 +50,33 @@ function initiate_sync_user_to_make($user_id) {
     
     error_log('InitiateGlobal Sync: Using webhook URL: ' . substr($make_webhook_url, 0, 40) . '...');
     
-    // Prepare payload
+    // Prepare payload - FLAT structure for Make.com
     $payload = array(
         'source_system' => 'GLOBAL',
         'source_event_id' => wp_generate_uuid4(),
         'source_timestamp' => current_time('c'),
-        'user' => array(
-            'email' => $user->user_email,
-            'first_name' => $first_name,
-            'last_name' => $last_name,
-            'middle_name' => $middle_name,
-            'phone_number' => $phone_number,
-            'date_of_birth' => $date_of_birth,
-            'age' => $age,
-            'gender' => $gender,
-            'about_you' => $about_you,
-            'display_name' => $display_name,
-            'global_user_id' => $user_id,
-            'username' => $user->user_login
-        )
+        'email' => $user->user_email,
+        'first_name' => $first_name,
+        'last_name' => $last_name,
+        'middle_name' => $middle_name,
+        'suffix_name' => get_user_meta($user_id, 'suffix_name', true),
+        'phone_number' => $phone_number,
+        'date_of_birth' => $date_of_birth,
+        'place_of_birth' => get_user_meta($user_id, 'place_of_birth', true),
+        'age' => $age,
+        'gender' => $gender,
+        'civil_status' => get_user_meta($user_id, 'civil_status', true),
+        'nationality' => get_user_meta($user_id, 'nationality', true),
+        'present_address' => get_user_meta($user_id, 'present_address', true),
+        'permanent_address' => get_user_meta($user_id, 'permanent_address', true),
+        'city' => get_user_meta($user_id, 'city', true),
+        'state' => get_user_meta($user_id, 'state', true),
+        'postal_code' => get_user_meta($user_id, 'postal_code', true),
+        'country' => get_user_meta($user_id, 'country', true),
+        'about_you' => $about_you,
+        'display_name' => $display_name,
+        'user_id' => $user_id,
+        'username' => $user->user_login
     );
     
     // Log the sync attempt

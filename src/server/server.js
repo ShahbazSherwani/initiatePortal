@@ -11512,48 +11512,140 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
     const fullName = `${sanitizedData.first_name || ''} ${sanitizedData.last_name || ''}`.trim() || null;
 
     if (existingUser.rows && existingUser.rows.length > 0) {
-      // User exists - UPDATE
+      // User exists in database - but verify Firebase user still exists
       userId = existingUser.rows[0].id;
       firebaseUid = existingUser.rows[0].firebase_uid;
 
-      await db.query(
-        `UPDATE users SET 
-          full_name = COALESCE($1, full_name),
-          first_name = COALESCE($2, first_name),
-          last_name = COALESCE($3, last_name),
-          middle_name = COALESCE($4, middle_name),
-          suffix_name = COALESCE($5, suffix_name),
-          phone_number = COALESCE($6, phone_number),
-          date_of_birth = COALESCE($7, date_of_birth),
-          place_of_birth = COALESCE($8, place_of_birth),
-          gender = COALESCE($9, gender),
-          civil_status = COALESCE($10, civil_status),
-          nationality = COALESCE($11, nationality),
-          present_address = COALESCE($12, present_address),
-          permanent_address = COALESCE($13, permanent_address),
-          city = COALESCE($14, city),
-          state = COALESCE($15, state),
-          postal_code = COALESCE($16, postal_code),
-          country = COALESCE($17, country),
-          global_user_id = COALESCE($18, global_user_id),
-          updated_at = NOW()
-        WHERE id = $19`,
-        [fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name,
-         sanitizedData.suffix_name, sanitizedData.phone_number, sanitizedData.date_of_birth,
-         sanitizedData.place_of_birth, sanitizedData.gender, sanitizedData.civil_status,
-         sanitizedData.nationality, sanitizedData.present_address, sanitizedData.permanent_address,
-         sanitizedData.city, sanitizedData.state, sanitizedData.postal_code, sanitizedData.country,
-         sanitizedData.global_user_id, userId]
-      );
+      // Verify the Firebase user actually exists
+      let firebaseUserExists = false;
+      if (firebaseUid) {
+        try {
+          await admin.auth().getUser(firebaseUid);
+          firebaseUserExists = true;
+          console.log(`✅ Firebase user verified: ${firebaseUid}`);
+        } catch (fbError) {
+          if (fbError.code === 'auth/user-not-found') {
+            console.log(`⚠️ Firebase user ${firebaseUid} not found - will recreate`);
+            firebaseUserExists = false;
+          } else {
+            throw fbError;
+          }
+        }
+      }
 
-      console.log(`✅ Updated existing user from Global: ${email}`);
-      
-      return res.json({
-        success: true,
-        action: 'updated',
-        user_id: userId,
-        firebase_uid: firebaseUid
-      });
+      if (firebaseUserExists) {
+        // Firebase user exists - just UPDATE the database record
+        await db.query(
+          `UPDATE users SET 
+            full_name = COALESCE($1, full_name),
+            first_name = COALESCE($2, first_name),
+            last_name = COALESCE($3, last_name),
+            middle_name = COALESCE($4, middle_name),
+            suffix_name = COALESCE($5, suffix_name),
+            phone_number = COALESCE($6, phone_number),
+            date_of_birth = COALESCE($7, date_of_birth),
+            place_of_birth = COALESCE($8, place_of_birth),
+            gender = COALESCE($9, gender),
+            civil_status = COALESCE($10, civil_status),
+            nationality = COALESCE($11, nationality),
+            present_address = COALESCE($12, present_address),
+            permanent_address = COALESCE($13, permanent_address),
+            city = COALESCE($14, city),
+            state = COALESCE($15, state),
+            postal_code = COALESCE($16, postal_code),
+            country = COALESCE($17, country),
+            global_user_id = COALESCE($18, global_user_id),
+            updated_at = NOW()
+          WHERE id = $19`,
+          [fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name,
+           sanitizedData.suffix_name, sanitizedData.phone_number, sanitizedData.date_of_birth,
+           sanitizedData.place_of_birth, sanitizedData.gender, sanitizedData.civil_status,
+           sanitizedData.nationality, sanitizedData.present_address, sanitizedData.permanent_address,
+           sanitizedData.city, sanitizedData.state, sanitizedData.postal_code, sanitizedData.country,
+           sanitizedData.global_user_id, userId]
+        );
+
+        console.log(`✅ Updated existing user from Global: ${email}`);
+        
+        return res.json({
+          success: true,
+          action: 'updated',
+          user_id: userId,
+          firebase_uid: firebaseUid
+        });
+      } else {
+        // Firebase user was deleted - need to recreate it
+        console.log(`🔄 Recreating Firebase user for orphaned database record: ${email}`);
+        
+        const tempPassword = crypto.randomBytes(16).toString('hex');
+        
+        try {
+          const firebaseUser = await admin.auth().createUser({
+            email: email,
+            password: tempPassword,
+            displayName: fullName || email.split('@')[0]
+          });
+
+          firebaseUid = firebaseUser.uid;
+
+          // Update database with new Firebase UID
+          await db.query(
+            `UPDATE users SET 
+              firebase_uid = $1,
+              full_name = COALESCE($2, full_name),
+              first_name = COALESCE($3, first_name),
+              last_name = COALESCE($4, last_name),
+              middle_name = COALESCE($5, middle_name),
+              suffix_name = COALESCE($6, suffix_name),
+              phone_number = COALESCE($7, phone_number),
+              date_of_birth = COALESCE($8, date_of_birth),
+              place_of_birth = COALESCE($9, place_of_birth),
+              gender = COALESCE($10, gender),
+              civil_status = COALESCE($11, civil_status),
+              nationality = COALESCE($12, nationality),
+              present_address = COALESCE($13, present_address),
+              permanent_address = COALESCE($14, permanent_address),
+              city = COALESCE($15, city),
+              state = COALESCE($16, state),
+              postal_code = COALESCE($17, postal_code),
+              country = COALESCE($18, country),
+              global_user_id = COALESCE($19, global_user_id),
+              updated_at = NOW()
+            WHERE id = $20`,
+            [firebaseUid, fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name,
+             sanitizedData.suffix_name, sanitizedData.phone_number, sanitizedData.date_of_birth,
+             sanitizedData.place_of_birth, sanitizedData.gender, sanitizedData.civil_status,
+             sanitizedData.nationality, sanitizedData.present_address, sanitizedData.permanent_address,
+             sanitizedData.city, sanitizedData.state, sanitizedData.postal_code, sanitizedData.country,
+             sanitizedData.global_user_id, userId]
+          );
+
+          console.log(`✅ Recreated Firebase user and updated database: ${email}`);
+
+          // Send password reset email
+          try {
+            await admin.auth().generatePasswordResetLink(email);
+            console.log('📧 Password reset link generated for:', email);
+          } catch (emailError) {
+            console.error('⚠️ Password reset email error:', emailError.message);
+          }
+
+          return res.json({
+            success: true,
+            action: 'recreated',
+            user_id: userId,
+            firebase_uid: firebaseUid,
+            message: 'Firebase user recreated. Password reset email sent.'
+          });
+
+        } catch (createError) {
+          console.error('❌ Failed to recreate Firebase user:', createError);
+          return res.status(500).json({ 
+            error: 'Failed to recreate Firebase user',
+            details: createError.message 
+          });
+        }
+      }
 
     } else {
       // User doesn't exist in our database - check Firebase first
