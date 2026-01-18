@@ -11673,8 +11673,15 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
         console.log(`🔗 Found existing Firebase user for ${email}, linking accounts...`);
         
         firebaseUid = existingFirebaseUser.uid;
+
+        // Clean up any orphaned records with this firebase_uid before inserting
+        // (can happen if DB record was deleted but another record had same UID)
+        await db.query(
+          `DELETE FROM users WHERE firebase_uid = $1 AND email != $2`,
+          [firebaseUid, email]
+        );
         
-        // Create database record linking to existing Firebase user
+        // Create database record linking to existing Firebase user (use UPSERT to handle edge cases)
         const result = await db.query(
           `INSERT INTO users (
             email, 
@@ -11700,6 +11707,13 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             created_at,
             updated_at
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW())
+          ON CONFLICT (email) DO UPDATE SET
+            firebase_uid = EXCLUDED.firebase_uid,
+            full_name = COALESCE(EXCLUDED.full_name, users.full_name),
+            first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+            last_name = COALESCE(EXCLUDED.last_name, users.last_name),
+            global_user_id = COALESCE(EXCLUDED.global_user_id, users.global_user_id),
+            updated_at = NOW()
           RETURNING id`,
           [
             email,
@@ -11755,7 +11769,14 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
             firebaseUid = firebaseUser.uid;
 
-            // Create Supabase record
+            // Clean up any orphaned records with this firebase_uid before inserting
+            // (can happen if Firebase user was deleted but DB record remained)
+            await db.query(
+              `DELETE FROM users WHERE firebase_uid = $1 AND email != $2`,
+              [firebaseUid, email]
+            );
+
+            // Create Supabase record (use UPSERT to handle edge cases with orphaned records)
             const result = await db.query(
               `INSERT INTO users (
                 email, 
@@ -11781,6 +11802,13 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
                 created_at,
                 updated_at
               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW())
+              ON CONFLICT (email) DO UPDATE SET
+                firebase_uid = EXCLUDED.firebase_uid,
+                full_name = COALESCE(EXCLUDED.full_name, users.full_name),
+                first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+                last_name = COALESCE(EXCLUDED.last_name, users.last_name),
+                global_user_id = COALESCE(EXCLUDED.global_user_id, users.global_user_id),
+                updated_at = NOW()
               RETURNING id`,
               [
                 email,
