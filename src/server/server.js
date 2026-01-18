@@ -11635,10 +11635,23 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
           console.log(`✅ Recreated Firebase user and updated database: ${email}`);
 
-          // Send password reset email
+          // Send password reset email using Mailjet
           try {
-            await admin.auth().generatePasswordResetLink(email);
-            console.log('📧 Password reset link generated for:', email);
+            // Generate reset token and store in database
+            const resetToken = crypto.randomBytes(32).toString('hex');
+            const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+            
+            await db.query(
+              `INSERT INTO password_reset_tokens (firebase_uid, email, token, expires_at, used)
+               VALUES ($1, $2, $3, $4, false)
+               ON CONFLICT (firebase_uid) 
+               DO UPDATE SET token = $3, expires_at = $4, used = false, created_at = NOW()`,
+              [firebaseUid, email, resetToken, expiresAt]
+            );
+            
+            // Send password reset email via Mailjet
+            await sendPasswordResetEmail(email, resetToken, fullName || 'User');
+            console.log('📧 Password reset email sent to:', email);
           } catch (emailError) {
             console.error('⚠️ Password reset email error:', emailError.message);
           }
@@ -11838,10 +11851,23 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
             console.log(`✅ Created new user from Global: ${email}`);
 
-            // Send password reset email so user can set their password
+            // Send password reset email so user can set their password (via Mailjet)
             try {
-              const resetLink = await admin.auth().generatePasswordResetLink(email);
-              console.log('📧 Password reset link generated for:', email);
+              // Generate reset token and store in database
+              const resetToken = crypto.randomBytes(32).toString('hex');
+              const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+              
+              await db.query(
+                `INSERT INTO password_reset_tokens (firebase_uid, email, token, expires_at, used)
+                 VALUES ($1, $2, $3, $4, false)
+                 ON CONFLICT (firebase_uid) 
+                 DO UPDATE SET token = $3, expires_at = $4, used = false, created_at = NOW()`,
+                [firebaseUid, email, resetToken, expiresAt]
+              );
+              
+              // Send password reset email via Mailjet
+              await sendPasswordResetEmail(email, resetToken, fullName || 'User');
+              console.log('📧 Password reset email sent to:', email);
             } catch (emailError) {
               console.error('⚠️  Password reset email error:', emailError.message);
             }
