@@ -1235,19 +1235,30 @@ profileRouter.post('/', verifyToken, async (req, res) => {
       last = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
     }
     
+    // Get email from Firebase for this user
+    let userEmail = null;
+    try {
+      const firebaseUser = await admin.auth().getUser(req.uid);
+      userEmail = firebaseUser.email;
+    } catch (fbError) {
+      console.error('⚠️ Could not get Firebase user email:', fbError.message);
+    }
+    
     // Insert with suspension_scope = 'none' to ensure account is NOT suspended
+    // Also include email so verification emails can work
     const result = await db.query(
-      `INSERT INTO users (firebase_uid, full_name, first_name, last_name, phone_number, role, suspension_scope)
-       VALUES ($1, $2, $3, $4, $5, $6, 'none')
+      `INSERT INTO users (firebase_uid, email, full_name, first_name, last_name, phone_number, role, suspension_scope)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'none')
        ON CONFLICT (firebase_uid) DO UPDATE
          SET full_name = EXCLUDED.full_name,
              first_name = EXCLUDED.first_name,
              last_name = EXCLUDED.last_name,
+             email = COALESCE(EXCLUDED.email, users.email),
              phone_number = COALESCE(EXCLUDED.phone_number, users.phone_number),
              role = EXCLUDED.role,
              suspension_scope = COALESCE(users.suspension_scope, 'none')
-       RETURNING id, firebase_uid, full_name, first_name, last_name, phone_number`,
-      [req.uid, fullName, first, last, phoneNumber || null, role || 'borrower']
+       RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
+      [req.uid, userEmail, fullName, first, last, phoneNumber || null, role || 'borrower']
     );
     
     // Notify Make.com of new user registration
