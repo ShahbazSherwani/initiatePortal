@@ -1244,22 +1244,38 @@ profileRouter.post('/', verifyToken, async (req, res) => {
       console.error('⚠️ Could not get Firebase user email:', fbError.message);
     }
     
-    // Insert with suspension_scope = 'none' to ensure account is NOT suspended
-    // Also include email so verification emails can work
-    const result = await db.query(
-      `INSERT INTO users (firebase_uid, email, full_name, first_name, last_name, phone_number, role, suspension_scope)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'none')
-       ON CONFLICT (firebase_uid) DO UPDATE
-         SET full_name = EXCLUDED.full_name,
-             first_name = EXCLUDED.first_name,
-             last_name = EXCLUDED.last_name,
-             email = COALESCE(EXCLUDED.email, users.email),
-             phone_number = COALESCE(EXCLUDED.phone_number, users.phone_number),
-             role = EXCLUDED.role,
-             suspension_scope = COALESCE(users.suspension_scope, 'none')
-       RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
-      [req.uid, userEmail, fullName, first, last, phoneNumber || null, role || 'borrower']
+    // First check if user exists by firebase_uid
+    const existingUser = await db.query(
+      'SELECT id, email FROM users WHERE firebase_uid = $1',
+      [req.uid]
     );
+    
+    let result;
+    if (existingUser.rows.length > 0) {
+      // UPDATE existing user
+      result = await db.query(
+        `UPDATE users SET
+           full_name = $1,
+           first_name = $2,
+           last_name = $3,
+           email = COALESCE($4, email),
+           phone_number = COALESCE($5, phone_number),
+           role = $6,
+           suspension_scope = COALESCE(suspension_scope, 'none'),
+           updated_at = NOW()
+         WHERE firebase_uid = $7
+         RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
+        [fullName, first, last, userEmail, phoneNumber || null, role || 'borrower', req.uid]
+      );
+    } else {
+      // INSERT new user
+      result = await db.query(
+        `INSERT INTO users (firebase_uid, email, full_name, first_name, last_name, phone_number, role, suspension_scope, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'none', NOW(), NOW())
+         RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
+        [req.uid, userEmail, fullName, first, last, phoneNumber || null, role || 'borrower']
+      );
+    }
     
     // Notify Make.com of new user registration
     if (result.rows && result.rows.length > 0) {

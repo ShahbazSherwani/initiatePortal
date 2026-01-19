@@ -4,42 +4,38 @@ const pool = new Pool({
   connectionString: 'postgresql://postgres.hruwzvreotstwnaarucf:ofLsAuJ9aqFYbVwX@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres'
 });
 
-async function checkAndFix() {
+async function check() {
   try {
-    // Check existing constraints on users table
-    const constraints = await pool.query(`
-      SELECT constraint_name, constraint_type 
-      FROM information_schema.table_constraints 
-      WHERE table_name = 'users' AND table_schema = 'public'
-    `);
-    console.log('Existing constraints on users table:');
-    console.log(constraints.rows);
+    // Check the new user from the logs
+    const result = await pool.query(
+      `SELECT id, email, firebase_uid, full_name, email_verified, created_at 
+       FROM users 
+       WHERE firebase_uid = 'hkraBlYQUggnhgTrAhairPsbgTC2'`
+    );
+    
+    if (result.rows.length === 0) {
+      console.log('❌ User NOT found in database - profile creation failed!');
+    } else {
+      console.log('User found:', result.rows[0]);
+    }
 
-    // Check indexes
-    const indexes = await pool.query(`
-      SELECT indexname, indexdef 
-      FROM pg_indexes 
-      WHERE tablename = 'users' AND schemaname = 'public'
-    `);
-    console.log('\nExisting indexes:');
-    indexes.rows.forEach(r => console.log(`  ${r.indexname}`));
-
-    // Add unique constraint on email if it doesn't exist
-    console.log('\nAdding unique constraint on email...');
-    await pool.query(`
-      ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email)
-    `);
-    console.log('✅ Added unique constraint on email');
+    // Check all recent users
+    const recent = await pool.query(
+      `SELECT id, email, firebase_uid, full_name, created_at 
+       FROM users 
+       ORDER BY created_at DESC
+       LIMIT 5`
+    );
+    console.log('\nMost recent users:');
+    recent.rows.forEach(r => {
+      console.log(`  ${r.id}: ${r.email || 'NO EMAIL'} | ${r.firebase_uid?.substring(0,10)}... | ${r.full_name}`);
+    });
     
   } catch (err) {
-    if (err.message.includes('already exists')) {
-      console.log('Constraint already exists, skipping');
-    } else {
-      console.error('Error:', err.message);
-    }
+    console.error('Error:', err.message);
   } finally {
     await pool.end();
   }
 }
 
-checkAndFix();
+check();
