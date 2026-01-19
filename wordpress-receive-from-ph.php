@@ -222,6 +222,10 @@ function initiate_sync_user_from_ph($request) {
             $display_name = $username;
         }
         
+        // IMPORTANT: Temporarily disable the outgoing sync hook to prevent loop
+        // The user_register hook fires during wp_insert_user BEFORE we can set meta
+        remove_action('user_register', 'initiate_sync_user_to_make', 10);
+        
         // Create user
         $user_id = wp_insert_user(array(
             'user_login' => $username,
@@ -232,6 +236,9 @@ function initiate_sync_user_from_ph($request) {
             'display_name' => $display_name,
             'role' => 'subscriber' // Default role
         ));
+        
+        // Re-enable the outgoing sync hook
+        add_action('user_register', 'initiate_sync_user_to_make', 10, 1);
         
         if (is_wp_error($user_id)) {
             error_log('Initiate Sync from PH: Failed to create user - ' . $user_id->get_error_message());
