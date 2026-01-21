@@ -37,3 +37,8 @@ dist-ssr
 *.key
 src/server/firebase-service-account.json
 .vercel
+
+# Temporary debug scripts with credentials
+check-*.cjs
+fix-*.cjs
+security-audit.cjs
