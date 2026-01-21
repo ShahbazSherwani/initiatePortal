@@ -11575,6 +11575,7 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
       if (firebaseUserExists) {
         // Firebase user exists - just UPDATE the database record
+        // Also reset status and current_account_type in case user was previously deleted
         await db.query(
           `UPDATE users SET 
             full_name = COALESCE($1, full_name),
@@ -11595,6 +11596,8 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             postal_code = COALESCE($16, postal_code),
             country = COALESCE($17, country),
             global_user_id = COALESCE($18, global_user_id),
+            status = 'active',
+            current_account_type = NULL,
             updated_at = NOW()
           WHERE id = $19`,
           [fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name,
@@ -11629,6 +11632,7 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
           firebaseUid = firebaseUser.uid;
 
           // Update database with new Firebase UID
+          // Also reset status and current_account_type in case user was previously deleted
           await db.query(
             `UPDATE users SET 
               firebase_uid = $1,
@@ -11650,6 +11654,8 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
               postal_code = COALESCE($17, postal_code),
               country = COALESCE($18, country),
               global_user_id = COALESCE($19, global_user_id),
+              status = 'active',
+              current_account_type = NULL,
               updated_at = NOW()
             WHERE id = $20`,
             [firebaseUid, fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name,

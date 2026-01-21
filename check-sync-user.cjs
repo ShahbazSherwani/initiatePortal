@@ -1,7 +1,8 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  connectionString: 'postgresql://postgres.hruwzvreotstwnaarucf:ofLsAuJ9aqFYbVwX@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres'
+  connectionString: 'postgresql://postgres.hruwzvreotstwnaarucf:VT1CHeNNwvKxnCGt@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres',
+  ssl: { rejectUnauthorized: false }
 });
 
 async function check() {
