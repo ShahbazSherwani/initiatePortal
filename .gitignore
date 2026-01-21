@@ -8,7 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+8dist
 dist-ssr
 *.local
 
@@ -29,6 +29,9 @@ dist-ssr
 *.sw?
 *.env
 *.env.local
+*.env.production
+*.env.make.example
+*.env.example
 **/firebase-service-account.json
 *.pem
 *.key
