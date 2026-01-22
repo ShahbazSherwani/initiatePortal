@@ -11523,10 +11523,11 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
       display_name,
       global_user_id,
       source_system,
-      source_event_id
+      source_event_id,
+      password // Password from Global - if provided, set directly in Firebase
     } = req.body;
 
-    console.log('📥 Sync user request from Make.com:', { email, source_system });
+    console.log('📥 Sync user request from Make.com:', { email, source_system, hasPassword: !!password });
 
     // Validate required fields - source_event_id now optional for flexibility
     if (!email || !source_system) {
@@ -11757,25 +11758,51 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
           console.log(`✅ Recreated Firebase user and updated database: ${email}`);
 
-          // Send password reset email using Mailjet
-          try {
-            // Generate reset token and store in database
-            const resetToken = crypto.randomBytes(32).toString('hex');
-            const expiresAt = new Date(Date.now() + 3600000); // 1 hour
-            
-            await db.query(
-              `INSERT INTO password_reset_tokens (firebase_uid, email, token, expires_at, used)
-               VALUES ($1, $2, $3, $4, false)
-               ON CONFLICT (firebase_uid) 
-               DO UPDATE SET token = $3, expires_at = $4, used = false, created_at = NOW()`,
-              [firebaseUid, email, resetToken, expiresAt]
-            );
-            
-            // Send password reset email via Mailjet
-            await sendPasswordResetEmail(email, resetToken, fullName || 'User');
-            console.log('📧 Password reset email sent to:', email);
-          } catch (emailError) {
-            console.error('⚠️ Password reset email error:', emailError.message);
+          // If password is provided from Global, set it directly in Firebase
+          if (password && password.length >= 6) {
+            try {
+              await admin.auth().updateUser(firebaseUid, { password: password });
+              console.log('🔑 Password synced directly from Global to Firebase');
+              
+              return res.json({
+                success: true,
+                action: 'recreated',
+                user_id: userId,
+                firebase_uid: firebaseUid,
+                message: 'Firebase user recreated with synced password.'
+              });
+            } catch (pwError) {
+              console.error('⚠️ Failed to sync password:', pwError.message);
+              // Continue to fallback (password reset email)
+            }
+          }
+
+          // Fallback: Send password reset email if no password provided
+          // Only send if user has profile data (completed Global registration)
+          const hasProfileData = fullName && fullName.trim().length > 0;
+          
+          if (hasProfileData) {
+            try {
+              // Generate reset token and store in database
+              const resetToken = crypto.randomBytes(32).toString('hex');
+              const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+              
+              await db.query(
+                `INSERT INTO password_reset_tokens (firebase_uid, email, token, expires_at, used)
+                 VALUES ($1, $2, $3, $4, false)
+                 ON CONFLICT (firebase_uid) 
+                 DO UPDATE SET token = $3, expires_at = $4, used = false, created_at = NOW()`,
+                [firebaseUid, email, resetToken, expiresAt]
+              );
+              
+              // Send password reset email via Mailjet
+              await sendPasswordResetEmail(email, resetToken, fullName || 'User');
+              console.log('📧 Password reset email sent to:', email);
+            } catch (emailError) {
+              console.error('⚠️ Password reset email error:', emailError.message);
+            }
+          } else {
+            console.log('ℹ️ Skipping password reset email - user has no profile data yet');
           }
 
           return res.json({
@@ -11783,7 +11810,7 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
             action: 'recreated',
             user_id: userId,
             firebase_uid: firebaseUid,
-            message: 'Firebase user recreated. Password reset email sent.'
+            message: hasProfileData ? 'Firebase user recreated. Password reset email sent.' : 'Firebase user recreated. Waiting for profile completion.'
           });
 
         } catch (createError) {
@@ -11973,25 +12000,51 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
             console.log(`✅ Created new user from Global: ${email}`);
 
-            // Send password reset email so user can set their password (via Mailjet)
-            try {
-              // Generate reset token and store in database
-              const resetToken = crypto.randomBytes(32).toString('hex');
-              const expiresAt = new Date(Date.now() + 3600000); // 1 hour
-              
-              await db.query(
-                `INSERT INTO password_reset_tokens (firebase_uid, email, token, expires_at, used)
-                 VALUES ($1, $2, $3, $4, false)
-                 ON CONFLICT (firebase_uid) 
-                 DO UPDATE SET token = $3, expires_at = $4, used = false, created_at = NOW()`,
-                [firebaseUid, email, resetToken, expiresAt]
-              );
-              
-              // Send password reset email via Mailjet
-              await sendPasswordResetEmail(email, resetToken, fullName || 'User');
-              console.log('📧 Password reset email sent to:', email);
-            } catch (emailError) {
-              console.error('⚠️  Password reset email error:', emailError.message);
+            // If password is provided from Global, set it directly in Firebase
+            if (password && password.length >= 6) {
+              try {
+                await admin.auth().updateUser(firebaseUid, { password: password });
+                console.log('🔑 Password synced directly from Global to Firebase');
+                
+                return res.json({
+                  success: true,
+                  action: 'created',
+                  user_id: userId,
+                  firebase_uid: firebaseUid,
+                  message: 'User created with synced password.'
+                });
+              } catch (pwError) {
+                console.error('⚠️ Failed to sync password:', pwError.message);
+                // Continue to fallback (password reset email)
+              }
+            }
+
+            // Fallback: Send password reset email if no password provided
+            // Only send if user has profile data (completed Global registration)
+            const hasProfileData = fullName && fullName.trim().length > 0;
+            
+            if (hasProfileData) {
+              try {
+                // Generate reset token and store in database
+                const resetToken = crypto.randomBytes(32).toString('hex');
+                const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+                
+                await db.query(
+                  `INSERT INTO password_reset_tokens (firebase_uid, email, token, expires_at, used)
+                   VALUES ($1, $2, $3, $4, false)
+                   ON CONFLICT (firebase_uid) 
+                   DO UPDATE SET token = $3, expires_at = $4, used = false, created_at = NOW()`,
+                  [firebaseUid, email, resetToken, expiresAt]
+                );
+                
+                // Send password reset email via Mailjet
+                await sendPasswordResetEmail(email, resetToken, fullName || 'User');
+                console.log('📧 Password reset email sent to:', email);
+              } catch (emailError) {
+                console.error('⚠️  Password reset email error:', emailError.message);
+              }
+            } else {
+              console.log('ℹ️ Skipping password reset email - user has no profile data yet');
             }
 
             return res.json({
@@ -11999,7 +12052,7 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
               action: 'created',
               user_id: userId,
               firebase_uid: firebaseUid,
-              message: 'User created. Password reset email sent.'
+              message: hasProfileData ? 'User created. Password reset email sent.' : 'User created. Waiting for profile completion.'
             });
 
           } catch (firebaseError) {
