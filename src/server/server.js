@@ -9656,23 +9656,45 @@ app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: Owner access required" });
     }
 
+    // Delete from Firebase first
+    try {
+      await admin.auth().deleteUser(userId);
+      console.log(`✅ Deleted Firebase user: ${userId}`);
+    } catch (firebaseError) {
+      if (firebaseError.code !== 'auth/user-not-found') {
+        console.error('⚠️ Firebase delete error (continuing):', firebaseError.message);
+      } else {
+        console.log(`ℹ️ Firebase user ${userId} already deleted or not found`);
+      }
+    }
+
     // Begin transaction
     await db.query('BEGIN');
 
     try {
-      // Delete related data first
+      // Delete ALL related data first (order matters for foreign keys)
+      await db.query('DELETE FROM password_reset_tokens WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM email_verifications WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+      await db.query('DELETE FROM user_settings WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM team_member_permissions WHERE team_member_id IN (SELECT id FROM team_members WHERE user_firebase_uid = $1)', [userId]);
+      await db.query('DELETE FROM team_members WHERE user_firebase_uid = $1 OR owner_firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM team_invitations WHERE inviter_uid = $1', [userId]);
       await db.query('DELETE FROM projects WHERE firebase_uid = $1', [userId]);
       await db.query('DELETE FROM topup_requests WHERE firebase_uid = $1', [userId]);
       await db.query('DELETE FROM borrower_profiles WHERE firebase_uid = $1', [userId]);
       await db.query('DELETE FROM investor_profiles WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM user_suspensions WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM user_suspension_history WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM wallets WHERE user_id = $1', [userId]);
       
       // Delete user
       await db.query('DELETE FROM users WHERE firebase_uid = $1', [userId]);
 
       await db.query('COMMIT');
       
-      console.log(`Owner ${req.uid} deleted user ${userId}`);
-      res.json({ success: true, message: "User deleted successfully" });
+      console.log(`✅ Owner ${req.uid} fully deleted user ${userId} from Firebase + Supabase`);
+      res.json({ success: true, message: "User deleted successfully from Firebase and database" });
       
     } catch (err) {
       await db.query('ROLLBACK');
@@ -11633,7 +11655,12 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
 
         if (existingByEmail) {
           // Firebase user exists with different UID - just update our DB to use the correct UID
+          const oldFirebaseUid = firebaseUid;
           firebaseUid = existingByEmail.uid;
+          
+          // Clean up old password_reset_tokens before changing firebase_uid
+          await db.query('DELETE FROM password_reset_tokens WHERE firebase_uid = $1', [oldFirebaseUid]);
+          console.log(`🧹 Cleaned up old password_reset_tokens for UID: ${oldFirebaseUid}`);
           
           await db.query(
             `UPDATE users SET 
