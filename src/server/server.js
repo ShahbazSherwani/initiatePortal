@@ -11632,6 +11632,24 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
         );
 
         console.log(`✅ Updated existing user from Global: ${email}`);
+
+        // If password is provided, update it in Firebase
+        if (password && password.length >= 6) {
+          try {
+            await admin.auth().updateUser(firebaseUid, { password: password });
+            console.log('🔑 Password synced to existing Firebase user');
+            
+            return res.json({
+              success: true,
+              action: 'updated',
+              user_id: userId,
+              firebase_uid: firebaseUid,
+              message: 'User updated with synced password.'
+            });
+          } catch (pwError) {
+            console.error('⚠️ Failed to sync password to existing user:', pwError.message);
+          }
+        }
         
         return res.json({
           success: true,
