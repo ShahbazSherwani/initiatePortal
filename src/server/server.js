@@ -11617,8 +11617,70 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
           firebase_uid: firebaseUid
         });
       } else {
-        // Firebase user was deleted - need to recreate it
-        console.log(`🔄 Recreating Firebase user for orphaned database record: ${email}`);
+        // Firebase user was deleted (by UID) - check if exists by EMAIL first
+        console.log(`🔄 Firebase user with UID ${firebaseUid} not found, checking by email...`);
+        
+        let existingByEmail = null;
+        try {
+          existingByEmail = await admin.auth().getUserByEmail(email);
+          console.log(`✅ Found Firebase user by email: ${existingByEmail.uid}`);
+        } catch (emailLookupError) {
+          if (emailLookupError.code !== 'auth/user-not-found') {
+            throw emailLookupError;
+          }
+          console.log(`📝 No Firebase user found by email either, will create new...`);
+        }
+
+        if (existingByEmail) {
+          // Firebase user exists with different UID - just update our DB to use the correct UID
+          firebaseUid = existingByEmail.uid;
+          
+          await db.query(
+            `UPDATE users SET 
+              firebase_uid = $1,
+              full_name = COALESCE($2, full_name),
+              first_name = COALESCE($3, first_name),
+              last_name = COALESCE($4, last_name),
+              middle_name = COALESCE($5, middle_name),
+              suffix_name = COALESCE($6, suffix_name),
+              phone_number = COALESCE($7, phone_number),
+              date_of_birth = COALESCE($8, date_of_birth),
+              place_of_birth = COALESCE($9, place_of_birth),
+              gender = COALESCE($10, gender),
+              civil_status = COALESCE($11, civil_status),
+              nationality = COALESCE($12, nationality),
+              present_address = COALESCE($13, present_address),
+              permanent_address = COALESCE($14, permanent_address),
+              city = COALESCE($15, city),
+              state = COALESCE($16, state),
+              postal_code = COALESCE($17, postal_code),
+              country = COALESCE($18, country),
+              global_user_id = COALESCE($19, global_user_id),
+              status = 'active',
+              current_account_type = NULL,
+              updated_at = NOW()
+            WHERE id = $20`,
+            [firebaseUid, fullName, sanitizedData.first_name, sanitizedData.last_name, sanitizedData.middle_name,
+             sanitizedData.suffix_name, sanitizedData.phone_number, sanitizedData.date_of_birth,
+             sanitizedData.place_of_birth, sanitizedData.gender, sanitizedData.civil_status,
+             sanitizedData.nationality, sanitizedData.present_address, sanitizedData.permanent_address,
+             sanitizedData.city, sanitizedData.state, sanitizedData.postal_code, sanitizedData.country,
+             sanitizedData.global_user_id, userId]
+          );
+
+          console.log(`✅ Linked to existing Firebase user: ${email} -> ${firebaseUid}`);
+
+          return res.json({
+            success: true,
+            action: 'linked',
+            user_id: userId,
+            firebase_uid: firebaseUid,
+            message: 'Linked to existing Firebase account. User can login with existing password.'
+          });
+        }
+        
+        // No Firebase user exists - create new one
+        console.log(`📝 Creating new Firebase user for orphaned database record: ${email}`);
         
         const tempPassword = crypto.randomBytes(16).toString('hex');
         
