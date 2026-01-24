@@ -262,7 +262,7 @@ export const RegisterStep = (): JSX.Element => {
       
       // 4) Send verification email
       try {
-        const response = await fetch(`${API_BASE_URL}/api/send-verification-email`, {
+        const response = await fetch(`${API_BASE_URL}/send-verification-email`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

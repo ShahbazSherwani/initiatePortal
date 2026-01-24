@@ -6610,9 +6610,14 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
       // Commit transaction
       await db.query('COMMIT');
       
+      // Clear cache so accounts endpoint returns fresh data
+      cache.delete(`accounts:${uid}`);
+      cache.delete(`profile:${uid}`);
+      
       console.log('✅ KYC data successfully saved to database');
       console.log('📊 Account type:', accountType);
       console.log('👤 User ID:', uid);
+      console.log('🗑️ Cache cleared for user:', uid);
       
       res.json({ 
         success: true, 
