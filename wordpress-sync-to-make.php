@@ -152,3 +152,138 @@ function initiate_manual_sync_user($request) {
 // You can set this via wp-config.php: define('MAKE_WEBHOOK_URL_GLOBAL_TO_PH', 'https://...');
 // Or add to database:
 // update_option('initiate_make_webhook_url', 'https://hook.us1.make.com/...');
+
+// ==========================================
+// PASSWORD SYNC FUNCTIONS
+// ==========================================
+
+/**
+ * Capture password on password RESET completion
+ * This fires when user completes password reset flow
+ */
+add_action('after_password_reset', 'initiate_sync_password_on_reset', 10, 2);
+
+function initiate_sync_password_on_reset($user, $new_password) {
+    error_log('InitiateGlobal Password Sync: Password reset completed for user ID: ' . $user->ID);
+    initiate_send_password_to_make($user->ID, $new_password, 'password_reset');
+}
+
+/**
+ * Capture password on profile UPDATE (when user changes their password)
+ */
+add_action('profile_update', 'initiate_sync_password_on_profile_update', 10, 2);
+
+function initiate_sync_password_on_profile_update($user_id, $old_user_data) {
+    // Check if password was changed (pass1 is the WordPress password field)
+    $password = isset($_POST['pass1']) ? $_POST['pass1'] : null;
+    
+    if ($password && !empty($password)) {
+        error_log('InitiateGlobal Password Sync: Password changed via profile for user ID: ' . $user_id);
+        initiate_send_password_to_make($user_id, $password, 'profile_password_change');
+    }
+}
+
+/**
+ * Capture password during NEW user registration
+ * Note: This requires a custom registration form that POSTs password
+ */
+add_action('user_register', 'initiate_sync_password_on_register', 20, 1);
+
+function initiate_sync_password_on_register($user_id) {
+    // Try multiple possible password field names
+    $password = isset($_POST['password']) ? $_POST['password'] : 
+                (isset($_POST['pass1']) ? $_POST['pass1'] : 
+                (isset($_POST['user_pass']) ? $_POST['user_pass'] : null));
+    
+    if ($password && !empty($password)) {
+        error_log('InitiateGlobal Password Sync: New user registration with password for user ID: ' . $user_id);
+        initiate_send_password_to_make($user_id, $password, 'registration');
+    }
+}
+
+/**
+ * Hook into wp_set_password to capture ALL password changes
+ * This is the most reliable hook as it fires for any password change
+ */
+add_action('after_password_reset', 'initiate_capture_password_change', 5, 2);
+
+/**
+ * Send password to Make.com webhook (which forwards to InitiatePH)
+ */
+function initiate_send_password_to_make($user_id, $password, $trigger_type) {
+    $user = get_userdata($user_id);
+    
+    if (!$user) {
+        error_log('InitiateGlobal Password Sync: User not found for ID: ' . $user_id);
+        return;
+    }
+    
+    // Check loop protection
+    $synced_from = get_user_meta($user_id, 'synced_from', true);
+    $ph_user_id = get_user_meta($user_id, 'ph_user_id', true);
+    
+    if ($synced_from === 'PH' || !empty($ph_user_id)) {
+        error_log('InitiateGlobal Password Sync: Loop protection - User came from PH, not syncing password');
+        return;
+    }
+    
+    // Get user data
+    $first_name = get_user_meta($user_id, 'first_name', true);
+    $last_name = get_user_meta($user_id, 'last_name', true);
+    
+    // Get Make webhook URL
+    $make_webhook_url = defined('MAKE_WEBHOOK_URL_GLOBAL_TO_PH') 
+        ? MAKE_WEBHOOK_URL_GLOBAL_TO_PH 
+        : 'https://hook.us2.make.com/x449d7ngzxgye64638dc9yqle76z49pk';
+    
+    // Prepare payload WITH PASSWORD
+    $payload = array(
+        'source_system' => 'GLOBAL',
+        'source_event_id' => wp_generate_uuid4(),
+        'source_timestamp' => current_time('c'),
+        'trigger_type' => $trigger_type,
+        'email' => $user->user_email,
+        'first_name' => $first_name,
+        'last_name' => $last_name,
+        'middle_name' => get_user_meta($user_id, 'middle_name', true),
+        'suffix_name' => get_user_meta($user_id, 'suffix_name', true),
+        'phone_number' => get_user_meta($user_id, 'phone_number', true),
+        'date_of_birth' => get_user_meta($user_id, 'date_of_birth', true),
+        'place_of_birth' => get_user_meta($user_id, 'place_of_birth', true),
+        'gender' => get_user_meta($user_id, 'gender', true),
+        'civil_status' => get_user_meta($user_id, 'civil_status', true),
+        'nationality' => get_user_meta($user_id, 'nationality', true),
+        'present_address' => get_user_meta($user_id, 'present_address', true),
+        'permanent_address' => get_user_meta($user_id, 'permanent_address', true),
+        'city' => get_user_meta($user_id, 'city', true),
+        'state' => get_user_meta($user_id, 'state', true),
+        'postal_code' => get_user_meta($user_id, 'postal_code', true),
+        'country' => get_user_meta($user_id, 'country', true),
+        'global_user_id' => $user_id,
+        'password' => $password  // <-- THE PASSWORD
+    );
+    
+    error_log('InitiateGlobal Password Sync: Sending password for ' . $user->user_email . ' (trigger: ' . $trigger_type . ')');
+    // DO NOT log the actual password!
+    
+    // Send to Make.com
+    $response = wp_remote_post($make_webhook_url, array(
+        'method' => 'POST',
+        'timeout' => 15,
+        'blocking' => true,
+        'headers' => array(
+            'Content-Type' => 'application/json'
+        ),
+        'body' => json_encode($payload),
+        'sslverify' => true
+    ));
+    
+    if (is_wp_error($response)) {
+        error_log('InitiateGlobal Password Sync: Webhook ERROR - ' . $response->get_error_message());
+    } else {
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        error_log('InitiateGlobal Password Sync: Webhook response - Status: ' . $status_code);
+        error_log('InitiateGlobal Password Sync: Response: ' . $body);
+    }
+}

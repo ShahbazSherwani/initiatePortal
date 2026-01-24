@@ -855,8 +855,11 @@ process.on('unhandledRejection', (reason, promise) => {
 // After your app definition and before any routes
 const app = express();
 
+// Trust proxy for Render/reverse proxy deployments (fixes express-rate-limit X-Forwarded-For warnings)
+app.set('trust proxy', 1);
+
 // Increase body size limit to 50MB
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb' });
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // CORS configuration for production
@@ -9086,7 +9089,9 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         passport: '',
         tin: '',
         secondaryIdType: '',
-        secondaryIdNumber: ''
+        secondaryIdNumber: '',
+        nationalIdFile: null,
+        passportFile: null
       },
       bankAccounts: [],
       businessInfo: {
@@ -9214,13 +9219,15 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           principalOfficeProvince: borrower.principal_office_province || ''
         };
 
-        // Map identification documents
+        // Map identification documents including file uploads
         profileData.identifications = {
           nationalId: borrower.national_id || '',
           passport: borrower.passport || '',
           tin: borrower.tin_number || '',
           secondaryIdType: borrower.secondary_id_type || '',
-          secondaryIdNumber: borrower.secondary_id_number || ''
+          secondaryIdNumber: borrower.secondary_id_number || '',
+          nationalIdFile: borrower.national_id_file || null,
+          passportFile: borrower.passport_file || null
         };
       }
     }
@@ -9242,7 +9249,7 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           profileData.personalInfo.middleName = investor.middle_name || '';
         }
 
-        // Merge investor identification data
+        // Merge investor identification data including file uploads
         if (!profileData.identifications.nationalId) {
           profileData.identifications.nationalId = investor.national_id || '';
         }
@@ -9251,6 +9258,13 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         }
         if (!profileData.identifications.tin) {
           profileData.identifications.tin = investor.tin_number || '';
+        }
+        // Always include investor ID files if present (override or merge)
+        if (investor.national_id_file) {
+          profileData.identifications.nationalIdFile = investor.national_id_file;
+        }
+        if (investor.passport_file) {
+          profileData.identifications.passportFile = investor.passport_file;
         }
         
         profileData.investmentInfo = {

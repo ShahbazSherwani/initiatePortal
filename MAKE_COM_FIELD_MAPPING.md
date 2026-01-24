@@ -47,21 +47,39 @@ After adding all fields, your HTTP module body should look like this:
 
 ```json
 {
-  "email": "{{1.user.email}}",
-  "first_name": "{{1.user.first_name}}",
-  "last_name": "{{1.user.last_name}}",
-  "middle_name": "{{1.user.middle_name}}",
-  "phone_number": "{{1.user.phone_number}}",
-  "date_of_birth": "{{1.user.date_of_birth}}",
-  "age": "{{1.user.age}}",
-  "gender": "{{1.user.gender}}",
-  "about_you": "{{1.user.about_you}}",
-  "display_name": "{{1.user.display_name}}",
-  "global_user_id": "{{1.user.global_user_id}}",
+  "email": "{{1.email}}",
+  "first_name": "{{1.first_name}}",
+  "last_name": "{{1.last_name}}",
+  "middle_name": "{{1.middle_name}}",
+  "phone_number": "{{1.phone_number}}",
+  "date_of_birth": "{{1.date_of_birth}}",
+  "age": "{{1.age}}",
+  "gender": "{{1.gender}}",
+  "about_you": "{{1.about_you}}",
+  "display_name": "{{1.display_name}}",
+  "global_user_id": "{{1.global_user_id}}",
   "source_system": "{{1.source_system}}",
-  "source_event_id": "{{1.source_event_id}}"
+  "source_event_id": "{{1.source_event_id}}",
+  "password": "{{1.password}}"
 }
 ```
+
+## ⭐ PASSWORD FIELD (NEW - IMPORTANT!)
+
+The `password` field allows direct password sync from Global to Firebase:
+
+| Field | Value | Description |
+|-------|-------|-------------|
+| `password` | `{{1.password}}` | Plaintext password from WordPress (sent via HTTPS) |
+
+**When password is provided:**
+- InitiatePH sets it directly in Firebase
+- User can immediately log in with same password as Global
+- NO password reset email is sent
+
+**When password is NOT provided:**
+- InitiatePH sends a password reset email (if user has profile data)
+- User must click the link to set their password
 
 ## What Changed?
 
