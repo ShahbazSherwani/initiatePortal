@@ -360,7 +360,7 @@ export const AdminTopUpRequests: React.FC = () => {
       {/* Review Modal */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-2xl max-h-[90vh] bg-white overflow-y-auto">
             <CardContent className="p-4 md:p-6">
               <h2 className="text-xl md:text-2xl font-bold mb-4">Review Top-Up Request</h2>
               

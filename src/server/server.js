@@ -5162,7 +5162,7 @@ app.get('/api/admin/investment-requests', verifyToken, async (req, res) => {
         
         allInvestments.push({
           projectId: row.id,
-          projectTitle: projectData.details?.projectTitle || 'Untitled Project',
+          projectTitle: projectData.details?.product || projectData.details?.projectTitle || projectData.details?.projectName || 'Untitled Project',
           borrowerName: row.borrower_name,
           borrowerUid: row.firebase_uid,
           investorId: request.investorId,
@@ -7115,9 +7115,9 @@ app.get('/api/user/investments', verifyToken, async (req, res) => {
           projectId: row.id,
           borrowerUid: row.firebase_uid,
           borrowerName: row.borrower_name,
-          projectTitle: projectData.details?.projectTitle || 'Untitled Project',
-          projectImage: projectData.details?.projectImage || null,
-          fundingRequirement: projectData.details?.fundingRequirement || 0,
+          projectTitle: projectData.details?.product || projectData.details?.projectTitle || projectData.details?.projectName || 'Untitled Project',
+          projectImage: projectData.details?.projectImage || projectData.details?.image || null,
+          fundingRequirement: projectData.details?.fundingRequirement || projectData.details?.loanAmount || 0,
           location: projectData.details?.location || 'Not specified',
           investmentAmount: investment.amount || 0,
           investmentDate: investment.date || null,
