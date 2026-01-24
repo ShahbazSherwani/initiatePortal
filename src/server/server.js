@@ -1279,11 +1279,43 @@ profileRouter.post('/', verifyToken, async (req, res) => {
       
       if (existingByEmail.rows.length > 0) {
         // User exists by email - UPDATE their firebase_uid to the new one
-        console.log(`🔄 User ${userEmail} exists with old firebase_uid ${existingByEmail.rows[0].firebase_uid}, updating to ${req.uid}`);
+        const oldFirebaseUid = existingByEmail.rows[0].firebase_uid;
+        console.log(`🔄 User ${userEmail} exists with old firebase_uid ${oldFirebaseUid}, updating to ${req.uid}`);
+        
+        // First, update all related tables that have foreign key constraints
+        // This must be done BEFORE updating the users table
+        try {
+          // Update investor_profiles
+          await db.query('UPDATE investor_profiles SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
+          console.log('✅ Updated investor_profiles firebase_uid');
+          
+          // Update borrower_profiles
+          await db.query('UPDATE borrower_profiles SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
+          console.log('✅ Updated borrower_profiles firebase_uid');
+          
+          // Update projects
+          await db.query('UPDATE projects SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
+          console.log('✅ Updated projects firebase_uid');
+          
+          // Update notifications
+          await db.query('UPDATE notifications SET user_id = $1 WHERE user_id = $2', [req.uid, oldFirebaseUid]);
+          console.log('✅ Updated notifications user_id');
+          
+          // Update team_members (owner_uid)
+          await db.query('UPDATE team_members SET owner_uid = $1 WHERE owner_uid = $2', [req.uid, oldFirebaseUid]);
+          console.log('✅ Updated team_members owner_uid');
+          
+          // Update team_members (member_uid)
+          await db.query('UPDATE team_members SET member_uid = $1 WHERE member_uid = $2', [req.uid, oldFirebaseUid]);
+          console.log('✅ Updated team_members member_uid');
+          
+        } catch (updateError) {
+          console.log('⚠️ Related table update error:', updateError.message);
+        }
         
         // Clean up any password_reset_tokens for the old firebase_uid
         try {
-          await db.query('DELETE FROM password_reset_tokens WHERE firebase_uid = $1', [existingByEmail.rows[0].firebase_uid]);
+          await db.query('DELETE FROM password_reset_tokens WHERE firebase_uid = $1', [oldFirebaseUid]);
         } catch (cleanupError) {
           console.log('⚠️ Cleanup error (non-fatal):', cleanupError.message);
         }
