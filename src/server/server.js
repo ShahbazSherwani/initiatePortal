@@ -1299,11 +1299,16 @@ profileRouter.post('/', verifyToken, async (req, res) => {
           await db.query('DELETE FROM team_members WHERE owner_uid = $1 OR member_uid = $1', [oldFirebaseUid]);
           console.log('✅ Deleted team_members');
           
+          // Delete old email verifications for this email (they have old UIDs)
+          await db.query('DELETE FROM email_verifications WHERE email = $1', [userEmail]);
+          console.log('✅ Deleted old email_verifications');
+          
           // Note: We keep investor_profiles, borrower_profiles, and projects
           // because they contain important KYC data and project info
           // We'll update their firebase_uid references after creating new user
           
           // Step 2: Update users table firebase_uid directly (this is the parent table)
+          // IMPORTANT: Reset email_verified to false since this is a new Firebase account
           console.log('📝 Step 2: Updating users table with new firebase_uid...');
           result = await db.query(
             `UPDATE users SET
@@ -1313,6 +1318,7 @@ profileRouter.post('/', verifyToken, async (req, res) => {
                last_name = COALESCE($4, last_name),
                phone_number = COALESCE($5, phone_number),
                role = COALESCE($6, role),
+               email_verified = false,
                suspension_scope = COALESCE(suspension_scope, 'none'),
                status = 'active',
                updated_at = NOW()
@@ -1320,7 +1326,7 @@ profileRouter.post('/', verifyToken, async (req, res) => {
              RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
             [req.uid, fullName, first, last, phoneNumber || null, role || 'borrower', userEmail]
           );
-          console.log('✅ Users table updated with new firebase_uid');
+          console.log('✅ Users table updated with new firebase_uid (email_verified reset to false)');
           
           // Step 3: Now update child tables to reference new firebase_uid
           console.log('📝 Step 3: Updating child tables...');
@@ -6397,11 +6403,12 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
             $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34,
-            $35, $36, $37, $38, $39, $40, $41, 
-            $42, $43, $44, $45, $46, $47, $48, $49, $50, $51,
-            $52, $53, $54, $55, $56, $57, $58, $59, $60,
-            $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71,
-            $72, $73, $74, $75, $76, $77, $78, $79, $80, $81, $82, $83, TRUE, NOW(), NOW()
+            $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46,
+            $47, $48, $49, $50, $51, $52, $53, $54, $55,
+            $56, $57, $58, $59, $60, $61, $62, $63,
+            $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74,
+            $75, $76, $77, $78, $79, $80, $81, $82, $83,
+            $84, $85, $86, TRUE, NOW(), NOW()
           )
           ON CONFLICT (firebase_uid) DO UPDATE SET
             full_name = EXCLUDED.full_name,
