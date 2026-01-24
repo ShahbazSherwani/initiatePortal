@@ -331,14 +331,9 @@ export const AdminTopUpRequests: React.FC = () => {
                       <Button
                         variant="outline"
                         onClick={() => {
-                          const url = request.proof_of_transfer;
-                          if (url) {
-                            // Handle both relative and absolute URLs
-                            const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
-                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
-                          } else {
-                            toast.error('Proof of transfer not available');
-                          }
+                          // Open review modal to see the proof instead of opening in new tab
+                          // This avoids HTTP 431 error with large base64 data URLs
+                          setSelectedRequest(request);
                         }}
                         className="w-full"
                       >
@@ -400,27 +395,54 @@ export const AdminTopUpRequests: React.FC = () => {
                 {selectedRequest.proof_of_transfer && (
                   <div>
                     <p className="text-sm text-gray-600 mb-2">Proof of Transfer</p>
-                    <div className="relative group">
+                    <div className="relative group bg-gray-100 rounded-lg p-2">
                       <img 
-                        src={selectedRequest.proof_of_transfer.startsWith('http') 
-                          ? selectedRequest.proof_of_transfer 
-                          : `${API_BASE_URL}${selectedRequest.proof_of_transfer}`
+                        src={
+                          // Handle base64 data URLs, http URLs, and relative paths
+                          selectedRequest.proof_of_transfer.startsWith('data:') 
+                            ? selectedRequest.proof_of_transfer
+                            : selectedRequest.proof_of_transfer.startsWith('http') 
+                              ? selectedRequest.proof_of_transfer 
+                              : `${API_BASE_URL}${selectedRequest.proof_of_transfer}`
                         } 
                         alt="Proof of transfer" 
-                        className="w-full rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                        className="w-full max-h-96 object-contain rounded-lg border bg-white cursor-pointer hover:opacity-90 transition-opacity"
                         onClick={() => {
-                          const url = selectedRequest.proof_of_transfer.startsWith('http') 
-                            ? selectedRequest.proof_of_transfer 
-                            : `${API_BASE_URL}${selectedRequest.proof_of_transfer}`;
-                          window.open(url, '_blank', 'noopener,noreferrer');
+                          // For base64 images, open in a new window with proper HTML
+                          if (selectedRequest.proof_of_transfer.startsWith('data:')) {
+                            const newWindow = window.open('', '_blank');
+                            if (newWindow) {
+                              newWindow.document.write(`
+                                <!DOCTYPE html>
+                                <html>
+                                  <head>
+                                    <title>Proof of Transfer</title>
+                                    <style>
+                                      body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f0f0; }
+                                      img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+                                    </style>
+                                  </head>
+                                  <body>
+                                    <img src="${selectedRequest.proof_of_transfer}" alt="Proof of Transfer" />
+                                  </body>
+                                </html>
+                              `);
+                              newWindow.document.close();
+                            }
+                          } else {
+                            const url = selectedRequest.proof_of_transfer.startsWith('http') 
+                              ? selectedRequest.proof_of_transfer 
+                              : `${API_BASE_URL}${selectedRequest.proof_of_transfer}`;
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                          }
                         }}
                         onError={(e) => {
-                          console.error('Failed to load image:', selectedRequest.proof_of_transfer);
+                          console.error('Failed to load image:', selectedRequest.proof_of_transfer?.substring(0, 100));
                           e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23f0f0f0" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3EImage not available%3C/text%3E%3C/svg%3E';
                         }}
                       />
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-30 rounded-lg">
-                        <span className="text-white text-sm font-medium">Click to open in new tab</span>
+                        <span className="text-white text-sm font-medium">Click to view full size</span>
                       </div>
                     </div>
                   </div>
