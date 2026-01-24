@@ -10,7 +10,11 @@ import {
   TargetIcon, 
   ClockIcon,
   ArrowRightIcon,
-  LoaderIcon
+  LoaderIcon,
+  WalletIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  AlertCircleIcon
 } from 'lucide-react';
 
 interface DashboardStatsData {
@@ -22,19 +26,35 @@ interface DashboardStatsData {
   totalProjects: number;
 }
 
+interface TopUpRequest {
+  id: number;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  reviewed_at: string | null;
+  admin_notes: string | null;
+}
+
 export const DashboardStats: React.FC = () => {
   const [stats, setStats] = useState<DashboardStatsData | null>(null);
+  const [topUpRequests, setTopUpRequests] = useState<TopUpRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
         console.log("🔍 Fetching dashboard stats...");
-        const statsData = await authFetch(`${API_BASE_URL}/user/dashboard-stats`);
+        const [statsData, topUpData] = await Promise.all([
+          authFetch(`${API_BASE_URL}/user/dashboard-stats`),
+          authFetch(`${API_BASE_URL}/topup/my-requests`).catch(() => [])
+        ]);
         console.log("📊 Dashboard stats received:", statsData);
+        console.log("💰 Top-up requests received:", topUpData);
         setStats(statsData);
+        setTopUpRequests(topUpData || []);
       } catch (err) {
         console.error("❌ Error fetching dashboard stats:", err);
         setError("Failed to load stats");
@@ -43,7 +63,7 @@ export const DashboardStats: React.FC = () => {
       }
     };
 
-    fetchStats();
+    fetchData();
   }, []);
 
   const formatCurrency = (amount: number) => {
@@ -111,8 +131,93 @@ export const DashboardStats: React.FC = () => {
     }
   ];
 
+  // Get recent pending/latest top-up requests
+  const recentTopUps = topUpRequests.slice(0, 3);
+  const pendingTopUps = topUpRequests.filter(t => t.status === 'pending');
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <CheckCircleIcon className="w-5 h-5 text-green-500" />;
+      case 'rejected':
+        return <XCircleIcon className="w-5 h-5 text-red-500" />;
+      default:
+        return <ClockIcon className="w-5 h-5 text-orange-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'rejected':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
+      {/* Top-Up Request Status Banner */}
+      {recentTopUps.length > 0 && (
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <WalletIcon className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Top-Up Request Status</h3>
+                <p className="text-sm text-gray-600">
+                  {pendingTopUps.length > 0 
+                    ? `${pendingTopUps.length} pending request${pendingTopUps.length > 1 ? 's' : ''}`
+                    : 'Your recent top-up requests'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              {recentTopUps.map((request) => (
+                <div 
+                  key={request.id}
+                  className="flex items-center justify-between p-3 bg-white rounded-lg border"
+                >
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(request.status)}
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        ₱{request.amount.toLocaleString()} {request.currency}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(request.created_at).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(request.status)}`}>
+                      {request.status === 'pending' ? 'Pending' : request.status === 'approved' ? 'Approved' : 'Rejected'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {topUpRequests.length > 3 && (
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Showing latest 3 of {topUpRequests.length} requests
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
