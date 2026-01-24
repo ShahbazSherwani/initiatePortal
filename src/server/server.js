@@ -2432,10 +2432,10 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
         const phoneNumber = profileData.phoneNumber || baseUser.phone_number || null;
         const dateOfBirth = profileData.dateOfBirth || baseUser.date_of_birth || null;
         
-        // Create borrower profile
+        // Create borrower profile (use mobile_number column, not phone_number)
         const borrowerResult = await client.query(
           `INSERT INTO borrower_profiles (
-            firebase_uid, full_name, phone_number, date_of_birth, is_individual_account, is_complete, created_at, updated_at
+            firebase_uid, full_name, mobile_number, date_of_birth, is_individual_account, is_complete, created_at, updated_at
           ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
           [
             firebase_uid,
@@ -2487,10 +2487,10 @@ app.post('/api/accounts/create', verifyToken, async (req, res) => {
         const phoneNumber = profileData.phoneNumber || baseUser.phone_number || null;
         const dateOfBirth = profileData.dateOfBirth || baseUser.date_of_birth || null;
         
-        // Create investor profile
+        // Create investor profile (use mobile_number column, not phone_number)
         const investorResult = await client.query(
           `INSERT INTO investor_profiles (
-            firebase_uid, full_name, location, phone_number, date_of_birth,
+            firebase_uid, full_name, location, mobile_number, date_of_birth,
             investment_experience, investment_preference, risk_tolerance, is_complete
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
           [
