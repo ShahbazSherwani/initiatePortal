@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BellIcon, XIcon, MessageCircle, DollarSign, FileText, TrendingUp } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useNotifications } from '../../contexts/NotificationContext';
+import { AuthContext } from '../../contexts/AuthContext';
 
 interface NotificationDropdownProps {
   onNotificationClick?: () => void;
@@ -12,6 +13,8 @@ interface NotificationDropdownProps {
 const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onNotificationClick }) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const { profile } = useContext(AuthContext) || {};
+  const isAdmin = profile?.is_admin || false;
   const { 
     notifications, 
     unreadCount, 
@@ -74,37 +77,75 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onNotificat
       markAsRead(notification.id);
     }
 
-    // Navigate based on notification type and related data
+    // Navigate based on notification type, user role, and related data
     if (notification.related_request_id) {
       switch (notification.related_request_type) {
         case 'project':
-          navigate(`/owner/projects/${notification.related_request_id}`);
+          if (isAdmin) {
+            navigate(`/admin/projects/${notification.related_request_id}`);
+          } else {
+            navigate(`/owner/projects/${notification.related_request_id}`);
+          }
           break;
         case 'investment':
-          navigate(`/admin/investment-requests`);
+          if (isAdmin) {
+            navigate(`/admin/investment-requests`);
+          } else {
+            // Regular users go to their investments page
+            navigate(`/investor/investments`);
+          }
           break;
         case 'topup':
-          navigate(`/admin/topup-requests`);
+          if (isAdmin) {
+            navigate(`/admin/topup-requests`);
+          } else {
+            // Regular users go to their dashboard/home
+            navigate(`/investor/discover`);
+          }
           break;
         case 'user':
-          navigate(`/owner/users/${notification.related_request_id}`);
+          if (isAdmin) {
+            navigate(`/admin/users/${notification.related_request_id}`);
+          } else {
+            navigate('/owner/dashboard');
+          }
           break;
         default:
-          // For general notifications, go to dashboard
-          navigate('/owner/dashboard');
+          // For general notifications, go to appropriate dashboard
+          if (isAdmin) {
+            navigate('/admin/dashboard');
+          } else {
+            navigate('/owner/dashboard');
+          }
       }
     } else {
       // Default navigation based on notification type
       if (notification.notification_type.includes('project')) {
-        navigate('/owner/projects');
+        if (isAdmin) {
+          navigate('/admin/projects');
+        } else {
+          navigate('/owner/projects');
+        }
       } else if (notification.notification_type.includes('investment')) {
-        navigate('/admin/investment-requests');
+        if (isAdmin) {
+          navigate('/admin/investment-requests');
+        } else {
+          navigate('/investor/investments');
+        }
       } else if (notification.notification_type.includes('topup')) {
-        navigate('/admin/topup-requests');
+        if (isAdmin) {
+          navigate('/admin/topup-requests');
+        } else {
+          navigate('/investor/discover');
+        }
       } else if (notification.notification_type.includes('team')) {
         navigate('/owner/team');
       } else {
-        navigate('/owner/dashboard');
+        if (isAdmin) {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/owner/dashboard');
+        }
       }
     }
 
@@ -119,7 +160,12 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onNotificat
 
   // Handle "View all notifications" click
   const handleViewAll = () => {
-    navigate('/owner/dashboard'); // Navigate to dashboard where notifications are displayed
+    // Navigate to appropriate dashboard based on user role
+    if (isAdmin) {
+      navigate('/admin/dashboard');
+    } else {
+      navigate('/owner/dashboard');
+    }
     setIsOpen(false);
   };
 
