@@ -234,6 +234,80 @@ const USER_TABS = [
   { key: 'activity', label: 'Activity Log' },
 ];
 
+// Helper function to open base64 documents in a new window
+const openDocument = (dataUrl: string, title: string = 'Document') => {
+  if (!dataUrl) {
+    toast.error('Document not available');
+    return;
+  }
+
+  console.log('Opening document:', title, dataUrl.substring(0, 100) + '...');
+
+  // Check if it's a base64 data URL
+  if (dataUrl.startsWith('data:')) {
+    // For base64 data URLs, we need to open in a new window with proper HTML
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      // Determine if it's an image or PDF
+      const isPdf = dataUrl.includes('application/pdf');
+      const isImage = dataUrl.includes('image/');
+
+      if (isPdf) {
+        // For PDFs, embed in an iframe
+        newWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>${title}</title></head>
+            <body style="margin:0;padding:0;">
+              <iframe src="${dataUrl}" style="width:100%;height:100vh;border:none;"></iframe>
+            </body>
+          </html>
+        `);
+      } else if (isImage) {
+        // For images, display directly
+        newWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${title}</title>
+              <style>
+                body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #1a1a1a; }
+                img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+              </style>
+            </head>
+            <body>
+              <img src="${dataUrl}" alt="${title}" />
+            </body>
+          </html>
+        `);
+      } else {
+        // For unknown types, try to display as image (most uploads are images)
+        newWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${title}</title>
+              <style>
+                body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #1a1a1a; }
+                img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+              </style>
+            </head>
+            <body>
+              <img src="${dataUrl}" alt="${title}" />
+            </body>
+          </html>
+        `);
+      }
+      newWindow.document.close();
+    } else {
+      toast.error('Please allow pop-ups to view documents');
+    }
+  } else {
+    // For regular URLs, just open directly
+    window.open(dataUrl, '_blank');
+  }
+};
+
 export const OwnerUserDetail: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
@@ -1063,10 +1137,7 @@ export const OwnerUserDetail: React.FC = () => {
                             <Button 
                               variant="outline" 
                               className="w-full border-green-500 text-green-700 hover:bg-green-50"
-                              onClick={() => {
-                                console.log('Opening registration cert:', user.entityDocuments?.registrationCertFile);
-                                window.open(user.entityDocuments?.registrationCertFile, '_blank');
-                              }}
+                              onClick={() => openDocument(user.entityDocuments?.registrationCertFile || '', 'Registration Certificate')}
                             >
                               <EyeIcon className="w-4 h-4 mr-2" />
                               View Document
@@ -1086,10 +1157,7 @@ export const OwnerUserDetail: React.FC = () => {
                             <Button 
                               variant="outline" 
                               className="w-full border-green-500 text-green-700 hover:bg-green-50"
-                              onClick={() => {
-                                console.log('Opening TIN cert:', user.entityDocuments?.tinCertFile);
-                                window.open(user.entityDocuments?.tinCertFile, '_blank');
-                              }}
+                              onClick={() => openDocument(user.entityDocuments?.tinCertFile || '', 'TIN Certificate')}
                             >
                               <EyeIcon className="w-4 h-4 mr-2" />
                               View Document
@@ -1109,10 +1177,7 @@ export const OwnerUserDetail: React.FC = () => {
                             <Button 
                               variant="outline" 
                               className="w-full border-green-500 text-green-700 hover:bg-green-50"
-                              onClick={() => {
-                                console.log('Opening authorization file:', user.entityDocuments?.authorizationFile);
-                                window.open(user.entityDocuments?.authorizationFile, '_blank');
-                              }}
+                              onClick={() => openDocument(user.entityDocuments?.authorizationFile || '', 'Authorization Letter')}
                             >
                               <EyeIcon className="w-4 h-4 mr-2" />
                               View Document
