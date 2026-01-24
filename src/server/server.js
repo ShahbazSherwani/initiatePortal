@@ -5084,9 +5084,11 @@ app.post('/api/admin/projects/:projectId/investments/:investorId/review', verify
     // Create notification for the investor
     const notificationType = action === 'approve' ? 'investment_approved' : 'investment_rejected';
     const title = action === 'approve' ? 'Investment Approved! 🎯' : 'Investment Request Update';
+    const investmentAmount = projectData.investorRequests[investmentIndex].amount;
+    const projectTitle = projectData.details?.product || projectData.details?.projectTitle || 'Project';
     const message = action === 'approve' 
-      ? `Your investment of ${investment.amount} PHP in "${projectData.details?.product || 'Project'}" has been approved!`
-      : `Your investment request for "${projectData.details?.product || 'Project'}" was not approved. ${comment || 'Please contact support for more information.'}`;
+      ? `Your investment of ₱${investmentAmount.toLocaleString()} in "${projectTitle}" has been approved!`
+      : `Your investment request for "${projectTitle}" was not approved. ${comment || 'Please contact support for more information.'}`;
     
     await createNotification(investorId, notificationType, title, message, projectId.toString(), 'investment');
     
