@@ -9785,7 +9785,7 @@ app.delete('/api/owner/users/:userId', verifyToken, async (req, res) => {
       // Delete ALL related data first (order matters for foreign keys)
       await db.query('DELETE FROM password_reset_tokens WHERE firebase_uid = $1', [userId]);
       await db.query('DELETE FROM email_verifications WHERE firebase_uid = $1', [userId]);
-      await db.query('DELETE FROM notifications WHERE firebase_uid = $1', [userId]);
+      await db.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
       await db.query('DELETE FROM user_settings WHERE firebase_uid = $1', [userId]);
       await db.query('DELETE FROM team_member_permissions WHERE team_member_id IN (SELECT id FROM team_members WHERE user_firebase_uid = $1)', [userId]);
       await db.query('DELETE FROM team_members WHERE user_firebase_uid = $1 OR owner_firebase_uid = $1', [userId]);
