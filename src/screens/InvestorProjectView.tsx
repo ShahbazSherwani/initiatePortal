@@ -12,6 +12,14 @@ import { toast } from "react-hot-toast";
 import { API_BASE_URL } from '../config/environment';
 import { investInProject, authFetch } from '../lib/api';
 
+// Interface for insufficient funds error
+interface InsufficientFundsError {
+  show: boolean;
+  currentBalance: number;
+  requiredAmount: number;
+  shortfall: number;
+}
+
 export const InvestorProjectView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { profile } = React.useContext(AuthContext)!;
@@ -24,6 +32,12 @@ export const InvestorProjectView: React.FC = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [insufficientFundsError, setInsufficientFundsError] = useState<InsufficientFundsError>({
+    show: false,
+    currentBalance: 0,
+    requiredAmount: 0,
+    shortfall: 0
+  });
   
   // Helper function to format duration
   const formatDuration = (duration: string) => {
@@ -125,9 +139,34 @@ export const InvestorProjectView: React.FC = () => {
         // Refresh notifications to show any error notifications
         await fetchNotifications();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('💥 Investment error:', error);
-      toast.error("An error occurred");
+      
+      // Check if it's an insufficient funds error
+      const errorMessage = error?.message || "";
+      if (errorMessage.includes("Insufficient wallet balance")) {
+        // Parse the error message to extract details
+        const balanceMatch = errorMessage.match(/current balance is ₱([\d,]+)/);
+        const requiredMatch = errorMessage.match(/need ₱([\d,]+)/);
+        
+        const currentBalance = balanceMatch ? parseFloat(balanceMatch[1].replace(/,/g, '')) : 0;
+        const requiredAmount = requiredMatch ? parseFloat(requiredMatch[1].replace(/,/g, '')) : parseFloat(investmentAmount);
+        const shortfall = requiredAmount - currentBalance;
+        
+        // Show the modal
+        setInsufficientFundsError({
+          show: true,
+          currentBalance,
+          requiredAmount,
+          shortfall
+        });
+        
+        // Also show a toast
+        toast.error("Insufficient iFunds balance!", { duration: 5000 });
+      } else {
+        toast.error(errorMessage || "An error occurred");
+      }
+      
       // Refresh notifications to show any error notifications
       await fetchNotifications();
     }
@@ -135,6 +174,80 @@ export const InvestorProjectView: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
+      {/* Insufficient Funds Modal */}
+      {insufficientFundsError.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50" 
+            onClick={() => setInsufficientFundsError(prev => ({ ...prev, show: false }))}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 animate-in fade-in zoom-in duration-300">
+            {/* Warning Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* Title */}
+            <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">
+              Insufficient iFunds Balance
+            </h2>
+            
+            {/* Description */}
+            <p className="text-center text-gray-600 mb-6">
+              You don't have enough funds in your iFunds wallet to make this investment.
+            </p>
+            
+            {/* Balance Details */}
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Current Balance:</span>
+                <span className="font-bold text-gray-800">₱{insufficientFundsError.currentBalance.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Investment Amount:</span>
+                <span className="font-bold text-gray-800">₱{insufficientFundsError.requiredAmount.toLocaleString()}</span>
+              </div>
+              <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
+                <span className="text-red-600 font-medium">Amount Needed:</span>
+                <span className="font-bold text-red-600">₱{insufficientFundsError.shortfall.toLocaleString()}</span>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={() => {
+                  setInsufficientFundsError(prev => ({ ...prev, show: false }));
+                  navigate("/investor/wallet");
+                }}
+                className="w-full bg-[#0C4B20] text-white hover:bg-[#8FB200] py-3"
+              >
+                Add Funds to Wallet
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => setInsufficientFundsError(prev => ({ ...prev, show: false }))}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+            </div>
+            
+            {/* Info Note */}
+            <p className="text-xs text-center text-gray-500 mt-4">
+              Add funds to your iFunds wallet first, then come back to invest in this project.
+            </p>
+          </div>
+        </div>
+      )}
+      
       {/* <Navbar activePage="invest" showAuthButtons={false} /> */}
       
       <div className="flex flex-1 overflow-hidden">
