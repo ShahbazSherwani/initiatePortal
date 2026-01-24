@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 
 interface Notification {
   id: number;
@@ -53,7 +54,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     
     setLoading(true);
     try {
-      const response = await authFetch('/api/notifications?limit=20');
+      const response = await authFetch(`${API_BASE_URL}/notifications?limit=20`);
       if (response.notifications) {
         setNotifications(response.notifications);
         setUnreadCount(response.unreadCount || 0);
@@ -68,7 +69,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId: number) => {
     try {
-      await authFetch(`/api/notifications/${notificationId}/read`, {
+      await authFetch(`${API_BASE_URL}/notifications/${notificationId}/read`, {
         method: 'PATCH'
       });
       
@@ -85,7 +86,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     try {
-      await authFetch('/api/notifications/read-all', {
+      await authFetch(`${API_BASE_URL}/notifications/read-all`, {
         method: 'PATCH'
       });
       
@@ -100,7 +101,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Delete notification
   const deleteNotification = useCallback(async (notificationId: number) => {
     try {
-      await authFetch(`/api/notifications/${notificationId}`, {
+      await authFetch(`${API_BASE_URL}/notifications/${notificationId}`, {
         method: 'DELETE'
       });
       
