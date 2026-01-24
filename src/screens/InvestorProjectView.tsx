@@ -11,6 +11,7 @@ import { Input } from "../components/ui/input";
 import { toast } from "react-hot-toast";
 import { API_BASE_URL } from '../config/environment';
 import { investInProject, authFetch } from '../lib/api';
+import { TopUpModal } from '../components/TopUpModal';
 
 // Interface for insufficient funds error
 interface InsufficientFundsError {
@@ -32,6 +33,7 @@ export const InvestorProjectView: React.FC = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [insufficientFundsError, setInsufficientFundsError] = useState<InsufficientFundsError>({
     show: false,
     currentBalance: 0,
@@ -225,7 +227,7 @@ export const InvestorProjectView: React.FC = () => {
               <Button 
                 onClick={() => {
                   setInsufficientFundsError(prev => ({ ...prev, show: false }));
-                  navigate("/investor/wallet");
+                  setShowTopUpModal(true);
                 }}
                 className="w-full bg-[#0C4B20] text-white hover:bg-[#8FB200] py-3"
               >
@@ -375,6 +377,16 @@ export const InvestorProjectView: React.FC = () => {
           </div>
         </main>
       </div>
+      
+      {/* Top Up Modal */}
+      <TopUpModal
+        isOpen={showTopUpModal}
+        onClose={() => setShowTopUpModal(false)}
+        onSuccess={() => {
+          setShowTopUpModal(false);
+          toast.success("Top-up request submitted! Your balance will be updated once approved.");
+        }}
+      />
     </div>
   );
 };
