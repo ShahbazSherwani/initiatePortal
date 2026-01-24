@@ -1252,7 +1252,7 @@ profileRouter.post('/', verifyToken, async (req, res) => {
     
     let result;
     if (existingUser.rows.length > 0) {
-      // UPDATE existing user
+      // UPDATE existing user by firebase_uid
       result = await db.query(
         `UPDATE users SET
            full_name = $1,
@@ -1268,13 +1268,47 @@ profileRouter.post('/', verifyToken, async (req, res) => {
         [fullName, first, last, userEmail, phoneNumber || null, role || 'borrower', req.uid]
       );
     } else {
-      // INSERT new user
-      result = await db.query(
-        `INSERT INTO users (firebase_uid, email, full_name, first_name, last_name, phone_number, role, suspension_scope, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'none', NOW(), NOW())
-         RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
-        [req.uid, userEmail, fullName, first, last, phoneNumber || null, role || 'borrower']
+      // Check if user exists by EMAIL (might have been synced from Global with different firebase_uid)
+      const existingByEmail = await db.query(
+        'SELECT id, firebase_uid, email FROM users WHERE email = $1',
+        [userEmail]
       );
+      
+      if (existingByEmail.rows.length > 0) {
+        // User exists by email - UPDATE their firebase_uid to the new one
+        console.log(`🔄 User ${userEmail} exists with old firebase_uid ${existingByEmail.rows[0].firebase_uid}, updating to ${req.uid}`);
+        
+        // Clean up any password_reset_tokens for the old firebase_uid
+        try {
+          await db.query('DELETE FROM password_reset_tokens WHERE firebase_uid = $1', [existingByEmail.rows[0].firebase_uid]);
+        } catch (cleanupError) {
+          console.log('⚠️ Cleanup error (non-fatal):', cleanupError.message);
+        }
+        
+        result = await db.query(
+          `UPDATE users SET
+             firebase_uid = $1,
+             full_name = $2,
+             first_name = $3,
+             last_name = $4,
+             phone_number = COALESCE($5, phone_number),
+             role = $6,
+             suspension_scope = COALESCE(suspension_scope, 'none'),
+             status = 'active',
+             updated_at = NOW()
+           WHERE email = $7
+           RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
+          [req.uid, fullName, first, last, phoneNumber || null, role || 'borrower', userEmail]
+        );
+      } else {
+        // INSERT new user
+        result = await db.query(
+          `INSERT INTO users (firebase_uid, email, full_name, first_name, last_name, phone_number, role, suspension_scope, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'none', NOW(), NOW())
+           RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
+          [req.uid, userEmail, fullName, first, last, phoneNumber || null, role || 'borrower']
+        );
+      }
     }
     
     // Notify Make.com of new user registration
