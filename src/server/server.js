@@ -1278,63 +1278,91 @@ profileRouter.post('/', verifyToken, async (req, res) => {
       );
       
       if (existingByEmail.rows.length > 0) {
-        // User exists by email - UPDATE their firebase_uid to the new one
+        // User exists by email - need to migrate to new firebase_uid
         const oldFirebaseUid = existingByEmail.rows[0].firebase_uid;
-        console.log(`🔄 User ${userEmail} exists with old firebase_uid ${oldFirebaseUid}, updating to ${req.uid}`);
+        const oldUserId = existingByEmail.rows[0].id;
+        console.log(`🔄 User ${userEmail} exists with old firebase_uid ${oldFirebaseUid}, migrating to ${req.uid}`);
         
-        // First, update all related tables that have foreign key constraints
-        // This must be done BEFORE updating the users table
+        // Strategy: Insert new user first, update FK references, then delete old user
+        // This avoids FK constraint violations since new UID exists before we update references
+        
         try {
+          // Step 1: Insert NEW user record with the new firebase_uid
+          console.log('📝 Step 1: Creating new user record with new firebase_uid...');
+          result = await db.query(
+            `INSERT INTO users (firebase_uid, email, full_name, first_name, last_name, phone_number, role, 
+                               has_borrower_account, has_investor_account, current_account_type,
+                               suspension_scope, status, created_at, updated_at)
+             SELECT $1, $2, COALESCE($3, full_name), COALESCE($4, first_name), COALESCE($5, last_name), 
+                    COALESCE($6, phone_number), COALESCE($7, role), 
+                    has_borrower_account, has_investor_account, current_account_type,
+                    COALESCE(suspension_scope, 'none'), 'active', created_at, NOW()
+             FROM users WHERE firebase_uid = $8
+             RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
+            [req.uid, userEmail, fullName, first, last, phoneNumber || null, role || 'borrower', oldFirebaseUid]
+          );
+          console.log('✅ New user record created');
+          
+          // Step 2: Update all related tables to point to new firebase_uid
+          console.log('📝 Step 2: Updating related tables...');
+          
           // Update investor_profiles
-          await db.query('UPDATE investor_profiles SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
-          console.log('✅ Updated investor_profiles firebase_uid');
+          const investorUpdate = await db.query('UPDATE investor_profiles SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
+          console.log(`✅ Updated ${investorUpdate.rowCount} investor_profiles`);
           
           // Update borrower_profiles
-          await db.query('UPDATE borrower_profiles SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
-          console.log('✅ Updated borrower_profiles firebase_uid');
+          const borrowerUpdate = await db.query('UPDATE borrower_profiles SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
+          console.log(`✅ Updated ${borrowerUpdate.rowCount} borrower_profiles`);
           
           // Update projects
-          await db.query('UPDATE projects SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
-          console.log('✅ Updated projects firebase_uid');
+          const projectsUpdate = await db.query('UPDATE projects SET firebase_uid = $1 WHERE firebase_uid = $2', [req.uid, oldFirebaseUid]);
+          console.log(`✅ Updated ${projectsUpdate.rowCount} projects`);
           
           // Update notifications
-          await db.query('UPDATE notifications SET user_id = $1 WHERE user_id = $2', [req.uid, oldFirebaseUid]);
-          console.log('✅ Updated notifications user_id');
+          const notifUpdate = await db.query('UPDATE notifications SET user_id = $1 WHERE user_id = $2', [req.uid, oldFirebaseUid]);
+          console.log(`✅ Updated ${notifUpdate.rowCount} notifications`);
           
           // Update team_members (owner_uid)
           await db.query('UPDATE team_members SET owner_uid = $1 WHERE owner_uid = $2', [req.uid, oldFirebaseUid]);
-          console.log('✅ Updated team_members owner_uid');
           
           // Update team_members (member_uid)
           await db.query('UPDATE team_members SET member_uid = $1 WHERE member_uid = $2', [req.uid, oldFirebaseUid]);
-          console.log('✅ Updated team_members member_uid');
+          console.log('✅ Updated team_members');
           
-        } catch (updateError) {
-          console.log('⚠️ Related table update error:', updateError.message);
-        }
-        
-        // Clean up any password_reset_tokens for the old firebase_uid
-        try {
+          // Step 3: Delete old user record
+          console.log('📝 Step 3: Deleting old user record...');
           await db.query('DELETE FROM password_reset_tokens WHERE firebase_uid = $1', [oldFirebaseUid]);
-        } catch (cleanupError) {
-          console.log('⚠️ Cleanup error (non-fatal):', cleanupError.message);
+          await db.query('DELETE FROM users WHERE firebase_uid = $1', [oldFirebaseUid]);
+          console.log('✅ Old user record deleted');
+          
+          console.log(`✅ Successfully migrated user ${userEmail} from ${oldFirebaseUid} to ${req.uid}`);
+          
+        } catch (migrationError) {
+          console.error('❌ Migration error:', migrationError.message);
+          
+          // Fallback: If migration fails, try to clean up and create fresh
+          console.log('🔄 Attempting fallback: delete old data and create fresh user...');
+          try {
+            // Delete old related data
+            await db.query('DELETE FROM investor_profiles WHERE firebase_uid = $1', [oldFirebaseUid]);
+            await db.query('DELETE FROM borrower_profiles WHERE firebase_uid = $1', [oldFirebaseUid]);
+            await db.query('DELETE FROM notifications WHERE user_id = $1', [oldFirebaseUid]);
+            await db.query('DELETE FROM password_reset_tokens WHERE firebase_uid = $1', [oldFirebaseUid]);
+            await db.query('DELETE FROM users WHERE firebase_uid = $1', [oldFirebaseUid]);
+            
+            // Create fresh user
+            result = await db.query(
+              `INSERT INTO users (firebase_uid, email, full_name, first_name, last_name, phone_number, role, suspension_scope, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'none', NOW(), NOW())
+               RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
+              [req.uid, userEmail, fullName, first, last, phoneNumber || null, role || 'borrower']
+            );
+            console.log('✅ Fallback successful: Fresh user created');
+          } catch (fallbackError) {
+            console.error('❌ Fallback also failed:', fallbackError.message);
+            throw fallbackError;
+          }
         }
-        
-        result = await db.query(
-          `UPDATE users SET
-             firebase_uid = $1,
-             full_name = $2,
-             first_name = $3,
-             last_name = $4,
-             phone_number = COALESCE($5, phone_number),
-             role = $6,
-             suspension_scope = COALESCE(suspension_scope, 'none'),
-             status = 'active',
-             updated_at = NOW()
-           WHERE email = $7
-           RETURNING id, firebase_uid, email, full_name, first_name, last_name, phone_number`,
-          [req.uid, fullName, first, last, phoneNumber || null, role || 'borrower', userEmail]
-        );
       } else {
         // INSERT new user
         result = await db.query(
