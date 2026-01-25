@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
+import { useAuth } from "../contexts/AuthContext";
+import { useAccount } from "../contexts/AccountContext";
+import { authFetch } from "../lib/api";
+import { API_BASE_URL } from '../config/environment';
 import { Country, State, City } from "country-state-city";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
@@ -107,14 +111,18 @@ export const InvestorRegDirectLender = (): JSX.Element => {
   const states = countryIso ? State.getStatesOfCountry(countryIso) : [];
   const cities = stateIso ? City.getCitiesOfState(countryIso, stateIso) : [];
 
-  const { setRegistration } = useRegistration();
+  const { registration, setRegistration } = useRegistration();
+  const { refreshAccounts, setAccountType: setUserAccountType } = useAccount();
+  const { refreshProfile } = useAuth();
   const navigate = useNavigate();
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLenderTypeSelect = (type: string) => {
     setLenderType(type);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate the form
@@ -122,42 +130,169 @@ export const InvestorRegDirectLender = (): JSX.Element => {
       return;
     }
     
-    // Save registration data
-    setRegistration(reg => ({
-      ...reg,
-      accountType,
-      lenderType,
-      details: {
+    setIsSubmitting(true);
+    
+    try {
+      // Helper function to convert File to base64
+      const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+      };
+      
+      // Convert document files to base64
+      let nationalIdFileBase64 = null;
+      let passportFileBase64 = null;
+      let requirementsCriteriaFileBase64 = null;
+      let docReqFileBase64 = null;
+      
+      if (nationalIdFile) {
+        try {
+          nationalIdFileBase64 = await fileToBase64(nationalIdFile);
+        } catch (error) {
+          console.error('Error converting National ID file:', error);
+        }
+      }
+      
+      if (passportFile) {
+        try {
+          passportFileBase64 = await fileToBase64(passportFile);
+        } catch (error) {
+          console.error('Error converting Passport file:', error);
+        }
+      }
+      
+      if (requirementsCriteriaFile) {
+        try {
+          requirementsCriteriaFileBase64 = await fileToBase64(requirementsCriteriaFile);
+        } catch (error) {
+          console.error('Error converting requirements file:', error);
+        }
+      }
+      
+      if (docReqFile) {
+        try {
+          docReqFileBase64 = await fileToBase64(docReqFile);
+        } catch (error) {
+          console.error('Error converting doc req file:', error);
+        }
+      }
+      
+      // Save registration data to context
+      const updatedRegistration = {
+        ...registration,
+        accountType,
+        lenderType,
+        details: {
+          firstName,
+          middleName,
+          lastName,
+          suffixName,
+          nationalId,
+          passport,
+          tin,
+          street,
+          barangay,
+          countryIso,
+          stateIso,
+          cityName,
+          postalCode,
+        },
+        lendingCriteria: {
+          requirementsCriteria,
+          docReq,
+          maxFacility,
+          interestRate,
+        },
+        files: {
+          nationalIdFile,
+          passportFile,
+          requirementsCriteriaFile,
+          docReqFile,
+        },
+      };
+      
+      setRegistration(updatedRegistration);
+      
+      // Prepare KYC data for direct lender
+      const kycData = {
+        isIndividualAccount: true, // Direct lenders are individual accounts
+        isDirectLender: true,
+        
+        // Personal details
         firstName,
         middleName,
         lastName,
         suffixName,
+        
+        // Address information
+        street,
+        barangay,
+        city: cityName,
+        state: stateIso,
+        country: countryIso,
+        postalCode,
+        
+        // Identity verification
         nationalId,
         passport,
         tin,
-        street,
-        barangay,
-        countryIso,
-        stateIso,
-        cityName,
-        postalCode,
-      },
-      lendingCriteria: {
+        
+        // Document files (base64 encoded)
+        nationalIdFile: nationalIdFileBase64,
+        passportFile: passportFileBase64,
+        
+        // Lending criteria
         requirementsCriteria,
         docReq,
         maxFacility,
         interestRate,
-      },
-      files: {
-        nationalIdFile,
-        passportFile,
-        requirementsCriteriaFile,
-        docReqFile,
-      },
-    }));
-    
-    // Continue to bank details
-    navigate("/investor-reg-bank-details");
+        requirementsCriteriaFile: requirementsCriteriaFileBase64,
+        docReqFile: docReqFileBase64,
+        
+        // Bank details - not required in registration flow anymore
+        account_name: null,
+        bank_name: null,
+        account_type: null,
+        account_number: null,
+        iban: null,
+        swift_code: null,
+      };
+
+      console.log('📝 Completing direct lender registration without bank details');
+
+      // Complete the KYC process
+      await authFetch(`${API_BASE_URL}/profile/complete-kyc`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          accountType: 'investor',
+          kycData: kycData
+        })
+      });
+
+      console.log('✅ Direct lender KYC completed successfully');
+      
+      // Set current account type to investor
+      setUserAccountType('investor');
+      
+      // Refresh both account data and user profile
+      await refreshAccounts();
+      await refreshProfile();
+      
+      // Navigate to investor dashboard
+      navigate("/investor/discover");
+    } catch (error) {
+      console.error('❌ Error completing direct lender registration:', error);
+      alert('An error occurred while completing your registration. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -496,13 +631,14 @@ export const InvestorRegDirectLender = (): JSX.Element => {
             </div>
           </section>
 
-          {/* Next Button */}
+          {/* Complete Button */}
           <div className="flex justify-end pt-6">
             <Button
               type="submit"
-              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold px-8 py-3 rounded-2xl h-14"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold px-8 py-3 rounded-2xl h-14 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              {isSubmitting ? "Creating Account..." : "Complete Registration"}
             </Button>
           </div>
         </form>

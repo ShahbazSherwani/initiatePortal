@@ -377,8 +377,8 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
       },
     }));
     
-    // Continue to next step (bank details for non-individual entities)
-    navigate("/borrower-bank-details-non-individual");
+    // Continue to occupation selection (skip bank details)
+    navigate("/borrowocu");
   };
 
   return (
