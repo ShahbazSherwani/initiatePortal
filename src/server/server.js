@@ -6289,9 +6289,9 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
-          kycData.grossAnnualIncome || kycData.monthlyIncome || null,
+          kycData.grossAnnualIncome || null, // String range like "Php 50,000 - Php 100,000"
           kycData.sourceOfIncome || null,
-          kycData.monthlyIncome || kycData.grossAnnualIncome || null,
+          kycData.monthlyIncome || null, // DECIMAL field - don't use grossAnnualIncome string fallback
           // Emergency Contact Information (34-38)
           kycData.emergencyContactName || null,
           kycData.emergencyContactRelationship || null,
@@ -6534,9 +6534,9 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.employerName || null,
           kycData.employerAddress || null,
           kycData.employmentStatus || null,
-          kycData.grossAnnualIncome || kycData.monthlyIncome || null,
+          kycData.grossAnnualIncome || null, // String range like "Php 50,000 - Php 100,000"
           kycData.sourceOfIncome || null,
-          kycData.monthlyIncome || kycData.grossAnnualIncome || null,
+          kycData.monthlyIncome || null, // DECIMAL field - don't use grossAnnualIncome string fallback
           // Emergency Contact Information (34-38)
           kycData.emergencyContactName || null,
           kycData.emergencyContactRelationship || null,
