@@ -60,7 +60,7 @@ export const BorrowerOccupation: React.FC = () => {
 
     try {
       // First save borrower info
-      const response = await authFetch('/api/profile/update-borrower-info', {
+      await authFetch(`${API_BASE_URL}/profile/update-borrower-info`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,10 +71,7 @@ export const BorrowerOccupation: React.FC = () => {
           industryKey: selectedGroup
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to save borrower information');
-      }
+      // authFetch throws on error, so if we get here it succeeded
 
       // Create the borrower account with registration data
       console.log('📝 Creating borrower account with registration data:', registration);
