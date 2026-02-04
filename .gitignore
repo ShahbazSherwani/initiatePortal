@@ -42,3 +42,8 @@ src/server/firebase-service-account.json
 check-*.cjs
 fix-*.cjs
 security-audit.cjs
+# Penetration Testing Scripts (DO NOT COMMIT)
+Offensive-Pentesting-Scripts-main/
+**/pentest/
+**/pentest-results/
+*.pentest
