@@ -11,9 +11,10 @@ import { Input } from "../components/ui/input";
 import { toast } from "react-hot-toast";
 import { API_BASE_URL } from '../config/environment';
 import { investInProject, authFetch } from '../lib/api';
-import { TopUpModal } from '../components/TopUpModal';
+import { createPaymentCheckout } from '../lib/paymongo';
+// import { TopUpModal } from '../components/TopUpModal'; // Disabled for PayMongo integration
 
-// Interface for insufficient funds error
+// Interface for insufficient funds error (kept for reference, not used with PayMongo)
 interface InsufficientFundsError {
   show: boolean;
   currentBalance: number;
@@ -33,7 +34,8 @@ export const InvestorProjectView: React.FC = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  // const [showTopUpModal, setShowTopUpModal] = useState(false); // Disabled for PayMongo
   const [insufficientFundsError, setInsufficientFundsError] = useState<InsufficientFundsError>({
     show: false,
     currentBalance: 0,
@@ -116,6 +118,7 @@ export const InvestorProjectView: React.FC = () => {
   const projectData = project.project_data || {};
   const details = projectData.details || {};
   
+  // PayMongo payment handler - redirects to PayMongo checkout
   const handleInvest = async () => {
     console.log("🎯 handleInvest called with amount:", investmentAmount);
     
@@ -124,53 +127,41 @@ export const InvestorProjectView: React.FC = () => {
       return;
     }
     
+    const amount = parseFloat(investmentAmount);
+    
+    // Minimum investment check (PayMongo minimum is 100 PHP)
+    if (amount < 100) {
+      toast.error("Minimum investment amount is ₱100");
+      return;
+    }
+    
+    setProcessingPayment(true);
+    
     try {
-      console.log("📤 Making investment request to project:", projectId);
-      const amount = parseFloat(investmentAmount);
-      const result = await investInProject(projectId!, amount);
-      console.log("📥 Investment result:", result);
+      console.log("💳 Creating PayMongo checkout for project:", projectId);
       
-      if (result.success) {
-        toast.success("Investment request sent!");
-        // Refresh notifications to show new investment submission notification
-        await fetchNotifications();
-        navigate("/investor/calendar");
+      const result = await createPaymentCheckout({
+        amount: amount,
+        projectId: projectId!,
+        projectName: details.product || "Investment Project",
+        description: `Investment in ${details.product || "project"}`
+      });
+      
+      console.log("📥 PayMongo checkout result:", result);
+      
+      if (result.success && result.checkoutUrl) {
+        toast.success("Redirecting to payment...");
+        // Redirect to PayMongo checkout page
+        window.location.href = result.checkoutUrl;
       } else {
-        console.log("❌ Investment failed:", result);
-        toast.error("Failed to submit investment request");
-        // Refresh notifications to show any error notifications
-        await fetchNotifications();
+        console.log("❌ Payment checkout failed:", result);
+        toast.error(result.error || "Failed to create payment checkout");
       }
     } catch (error: any) {
-      console.error('💥 Investment error:', error);
-      
-      // Check if it's an insufficient funds error
-      const errorMessage = error?.message || "";
-      if (errorMessage.includes("Insufficient wallet balance")) {
-        // Parse the error message to extract details
-        const balanceMatch = errorMessage.match(/current balance is ₱([\d,]+)/);
-        const requiredMatch = errorMessage.match(/need ₱([\d,]+)/);
-        
-        const currentBalance = balanceMatch ? parseFloat(balanceMatch[1].replace(/,/g, '')) : 0;
-        const requiredAmount = requiredMatch ? parseFloat(requiredMatch[1].replace(/,/g, '')) : parseFloat(investmentAmount);
-        const shortfall = requiredAmount - currentBalance;
-        
-        // Show the modal
-        setInsufficientFundsError({
-          show: true,
-          currentBalance,
-          requiredAmount,
-          shortfall
-        });
-        
-        // Also show a toast
-        toast.error("Insufficient iFunds balance!", { duration: 5000 });
-      } else {
-        toast.error(errorMessage || "An error occurred");
-      }
-      
-      // Refresh notifications to show any error notifications
-      await fetchNotifications();
+      console.error('💥 Payment error:', error);
+      toast.error(error?.message || "An error occurred while processing payment");
+    } finally {
+      setProcessingPayment(false);
     }
   };
 
@@ -335,6 +326,7 @@ export const InvestorProjectView: React.FC = () => {
                 ) : !showConfirm ? (
                   <div>
                     <h3 className="font-medium mb-2">How much would you like to invest?</h3>
+                    <p className="text-sm text-gray-500 mb-3">Minimum investment: ₱100</p>
                     <div className="flex gap-4">
                       <Input 
                         type="number"
@@ -342,10 +334,12 @@ export const InvestorProjectView: React.FC = () => {
                         onChange={(e) => setInvestmentAmount(e.target.value)}
                         placeholder="Enter amount"
                         className="w-64"
+                        min="100"
                       />
                       <Button 
                         onClick={() => setShowConfirm(true)}
                         className="bg-[#0C4B20] text-white hover:bg-[#8FB200]"
+                        disabled={!investmentAmount || parseFloat(investmentAmount) < 100}
                       >
                         Continue
                       </Button>
@@ -354,18 +348,21 @@ export const InvestorProjectView: React.FC = () => {
                 ) : (
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="font-medium mb-4">Confirm your investment</h3>
-                    <p className="mb-2">Amount: <span className="font-bold">{parseFloat(investmentAmount).toLocaleString()} PHP</span></p>
+                    <p className="mb-2">Amount: <span className="font-bold">₱{parseFloat(investmentAmount).toLocaleString()}</span></p>
                     <p className="mb-4">Project: <span className="font-bold">{details.product || "Unnamed Project"}</span></p>
+                    <p className="text-sm text-gray-500 mb-4">You will be redirected to PayMongo to complete your payment securely.</p>
                     <div className="flex gap-4">
                       <Button 
                         onClick={handleInvest}
                         className="bg-[#0C4B20] text-white hover:bg-[#8FB200]"
+                        disabled={processingPayment}
                       >
-                        Confirm Investment
+                        {processingPayment ? "Processing..." : "Proceed to Payment"}
                       </Button>
                       <Button 
                         variant="outline" 
                         onClick={() => setShowConfirm(false)}
+                        disabled={processingPayment}
                       >
                         Back
                       </Button>
@@ -378,7 +375,7 @@ export const InvestorProjectView: React.FC = () => {
         </main>
       </div>
       
-      {/* Top Up Modal */}
+      {/* Top Up Modal - Disabled for PayMongo integration
       <TopUpModal
         isOpen={showTopUpModal}
         onClose={() => setShowTopUpModal(false)}
@@ -387,6 +384,7 @@ export const InvestorProjectView: React.FC = () => {
           toast.success("Top-up request submitted! Your balance will be updated once approved.");
         }}
       />
+      */}
     </div>
   );
 };

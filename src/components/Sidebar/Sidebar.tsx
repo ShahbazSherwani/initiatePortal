@@ -35,7 +35,7 @@ interface NavItem {
 const borrowerNavItems: NavItem[] = [
   { icon: <HomeIcon className="w-5 h-5" />, label: "Home", to: '/borrow', key: 'home' },
   { icon: <CalendarIcon className="w-5 h-5" />, label: "Calendar", to: '/borrowCalendar', key: 'calendar' },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' },
+  // { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' }, // Hidden for PayMongo integration
   {
     icon: <PanelsTopLeft className="w-5 h-5" />,
     label: "My Projects",
@@ -61,7 +61,7 @@ const investorNavItems: NavItem[] = [
     to: '/investor/discover',
     key: 'projects'
   },
-  { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' },
+  // { icon: <WalletIcon className="w-5 h-5" />, label: "iFunds", to: '/borrowBank', key: 'wallet' }, // Hidden for PayMongo integration
   {
     icon:<HandCoins className="w-5 h-5" />,
     label: "My Investments",

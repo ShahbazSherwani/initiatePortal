@@ -68,6 +68,7 @@ import BorwCreateNewProjRewards from "../screens/BorwCreateNewProjRewards";
 import { EmailVerification } from "../screens/EmailVerification";
 import { EmailVerificationPending } from "../screens/EmailVerificationPending";
 import { ResetPassword } from "../screens/ResetPassword";
+import { PaymentSuccess } from "../screens/PaymentSuccess";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -758,6 +759,16 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <PrivateRoute>
                     <BorrowerWallet />
+                  </PrivateRoute>
+                } 
+              />
+              
+              {/* Payment routes */}
+              <Route 
+                path="/payment/success" 
+                element={
+                  <PrivateRoute>
+                    <PaymentSuccess />
                   </PrivateRoute>
                 } 
               />
