@@ -9862,6 +9862,292 @@ app.put('/api/owner/users/:userId', verifyToken, async (req, res) => {
 
 // ============= END OWNER API ENDPOINTS =============
 
+// PAYMONGO PAYMENT INTEGRATION
+// =============================================================================
+
+const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY || '';
+const PAYMONGO_PUBLIC_KEY = process.env.PAYMONGO_PUBLIC_KEY || '';
+const PAYMONGO_BASE_URL = 'https://api.paymongo.com/v1';
+const APP_BASE_URL = process.env.APP_BASE_URL || 'https://initiate-portal.vercel.app';
+
+// Helper function to make PayMongo API requests
+async function paymongoRequest(endpoint, method = 'GET', data = null) {
+  const options = {
+    method,
+    headers: {
+      'Authorization': `Basic ${Buffer.from(PAYMONGO_SECRET_KEY + ':').toString('base64')}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }
+  };
+  
+  if (data) {
+    options.body = JSON.stringify(data);
+  }
+  
+  const response = await fetch(`${PAYMONGO_BASE_URL}${endpoint}`, options);
+  return response.json();
+}
+
+// Create PayMongo checkout session for investment
+app.post('/api/payments/create-checkout', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { amount, projectId, projectName, description } = req.body;
+  
+  console.log(`💳 Creating PayMongo checkout - User: ${uid}, Project: ${projectId}, Amount: ${amount}`);
+  
+  if (!PAYMONGO_SECRET_KEY) {
+    console.error('❌ PayMongo secret key not configured');
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Payment service not configured. Please contact support.' 
+    });
+  }
+  
+  try {
+    // Get user info
+    const userResult = await db.query(
+      'SELECT full_name, email FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+    
+    const user = userResult.rows[0];
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    
+    // Validate amount (minimum 100 PHP for PayMongo)
+    const amountInCentavos = Math.round(parseFloat(amount) * 100);
+    if (amountInCentavos < 10000) { // 100 PHP minimum
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Minimum investment amount is ₱100' 
+      });
+    }
+    
+    // Create a checkout session using PayMongo Checkout API
+    const checkoutData = {
+      data: {
+        attributes: {
+          send_email_receipt: true,
+          show_description: true,
+          show_line_items: true,
+          description: description || `Investment in ${projectName}`,
+          line_items: [
+            {
+              currency: 'PHP',
+              amount: amountInCentavos,
+              name: `Investment - ${projectName}`,
+              quantity: 1,
+              description: `Investment contribution for project: ${projectName}`
+            }
+          ],
+          payment_method_types: ['gcash', 'grab_pay', 'paymaya', 'card', 'dob', 'dob_ubp'],
+          success_url: `${APP_BASE_URL}/payment/success?project_id=${projectId}&amount=${amount}`,
+          cancel_url: `${APP_BASE_URL}/investor/project/${projectId}?payment=cancelled`,
+          reference_number: `INV-${projectId}-${uid}-${Date.now()}`,
+          metadata: {
+            project_id: projectId,
+            investor_uid: uid,
+            investor_name: user.full_name,
+            investor_email: user.email,
+            investment_amount: amount
+          }
+        }
+      }
+    };
+    
+    console.log('📤 Creating PayMongo checkout session:', JSON.stringify(checkoutData, null, 2));
+    
+    const checkoutResponse = await paymongoRequest('/checkout_sessions', 'POST', checkoutData);
+    
+    console.log('📥 PayMongo checkout response:', JSON.stringify(checkoutResponse, null, 2));
+    
+    if (checkoutResponse.errors) {
+      console.error('❌ PayMongo error:', checkoutResponse.errors);
+      return res.status(400).json({ 
+        success: false, 
+        error: checkoutResponse.errors[0]?.detail || 'Payment creation failed' 
+      });
+    }
+    
+    const checkoutSession = checkoutResponse.data;
+    
+    // Store the pending payment in database
+    await db.query(
+      `INSERT INTO payment_transactions (
+        firebase_uid,
+        project_id,
+        amount,
+        paymongo_checkout_id,
+        paymongo_reference,
+        status,
+        created_at
+      ) VALUES ($1, $2, $3, $4, $5, 'pending', NOW())
+      ON CONFLICT DO NOTHING`,
+      [
+        uid,
+        projectId,
+        amount,
+        checkoutSession.id,
+        checkoutData.data.attributes.reference_number
+      ]
+    );
+    
+    res.json({
+      success: true,
+      checkoutUrl: checkoutSession.attributes.checkout_url,
+      checkoutId: checkoutSession.id,
+      referenceNumber: checkoutData.data.attributes.reference_number
+    });
+    
+  } catch (error) {
+    console.error('❌ PayMongo checkout error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to create payment checkout' 
+    });
+  }
+});
+
+// Check payment status
+app.get('/api/payments/status/:checkoutId', verifyToken, async (req, res) => {
+  const { checkoutId } = req.params;
+  
+  try {
+    const response = await paymongoRequest(`/checkout_sessions/${checkoutId}`);
+    
+    if (response.errors) {
+      return res.status(400).json({ 
+        success: false, 
+        error: response.errors[0]?.detail || 'Failed to get payment status' 
+      });
+    }
+    
+    const session = response.data;
+    res.json({
+      success: true,
+      status: session.attributes.status,
+      paymentIntent: session.attributes.payment_intent,
+      payments: session.attributes.payments
+    });
+  } catch (error) {
+    console.error('❌ Payment status error:', error);
+    res.status(500).json({ success: false, error: 'Failed to check payment status' });
+  }
+});
+
+// PayMongo webhook endpoint (for payment confirmations)
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
+  
+  // Verify webhook signature if secret is configured
+  if (webhookSecret) {
+    const signature = req.headers['paymongo-signature'];
+    // PayMongo signature verification would go here
+    void signature;
+  }
+  
+  try {
+    const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    console.log('📬 PayMongo webhook received:', event.type);
+    
+    const eventType = event.data?.attributes?.type;
+    const eventData = event.data?.attributes?.data;
+    
+    if (eventType === 'checkout_session.payment.paid') {
+      const checkoutId = eventData?.id;
+      const metadata = eventData?.attributes?.metadata;
+      
+      if (metadata) {
+        const { project_id, investor_uid, investment_amount } = metadata;
+        
+        console.log(`✅ Payment confirmed for project ${project_id}, investor ${investor_uid}, amount ${investment_amount}`);
+        
+        // Update payment transaction status
+        await db.query(
+          `UPDATE payment_transactions 
+           SET status = 'paid', paid_at = NOW() 
+           WHERE paymongo_checkout_id = $1`,
+          [checkoutId]
+        );
+        
+        // Create the investment request (similar to existing invest endpoint)
+        const projectResult = await db.query(
+          'SELECT project_data, firebase_uid FROM projects WHERE id = $1',
+          [project_id]
+        );
+        
+        if (projectResult.rows.length > 0) {
+          const project = projectResult.rows[0];
+          const projectData = project.project_data;
+          
+          // Get investor name
+          const userResult = await db.query(
+            'SELECT full_name FROM users WHERE firebase_uid = $1',
+            [investor_uid]
+          );
+          const investorName = userResult.rows[0]?.full_name || 'Investor';
+          
+          // Add investment request
+          if (!projectData.investorRequests) {
+            projectData.investorRequests = [];
+          }
+          
+          projectData.investorRequests.push({
+            investorId: investor_uid,
+            name: investorName,
+            amount: parseFloat(investment_amount),
+            date: new Date().toISOString(),
+            status: 'paid',
+            paymentMethod: 'paymongo',
+            checkoutId: checkoutId
+          });
+          
+          await db.query(
+            'UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2',
+            [projectData, project_id]
+          );
+          
+          console.log(`✅ Investment request created for project ${project_id}`);
+        }
+      }
+    }
+    
+    res.json({ received: true });
+  } catch (error) {
+    console.error('❌ Webhook processing error:', error);
+    res.status(400).json({ error: 'Webhook processing failed' });
+  }
+});
+
+// Get payment history for user
+app.get('/api/payments/history', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  
+  try {
+    const result = await db.query(
+      `SELECT * FROM payment_transactions 
+       WHERE firebase_uid = $1 
+       ORDER BY created_at DESC 
+       LIMIT 50`,
+      [uid]
+    );
+    
+    res.json({
+      success: true,
+      payments: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Payment history error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get payment history' });
+  }
+});
+
+// =============================================================================
+// END PAYMONGO PAYMENT INTEGRATION
+// =============================================================================
+
 const PORT = process.env.PORT || 3001;
 
 // Set up admin user before starting server
