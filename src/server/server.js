@@ -10121,6 +10121,143 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asy
   }
 });
 
+// Confirm payment and create investment record (called from success page)
+app.post('/api/payments/confirm', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { projectId, amount } = req.body;
+  
+  console.log(`✅ Confirming payment - User: ${uid}, Project: ${projectId}, Amount: ${amount}`);
+  
+  try {
+    // Get project data
+    const projectResult = await db.query(
+      'SELECT id, project_data, firebase_uid FROM projects WHERE id = $1',
+      [projectId]
+    );
+    
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+    
+    const project = projectResult.rows[0];
+    const projectData = project.project_data;
+    const projectOwnerUid = project.firebase_uid;
+    
+    // Check if user already has an investment in this project
+    const existingInvestment = projectData.investorRequests?.find(
+      req => req.investorId === uid && (req.status === 'paid' || req.status === 'pending')
+    );
+    
+    if (existingInvestment) {
+      console.log(`ℹ️ User ${uid} already has investment in project ${projectId}`);
+      return res.json({ 
+        success: true, 
+        message: 'Investment already recorded',
+        alreadyExists: true 
+      });
+    }
+    
+    // Get investor name
+    const userResult = await db.query(
+      'SELECT full_name FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+    const investorName = userResult.rows[0]?.full_name || 'Investor';
+    
+    // Add investment request to project
+    if (!projectData.investorRequests) {
+      projectData.investorRequests = [];
+    }
+    
+    const investmentRequest = {
+      investorId: uid,
+      name: investorName,
+      amount: parseFloat(amount),
+      date: new Date().toISOString(),
+      status: 'pending', // Pending approval by project owner/admin
+      paymentMethod: 'paymongo',
+      paymentStatus: 'paid'
+    };
+    
+    projectData.investorRequests.push(investmentRequest);
+    
+    // Update project
+    await db.query(
+      'UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2',
+      [projectData, projectId]
+    );
+    
+    console.log(`✅ Investment request added for project ${projectId} by ${investorName}`);
+    
+    // Create notification for investor
+    try {
+      await db.query(
+        `INSERT INTO notifications (user_id, type, title, message, reference_id, category, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+        [
+          uid,
+          'investment_submitted',
+          '💰 Investment Submitted Successfully',
+          `Your investment of ₱${parseFloat(amount).toLocaleString()} in "${projectData.details?.product || 'the project'}" has been submitted and is pending approval.`,
+          projectId.toString(),
+          'investment'
+        ]
+      );
+    } catch (notifError) {
+      console.log('⚠️ Failed to create investor notification:', notifError.message);
+    }
+    
+    // Create notification for project owner
+    try {
+      await db.query(
+        `INSERT INTO notifications (user_id, type, title, message, reference_id, category, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+        [
+          projectOwnerUid,
+          'new_investment_request',
+          '🎉 New Investment Request!',
+          `${investorName} has invested ₱${parseFloat(amount).toLocaleString()} in your project "${projectData.details?.product || 'your project'}". Please review and approve the investment.`,
+          projectId.toString(),
+          'investment'
+        ]
+      );
+    } catch (notifError) {
+      console.log('⚠️ Failed to create owner notification:', notifError.message);
+    }
+    
+    // Create notification for admins
+    try {
+      const admins = await db.query('SELECT firebase_uid FROM users WHERE is_admin = true');
+      for (const admin of admins.rows) {
+        await db.query(
+          `INSERT INTO notifications (user_id, type, title, message, reference_id, category, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+          [
+            admin.firebase_uid,
+            'new_investment_request',
+            '📊 New Investment Request (Admin)',
+            `${investorName} has invested ₱${parseFloat(amount).toLocaleString()} in project "${projectData.details?.product || 'a project'}". Review required.`,
+            projectId.toString(),
+            'investment'
+          ]
+        );
+      }
+    } catch (notifError) {
+      console.log('⚠️ Failed to create admin notifications:', notifError.message);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Investment recorded successfully',
+      investment: investmentRequest
+    });
+    
+  } catch (error) {
+    console.error('❌ Payment confirmation error:', error);
+    res.status(500).json({ success: false, error: 'Failed to confirm payment' });
+  }
+});
+
 // Get payment history for user
 app.get('/api/payments/history', verifyToken, async (req, res) => {
   const uid = req.uid;
