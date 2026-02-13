@@ -126,7 +126,7 @@ export const BorrowerHome: React.FC = () => {
 
   // Account creation options for new users
   const accountTypes = [
-    { key: "investor", title: "Invest/Lender Account", image: "/investor-1.png", description: "Browse and invest in projects, earn returns" },
+    { key: "investor", title: "Investor Account", image: "/investor-1.png", description: "Browse and invest in projects, earn returns" },
     { key: "borrower", title: "Issue/Borrow Account", image: "/debt-1.png", description: "Create projects and seek funding for your business" },
   ];
 
@@ -275,7 +275,7 @@ export const BorrowerHome: React.FC = () => {
                         {/* Account Type & Profile Code Display */}
                         <h2 className="text-xl opacity-70 mt-4">Current Account:</h2>
                         <p className="text-2xl font-semibold">
-                          {currentAccountType === 'borrower' ? 'Issue/Borrow Account' : 'Invest/Lender Account'}
+                          {currentAccountType === 'borrower' ? 'Issue/Borrow Account' : 'Investor Account'}
                         </p>
                         {/* {profile?.profileCode && (
                           <div className="flex items-center justify-center md:justify-start gap-2 mt-2">

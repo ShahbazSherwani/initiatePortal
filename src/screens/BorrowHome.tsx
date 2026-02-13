@@ -73,7 +73,7 @@ export const BorrowHome = () => {
                   onClick={() => handleRoleSelection('investor')}
                   className="p-4 border-2 border-[#0C4B20] rounded-lg hover:bg-[#fff8e6] transition-colors"
                 >
-                  <h3 className="font-bold text-lg mb-2">Invest/Lender</h3>
+                  <h3 className="font-bold text-lg mb-2">Investor</h3>
                   <img src="/investor-1.png" alt="Investor" className="w-20 h-20 mx-auto" />
                   <p className="text-sm text-gray-600 mt-2">
                     Browse projects and invest in opportunities.

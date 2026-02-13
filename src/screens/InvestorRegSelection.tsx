@@ -92,9 +92,9 @@ export const InvestorRegSelection = (): JSX.Element => {
             </div>
           </div>
 
-          {/* Direct Lender Separate Section */}
+          {/* Individual Investor Separate Section */}
           <div className="border-t pt-6">
-            <p className="font-medium text-lg mb-2">Or select Direct Lender</p>
+            <p className="font-medium text-lg mb-2">Or select Individual Investor</p>
             <button
               type="button"
               className={`
@@ -119,7 +119,7 @@ export const InvestorRegSelection = (): JSX.Element => {
                   <div className="w-2 h-2 bg-white rounded-full m-auto mt-0.5"></div>
                 )}
               </div>
-              <span>Direct Lender</span>
+              <span>Individual Investor</span>
             </button>
           </div>
         </div>

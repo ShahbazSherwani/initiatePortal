@@ -128,7 +128,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
                 <p className="text-base">
                   Welcome to <strong>INITIATE PH</strong>, a crowdfunding intermediary registered in the Philippines. 
                   By accessing or using the INITIATE PH platform (the "Platform"), you ("User," "Investor," "Issuer," 
-                  "Lender," or "Debtor") acknowledge that you have read, understood, and agreed to these Terms and 
+                  or "Debtor") acknowledge that you have read, understood, and agreed to these Terms and 
                   Conditions ("Terms"), along with our Privacy Policy, Risk Statement, and other applicable policies.
                 </p>
 
@@ -146,20 +146,19 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
                   <li><strong>b) "User"</strong> – any individual or entity that registers or accesses the Platform.</li>
                   <li><strong>c) "Investor"</strong> – a User who commits funds to securities or debt instruments through the Platform.</li>
                   <li><strong>d) "Issuer"</strong> – a corporate User raising capital by offering securities (e.g., shares, bonds, notes) through the Platform.</li>
-                  <li><strong>e) "Lender"</strong> – a User who provides funds to a borrowing entity through debt crowdfunding.</li>
-                  <li><strong>f) "Debtor"</strong> – a User (corporation or entity) that borrows funds through debt crowdfunding and undertakes repayment under agreed terms.</li>
-                  <li><strong>g) "Securities"</strong> – investment instruments offered by Issuers, including shares, bonds, or notes, as permitted by law.</li>
-                  <li><strong>h) "Loans"</strong> – debt instruments executed between Lenders and Debtors under a crowdfunding arrangement facilitated by the Platform.</li>
-                  <li><strong>i) "Campaign"</strong> – a fundraising activity initiated by an Issuer or Debtor through the Platform.</li>
-                  <li><strong>j) "Funding Commitment"</strong> – the investment or loan pledged by an Investor or Lender to an Issuer or Debtor.</li>
+                  <li><strong>e) "Debtor"</strong> – a User (corporation or entity) that borrows funds through debt crowdfunding and undertakes repayment under agreed terms.</li>
+                  <li><strong>f) "Securities"</strong> – investment instruments offered by Issuers, including shares, bonds, or notes, as permitted by law.</li>
+                  <li><strong>g) "Loans"</strong> – debt instruments executed between Investors and Debtors under a crowdfunding arrangement facilitated by the Platform.</li>
+                  <li><strong>h) "Campaign"</strong> – a fundraising activity initiated by an Issuer or Debtor through the Platform.</li>
+                  <li><strong>i) "Funding Commitment"</strong> – the investment or loan pledged by an Investor to an Issuer or Debtor.</li>
                 </ul>
 
                 <h3 className="text-lg font-semibold text-gray-900">3. Eligibility</h3>
-                <p className="text-base font-semibold">3.1 Investors and Lenders</p>
+                <p className="text-base font-semibold">3.1 Investors</p>
                 <ul className="list-none space-y-2 text-base ml-4">
                   <li>a) Must be at least 18 years old, with full legal capacity.</li>
                   <li>b) Must complete the risk acknowledgment and suitability assessment.</li>
-                  <li>c) Must comply with investment or lending limits prescribed by the SEC.</li>
+                  <li>c) Must comply with investment limits prescribed by the SEC.</li>
                   <li>d) Must not be disqualified under securities, finance, or banking laws.</li>
                 </ul>
                 <p className="text-base font-semibold mt-3">3.2 Issuers and Debtors</p>
@@ -199,11 +198,11 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
                 <h3 className="text-lg font-semibold text-gray-900">6. Investments, Loans, and Risks</h3>
                 <ul className="list-none space-y-2 text-base ml-4">
                   <li>a) All investments and loans made through the Platform are high risk and speculative.</li>
-                  <li>b) Investors and Lenders may lose part or all of their capital.</li>
+                  <li>b) Investors may lose part or all of their capital.</li>
                   <li>c) Securities and loans offered are not insured, not guaranteed, and may be illiquid.</li>
                   <li>d) There is no assurance of dividends, interest, or repayment.</li>
                   <li>e) Past performance of an Issuer or Debtor is not a guarantee of future results.</li>
-                  <li>f) Investors and Lenders are responsible for reviewing disclosures and making independent decisions.</li>
+                  <li>f) Investors are responsible for reviewing disclosures and making independent decisions.</li>
                 </ul>
 
                 <h3 className="text-lg font-semibold text-gray-900">7. Issuer and Debtor Obligations</h3>
@@ -211,7 +210,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
                 <ul className="list-none space-y-2 text-base ml-4">
                   <li>a) Provide accurate, complete, and updated disclosures.</li>
                   <li>b) Use funds strictly for the stated purpose of the campaign.</li>
-                  <li>c) Provide periodic updates and financial reports to the Platform and Investors/Lenders.</li>
+                  <li>c) Provide periodic updates and financial reports to the Platform and Investors.</li>
                   <li>d) Repay loans or deliver securities according to the agreed terms.</li>
                   <li>e) Comply with anti-money laundering and other applicable laws.</li>
                 </ul>
@@ -282,7 +281,7 @@ export const TermsAndConditionsModal: React.FC<TermsAndConditionsModalProps> = (
                 <p className="text-base">For inquiries or concerns:</p>
                 <p className="text-base font-medium">
                   <strong>INITIATE PH</strong><br />
-                  Email: dpo@initiate.ph<br />
+                  Email: dataprivacyofficer@initiate.ph<br />
                   Address: Unit 1915 Capital House 9th Avenue, corner 34th Bonifacio Global City ‬Taguig City
                 </p>
 

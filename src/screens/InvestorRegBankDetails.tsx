@@ -316,7 +316,7 @@ export const InvestorRegBankDetails = (): JSX.Element => {
             <div className="w-12 h-12 bg-[#0C4B20] rounded-lg flex items-center justify-center">
               <img className="w-10 h-10" src="/investor-1.png" alt="Investor" />
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold">Invest/Lender</h2>
+            <h2 className="text-2xl md:text-3xl font-bold">Investor</h2>
           </div>
 
           {/* Bank Details */}

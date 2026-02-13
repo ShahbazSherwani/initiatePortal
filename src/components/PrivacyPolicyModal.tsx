@@ -315,7 +315,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
                 <p className="text-base">For questions, concerns, or requests regarding your personal data, please contact:</p>
                 <p className="text-base font-medium">
                   Data Protection Officer (DPO): Boncarlo R. Uneta<br />
-                  Email: dpo@initiate.ph
+                  Email: dataprivacyofficer@initiate.ph
                 </p>
 
                 <p className="text-base font-medium mt-6">

@@ -319,9 +319,9 @@ export const InvestorRegDirectLender = (): JSX.Element => {
           {/* Header */}
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[#0C4B20] rounded-lg flex items-center justify-center">
-              <img className="w-10 h-10" src="/leader-1.png" alt="Direct Lender" />
+              <img className="w-10 h-10" src="/leader-1.png" alt="Individual Investor" />
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold">Direct Lender</h2>
+            <h2 className="text-2xl md:text-3xl font-bold">Individual Investor</h2>
           </div>
 
           {/* Option Selection */}
@@ -468,9 +468,9 @@ export const InvestorRegDirectLender = (): JSX.Element => {
             </div>
           </section>
 
-          {/* Direct Lender Criteria */}
+          {/* Individual Investor Criteria */}
           <section className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-semibold">Direct Lender Criteria</h3>
+            <h3 className="text-xl md:text-2xl font-semibold">Individual Investor Criteria</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Requirements Criteria */}
               <ValidatedInput
