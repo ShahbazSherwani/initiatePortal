@@ -34,7 +34,6 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
 
   // Local state for form fields (or use controlled components directly)
   const [investmentAmount, setInvestmentAmount] = useState("");
-  const [loanAmount, setLoanAmount] = useState("");
   const [projectRequirements, setProjectRequirements] = useState("");
   const [investorPercentage, setInvestorPercentage] = useState("");
   const [timeDuration, setTimeDuration] = useState("");
@@ -60,7 +59,6 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
       selectedType: "lending",
       projectDetails: {
         ...f.projectDetails, // <-- This keeps the image and any other previous fields!
-        loanAmount,
         projectRequirements,
         investorPercentage,
         timeDuration,
@@ -152,47 +150,6 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
               {/* Left column */}
               <div className="space-y-6">
                 {/* Loan Amount Toggle */}
-                <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Please Select
-                  </label>
-                  <ToggleGroup
-                    type="single"
-                    value={loanAmount}
-                    onValueChange={(v) => {
-                      // Radix passes undefined if clicking the already-selected item
-                      if (v) setLoanAmount(v);
-                    }}
-                    className="flex gap-3"
-                  >
-                    <ToggleGroupItem
-                      value="Under 100000"
-                      className="
-                        flex-1 py-3 rounded-2xl border text-center font-medium font-poppins
-                        bg-white text-[#0C4B20] 
-                        hover:bg-[#90B200]
-                        data-[state=on]:bg-[#0C4B20] data-[state=on]:text-white data-[state=on]:border-transparent
-                        transition-colors
-                      "
-                    >
-                      Under 100000
-                    </ToggleGroupItem>
-
-                    <ToggleGroupItem
-                      value="100000 and Above"
-                      className="
-                        flex-1 py-3 rounded-2xl border text-center font-medium font-poppins
-                        bg-white text-[#0C4B20]
-                        hover:bg-[#90B200]
-                        data-[state=on]:bg-[#0C4B20] data-[state=on]:text-white data-[state=on]:border-transparent
-                        transition-colors
-                      "
-                    >
-                      100000 and Above
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
-
                 {/* Project Requirements */}
                 <div>
                   <label className="font-medium text-black text-base block mb-2">
