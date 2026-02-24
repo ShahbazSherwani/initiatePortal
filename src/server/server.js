@@ -12937,6 +12937,151 @@ app.post('/api/admin/send-daily-stats', verifyToken, async (req, res) => {
   }
 });
 
+// Cron endpoint for automatic daily stats email (called by external cron service)
+// Usage: POST /api/cron/daily-stats with header: x-cron-secret: YOUR_CRON_SECRET
+app.post('/api/cron/daily-stats', async (req, res) => {
+  try {
+    // Verify cron secret
+    const cronSecret = req.headers['x-cron-secret'] || req.query.secret;
+    const expectedSecret = process.env.CRON_SECRET || process.env.MAKE_API_KEY;
+    
+    if (!cronSecret || cronSecret !== expectedSecret) {
+      console.log('⚠️ Cron request rejected - invalid secret');
+      return res.status(401).json({ error: 'Invalid cron secret' });
+    }
+
+    console.log('🕐 Running scheduled daily stats email...');
+
+    // Get admin email(s) to send to
+    const admins = await db.query(
+      'SELECT email FROM users WHERE is_admin = true LIMIT 5'
+    );
+
+    if (admins.rows.length === 0) {
+      return res.status(404).json({ error: 'No admin users found' });
+    }
+
+    // Gather all stats
+    const [users, investments, topups, projects, walletBalance] = await Promise.all([
+      db.query(\`
+        SELECT
+          COUNT(*) as total,
+          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as new_today,
+          COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as new_this_week,
+          COUNT(CASE WHEN last_login >= NOW() - INTERVAL '24 hours' THEN 1 END) as active_today,
+          COUNT(CASE WHEN account_type = 'investor' THEN 1 END) as investors,
+          COUNT(CASE WHEN account_type = 'borrower' THEN 1 END) as borrowers,
+          COUNT(CASE WHEN is_suspended = true THEN 1 END) as suspended
+        FROM users
+      \`),
+      db.query(\`
+        SELECT
+          COUNT(*) as total,
+          COALESCE(SUM(amount), 0) as total_amount,
+          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today_count,
+          COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN amount ELSE 0 END), 0) as today_amount,
+          COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as week_count,
+          COALESCE(SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN amount ELSE 0 END), 0) as week_amount,
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
+        FROM investments
+      \`),
+      db.query(\`
+        SELECT
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
+        FROM topup_requests
+      \`),
+      db.query(\`
+        SELECT
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
+          COUNT(CASE WHEN approval_status = 'pending' THEN 1 END) as pending,
+          COALESCE(SUM(current_funding), 0) as total_funded
+        FROM projects
+      \`),
+      db.query('SELECT COALESCE(SUM(wallet_balance), 0) as total FROM users')
+    ]);
+
+    const uptime = process.uptime();
+    const hours = Math.floor(uptime / 3600);
+    const minutes = Math.floor((uptime % 3600) / 60);
+
+    const stats = {
+      users: {
+        total: parseInt(users.rows[0].total),
+        newToday: parseInt(users.rows[0].new_today),
+        newThisWeek: parseInt(users.rows[0].new_this_week),
+        activeToday: parseInt(users.rows[0].active_today),
+        investors: parseInt(users.rows[0].investors),
+        borrowers: parseInt(users.rows[0].borrowers),
+        suspended: parseInt(users.rows[0].suspended)
+      },
+      investments: {
+        totalCount: parseInt(investments.rows[0].total),
+        totalAmount: parseFloat(investments.rows[0].total_amount),
+        todayCount: parseInt(investments.rows[0].today_count),
+        todayAmount: parseFloat(investments.rows[0].today_amount),
+        weekCount: parseInt(investments.rows[0].week_count),
+        weekAmount: parseFloat(investments.rows[0].week_amount),
+        pendingCount: parseInt(investments.rows[0].pending_count),
+        pendingAmount: parseFloat(investments.rows[0].pending_amount)
+      },
+      topups: {
+        pendingCount: parseInt(topups.rows[0].pending_count),
+        pendingAmount: parseFloat(topups.rows[0].pending_amount)
+      },
+      projects: {
+        total: parseInt(projects.rows[0].total),
+        active: parseInt(projects.rows[0].active),
+        pending: parseInt(projects.rows[0].pending),
+        totalFunded: parseFloat(projects.rows[0].total_funded)
+      },
+      platform: {
+        walletBalance: parseFloat(walletBalance.rows[0].total),
+        uptime: \`\${hours}h \${minutes}m\`
+      }
+    };
+
+    // Generate HTML email
+    const html = generateDailyStatsEmailHTML(stats);
+    
+    // Send to all admins
+    const results = [];
+    for (const admin of admins.rows) {
+      const result = await sendEmail({
+        to: admin.email,
+        subject: \`📊 Initiate PH Daily Report - \${new Date().toLocaleDateString('en-PH')}\`,
+        html
+      });
+      results.push({ email: admin.email, success: result.success });
+    }
+
+    // Also send to custom email if provided
+    if (req.body.email) {
+      const customResult = await sendEmail({
+        to: req.body.email,
+        subject: \`📊 Initiate PH Daily Report - \${new Date().toLocaleDateString('en-PH')}\`,
+        html
+      });
+      results.push({ email: req.body.email, success: customResult.success });
+    }
+
+    console.log('✅ Daily stats email cron completed:', results);
+
+    res.json({ 
+      success: true, 
+      message: 'Daily stats emails sent', 
+      results,
+      stats 
+    });
+
+  } catch (error) {
+    console.error('Error in daily stats cron:', error);
+    res.status(500).json({ error: 'Failed to run daily stats cron' });
+  }
+});
+
 // Get comprehensive report data for export
 app.get('/api/admin/reports/comprehensive', verifyToken, async (req, res) => {
   try {

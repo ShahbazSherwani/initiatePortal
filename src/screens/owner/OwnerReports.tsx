@@ -26,8 +26,11 @@ import {
   CheckCircle,
   AlertTriangle,
   Wallet,
-  Eye
+  Eye,
+  Mail,
+  Send
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface ReportData {
   users: {
@@ -93,6 +96,7 @@ export const OwnerReports: React.FC = () => {
     endDate: new Date().toISOString().split('T')[0]
   });
   const [exporting, setExporting] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const fetchReportData = async () => {
     try {
@@ -322,6 +326,28 @@ export const OwnerReports: React.FC = () => {
     }
   };
 
+  const handleSendDailyEmail = async (customEmail?: string) => {
+    try {
+      setSendingEmail(true);
+      const body = customEmail ? { email: customEmail } : {};
+      const result = await authFetch(`${API_BASE_URL}/admin/send-daily-stats`, {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+      
+      if (result.success) {
+        toast.success(`Daily report email sent successfully!`);
+      } else {
+        toast.error(result.message || 'Failed to send email');
+      }
+    } catch (error) {
+      console.error('Error sending daily email:', error);
+      toast.error('Failed to send daily report email');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'users' as TabType, label: 'Users', icon: <Users className="w-4 h-4" /> },
@@ -351,10 +377,18 @@ export const OwnerReports: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
             <p className="text-gray-500">Comprehensive platform statistics and audit logs</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={fetchReportData}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => handleSendDailyEmail()}
+              disabled={sendingEmail}
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              {sendingEmail ? 'Sending...' : 'Email Report'}
             </Button>
             <Button 
               className="bg-[#0C4B20] hover:bg-[#0C4B20]/90 text-white"
