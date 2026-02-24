@@ -12644,6 +12644,399 @@ app.post('/api/sync-user', verifyMakeRequest, async (req, res) => {
   }
 });
 
+// ==================== DAILY STATS EMAIL ====================
+
+// Generate HTML for daily stats email
+function generateDailyStatsEmailHTML(stats) {
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount || 0);
+  };
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Daily Platform Report - Initiate PH</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              <!-- Header -->
+              <tr>
+                <td style="background-color: #0C4B20; color: white; padding: 30px; text-align: center;">
+                  <h1 style="margin: 0; font-size: 24px;">Daily Platform Report</h1>
+                  <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">${new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </td>
+              </tr>
+              
+              <!-- Summary Section -->
+              <tr>
+                <td style="padding: 30px;">
+                  <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #0C4B20; border-bottom: 2px solid #8FB200; padding-bottom: 10px;">📊 Today's Summary</h2>
+                  
+                  <table width="100%" cellpadding="10" cellspacing="0" style="margin-bottom: 20px;">
+                    <tr>
+                      <td style="background-color: #f8f9fa; border-radius: 5px; width: 50%;">
+                        <strong style="color: #666; font-size: 12px;">NEW USERS TODAY</strong>
+                        <div style="font-size: 28px; font-weight: bold; color: #0C4B20;">${stats.users?.newToday || 0}</div>
+                      </td>
+                      <td style="width: 10px;"></td>
+                      <td style="background-color: #f8f9fa; border-radius: 5px; width: 50%;">
+                        <strong style="color: #666; font-size: 12px;">ACTIVE USERS</strong>
+                        <div style="font-size: 28px; font-weight: bold; color: #0C4B20;">${stats.users?.activeToday || 0}</div>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <table width="100%" cellpadding="10" cellspacing="0" style="margin-bottom: 20px;">
+                    <tr>
+                      <td style="background-color: #e8f5e9; border-radius: 5px; width: 50%;">
+                        <strong style="color: #666; font-size: 12px;">INVESTMENTS TODAY</strong>
+                        <div style="font-size: 28px; font-weight: bold; color: #2e7d32;">${stats.investments?.todayCount || 0}</div>
+                        <div style="font-size: 14px; color: #666;">${formatCurrency(stats.investments?.todayAmount || 0)}</div>
+                      </td>
+                      <td style="width: 10px;"></td>
+                      <td style="background-color: #fff3e0; border-radius: 5px; width: 50%;">
+                        <strong style="color: #666; font-size: 12px;">PENDING APPROVALS</strong>
+                        <div style="font-size: 28px; font-weight: bold; color: #ef6c00;">${(stats.investments?.pendingCount || 0) + (stats.topups?.pendingCount || 0)}</div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- User Stats -->
+              <tr>
+                <td style="padding: 0 30px 30px 30px;">
+                  <h2 style="margin: 0 0 15px 0; font-size: 16px; color: #0C4B20;">👥 User Statistics</h2>
+                  <table width="100%" cellpadding="8" cellspacing="0" style="background-color: #f8f9fa; border-radius: 5px;">
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">Total Users</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #e0e0e0;">${stats.users?.total || 0}</td></tr>
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">Investors</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #e0e0e0;">${stats.users?.investors || 0}</td></tr>
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">Borrowers</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #e0e0e0;">${stats.users?.borrowers || 0}</td></tr>
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">New This Week</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #e0e0e0;">${stats.users?.newThisWeek || 0}</td></tr>
+                    <tr><td>Suspended</td><td style="text-align: right; font-weight: bold; color: ${stats.users?.suspended > 0 ? '#d32f2f' : '#333'};">${stats.users?.suspended || 0}</td></tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Investment Stats -->
+              <tr>
+                <td style="padding: 0 30px 30px 30px;">
+                  <h2 style="margin: 0 0 15px 0; font-size: 16px; color: #0C4B20;">💰 Investment Statistics</h2>
+                  <table width="100%" cellpadding="8" cellspacing="0" style="background-color: #e8f5e9; border-radius: 5px;">
+                    <tr><td style="border-bottom: 1px solid #c8e6c9;">Total Volume</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #c8e6c9;">${formatCurrency(stats.investments?.totalAmount || 0)}</td></tr>
+                    <tr><td style="border-bottom: 1px solid #c8e6c9;">Total Count</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #c8e6c9;">${stats.investments?.totalCount || 0}</td></tr>
+                    <tr><td style="border-bottom: 1px solid #c8e6c9;">This Week</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #c8e6c9;">${formatCurrency(stats.investments?.weekAmount || 0)} (${stats.investments?.weekCount || 0})</td></tr>
+                    <tr><td>Pending</td><td style="text-align: right; font-weight: bold; color: #ef6c00;">${formatCurrency(stats.investments?.pendingAmount || 0)} (${stats.investments?.pendingCount || 0})</td></tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Project Stats -->
+              <tr>
+                <td style="padding: 0 30px 30px 30px;">
+                  <h2 style="margin: 0 0 15px 0; font-size: 16px; color: #0C4B20;">📁 Project Statistics</h2>
+                  <table width="100%" cellpadding="8" cellspacing="0" style="background-color: #f8f9fa; border-radius: 5px;">
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">Total Projects</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #e0e0e0;">${stats.projects?.total || 0}</td></tr>
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">Active</td><td style="text-align: right; font-weight: bold; color: #2e7d32; border-bottom: 1px solid #e0e0e0;">${stats.projects?.active || 0}</td></tr>
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">Pending Review</td><td style="text-align: right; font-weight: bold; color: #ef6c00; border-bottom: 1px solid #e0e0e0;">${stats.projects?.pending || 0}</td></tr>
+                    <tr><td>Total Funded</td><td style="text-align: right; font-weight: bold;">${formatCurrency(stats.projects?.totalFunded || 0)}</td></tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Top-up Stats -->
+              <tr>
+                <td style="padding: 0 30px 30px 30px;">
+                  <h2 style="margin: 0 0 15px 0; font-size: 16px; color: #0C4B20;">💳 Payment Statistics</h2>
+                  <table width="100%" cellpadding="8" cellspacing="0" style="background-color: #f8f9fa; border-radius: 5px;">
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">Pending Top-ups</td><td style="text-align: right; font-weight: bold; color: #ef6c00; border-bottom: 1px solid #e0e0e0;">${stats.topups?.pendingCount || 0} (${formatCurrency(stats.topups?.pendingAmount || 0)})</td></tr>
+                    <tr><td style="border-bottom: 1px solid #e0e0e0;">Platform Balance</td><td style="text-align: right; font-weight: bold; border-bottom: 1px solid #e0e0e0;">${formatCurrency(stats.platform?.walletBalance || 0)}</td></tr>
+                    <tr><td>Server Uptime</td><td style="text-align: right; font-weight: bold;">${stats.platform?.uptime || 'N/A'}</td></tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Action Items -->
+              ${(stats.investments?.pendingCount > 0 || stats.topups?.pendingCount > 0 || stats.projects?.pending > 0) ? `
+              <tr>
+                <td style="padding: 0 30px 30px 30px;">
+                  <div style="background-color: #fff3e0; border-left: 4px solid #ef6c00; padding: 15px; border-radius: 0 5px 5px 0;">
+                    <strong style="color: #ef6c00;">⚠️ Action Required</strong>
+                    <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #666;">
+                      ${stats.investments?.pendingCount > 0 ? `<li>${stats.investments.pendingCount} investment(s) pending approval</li>` : ''}
+                      ${stats.topups?.pendingCount > 0 ? `<li>${stats.topups.pendingCount} top-up request(s) pending</li>` : ''}
+                      ${stats.projects?.pending > 0 ? `<li>${stats.projects.pending} project(s) awaiting review</li>` : ''}
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              ` : ''}
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+                  <p style="margin: 0; font-size: 12px; color: #999;">
+                    This is an automated daily report from Initiate PH Platform.<br>
+                    <a href="https://initiate-portal.vercel.app/owner/reports" style="color: #0C4B20;">View Full Reports Dashboard</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
+// Send daily stats email to admin
+app.post('/api/admin/send-daily-stats', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin, email FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    // Gather all stats
+    const [users, investments, topups, projects, walletBalance] = await Promise.all([
+      db.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as new_today,
+          COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as new_this_week,
+          COUNT(CASE WHEN last_login >= NOW() - INTERVAL '24 hours' THEN 1 END) as active_today,
+          COUNT(CASE WHEN account_type = 'investor' THEN 1 END) as investors,
+          COUNT(CASE WHEN account_type = 'borrower' THEN 1 END) as borrowers,
+          COUNT(CASE WHEN is_suspended = true THEN 1 END) as suspended
+        FROM users
+      `),
+      db.query(`
+        SELECT
+          COUNT(*) as total,
+          COALESCE(SUM(amount), 0) as total_amount,
+          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today_count,
+          COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN amount ELSE 0 END), 0) as today_amount,
+          COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as week_count,
+          COALESCE(SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN amount ELSE 0 END), 0) as week_amount,
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
+        FROM investments
+      `),
+      db.query(`
+        SELECT
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
+        FROM topup_requests
+      `),
+      db.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
+          COUNT(CASE WHEN approval_status = 'pending' THEN 1 END) as pending,
+          COALESCE(SUM(current_funding), 0) as total_funded
+        FROM projects
+      `),
+      db.query('SELECT COALESCE(SUM(wallet_balance), 0) as total FROM users')
+    ]);
+
+    const uptime = process.uptime();
+    const hours = Math.floor(uptime / 3600);
+    const minutes = Math.floor((uptime % 3600) / 60);
+
+    const stats = {
+      users: {
+        total: parseInt(users.rows[0].total),
+        newToday: parseInt(users.rows[0].new_today),
+        newThisWeek: parseInt(users.rows[0].new_this_week),
+        activeToday: parseInt(users.rows[0].active_today),
+        investors: parseInt(users.rows[0].investors),
+        borrowers: parseInt(users.rows[0].borrowers),
+        suspended: parseInt(users.rows[0].suspended)
+      },
+      investments: {
+        totalCount: parseInt(investments.rows[0].total),
+        totalAmount: parseFloat(investments.rows[0].total_amount),
+        todayCount: parseInt(investments.rows[0].today_count),
+        todayAmount: parseFloat(investments.rows[0].today_amount),
+        weekCount: parseInt(investments.rows[0].week_count),
+        weekAmount: parseFloat(investments.rows[0].week_amount),
+        pendingCount: parseInt(investments.rows[0].pending_count),
+        pendingAmount: parseFloat(investments.rows[0].pending_amount)
+      },
+      topups: {
+        pendingCount: parseInt(topups.rows[0].pending_count),
+        pendingAmount: parseFloat(topups.rows[0].pending_amount)
+      },
+      projects: {
+        total: parseInt(projects.rows[0].total),
+        active: parseInt(projects.rows[0].active),
+        pending: parseInt(projects.rows[0].pending),
+        totalFunded: parseFloat(projects.rows[0].total_funded)
+      },
+      platform: {
+        walletBalance: parseFloat(walletBalance.rows[0].total),
+        uptime: `${hours}h ${minutes}m`
+      }
+    };
+
+    // Get recipient email (can be from request body or default to admin email)
+    const recipientEmail = req.body.email || adminCheck.rows[0].email || 'admin@initiateph.com';
+
+    // Generate and send email
+    const html = generateDailyStatsEmailHTML(stats);
+    const result = await sendEmail({
+      to: recipientEmail,
+      subject: `📊 Initiate PH Daily Report - ${new Date().toLocaleDateString('en-PH')}`,
+      html
+    });
+
+    // Log the action
+    if (auditLogger) {
+      await auditLogger.log({
+        userId: firebase_uid,
+        userEmail: adminCheck.rows[0].email,
+        actionType: 'DAILY_STATS_EMAIL',
+        actionCategory: 'ADMIN',
+        description: `Daily stats email sent to ${recipientEmail}`,
+        ipAddress: req.ip || req.headers['x-forwarded-for'],
+        userAgent: req.headers['user-agent'],
+        requestMethod: req.method,
+        requestUrl: req.originalUrl,
+        status: result.success ? 'success' : 'failed',
+        metadata: { recipient: recipientEmail, stats }
+      });
+    }
+
+    res.json({ 
+      success: result.success, 
+      message: result.success ? `Daily stats email sent to ${recipientEmail}` : 'Failed to send email',
+      stats 
+    });
+
+  } catch (error) {
+    console.error('Error sending daily stats email:', error);
+    res.status(500).json({ error: 'Failed to send daily stats email' });
+  }
+});
+
+// Get comprehensive report data for export
+app.get('/api/admin/reports/comprehensive', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    
+    // Verify admin status
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    
+    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    const { startDate, endDate } = req.query;
+    
+    // Build date filter
+    let dateFilter = '';
+    const params = [];
+    if (startDate) {
+      params.push(startDate);
+      dateFilter = ` WHERE created_at >= $${params.length}`;
+    }
+    if (endDate) {
+      params.push(endDate);
+      dateFilter += dateFilter ? ` AND created_at <= $${params.length}` : ` WHERE created_at <= $${params.length}`;
+    }
+
+    // Gather comprehensive data
+    const [users, investments, projects, topups, auditLogs] = await Promise.all([
+      db.query(`
+        SELECT 
+          id, firebase_uid, email, first_name, last_name, account_type, 
+          is_verified, wallet_balance, is_suspended, created_at, last_login
+        FROM users 
+        ORDER BY created_at DESC
+        LIMIT 10000
+      `),
+      db.query(`
+        SELECT 
+          i.id, i.investor_id, i.project_id, i.amount, i.status, i.created_at,
+          u.email as investor_email, p.title as project_title
+        FROM investments i
+        LEFT JOIN users u ON i.investor_id = u.firebase_uid
+        LEFT JOIN projects p ON i.project_id = p.id
+        ORDER BY i.created_at DESC
+        LIMIT 10000
+      `),
+      db.query(`
+        SELECT 
+          id, title, project_type, status, approval_status, funding_goal,
+          current_funding, borrower_id, created_at
+        FROM projects
+        ORDER BY created_at DESC
+        LIMIT 10000
+      `),
+      db.query(`
+        SELECT 
+          t.id, t.user_id, t.amount, t.status, t.created_at, t.reviewed_at,
+          u.email as user_email
+        FROM topup_requests t
+        LEFT JOIN users u ON t.user_id = u.firebase_uid
+        ORDER BY t.created_at DESC
+        LIMIT 10000
+      `),
+      db.query(`
+        SELECT id, user_id, user_email, action_type, action_category, 
+               description, status, created_at
+        FROM audit_logs
+        ORDER BY created_at DESC
+        LIMIT 5000
+      `).catch(() => ({ rows: [] }))
+    ]);
+
+    res.json({
+      success: true,
+      generatedAt: new Date().toISOString(),
+      data: {
+        users: users.rows,
+        investments: investments.rows,
+        projects: projects.rows,
+        topups: topups.rows,
+        auditLogs: auditLogs.rows
+      },
+      counts: {
+        users: users.rows.length,
+        investments: investments.rows.length,
+        projects: projects.rows.length,
+        topups: topups.rows.length,
+        auditLogs: auditLogs.rows.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating comprehensive report:', error);
+    res.status(500).json({ error: 'Failed to generate comprehensive report' });
+  }
+});
+
 // ==================== SERVER START ====================
 
 const server = app.listen(PORT, () => {

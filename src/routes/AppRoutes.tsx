@@ -60,6 +60,7 @@ import { OwnerTeam } from "../screens/owner/OwnerTeam";
 import { AcceptInvitation } from "../screens/team/AcceptInvitation";
 import { OwnerTopUpRequests } from "../screens/owner/OwnerTopUpRequests";
 import { OwnerInvestmentRequests } from "../screens/owner/OwnerInvestmentRequests";
+import { OwnerReports } from "../screens/owner/OwnerReports";
 import { InvestorRegIncomeDetails } from "../screens/InvestorRegIncomeDetails";
 import { InvestorRegBankDetails } from "../screens/InvestorRegBankDetails";
 import Settings from "../screens/Settings";
@@ -833,6 +834,14 @@ export const AppRoutes: React.FC = () => {
                   <TeamOrAdminRoute>
                     <OwnerDashboard />
                   </TeamOrAdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/reports" 
+                element={
+                  <AdminRoute>
+                    <OwnerReports />
+                  </AdminRoute>
                 } 
               />
               <Route 

@@ -15,7 +15,8 @@ import {
   TrendingUpIcon,
   LogOutIcon,
   UserCogIcon,
-  XIcon
+  XIcon,
+  BarChart3Icon
 } from 'lucide-react';
 
 interface OwnerSidebarProps {
@@ -120,6 +121,9 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({
     { icon: <UsersIcon className="w-5 h-5" />, label: "Users", to: '/owner/users', key: 'users', requiredPermissions: ['users.view', 'users.edit'] },
     { icon: <FolderIcon className="w-5 h-5" />, label: "Projects", to: '/owner/projects', key: 'projects', requiredPermissions: ['projects.view', 'projects.edit'] },
     { icon: <Users2Icon className="w-5 h-5" />, label: "My Team", to: '/owner/team', key: 'team', adminOnly: true },
+    
+    // Reports & Analytics
+    { icon: <BarChart3Icon className="w-5 h-5" />, label: "Reports", to: '/owner/reports', key: 'reports', adminOnly: true },
     
     // Existing Admin Tools
     { icon: <SettingsIcon className="w-5 h-5" />, label: "Admin Projects", to: '/admin/projects', key: 'admin-projects', adminOnly: true },
