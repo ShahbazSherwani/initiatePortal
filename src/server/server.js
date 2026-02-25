@@ -12963,7 +12963,7 @@ app.post('/api/cron/daily-stats', async (req, res) => {
 
     // Gather all stats
     const [users, investments, topups, projects, walletBalance] = await Promise.all([
-      db.query(\`
+      db.query(`
         SELECT
           COUNT(*) as total,
           COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as new_today,
@@ -12973,8 +12973,8 @@ app.post('/api/cron/daily-stats', async (req, res) => {
           COUNT(CASE WHEN account_type = 'borrower' THEN 1 END) as borrowers,
           COUNT(CASE WHEN is_suspended = true THEN 1 END) as suspended
         FROM users
-      \`),
-      db.query(\`
+      `),
+      db.query(`
         SELECT
           COUNT(*) as total,
           COALESCE(SUM(amount), 0) as total_amount,
@@ -12985,21 +12985,21 @@ app.post('/api/cron/daily-stats', async (req, res) => {
           COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
           COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
         FROM investments
-      \`),
-      db.query(\`
+      `),
+      db.query(`
         SELECT
           COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
           COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
         FROM topup_requests
-      \`),
-      db.query(\`
+      `),
+      db.query(`
         SELECT
           COUNT(*) as total,
           COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
           COUNT(CASE WHEN approval_status = 'pending' THEN 1 END) as pending,
           COALESCE(SUM(current_funding), 0) as total_funded
         FROM projects
-      \`),
+      `),
       db.query('SELECT COALESCE(SUM(wallet_balance), 0) as total FROM users')
     ]);
 
@@ -13039,7 +13039,7 @@ app.post('/api/cron/daily-stats', async (req, res) => {
       },
       platform: {
         walletBalance: parseFloat(walletBalance.rows[0].total),
-        uptime: \`\${hours}h \${minutes}m\`
+        uptime: `${hours}h ${minutes}m`
       }
     };
 
@@ -13051,7 +13051,7 @@ app.post('/api/cron/daily-stats', async (req, res) => {
     for (const admin of admins.rows) {
       const result = await sendEmail({
         to: admin.email,
-        subject: \`📊 Initiate PH Daily Report - \${new Date().toLocaleDateString('en-PH')}\`,
+        subject: `📊 Initiate PH Daily Report - ${new Date().toLocaleDateString('en-PH')}`,
         html
       });
       results.push({ email: admin.email, success: result.success });
@@ -13061,7 +13061,7 @@ app.post('/api/cron/daily-stats', async (req, res) => {
     if (req.body.email) {
       const customResult = await sendEmail({
         to: req.body.email,
-        subject: \`📊 Initiate PH Daily Report - \${new Date().toLocaleDateString('en-PH')}\`,
+        subject: `📊 Initiate PH Daily Report - ${new Date().toLocaleDateString('en-PH')}`,
         html
       });
       results.push({ email: req.body.email, success: customResult.success });
