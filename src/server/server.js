@@ -11611,14 +11611,14 @@ app.get('/api/admin/metrics/users', async (req, res) => {
 
     // Get user metrics
     const [totalUsers, newToday, newThisWeek, newThisMonth, activeToday, investors, borrowers, suspended] = await Promise.all([
-      db.query('SELECT COUNT(*) as count FROM users'),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURRENT_DATE`),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '7 days'`),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '30 days'`),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE last_login >= NOW() - INTERVAL '24 hours'`),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE account_type = 'investor'`),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE account_type = 'borrower'`),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE suspended = true`)
+      db.query('SELECT COUNT(*) as count FROM users').catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURRENT_DATE`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '7 days'`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '30 days'`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE last_login >= NOW() - INTERVAL '24 hours'`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE account_type = 'investor'`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE account_type = 'borrower'`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE is_suspended = true`).catch(() => ({ rows: [{ count: 0 }] }))
     ]);
 
     res.json({
@@ -11666,26 +11666,26 @@ app.get('/api/admin/metrics/investments', async (req, res) => {
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM investments
         WHERE DATE(created_at) = CURRENT_DATE
-      `),
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM investments
         WHERE created_at >= NOW() - INTERVAL '7 days'
-      `),
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM investments
         WHERE created_at >= NOW() - INTERVAL '30 days'
-      `),
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM investments
-      `),
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM investments
         WHERE status = 'pending'
-      `)
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] }))
     ]);
 
     res.json({
@@ -11748,27 +11748,27 @@ app.get('/api/admin/metrics/topups', async (req, res) => {
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM topup_requests
         WHERE DATE(created_at) = CURRENT_DATE
-      `),
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM topup_requests
         WHERE created_at >= NOW() - INTERVAL '7 days'
-      `),
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM topup_requests
         WHERE status = 'pending'
-      `),
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
         FROM topup_requests
         WHERE status = 'approved' AND DATE(updated_at) = CURRENT_DATE
-      `),
+      `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count
         FROM topup_requests
         WHERE status = 'rejected' AND DATE(updated_at) = CURRENT_DATE
-      `)
+      `).catch(() => ({ rows: [{ count: 0 }] }))
     ]);
 
     res.json({
@@ -11821,19 +11821,19 @@ app.get('/api/admin/metrics/projects', async (req, res) => {
 
     // Get project metrics
     const [totalProjects, activeProjects, fundedProjects, fundedThisWeek, totalFunded] = await Promise.all([
-      db.query('SELECT COUNT(*) as count FROM projects'),
-      db.query(`SELECT COUNT(*) as count FROM projects WHERE status = 'active'`),
-      db.query(`SELECT COUNT(*) as count FROM projects WHERE status = 'funded'`),
+      db.query('SELECT COUNT(*) as count FROM projects').catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM projects WHERE status = 'active'`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM projects WHERE status = 'funded'`).catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count
         FROM projects
         WHERE status = 'funded' AND updated_at >= NOW() - INTERVAL '7 days'
-      `),
+      `).catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`
         SELECT COALESCE(SUM(amount), 0) as total
         FROM investments
         WHERE status = 'approved'
-      `)
+      `).catch(() => ({ rows: [{ total: 0 }] }))
     ]);
 
     res.json({
@@ -11877,22 +11877,22 @@ app.get('/api/admin/metrics/platform', async (req, res) => {
     const memoryUsage = process.memoryUsage();
     
     const [dbConnections, securityEvents, auditLogs, vulnerabilities] = await Promise.all([
-      db.query('SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()'),
+      db.query('SELECT count(*) as count FROM pg_stat_activity WHERE datname = current_database()').catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count
         FROM security_events
         WHERE created_at >= NOW() - INTERVAL '24 hours'
-      `),
+      `).catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count
         FROM audit_logs
         WHERE created_at >= NOW() - INTERVAL '24 hours'
-      `),
+      `).catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`
         SELECT COUNT(*) as count
         FROM vulnerability_scans
         WHERE resolved = false
-      `)
+      `).catch(() => ({ rows: [{ count: 0 }] }))
     ]);
 
     res.json({
@@ -11942,7 +11942,7 @@ app.get('/api/admin/metrics/overview', async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    // Fetch all metrics in parallel
+    // Fetch all metrics in parallel (with fallbacks for missing tables)
     const [
       users,
       investments,
@@ -11956,27 +11956,28 @@ app.get('/api/admin/metrics/overview', async (req, res) => {
           COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as new_today,
           COUNT(CASE WHEN last_login >= NOW() - INTERVAL '24 hours' THEN 1 END) as active_today
         FROM users
-      `),
+      `).catch(() => ({ rows: [{ total: 0, new_today: 0, active_today: 0 }] })),
       db.query(`
         SELECT
           COUNT(*) as total,
           COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today_count,
           COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN amount ELSE 0 END), 0) as today_amount
         FROM investments
-      `),
+      `).catch(() => ({ rows: [{ total: 0, today_count: 0, today_amount: 0 }] })),
       db.query(`
         SELECT
           COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
           COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
         FROM topup_requests
-      `),
+      `).catch(() => ({ rows: [{ pending_count: 0, pending_amount: 0 }] })),
       db.query(`
         SELECT
           COUNT(*) as total,
           COUNT(CASE WHEN status = 'active' THEN 1 END) as active
         FROM projects
-      `),
+      `).catch(() => ({ rows: [{ total: 0, active: 0 }] })),
       db.query('SELECT COALESCE(SUM(wallet_balance), 0) as total FROM users')
+        .catch(() => ({ rows: [{ total: 0 }] }))
     ]);
 
     const uptime = process.uptime();
