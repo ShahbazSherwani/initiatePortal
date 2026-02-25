@@ -11616,8 +11616,8 @@ app.get('/api/admin/metrics/users', async (req, res) => {
       db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '7 days'`).catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '30 days'`).catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`SELECT COUNT(*) as count FROM users WHERE last_login >= NOW() - INTERVAL '24 hours'`).catch(() => ({ rows: [{ count: 0 }] })),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE account_type = 'investor'`).catch(() => ({ rows: [{ count: 0 }] })),
-      db.query(`SELECT COUNT(*) as count FROM users WHERE account_type = 'borrower'`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE has_investor_account = true`).catch(() => ({ rows: [{ count: 0 }] })),
+      db.query(`SELECT COUNT(*) as count FROM users WHERE has_borrower_account = true`).catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`SELECT COUNT(*) as count FROM users WHERE is_suspended = true`).catch(() => ({ rows: [{ count: 0 }] }))
     ]);
 
@@ -11660,31 +11660,31 @@ app.get('/api/admin/metrics/investments', async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    // Get investment metrics
+    // Get investment metrics from projects.project_data JSONB (investorRequests array)
     const [todayInvestments, weekInvestments, monthInvestments, totalInvestments, pendingInvestments] = await Promise.all([
       db.query(`
-        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
-        FROM investments
-        WHERE DATE(created_at) = CURRENT_DATE
+        SELECT COUNT(*) as count, COALESCE(SUM((elem->>'amount')::numeric), 0) as total
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
+        WHERE DATE((elem->>'date')::timestamp) = CURRENT_DATE
       `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
-        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
-        FROM investments
-        WHERE created_at >= NOW() - INTERVAL '7 days'
+        SELECT COUNT(*) as count, COALESCE(SUM((elem->>'amount')::numeric), 0) as total
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
+        WHERE (elem->>'date')::timestamp >= NOW() - INTERVAL '7 days'
       `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
-        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
-        FROM investments
-        WHERE created_at >= NOW() - INTERVAL '30 days'
+        SELECT COUNT(*) as count, COALESCE(SUM((elem->>'amount')::numeric), 0) as total
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
+        WHERE (elem->>'date')::timestamp >= NOW() - INTERVAL '30 days'
       `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
-        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
-        FROM investments
+        SELECT COUNT(*) as count, COALESCE(SUM((elem->>'amount')::numeric), 0) as total
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
       `).catch(() => ({ rows: [{ count: 0, total: 0 }] })),
       db.query(`
-        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
-        FROM investments
-        WHERE status = 'pending'
+        SELECT COUNT(*) as count, COALESCE(SUM((elem->>'amount')::numeric), 0) as total
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
+        WHERE elem->>'status' = 'pending'
       `).catch(() => ({ rows: [{ count: 0, total: 0 }] }))
     ]);
 
@@ -11830,9 +11830,9 @@ app.get('/api/admin/metrics/projects', async (req, res) => {
         WHERE status = 'funded' AND updated_at >= NOW() - INTERVAL '7 days'
       `).catch(() => ({ rows: [{ count: 0 }] })),
       db.query(`
-        SELECT COALESCE(SUM(amount), 0) as total
-        FROM investments
-        WHERE status = 'approved'
+        SELECT COALESCE(SUM((elem->>'amount')::numeric), 0) as total
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
+        WHERE elem->>'status' = 'approved'
       `).catch(() => ({ rows: [{ total: 0 }] }))
     ]);
 
@@ -11960,9 +11960,9 @@ app.get('/api/admin/metrics/overview', async (req, res) => {
       db.query(`
         SELECT
           COUNT(*) as total,
-          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today_count,
-          COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN amount ELSE 0 END), 0) as today_amount
-        FROM investments
+          COUNT(CASE WHEN DATE((elem->>'date')::timestamp) = CURRENT_DATE THEN 1 END) as today_count,
+          COALESCE(SUM(CASE WHEN DATE((elem->>'date')::timestamp) = CURRENT_DATE THEN (elem->>'amount')::numeric ELSE 0 END), 0) as today_amount
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
       `).catch(() => ({ rows: [{ total: 0, today_count: 0, today_amount: 0 }] })),
       db.query(`
         SELECT
@@ -12824,23 +12824,23 @@ app.post('/api/admin/send-daily-stats', verifyToken, async (req, res) => {
           COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as new_today,
           COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as new_this_week,
           COUNT(CASE WHEN last_login >= NOW() - INTERVAL '24 hours' THEN 1 END) as active_today,
-          COUNT(CASE WHEN account_type = 'investor' THEN 1 END) as investors,
-          COUNT(CASE WHEN account_type = 'borrower' THEN 1 END) as borrowers,
+          COUNT(CASE WHEN has_investor_account = true THEN 1 END) as investors,
+          COUNT(CASE WHEN has_borrower_account = true THEN 1 END) as borrowers,
           COUNT(CASE WHEN is_suspended = true THEN 1 END) as suspended
         FROM users
       `),
       db.query(`
         SELECT
           COUNT(*) as total,
-          COALESCE(SUM(amount), 0) as total_amount,
-          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today_count,
-          COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN amount ELSE 0 END), 0) as today_amount,
-          COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as week_count,
-          COALESCE(SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN amount ELSE 0 END), 0) as week_amount,
-          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
-        FROM investments
-      `),
+          COALESCE(SUM((elem->>'amount')::numeric), 0) as total_amount,
+          COUNT(CASE WHEN DATE((elem->>'date')::timestamp) = CURRENT_DATE THEN 1 END) as today_count,
+          COALESCE(SUM(CASE WHEN DATE((elem->>'date')::timestamp) = CURRENT_DATE THEN (elem->>'amount')::numeric ELSE 0 END), 0) as today_amount,
+          COUNT(CASE WHEN (elem->>'date')::timestamp >= NOW() - INTERVAL '7 days' THEN 1 END) as week_count,
+          COALESCE(SUM(CASE WHEN (elem->>'date')::timestamp >= NOW() - INTERVAL '7 days' THEN (elem->>'amount')::numeric ELSE 0 END), 0) as week_amount,
+          COUNT(CASE WHEN elem->>'status' = 'pending' THEN 1 END) as pending_count,
+          COALESCE(SUM(CASE WHEN elem->>'status' = 'pending' THEN (elem->>'amount')::numeric ELSE 0 END), 0) as pending_amount
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
+      `).catch(() => ({ rows: [{ total: 0, total_amount: 0, today_count: 0, today_amount: 0, week_count: 0, week_amount: 0, pending_count: 0, pending_amount: 0 }] })),
       db.query(`
         SELECT
           COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
@@ -12970,23 +12970,23 @@ app.post('/api/cron/daily-stats', async (req, res) => {
           COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as new_today,
           COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as new_this_week,
           COUNT(CASE WHEN last_login >= NOW() - INTERVAL '24 hours' THEN 1 END) as active_today,
-          COUNT(CASE WHEN account_type = 'investor' THEN 1 END) as investors,
-          COUNT(CASE WHEN account_type = 'borrower' THEN 1 END) as borrowers,
+          COUNT(CASE WHEN has_investor_account = true THEN 1 END) as investors,
+          COUNT(CASE WHEN has_borrower_account = true THEN 1 END) as borrowers,
           COUNT(CASE WHEN is_suspended = true THEN 1 END) as suspended
         FROM users
       `),
       db.query(`
         SELECT
           COUNT(*) as total,
-          COALESCE(SUM(amount), 0) as total_amount,
-          COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 END) as today_count,
-          COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN amount ELSE 0 END), 0) as today_amount,
-          COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as week_count,
-          COALESCE(SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN amount ELSE 0 END), 0) as week_amount,
-          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
-        FROM investments
-      `),
+          COALESCE(SUM((elem->>'amount')::numeric), 0) as total_amount,
+          COUNT(CASE WHEN DATE((elem->>'date')::timestamp) = CURRENT_DATE THEN 1 END) as today_count,
+          COALESCE(SUM(CASE WHEN DATE((elem->>'date')::timestamp) = CURRENT_DATE THEN (elem->>'amount')::numeric ELSE 0 END), 0) as today_amount,
+          COUNT(CASE WHEN (elem->>'date')::timestamp >= NOW() - INTERVAL '7 days' THEN 1 END) as week_count,
+          COALESCE(SUM(CASE WHEN (elem->>'date')::timestamp >= NOW() - INTERVAL '7 days' THEN (elem->>'amount')::numeric ELSE 0 END), 0) as week_amount,
+          COUNT(CASE WHEN elem->>'status' = 'pending' THEN 1 END) as pending_count,
+          COALESCE(SUM(CASE WHEN elem->>'status' = 'pending' THEN (elem->>'amount')::numeric ELSE 0 END), 0) as pending_amount
+        FROM projects, jsonb_array_elements(COALESCE(project_data->'investorRequests', '[]'::jsonb)) AS elem
+      `).catch(() => ({ rows: [{ total: 0, total_amount: 0, today_count: 0, today_amount: 0, week_count: 0, week_amount: 0, pending_count: 0, pending_amount: 0 }] })),
       db.query(`
         SELECT
           COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
@@ -13116,7 +13116,8 @@ app.get('/api/admin/reports/comprehensive', verifyToken, async (req, res) => {
     const [users, investments, projects, topups, auditLogs] = await Promise.all([
       db.query(`
         SELECT 
-          id, firebase_uid, email, first_name, last_name, account_type, 
+          id, firebase_uid, email, first_name, last_name, role, 
+          has_investor_account, has_borrower_account,
           is_verified, wallet_balance, is_suspended, created_at, last_login
         FROM users 
         ORDER BY created_at DESC
@@ -13124,14 +13125,17 @@ app.get('/api/admin/reports/comprehensive', verifyToken, async (req, res) => {
       `),
       db.query(`
         SELECT 
-          i.id, i.investor_id, i.project_id, i.amount, i.status, i.created_at,
-          u.email as investor_email, p.title as project_title
-        FROM investments i
-        LEFT JOIN users u ON i.investor_id = u.firebase_uid
-        LEFT JOIN projects p ON i.project_id = p.id
-        ORDER BY i.created_at DESC
+          p.id as project_id,
+          p.project_data->>'product' as project_title,
+          elem->>'investorId' as investor_id,
+          elem->>'name' as investor_name,
+          (elem->>'amount')::numeric as amount,
+          elem->>'status' as status,
+          elem->>'date' as created_at
+        FROM projects p, jsonb_array_elements(COALESCE(p.project_data->'investorRequests', '[]'::jsonb)) AS elem
+        ORDER BY elem->>'date' DESC
         LIMIT 10000
-      `),
+      `).catch(() => ({ rows: [] })),
       db.query(`
         SELECT 
           id, title, project_type, status, approval_status, funding_goal,
