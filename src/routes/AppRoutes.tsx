@@ -551,6 +551,7 @@ export const AppRoutes: React.FC = () => {
                   </PrivateRoute>
                 } 
               />
+              {/* Donation and Rewards routes hidden
               <Route 
                 path="borwNewProjDonation" 
                 element={
@@ -571,6 +572,7 @@ export const AppRoutes: React.FC = () => {
                   </PrivateRoute>
                 } 
               />
+              */}
               <Route 
                 path="borwCreateNewProjLend" 
                 element={

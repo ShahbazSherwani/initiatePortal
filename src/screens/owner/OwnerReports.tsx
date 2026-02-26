@@ -544,10 +544,6 @@ export const OwnerReports: React.FC = () => {
                       <span className="text-sm text-gray-600">Lending Projects</span>
                       <Badge className="bg-green-100 text-green-700">{reportData.projects.lending}</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-gray-600">Donation Projects</span>
-                      <Badge className="bg-purple-100 text-purple-700">{reportData.projects.donation}</Badge>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -818,17 +814,6 @@ export const OwnerReports: React.FC = () => {
                       <p className="text-2xl font-bold">{reportData.projects.lending}</p>
                     </div>
                     <Badge className="bg-green-100 text-green-700">Lending</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">Donation</p>
-                      <p className="text-2xl font-bold">{reportData.projects.donation}</p>
-                    </div>
-                    <Badge className="bg-purple-100 text-purple-700">Donation</Badge>
                   </div>
                 </CardContent>
               </Card>

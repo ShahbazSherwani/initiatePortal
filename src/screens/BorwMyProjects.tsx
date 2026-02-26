@@ -317,26 +317,7 @@ const handleContinue = () => {
                 >
                   Lending
                 </button>
-                <button
-                  onClick={() => setProjectTypeFilter('donation')}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                    projectTypeFilter === 'donation' 
-                      ? "bg-[#0C4B20] text-white shadow-md" 
-                      : "bg-white text-gray-700 border border-gray-300 hover:border-[#0C4B20] hover:text-[#0C4B20]"
-                  }`}
-                >
-                  Donation
-                </button>
-                <button
-                  onClick={() => setProjectTypeFilter('rewards')}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                    projectTypeFilter === 'rewards' 
-                      ? "bg-[#0C4B20] text-white shadow-md" 
-                      : "bg-white text-gray-700 border border-gray-300 hover:border-[#0C4B20] hover:text-[#0C4B20]"
-                  }`}
-                >
-                  Rewards
-                </button>
+                {/* Donation and Rewards filter buttons hidden */}
               </div>
             </div>
 

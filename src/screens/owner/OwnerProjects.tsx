@@ -54,7 +54,6 @@ const PROJECT_TYPES = [
   { key: 'all', label: 'All Types' },
   { key: 'equity', label: 'Equity' },
   { key: 'lending', label: 'Lending' },
-  { key: 'donation', label: 'Donation' },
 ];
 
 export const OwnerProjects: React.FC = () => {
