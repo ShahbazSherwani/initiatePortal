@@ -15,7 +15,6 @@ import {
   MessageCircle,
   PanelsTopLeft,
   HandCoins,
-  Database,
   XIcon
 } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
@@ -78,12 +77,6 @@ const investorNavItems: NavItem[] = [
 
 // Common navigation items for borrowers
 const borrowerCommonNavItems: NavItem[] = [
-  {
-    icon: <Database className="w-5 h-5" />,
-    label: "Donation",
-    to: '/donation',
-    key: 'donation'
-  },
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
   { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/help', key: 'help' },
 ];
