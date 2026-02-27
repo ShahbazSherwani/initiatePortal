@@ -8,12 +8,13 @@ export const MainLayout = () => {
   const { profile } = useAuth();
 
   const location = useLocation();
-  const hideNavbarPaths = ['/owner/dashboard', '/owner/projects', '/owner/users', '/owner/team', '/owner/settings', '/calendar','/admin/projects', '/admin/topup-requests', '/admin/investment-requests'];
+  const hideNavbarPaths = ['/owner/dashboard', '/owner/projects', '/owner/users', '/owner/team', '/owner/settings', '/owner/reports', '/owner/topup-requests', '/owner/investment-requests', '/calendar','/admin/projects', '/admin/topup-requests', '/admin/investment-requests'];
   
   // Check if navbar should be hidden (exact match or starts with /owner/users/ or /owner/projects/ or /projects/)
   const shouldHideNavbar = hideNavbarPaths.includes(location.pathname) || 
                           location.pathname.startsWith('/owner/users/') ||
                           location.pathname.startsWith('/owner/projects/') ||
+                          location.pathname.startsWith('/admin/project/') ||
                           location.pathname.startsWith('/projects/');
   
   return (
