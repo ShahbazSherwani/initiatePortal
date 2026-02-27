@@ -23,6 +23,7 @@ ALTER TABLE topup_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE borrow_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_member_permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
@@ -137,6 +138,13 @@ CREATE POLICY "Service role has full access to schema_migrations" ON schema_migr
 -- Migration tracker (admin only)
 CREATE POLICY "Service role has full access to migration_tracker" ON migration_tracker
   FOR ALL USING (auth.role() = 'service_role');
+
+-- Payment transactions (sensitive - service has full access; investors can view their own)
+CREATE POLICY "Service role has full access to payment_transactions" ON payment_transactions
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Users can view own payment transactions" ON payment_transactions
+  FOR SELECT USING (auth.uid()::text = firebase_uid);
 
 -- ========================================
 -- VERIFICATION
