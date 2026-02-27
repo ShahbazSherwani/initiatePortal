@@ -156,6 +156,8 @@ interface UserDetail {
     tin?: string;
     secondaryIdType?: string;
     secondaryIdNumber?: string;
+    nationalIdFile?: string | null;
+    passportFile?: string | null;
   };
   
   // Bank account information
@@ -1268,6 +1270,15 @@ export const OwnerUserDetail: React.FC = () => {
                     ) : (
                       <div className="p-3 bg-gray-50 rounded-lg">{user.identifications?.nationalId || 'Not provided'}</div>
                     )}
+                    {user.identifications?.nationalIdFile && (
+                      <button
+                        onClick={() => openDocument(user.identifications!.nationalIdFile!, 'National ID Document')}
+                        className="mt-2 flex items-center gap-1.5 text-sm text-[#0C4B20] font-medium hover:underline"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        View Document
+                      </button>
+                    )}
                   </div>
                   
                   <div>
@@ -1276,6 +1287,15 @@ export const OwnerUserDetail: React.FC = () => {
                       <Input placeholder="Passport Number" defaultValue={user.identifications?.passport} />
                     ) : (
                       <div className="p-3 bg-gray-50 rounded-lg">{user.identifications?.passport || 'Not provided'}</div>
+                    )}
+                    {user.identifications?.passportFile && (
+                      <button
+                        onClick={() => openDocument(user.identifications!.passportFile!, 'Passport Document')}
+                        className="mt-2 flex items-center gap-1.5 text-sm text-[#0C4B20] font-medium hover:underline"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        View Document
+                      </button>
                     )}
                   </div>
                   
