@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAccount } from '../contexts/AccountContext';
-import { getWalletBalance } from "../lib/wallet";
-import { TopUpModal } from '../components/TopUpModal';
+
 import { generateProfileCode } from '../lib/profileUtils';
 import { API_BASE_URL } from '../config/environment';
 
@@ -27,14 +26,11 @@ export const BorrowerHome: React.FC = () => {
     switchAccount,
     loading: accountLoading 
   } = useAccount();
-  const [balance, setBalance] = useState<number | null>(null);
+
   const [showProfileCode, setShowProfileCode] = useState(false);
   const [switching, setSwitching] = useState(false);
   const navigate = useNavigate();
   
-  // TEMPORARILY DISABLED: Email verification check (causing infinite redirect loop)
-  // TODO: Re-enable after fixing the redirect loop issue
-  const [checkingVerification, setCheckingVerification] = useState(false); // Changed to false
   
   // Commented out to stop the infinite redirect loop
   /*
@@ -78,21 +74,6 @@ export const BorrowerHome: React.FC = () => {
   const [isNewUser, setIsNewUser] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   
-  // Top-up modal state
-  const [showTopUpModal, setShowTopUpModal] = useState(false);
-  
-  // Handle successful top-up submission
-  const handleTopUpSuccess = async () => {
-    // Refresh wallet balance
-    if (token) {
-      try {
-        const newBalance = await getWalletBalance(token);
-        setBalance(newBalance);
-      } catch (error) {
-        console.error('Error refreshing wallet balance:', error);
-      }
-    }
-  };
 
   useEffect(() => {
     // Wait for profile to be loaded
@@ -117,12 +98,6 @@ export const BorrowerHome: React.FC = () => {
     setIsNewUser(!profile?.hasCompletedRegistration && !userHasAnyAccount);
   }, [profile, accountLoading, borrowerProfile, investorProfile]);
 
-  // fetch wallet balance on mount
-  useEffect(() => {
-    if (token) {
-      getWalletBalance(token).then(b => setBalance(b)).catch(console.error);
-    }
-  }, [token]);
 
   // Account creation options for new users
   const accountTypes = [
@@ -189,18 +164,6 @@ export const BorrowerHome: React.FC = () => {
   };
 
   const SHOW_ACCOUNT_SECTION = true; 
-  
-  // Show loading while checking email verification
-  if (checkingVerification) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0C4B20] mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying your account...</p>
-        </div>
-      </div>
-    );
-  }
       
   return (
     <>
@@ -294,24 +257,7 @@ export const BorrowerHome: React.FC = () => {
                         )} */}
                       </div>
 
-                      {/* iFunds Balance & Actions */}
-                      <div className="text-center md:text-right md:ml-auto">
-                        <h2 className="text-xl opacity-70">iFunds Balance:</h2>
-                        <p className="text-2xl font-semibold">
-                          {balance !== null ? balance.toFixed(2) : "—"}
-                        </p>
-                        <div className="mt-4 flex gap-4 justify-center md:justify-end">
-                          <button 
-                            onClick={() => setShowTopUpModal(true)}
-                            className="px-6 py-3 rounded-xl border hover:bg-gray-50 transition-colors"
-                          >
-                            Top-up
-                          </button>
-                          <button className="px-6 py-3 rounded-xl bg-[#0C4B20] text-white hover:bg-[#90B200] transition-colors">
-                            Withdraw
-                          </button>
-                        </div>
-                      </div>
+
                     </div>
 
                     {/* Username & Profile Code */}
@@ -476,12 +422,7 @@ export const BorrowerHome: React.FC = () => {
       </div>
       )}
       
-      {/* Top-up Modal */}
-      <TopUpModal
-        isOpen={showTopUpModal}
-        onClose={() => setShowTopUpModal(false)}
-        onSuccess={handleTopUpSuccess}
-      />
+
     </>
   );
 };
