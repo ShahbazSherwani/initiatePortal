@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
-import { format, addMonths } from "date-fns";
+import { format, addDays, differenceInDays } from "date-fns";
 import { Clock } from "lucide-react";
 
 export const BorrowerCreateNew: React.FC = (): JSX.Element => {
@@ -235,12 +235,20 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                                 const firstDay = new Date(year, month, 1);
                                 const startDate = new Date(firstDay);
                                 startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+                                // 90-day campaign window: today → today + 90 days
+                                const campaignStart = new Date();
+                                campaignStart.setHours(0, 0, 0, 0);
+                                const campaignMaxEnd = addDays(campaignStart, 90);
                                 
                                 const days = [];
                                 for (let i = 0; i < 42; i++) {
                                   const day = new Date(startDate);
                                   day.setDate(startDate.getDate() + i);
-                                  
+
+                                  const dayNorm = new Date(day);
+                                  dayNorm.setHours(0, 0, 0, 0);
+                                  const isDisabled = dayNorm < campaignStart || dayNorm > campaignMaxEnd;
                                   const isCurrentMonth = day.getMonth() === month;
                                   const isToday = day.toDateString() === new Date().toDateString();
                                   const isSelected = selectedDate && day.toDateString() === selectedDate.toDateString();
@@ -248,19 +256,22 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                                   days.push(
                                     <div 
                                       key={i}
-                                      className={`h-10 flex items-center justify-center font-normal cursor-pointer rounded-lg transition-colors ${
-                                        !isCurrentMonth 
-                                          ? 'text-gray-400 opacity-50 hover:bg-gray-100' 
+                                      title={isDisabled ? (dayNorm < campaignStart ? 'Past date' : 'Beyond 90-day campaign limit') : undefined}
+                                      className={`h-10 flex items-center justify-center font-normal rounded-lg transition-colors ${
+                                        isDisabled
+                                          ? 'text-gray-300 opacity-40 cursor-not-allowed'
                                           : isSelected
-                                          ? 'bg-[#0C4B20] text-white font-medium shadow-sm'
-                                          : isToday 
-                                          ? 'bg-blue-100 text-blue-700 font-medium' 
-                                          : 'text-gray-700 hover:bg-gray-100'
+                                          ? 'bg-[#0C4B20] text-white font-medium shadow-sm cursor-pointer'
+                                          : isToday
+                                          ? 'bg-blue-100 text-blue-700 font-medium cursor-pointer'
+                                          : !isCurrentMonth
+                                          ? 'text-gray-400 opacity-50 hover:bg-gray-100 cursor-pointer'
+                                          : 'text-gray-700 hover:bg-gray-100 cursor-pointer'
                                       }`}
                                       onClick={() => {
+                                        if (isDisabled) return;
                                         setSelectedDate(day);
-                                        const endDate = addMonths(day, 3);
-                                        setTimeDuration(endDate.toISOString());
+                                        setTimeDuration(day.toISOString());
                                       }}
                                     >
                                       {day.getDate()}
@@ -296,8 +307,15 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                             <option value="18:00">6:00 PM</option>
                             <option value="21:00">9:00 PM</option>
                           </select>
-                          <div className="mt-4 text-center">
-                            <p className="text-sm text-gray-500 bg-gray-50 py-2 px-4 rounded-lg">Project duration: 3 months</p>
+                          <div className="mt-4 text-center space-y-1">
+                            {selectedDate ? (
+                              <p className="text-sm text-[#0C4B20] font-medium bg-green-50 py-2 px-4 rounded-lg">
+                                Campaign duration: {differenceInDays(selectedDate, new Date()) + 1} day{differenceInDays(selectedDate, new Date()) !== 0 ? 's' : ''}
+                              </p>
+                            ) : (
+                              <p className="text-sm text-gray-500 bg-gray-50 py-2 px-4 rounded-lg">Max campaign duration: 90 days</p>
+                            )}
+                            <p className="text-xs text-gray-400 px-2">Per SEC policy, campaigns run up to 90 days. Extensions of up to another 90 days may be requested by the issuer and are subject to approval.</p>
                           </div>
                         </div>
                       </div>
