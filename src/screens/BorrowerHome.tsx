@@ -131,10 +131,10 @@ export const BorrowerHome: React.FC = () => {
   ];
 
   // action cards (static)
-  const actionCards = [
-    { title: "Initiate Donation Campaign", image: "/donate-1.png" },
-    { title: "Raise Tickets", image: "/leader-1.png" },
-  ];
+  // const actionCards = [
+  //   { title: "Initiate Donation Campaign", image: "/donate-1.png" },
+  //   { title: "Raise Tickets", image: "/leader-1.png" },
+  // ];
 
   // Updated: Account creation function
   const handleAccountCreation = async (accountType: 'borrower' | 'investor') => {
@@ -468,31 +468,6 @@ export const BorrowerHome: React.FC = () => {
                   </section>
                 )}
 
-                {/* Action Cards */}
-                <section className="mt-12">
-                  <h4 className="font-poppins font-medium text-black text-lg md:text-[22px] mb-6">
-                    You can run the donation campaign or initiate a request also
-                  </h4>
-                  <div className="flex flex-wrap gap-6">
-                    {actionCards.map((card, idx) => (
-                      <Card
-                        key={idx}
-                        className="w-full md:w-[337px] h-24 bg-white rounded-2xl border border-black flex items-center p-4 hover:shadow-lg transition-shadow duration-300"
-                      >
-                        <CardContent className="p-0 flex items-center">
-                          <img
-                            className="w-[62px] h-[62px] object-cover"
-                            alt={card.title}
-                            src={card.image}
-                          />
-                          <div className="ml-6 font-poppins font-medium text-black text-base md:text-xl">
-                            {card.title}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </section>
                 
               </div>
             )}

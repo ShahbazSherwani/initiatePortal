@@ -59,11 +59,11 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   const navItems = [
     { name: "Borrow", to: "/borrow", color: "text-[#0C4B20]" },
     ...(profile?.role === 'admin' ? [{ name: "Invest", to: "/invest", color: "text-[#0C4B20]" }] : []),
-    { name: "Donate", to: "/donate", color: "text-[#0C4B20]" },
+    // { name: "Donate", to: "/donate", color: "text-[#0C4B20]" },
     { name: "About us", to: "/about", color: "text-black" },
     { name: "Farming & Livestock", to: "/farming", color: "text-black" },
     { name: "MSME", to: "/msme", color: "text-black" },
-    { name: "Microlending", to: "/microlending", color: "text-black" },
+    // { name: "Microlending", to: "/microlending", color: "text-black" },
     { name: "Skills & Creators", to: "/skills", color: "text-black" },
     { name: "Unity", to: "/unity", color: "text-black" },
   ];
@@ -71,7 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   return (
     <nav 
       key={`navbar-${currentAccountType}-${accountTypeKey}`}
-      className="relative z-50 w-full bg-white border-b border-gray-200 px-6 py-4" 
+        className="relative z-50 w-full bg-white border-b border-gray-200 px-6 py-4" 
       style={{ position: 'sticky', top: 0 }}
     >
       {/* Role indicator banner - now shows current account type */}
