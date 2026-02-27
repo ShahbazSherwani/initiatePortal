@@ -9267,19 +9267,6 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           numberOfEmployees: borrower.gis_number_of_employees
         };
 
-        // Map bank account information
-        if (borrower.bank_name) {
-          profileData.bankAccounts.push({
-            bankName: borrower.bank_name,
-            accountName: borrower.account_name,
-            accountNumber: borrower.account_number,
-            accountType: borrower.account_type,
-            iban: borrower.iban,
-            swiftCode: borrower.swift_code,
-            isDefault: borrower.preferred
-          });
-        }
-
         // Map business information
         profileData.businessInfo = {
           entityType: borrower.entity_type || '',
@@ -9298,14 +9285,27 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
 
         // Map identification documents including file uploads
         profileData.identifications = {
-          nationalId: borrower.national_id || '',
-          passport: borrower.passport || '',
-          tin: borrower.tin_number || '',
+          nationalId: borrower.national_id ? decrypt(borrower.national_id) : '',
+          passport: borrower.passport ? decrypt(borrower.passport) : '',
+          tin: borrower.tin_number ? decrypt(borrower.tin_number) : (borrower.corporate_tin || ''),
           secondaryIdType: borrower.secondary_id_type || '',
           secondaryIdNumber: borrower.secondary_id_number || '',
           nationalIdFile: borrower.national_id_file || null,
           passportFile: borrower.passport_file || null
         };
+
+        // Map bank account (decrypt account number)
+        if (borrower.bank_name) {
+          profileData.bankAccounts = [{
+            bankName: borrower.bank_name,
+            accountName: borrower.account_name,
+            accountNumber: borrower.account_number ? decrypt(borrower.account_number) : '',
+            accountType: borrower.account_type,
+            iban: borrower.iban,
+            swiftCode: borrower.swift_code,
+            isDefault: borrower.preferred
+          }];
+        }
       }
     }
 
@@ -9328,13 +9328,13 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
 
         // Merge investor identification data including file uploads
         if (!profileData.identifications.nationalId) {
-          profileData.identifications.nationalId = investor.national_id || '';
+          profileData.identifications.nationalId = investor.national_id ? decrypt(investor.national_id) : '';
         }
         if (!profileData.identifications.passport) {
-          profileData.identifications.passport = investor.passport || '';
+          profileData.identifications.passport = investor.passport ? decrypt(investor.passport) : '';
         }
         if (!profileData.identifications.tin) {
-          profileData.identifications.tin = investor.tin_number || '';
+          profileData.identifications.tin = investor.tin_number ? decrypt(investor.tin_number) : '';
         }
         // Always include investor ID files if present (override or merge)
         if (investor.national_id_file) {
@@ -9378,12 +9378,40 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           };
         }
 
+        // Merge investor contact info (address, city, etc.) if not already set by borrower profile
+        if (!profileData.contactInfo.presentAddress && !profileData.contactInfo.city) {
+          profileData.contactInfo = {
+            mobileNumber: investor.mobile_number || '',
+            countryCode: investor.country_code || '',
+            presentAddress: investor.present_address || '',
+            permanentAddress: investor.permanent_address || '',
+            city: investor.city || '',
+            state: investor.state || '',
+            postalCode: investor.postal_code || '',
+            country: investor.country || '',
+            barangay: investor.barangay || ''
+          };
+        }
+
+        // Merge investor personal info fields not covered above
+        if (!profileData.personalInfo.dateOfBirth) {
+          profileData.personalInfo.dateOfBirth = investor.date_of_birth || '';
+          profileData.personalInfo.placeOfBirth = investor.place_of_birth || '';
+          profileData.personalInfo.gender = investor.gender || '';
+          profileData.personalInfo.civilStatus = investor.civil_status || '';
+          profileData.personalInfo.nationality = investor.nationality || '';
+          profileData.personalInfo.motherMaidenName = investor.mother_maiden_name || '';
+          profileData.personalInfo.contactEmail = investor.contact_email || investor.email_address || userEmail;
+          profileData.personalInfo.secondaryIdType = investor.secondary_id_type || '';
+          profileData.personalInfo.secondaryIdNumber = investor.secondary_id_number || '';
+        }
+
         // Add investor bank account if different from borrower
         if (investor.bank_name && !profileData.bankAccounts.some(acc => acc.bankName === investor.bank_name)) {
           profileData.bankAccounts.push({
             bankName: investor.bank_name,
             accountName: investor.account_name,
-            accountNumber: investor.account_number,
+            accountNumber: investor.account_number ? decrypt(investor.account_number) : '',
             accountType: investor.account_type,
             iban: investor.iban,
             swiftCode: investor.swift_code,
