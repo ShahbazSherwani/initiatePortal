@@ -160,7 +160,7 @@ export const AdminProjectsList: React.FC = () => {
     
     return (
       <Badge className={`${variants[type] || 'bg-gray-100 text-gray-800'} border-0`}>
-        {type?.charAt(0).toUpperCase() + type?.slice(1) || 'N/A'}
+        {type === 'lending' ? 'Debt' : (type?.charAt(0).toUpperCase() + type?.slice(1) || 'N/A')}
       </Badge>
     );
   };

@@ -111,9 +111,10 @@ export const OwnerProjectDetail: React.FC = () => {
       rewards: 'bg-amber-100 text-amber-700 border-amber-300',
     };
 
+    const typeLabels: Record<string, string> = { equity: 'Equity', lending: 'Debt', donation: 'Donation', rewards: 'Rewards' };
     return (
       <Badge className={`${typeConfig[type] || 'bg-gray-100 text-gray-700 border-gray-300'} border`}>
-        {type.charAt(0).toUpperCase() + type.slice(1)}
+        {typeLabels[type] || (type.charAt(0).toUpperCase() + type.slice(1))}
       </Badge>
     );
   };

@@ -553,7 +553,7 @@ export const OwnerDashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="w-3 h-3 bg-[#8FB200] rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600">Lending</span>
+                      <span className="text-sm text-gray-600">Debt</span>
                     </div>
                     <span className="text-sm font-medium">{projectInsights?.lending || 0}%</span>
                   </div>

@@ -105,9 +105,9 @@ export const InvestorReg: React.FC = () => {
   ];
 
   const investmentPreferenceOptions: ComboboxOption[] = [
-    { value: "lending", label: "Lending Projects" },
+    { value: "lending", label: "Debt Projects" },
     { value: "equity", label: "Equity Investments" },
-    { value: "both", label: "Both Lending & Equity" }
+    { value: "both", label: "Both Debt & Equity" }
   ];
 
   const riskToleranceOptions: ComboboxOption[] = [

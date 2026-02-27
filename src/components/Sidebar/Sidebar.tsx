@@ -401,7 +401,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
                         : "bg-white text-[#0C4B20] border-gray-300 hover:border-[#0C4B20]"
                     }`}
                   >
-                    <span className="font-semibold">Lending</span>
+                    <span className="font-semibold">Debt</span>
                   </button>
                   {/* Donation and Rewards options hidden */}
                 </div>

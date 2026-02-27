@@ -1559,9 +1559,9 @@ export const Settings = (): JSX.Element => {
                                 <SelectValue placeholder="Select preference" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="lending">Lending Projects</SelectItem>
+                                <SelectItem value="lending">Debt Projects</SelectItem>
                                 <SelectItem value="equity">Equity Investments</SelectItem>
-                                <SelectItem value="both">Both Lending & Equity</SelectItem>
+                                <SelectItem value="both">Both Debt & Equity</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

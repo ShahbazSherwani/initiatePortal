@@ -53,7 +53,7 @@ const PROJECT_TABS = [
 const PROJECT_TYPES = [
   { key: 'all', label: 'All Types' },
   { key: 'equity', label: 'Equity' },
-  { key: 'lending', label: 'Lending' },
+  { key: 'lending', label: 'Debt' },
 ];
 
 export const OwnerProjects: React.FC = () => {
@@ -236,9 +236,10 @@ export const OwnerProjects: React.FC = () => {
       donation: 'bg-blue-100 text-blue-800'
     };
     
+    const labels: Record<string, string> = { equity: 'Equity', lending: 'Debt', donation: 'Donation' };
     return (
       <Badge variant="secondary" className={`${variants[type as keyof typeof variants]} border-0`}>
-        {type.charAt(0).toUpperCase() + type.slice(1)}
+        {labels[type] || (type.charAt(0).toUpperCase() + type.slice(1))}
       </Badge>
     );
   };

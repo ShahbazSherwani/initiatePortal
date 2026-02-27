@@ -514,9 +514,9 @@ export const InvestorRegDirectLender = (): JSX.Element => {
                 accept="image/*,.pdf,.doc,.docx"
               />
 
-              {/* Maximum Facility per Lending */}
+              {/* Maximum Facility per Debt */}
               <ValidatedInput
-                label="Maximum Facility per Lending"
+                label="Maximum Facility per Debt"
                 required
                 hasError={errors.maxFacility}
                 value={maxFacility}

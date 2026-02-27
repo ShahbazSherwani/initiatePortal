@@ -315,9 +315,8 @@ const handleContinue = () => {
                       : "bg-white text-gray-700 border border-gray-300 hover:border-[#0C4B20] hover:text-[#0C4B20]"
                   }`}
                 >
-                  Lending
+                  Debt
                 </button>
-                {/* Donation and Rewards filter buttons hidden */}
               </div>
             </div>
 
@@ -396,7 +395,7 @@ const handleContinue = () => {
                 selectedType === "lending" ? "bg-[#0C4B20] text-white" : "bg-white"
               }`}
             >
-              Lending
+              Debt
             </button>
             {/* Donation and Rewards options hidden */}
           </div>
@@ -508,7 +507,7 @@ const handleContinue = () => {
                 const projectType = project.project_data?.project_type || (project as any).project_type;
                 const typeConfig = {
                   equity: { label: 'Equity', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-                  lending: { label: 'Lending', color: 'bg-green-100 text-green-700 border-green-200' },
+                  lending: { label: 'Debt', color: 'bg-green-100 text-green-700 border-green-200' },
                   donation: { label: 'Donation', color: 'bg-purple-100 text-purple-700 border-purple-200' },
                   rewards: { label: 'Rewards', color: 'bg-amber-100 text-amber-700 border-amber-200' }
                 };
