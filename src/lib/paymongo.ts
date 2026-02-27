@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../config/environment';
 import { authFetch } from './api';
 
 // PayMongo payment method types
-export type PaymentMethodType = 'gcash' | 'grab_pay' | 'paymaya' | 'card';
+export type PaymentMethodType = 'qrph' | 'gcash' | 'grab_pay' | 'paymaya' | 'card';
 
 export interface PaymentIntent {
   id: string;

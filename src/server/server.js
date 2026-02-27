@@ -9942,7 +9942,7 @@ app.post('/api/payments/create-checkout', verifyToken, async (req, res) => {
               description: `Investment contribution for project: ${projectName}`
             }
           ],
-          payment_method_types: ['gcash', 'grab_pay', 'paymaya', 'card', 'dob', 'dob_ubp'],
+          payment_method_types: ['qrph', 'gcash', 'grab_pay', 'paymaya', 'card', 'dob', 'dob_ubp'],
           success_url: `${APP_BASE_URL}/payment/success?project_id=${projectId}&amount=${amount}`,
           cancel_url: `${APP_BASE_URL}/investor/project/${projectId}?payment=cancelled`,
           reference_number: `INV-${projectId}-${uid}-${Date.now()}`,
