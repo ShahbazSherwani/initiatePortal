@@ -27,6 +27,8 @@ interface AuditLog {
   id: number;
   user_id: string;
   user_email: string;
+  first_name: string | null;
+  last_name: string | null;
   action_type: string;
   action_category: string;
   resource_type: string;
@@ -38,6 +40,71 @@ interface AuditLog {
   created_at: string;
   metadata: Record<string, any>;
 }
+
+const ACTION_LABELS: Record<string, string> = {
+  // Auth
+  AUTH_LOGIN: 'Logged in',
+  AUTH_LOGOUT: 'Logged out',
+  AUTH_REGISTER: 'Created an account',
+  AUTH_PASSWORD_RESET: 'Reset their password',
+  AUTH_EMAIL_VERIFIED: 'Verified their email',
+  AUTH_FAILED_LOGIN: 'Failed login attempt',
+  // User management
+  USER_CREATED: 'Created a new user account',
+  USER_UPDATED: 'Updated a user profile',
+  USER_DELETED: 'Deleted a user account',
+  USER_SUSPENDED: 'Suspended a user account',
+  USER_UNSUSPENDED: 'Reinstated a user account',
+  USER_ROLE_CHANGED: 'Changed a user role',
+  USER_PROFILE_UPDATED: 'Updated their profile',
+  // Projects
+  PROJECT_CREATED: 'Created a new project',
+  PROJECT_UPDATED: 'Updated a project',
+  PROJECT_DELETED: 'Deleted a project',
+  PROJECT_APPROVED: 'Approved a project',
+  PROJECT_REJECTED: 'Rejected a project',
+  PROJECT_SUSPENDED: 'Suspended a project',
+  PROJECT_COMPLETED: 'Marked a project as completed',
+  // Financial
+  TOPUP_REQUESTED: 'Requested a wallet top-up',
+  TOPUP_APPROVED: 'Approved a wallet top-up',
+  TOPUP_REJECTED: 'Rejected a wallet top-up',
+  INVESTMENT_CREATED: 'Made a new investment',
+  INVESTMENT_APPROVED: 'Approved an investment',
+  INVESTMENT_REJECTED: 'Rejected an investment',
+  WITHDRAWAL_REQUESTED: 'Requested a withdrawal',
+  WITHDRAWAL_APPROVED: 'Approved a withdrawal',
+  PAYMENT_PROCESSED: 'Processed a payment',
+  // Admin / generic API-derived
+  DELETE_OWNER: 'Deleted a user account',
+  POST_ADMIN: 'Performed an admin action',
+  PUT_OWNER: 'Updated admin settings',
+  PUT_PROJECTS: 'Updated a project',
+  GET_OWNER: 'Viewed admin data',
+  POST_OWNER: 'Performed an admin operation',
+  ADMIN_DATA_EXPORT: 'Exported platform data',
+  ADMIN_TEAM_INVITE: 'Sent a team invitation',
+  ADMIN_USER_SUSPEND: 'Suspended a user',
+  ADMIN_USER_UNSUSPEND: 'Reinstated a user',
+};
+
+const getHumanReadableAction = (actionType: string): string => {
+  if (ACTION_LABELS[actionType]) return ACTION_LABELS[actionType];
+  // Fallback: convert SNAKE_CASE to Title Case words
+  return actionType
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
+const getUserDisplayName = (log: AuditLog): { name: string; email: string } => {
+  const name =
+    log.first_name && log.last_name
+      ? `${log.first_name} ${log.last_name}`
+      : log.first_name || log.last_name || '';
+  const email = log.user_email || '';
+  return { name: name || email || 'System', email };
+};
 
 interface AuditStats {
   totalLogs: number;
@@ -369,48 +436,50 @@ export const AuditLogs: React.FC = () => {
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Time</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">User</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Category</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Action</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Description</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">What Happened</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">IP</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">IP Address</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {logs.map((log) => (
-                      <tr key={log.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm">
-                          <div className="flex items-center text-gray-600">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {new Date(log.created_at).toLocaleString()}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          <div className="flex items-center">
-                            <User className="w-3 h-3 mr-1 text-gray-400" />
-                            <span className="truncate max-w-[150px]" title={log.user_email}>
-                              {log.user_email || 'System'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          {getCategoryBadge(log.action_category)}
-                        </td>
-                        <td className="py-3 px-4 text-sm font-medium">
-                          {log.action_type}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
-                          <span className="truncate max-w-[250px] block" title={log.description}>
-                            {log.description}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          {getStatusBadge(log.status)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-500">
-                          {log.ip_address || '-'}
-                        </td>
-                      </tr>
-                    ))}
+                    {logs.map((log) => {
+                      const { name, email } = getUserDisplayName(log);
+                      return (
+                        <tr key={log.id} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm">
+                            <div className="flex items-center text-gray-600 whitespace-nowrap">
+                              <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
+                              {new Date(log.created_at).toLocaleString()}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                <User className="w-4 h-4 text-gray-500" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900 truncate max-w-[160px]" title={name}>{name}</p>
+                                {email && name !== email && (
+                                  <p className="text-xs text-gray-400 truncate max-w-[160px]" title={email}>{email}</p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            {getCategoryBadge(log.action_category)}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-800">
+                            {getHumanReadableAction(log.action_type)}
+                          </td>
+                          <td className="py-3 px-4">
+                            {getStatusBadge(log.status)}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-500">
+                            {log.ip_address || '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

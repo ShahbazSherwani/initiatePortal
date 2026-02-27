@@ -126,9 +126,13 @@ export class AuditLogger {
     params.push(limit, offset);
 
     const result = await this.db.query(
-      `SELECT * FROM audit_logs 
+      `SELECT al.*,
+              u.first_name,
+              u.last_name
+       FROM audit_logs al
+       LEFT JOIN users u ON al.user_id = u.firebase_uid
        ${whereClause}
-       ORDER BY created_at DESC 
+       ORDER BY al.created_at DESC 
        LIMIT $${paramCount++} OFFSET $${paramCount++}`,
       params
     );
