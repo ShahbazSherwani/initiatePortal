@@ -70,6 +70,8 @@ import { EmailVerification } from "../screens/EmailVerification";
 import { EmailVerificationPending } from "../screens/EmailVerificationPending";
 import { ResetPassword } from "../screens/ResetPassword";
 import { PaymentSuccess } from "../screens/PaymentSuccess";
+import { RaiseTicket } from "../screens/RaiseTicket";
+import { OwnerTickets } from "../screens/owner/OwnerTickets";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -900,6 +902,22 @@ export const AppRoutes: React.FC = () => {
                   <AdminRoute>
                     <OwnerInvestmentRequests />
                   </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/tickets" 
+                element={
+                  <AdminRoute>
+                    <OwnerTickets />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/borrow/request" 
+                element={
+                  <PrivateRoute>
+                    <RaiseTicket />
+                  </PrivateRoute>
                 } 
               />
               

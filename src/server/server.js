@@ -13215,6 +13215,138 @@ app.get('/api/admin/reports/comprehensive', verifyToken, async (req, res) => {
   }
 });
 
+// ==================== SUPPORT TICKETS ====================
+
+// Auto-create support_tickets table if it doesn't exist
+(async () => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS support_tickets (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        user_email TEXT,
+        user_name TEXT,
+        category TEXT NOT NULL DEFAULT 'general',
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        admin_reply TEXT,
+        replied_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    console.log('✅ support_tickets table ready');
+  } catch (err) {
+    console.error('❌ Failed to create support_tickets table:', err.message);
+  }
+})();
+
+// Submit a ticket (any authenticated user)
+app.post('/api/tickets', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const { category, subject, message } = req.body;
+
+    if (!subject || !message) {
+      return res.status(400).json({ error: 'Subject and message are required' });
+    }
+
+    const userRes = await db.query(
+      'SELECT email, first_name, last_name FROM users WHERE firebase_uid = $1',
+      [firebase_uid]
+    );
+    const user = userRes.rows[0] || {};
+    const userName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email || 'Unknown';
+
+    const result = await db.query(
+      `INSERT INTO support_tickets (user_id, user_email, user_name, category, subject, message)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [firebase_uid, user.email || '', userName, category || 'general', subject.trim(), message.trim()]
+    );
+
+    res.json({ success: true, ticket: result.rows[0] });
+  } catch (err) {
+    console.error('Error creating ticket:', err);
+    res.status(500).json({ error: 'Failed to submit ticket' });
+  }
+});
+
+// Get current user's own tickets
+app.get('/api/tickets/my', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const result = await db.query(
+      'SELECT * FROM support_tickets WHERE user_id = $1 ORDER BY created_at DESC',
+      [firebase_uid]
+    );
+    res.json({ success: true, tickets: result.rows });
+  } catch (err) {
+    console.error('Error fetching user tickets:', err);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+// Get all tickets (admin only)
+app.get('/api/admin/tickets', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const adminCheck = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [firebase_uid]);
+    if (!adminCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { status } = req.query;
+    let query = 'SELECT * FROM support_tickets';
+    const params = [];
+    if (status && status !== 'all') {
+      query += ' WHERE status = $1';
+      params.push(status);
+    }
+    query += ' ORDER BY created_at DESC';
+
+    const result = await db.query(query, params);
+    res.json({ success: true, tickets: result.rows });
+  } catch (err) {
+    console.error('Error fetching all tickets:', err);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+// Update ticket status / add reply (admin only)
+app.patch('/api/admin/tickets/:id', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const adminCheck = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [firebase_uid]);
+    if (!adminCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { id } = req.params;
+    const { status, admin_reply } = req.body;
+
+    const fields = [];
+    const params = [];
+    let i = 1;
+
+    if (status) { fields.push(`status = $${i++}`); params.push(status); }
+    if (admin_reply !== undefined) {
+      fields.push(`admin_reply = $${i++}`);
+      params.push(admin_reply);
+      fields.push(`replied_at = NOW()`);
+    }
+    fields.push(`updated_at = NOW()`);
+    params.push(id);
+
+    const result = await db.query(
+      `UPDATE support_tickets SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+      params
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Ticket not found' });
+    res.json({ success: true, ticket: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating ticket:', err);
+    res.status(500).json({ error: 'Failed to update ticket' });
+  }
+});
+
 // ==================== SERVER START ====================
 
 const server = app.listen(PORT, () => {

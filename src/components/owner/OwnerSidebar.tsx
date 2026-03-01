@@ -16,7 +16,8 @@ import {
   LogOutIcon,
   UserCogIcon,
   XIcon,
-  BarChart3Icon
+  BarChart3Icon,
+  MessageCircleIcon
 } from 'lucide-react';
 
 interface OwnerSidebarProps {
@@ -124,6 +125,7 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({
     
     // Reports & Analytics
     { icon: <BarChart3Icon className="w-5 h-5" />, label: "Reports", to: '/owner/reports', key: 'reports', adminOnly: true },
+    { icon: <MessageCircleIcon className="w-5 h-5" />, label: "Support Tickets", to: '/owner/tickets', key: 'tickets', adminOnly: true },
     
     // Existing Admin Tools
     { icon: <SettingsIcon className="w-5 h-5" />, label: "Admin Projects", to: '/admin/projects', key: 'admin-projects', adminOnly: true },
