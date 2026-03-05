@@ -13347,6 +13347,23 @@ app.patch('/api/admin/tickets/:id', verifyToken, async (req, res) => {
   }
 });
 
+// Get current user's own projects (for ticket form project picker)
+app.get('/api/my-projects', verifyToken, async (req, res) => {
+  try {
+    const firebase_uid = req.uid;
+    const result = await db.query(
+      `SELECT id, project_data->>'projectTitle' AS title, project_data->>'endDate' AS end_date, project_data->>'status' AS status
+       FROM projects WHERE firebase_uid = $1 AND (project_data->>'status' != 'deleted' OR project_data->>'status' IS NULL)
+       ORDER BY created_at DESC`,
+      [firebase_uid]
+    );
+    res.json({ success: true, projects: result.rows });
+  } catch (err) {
+    console.error('Error fetching my projects:', err);
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+});
+
 // ==================== TICKET QUICK ACTIONS ====================
 
 // Get projects belonging to a specific user (for admin ticket actions)

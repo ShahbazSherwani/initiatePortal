@@ -77,6 +77,8 @@ const STATUS_CONFIG: Record<StatusKey, { label: string; color: string; bg: strin
 
 type View = 'list' | 'form' | 'detail';
 
+interface UserProject { id: number; title: string; end_date: string; status: string; }
+
 export const RaiseTicket: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +86,21 @@ export const RaiseTicket: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ category: 'general', subject: '', message: '' });
+  const [form, setForm] = useState({ category: 'general', subject: '', message: '', project_id: '', project_title: '' });
+  const [userProjects, setUserProjects] = useState<UserProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+
+  const fetchUserProjects = async () => {
+    try {
+      setProjectsLoading(true);
+      const data = await authFetch(`${API_BASE_URL}/my-projects`);
+      setUserProjects(data.projects || []);
+    } catch {
+      // silently fail - project list is optional
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
 
   const fetchTickets = async () => {
     try {
@@ -98,7 +114,7 @@ export const RaiseTicket: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchTickets(); }, []);
+  useEffect(() => { fetchTickets(); fetchUserProjects(); }, []);
 
   const filteredTickets = activeTab === 'all'
     ? tickets
@@ -112,13 +128,18 @@ export const RaiseTicket: React.FC = () => {
     }
     try {
       setSubmitting(true);
+      const payload = { ...form };
+      // Prepend project name to message if a project was selected
+      if (form.project_id && form.project_title) {
+        payload.message = `Project: ${form.project_title}\n\n${form.message}`;
+      }
       await authFetch(`${API_BASE_URL}/tickets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       toast.success("Ticket submitted! We'll get back to you shortly.");
-      setForm({ category: 'general', subject: '', message: '' });
+      setForm({ category: 'general', subject: '', message: '', project_id: '', project_title: '' });
       setView('list');
       fetchTickets();
     } catch {
@@ -160,7 +181,7 @@ export const RaiseTicket: React.FC = () => {
                 <div className="relative">
                   <select
                     value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    onChange={(e) => setForm({ ...form, category: e.target.value, project_id: '', project_title: '' })}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm appearance-none focus:ring-2 focus:ring-[#0C4B20] focus:outline-none bg-white"
                   >
                     {CATEGORIES.map((c) => (
@@ -170,6 +191,39 @@ export const RaiseTicket: React.FC = () => {
                   <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▼</div>
                 </div>
               </div>
+
+              {/* Project picker — only shown for Project Issue */}
+              {form.category === 'project' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Which Project? <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
+                  {projectsLoading ? (
+                    <p className="text-xs text-gray-400 italic py-2">Loading your projects...</p>
+                  ) : userProjects.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic py-2">No projects found on your account.</p>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={form.project_id}
+                        onChange={(e) => {
+                          const proj = userProjects.find((p) => String(p.id) === e.target.value);
+                          setForm({ ...form, project_id: e.target.value, project_title: proj?.title || '' });
+                        }}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm appearance-none focus:ring-2 focus:ring-[#0C4B20] focus:outline-none bg-white"
+                      >
+                        <option value="">-- Select a project (optional) --</option>
+                        {userProjects.map((p) => (
+                          <option key={p.id} value={String(p.id)}>
+                            {p.title || `Project #${p.id}`}{p.status ? ` · ${p.status}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▼</div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
