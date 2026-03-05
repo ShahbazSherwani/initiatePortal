@@ -662,7 +662,7 @@ export const AppRoutes: React.FC = () => {
 
               {/* Request routes */}
               <Route
-                path="borrow/request"
+                path="borrower/register"
                 element={
                   <PrivateRoute>
                     <BorrowerReg />
