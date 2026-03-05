@@ -45,7 +45,7 @@ const borrowerNavItems: NavItem[] = [
   {
     icon:<MessageCircle className="w-5 h-5" />,
     label: "Raise Tickets",
-    to: '/request',
+    to: '/borrow/request',
     key: 'initiate-request'
   },
 ];
@@ -70,7 +70,7 @@ const investorNavItems: NavItem[] = [
   {
     icon:<MessageCircle className="w-5 h-5" />,
     label: "Raise Tickets",
-    to: '/request',
+    to: '/borrow/request',
     key: 'initiate-request'
   },
 ];
@@ -162,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     if (navItem.key === 'calendar' && currentAccountType === 'investor' && location.pathname === '/investor/calendar') return true;
     if (navItem.key === 'wallet' && currentAccountType === 'investor' && location.pathname === '/borrowBank') return true;
     if (navItem.key === 'my-investments' && location.pathname === '/investor/investments') return true;
-    if (navItem.key === 'raise-tickets' && location.pathname === '/request') return true;
+    if (navItem.key === 'initiate-request' && location.pathname === '/borrow/request') return true;
     if (navItem.key === 'home' && currentAccountType === 'borrower' && location.pathname === '/borrow') return true;
     if (navItem.key === 'calendar' && currentAccountType === 'borrower' && location.pathname === '/borrowCalendar') return true;
     if (navItem.key === 'wallet' && currentAccountType === 'borrower' && location.pathname === '/borrowBank') return true;
