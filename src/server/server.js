@@ -13347,6 +13347,98 @@ app.patch('/api/admin/tickets/:id', verifyToken, async (req, res) => {
   }
 });
 
+// ==================== TICKET QUICK ACTIONS ====================
+
+// Get projects belonging to a specific user (for admin ticket actions)
+app.get('/api/admin/ticket-actions/user-projects/:userId', verifyToken, async (req, res) => {
+  try {
+    const adminCheck = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [req.uid]);
+    if (!adminCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { userId } = req.params;
+    const result = await db.query(
+      `SELECT id, project_data->>'projectTitle' AS title, project_data->>'endDate' AS end_date, project_data->>'status' AS status
+       FROM projects WHERE firebase_uid = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    res.json({ success: true, projects: result.rows });
+  } catch (err) {
+    console.error('Error fetching user projects:', err);
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+});
+
+// Extend project deadline (admin ticket action)
+app.patch('/api/admin/ticket-actions/extend-deadline/:projectId', verifyToken, async (req, res) => {
+  try {
+    const adminCheck = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [req.uid]);
+    if (!adminCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { projectId } = req.params;
+    const { newEndDate } = req.body;
+    if (!newEndDate) return res.status(400).json({ error: 'newEndDate is required' });
+
+    const projectResult = await db.query('SELECT project_data FROM projects WHERE id = $1', [projectId]);
+    if (projectResult.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
+
+    const projectData = projectResult.rows[0].project_data;
+    projectData.endDate = newEndDate;
+
+    await db.query('UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2', [projectData, projectId]);
+    res.json({ success: true, message: 'Project deadline extended' });
+  } catch (err) {
+    console.error('Error extending deadline:', err);
+    res.status(500).json({ error: 'Failed to extend deadline' });
+  }
+});
+
+// Unsuspend user (admin ticket action)
+app.post('/api/admin/ticket-actions/unsuspend/:userId', verifyToken, async (req, res) => {
+  try {
+    const adminCheck = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [req.uid]);
+    if (!adminCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { userId } = req.params;
+    const result = await db.query(
+      `UPDATE users SET suspension_scope = NULL, suspended_at = NULL, suspension_reason = NULL, updated_at = NOW()
+       WHERE firebase_uid = $1 RETURNING firebase_uid, full_name, suspension_scope`,
+      [userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    try {
+      await db.query(
+        `UPDATE user_suspensions SET status = 'lifted', lifted_at = NOW() WHERE firebase_uid = $1 AND status = 'active'`,
+        [userId]
+      );
+    } catch (_) { /* table may not exist, ignore */ }
+
+    res.json({ success: true, message: 'User unsuspended', user: result.rows[0] });
+  } catch (err) {
+    console.error('Error unsuspending user:', err);
+    res.status(500).json({ error: 'Failed to unsuspend user' });
+  }
+});
+
+// Get suspension status of a user (admin ticket action)
+app.get('/api/admin/ticket-actions/user-status/:userId', verifyToken, async (req, res) => {
+  try {
+    const adminCheck = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [req.uid]);
+    if (!adminCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { userId } = req.params;
+    const result = await db.query(
+      `SELECT firebase_uid, full_name, email, suspension_scope, suspension_reason, suspended_at FROM users WHERE firebase_uid = $1`,
+      [userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error('Error fetching user status:', err);
+    res.status(500).json({ error: 'Failed to fetch user status' });
+  }
+});
+
 // ==================== SERVER START ====================
 
 const server = app.listen(PORT, () => {
