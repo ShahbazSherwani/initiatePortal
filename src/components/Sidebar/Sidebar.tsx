@@ -45,7 +45,7 @@ const borrowerNavItems: NavItem[] = [
   {
     icon:<MessageCircle className="w-5 h-5" />,
     label: "Raise Tickets",
-    to: '/borrow/request',
+    to: '/request',
     key: 'initiate-request'
   },
 ];
@@ -70,7 +70,7 @@ const investorNavItems: NavItem[] = [
   {
     icon:<MessageCircle className="w-5 h-5" />,
     label: "Raise Tickets",
-    to: '/borrow/request',
+    to: '/request',
     key: 'initiate-request'
   },
 ];
