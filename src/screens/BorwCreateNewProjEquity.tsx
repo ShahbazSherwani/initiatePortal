@@ -20,6 +20,7 @@ import {
   MenuIcon,
   UploadIcon,
   ChevronRightIcon,
+  Info,
 } from "lucide-react";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
@@ -49,6 +50,10 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedStartDate, setSelectedStartDate] = useState<Date | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [pickerStage, setPickerStage] = useState<'start' | 'end'>('start');
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
+  const [showEquityInfo, setShowEquityInfo] = useState(false);
 
   const onSubmit = () => {
     setForm(f => ({
@@ -203,15 +208,28 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
 
                   {/* Investor Percentage */}
                   <div>
-                    <label className="font-medium text-black text-base block mb-2">
-                      Investor Percentage
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="font-medium text-black text-base">Investor Percentage (%)</label>
+                      <button type="button" onClick={() => setShowEquityInfo(v => !v)}
+                        className="flex items-center gap-1 text-xs text-[#0C4B20] hover:underline">
+                        <Info className="w-3.5 h-3.5" />
+                        {showEquityInfo ? 'Hide info' : 'What is this?'}
+                      </button>
+                    </div>
+                    {showEquityInfo && (
+                      <div className="mb-3 bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-gray-700 leading-relaxed">
+                        <p className="font-semibold text-[#0C4B20] mb-1">How equity percentage works</p>
+                        <p>This is the share of profits or dividends investors collectively receive. A higher percentage attracts more investment but reduces your retained earnings. Balance generosity with long-term project sustainability.</p>
+                        <p className="mt-1 text-gray-500">Example: 25% equity share means investors collectively receive 25% of all declared dividends.</p>
+                      </div>
+                    )}
                     <Input
-                      placeholder="Enter here %"
+                      placeholder="Enter investor equity share (e.g., 25%)"
                       className="w-full py-3 px-3 rounded-2xl border"
                       value={investorPercentage}
                       onChange={e => setInvestorPercentage(e.target.value)}
                     />
+                    <p className="mt-1.5 text-xs text-gray-500">Typical equity campaigns offer <span className="font-semibold text-[#0C4B20]">10%–40%</span> to investors depending on funding needs.</p>
                   </div>
 
                   {/* Dividend Frequency */}
@@ -265,172 +283,164 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
 
                   {/* Select Time Duration */}
                   <div>
-                    <label className="font-medium text-black text-base block mb-2">
-                      Select Time Duration
-                    </label>
+                    <label className="font-medium text-black text-base block mb-2">Campaign Duration</label>
 
-                    {/* Campaign Start Date */}
-                    <div className="mb-3">
-                      <label className="text-sm font-medium text-gray-600 block mb-1">Campaign Start Date</label>
-                      <input
-                        type="date"
-                        className="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#0C4B20] focus:outline-none"
-                        min={new Date().toISOString().split('T')[0]}
-                        max={addDays(new Date(), 89).toISOString().split('T')[0]}
-                        value={selectedStartDate ? selectedStartDate.toISOString().split('T')[0] : ''}
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            const d = new Date(e.target.value + 'T00:00:00');
-                            setSelectedStartDate(d);
-                            setSelectedDate(null);
-                            setTimeDuration('');
-                            setCurrentDate(d);
-                          } else {
-                            setSelectedStartDate(null);
-                          }
-                        }}
-                      />
-                      <p className="text-xs text-gray-400 mt-1">Leave blank to start today. You can schedule a future start date.</p>
-                    </div>
-
-                    <label className="text-sm font-medium text-gray-600 block mb-1">Campaign End Date</label>
-                    <Popover>
+                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full py-3 px-4 rounded-2xl border border-gray-200 flex justify-between items-center bg-white hover:bg-gray-50 focus:ring-2 focus:ring-[#0C4B20] focus:border-transparent transition-all text-left font-normal text-gray-700"
+                          className="w-full py-3 px-4 rounded-2xl border border-gray-200 flex justify-between items-center bg-white hover:bg-gray-50 focus:ring-2 focus:ring-[#0C4B20] text-left font-normal"
+                          onClick={() => { setCalendarOpen(true); setPickerStage(selectedStartDate && !selectedDate ? 'end' : 'start'); }}
                         >
-                          <span>
-                            {timeDuration ? format(new Date(timeDuration), "PPP 'at' p") : "Select project end date and time"}
+                          <span className={selectedStartDate ? 'text-gray-900' : 'text-gray-400'}>
+                            {selectedStartDate && selectedDate
+                              ? `${format(selectedStartDate, 'MMM d')} → ${format(selectedDate, 'MMM d, yyyy')}  ·  ${differenceInDays(selectedDate, selectedStartDate)} days`
+                              : selectedStartDate
+                              ? `Starts ${format(selectedStartDate, 'MMM d, yyyy')} → pick end date`
+                              : 'Select campaign start & end date'}
                           </span>
-                          <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                          <ChevronRightIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-white shadow-lg rounded-2xl border-0" align="start">
-                        <div className="p-8">
-                          {/* Custom Calendar Grid */}
-                          <div className="calendar-container">
-                            {/* Navigation Header */}
-                            <div className="flex justify-center items-center text-gray-800 font-medium mb-4 relative">
-                              <button 
-                                className="h-10 w-10 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors shadow-sm absolute left-0"
-                                onClick={() => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                              >
-                                <ChevronLeftIcon className="w-5 h-5" />
-                              </button>
-                              <h3 className="text-lg font-semibold px-4">
-                                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                              </h3>
-                              <button 
-                                className="h-10 w-10 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors shadow-sm absolute right-0"
-                                onClick={() => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                              >
-                                <ChevronRightIcon className="w-5 h-5" />
-                              </button>
+                      <PopoverContent className="w-auto p-0 bg-white shadow-xl rounded-2xl border-0" align="start">
+                        <div className="p-5 w-[340px]">
+                          {/* Step indicators */}
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${pickerStage === 'start' ? 'bg-[#0C4B20] text-white' : 'bg-green-100 text-[#0C4B20]'}`}>
+                              <span>{pickerStage !== 'start' || selectedStartDate ? '✓' : '1'}</span>
+                              Start{selectedStartDate && <span className="opacity-80"> · {format(selectedStartDate, 'MMM d')}</span>}
                             </div>
-                            
-                            {/* Calendar Grid */}
-                            <div className="w-full">
-                              {/* Days Header */}
-                              <div className="grid grid-cols-7 gap-1 mb-2">
-                                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-                                  <div key={day} className="h-10 flex items-center justify-center text-gray-500 font-medium text-sm">
-                                    {day}
+                            <div className="flex-1 h-px bg-gray-200" />
+                            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${pickerStage === 'end' ? 'bg-[#0C4B20] text-white' : selectedDate ? 'bg-green-100 text-[#0C4B20]' : 'bg-gray-100 text-gray-400'}`}>
+                              <span>{selectedDate ? '✓' : '2'}</span>
+                              End{selectedDate && <span className="opacity-80"> · {format(selectedDate, 'MMM d')}</span>}
+                            </div>
+                            {(selectedStartDate || selectedDate) && (
+                              <button className="text-xs text-gray-400 hover:text-red-500 transition-colors ml-1"
+                                onClick={() => { setSelectedStartDate(null); setSelectedDate(null); setTimeDuration(''); setPickerStage('start'); }}>
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 mb-3">
+                            {pickerStage === 'start' ? '↓ Click a date to set campaign start' : '↓ Click a date to set campaign end (max 90 days)'}
+                          </p>
+
+                          {/* Month navigation */}
+                          <div className="flex justify-between items-center mb-3">
+                            <button className="h-8 w-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                              onClick={() => setCurrentDate(p => new Date(p.getFullYear(), p.getMonth() - 1, 1))}>
+                              <ChevronLeftIcon className="w-4 h-4" />
+                            </button>
+                            <span className="text-sm font-semibold">{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                            <button className="h-8 w-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                              onClick={() => setCurrentDate(p => new Date(p.getFullYear(), p.getMonth() + 1, 1))}>
+                              <ChevronRightIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Day headers */}
+                          <div className="grid grid-cols-7 mb-1">
+                            {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+                              <div key={d} className="h-8 flex items-center justify-center text-xs text-gray-400 font-medium">{d}</div>
+                            ))}
+                          </div>
+
+                          {/* Calendar days */}
+                          <div className="grid grid-cols-7">
+                            {(() => {
+                              const today = new Date(); today.setHours(0,0,0,0);
+                              const year = currentDate.getFullYear();
+                              const month = currentDate.getMonth();
+                              const firstDay = new Date(year, month, 1);
+                              const gridStart = new Date(firstDay);
+                              gridStart.setDate(gridStart.getDate() - firstDay.getDay());
+                              const startNorm = selectedStartDate ? new Date(selectedStartDate.getFullYear(), selectedStartDate.getMonth(), selectedStartDate.getDate()) : null;
+                              const endNorm = selectedDate ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()) : null;
+                              const maxEnd = startNorm ? addDays(startNorm, 90) : addDays(today, 90);
+
+                              return Array.from({ length: 35 }, (_, i) => {
+                                const day = new Date(gridStart);
+                                day.setDate(gridStart.getDate() + i);
+                                const dn = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+                                const isDisabled = pickerStage === 'start' ? dn < today : (startNorm ? dn <= startNorm || dn > maxEnd : dn < today);
+                                const isCurrentMonth = day.getMonth() === month;
+                                const isToday = dn.getTime() === today.getTime();
+                                const isStart = startNorm && dn.getTime() === startNorm.getTime();
+                                const isEnd = endNorm && dn.getTime() === endNorm.getTime();
+                                const hoverNorm = hoveredDate ? new Date(hoveredDate.getFullYear(), hoveredDate.getMonth(), hoveredDate.getDate()) : null;
+                                const isInRange = startNorm && (endNorm || hoverNorm) && dn > startNorm && dn < (endNorm || hoverNorm!);
+                                const isHoverEnd = !endNorm && hoverNorm && dn.getTime() === hoverNorm.getTime() && startNorm && dn > startNorm;
+
+                                return (
+                                  <div key={i}
+                                    className={`relative h-9 flex items-center justify-center
+                                      ${isInRange ? 'bg-green-100' : ''}
+                                      ${(isStart && (endNorm || hoverNorm)) ? 'rounded-l-full bg-green-100' : ''}
+                                      ${(isEnd || isHoverEnd) ? 'rounded-r-full bg-green-100' : ''}
+                                      ${isStart && !endNorm && !hoverNorm ? 'rounded-full' : ''}
+                                    `}
+                                    onMouseEnter={() => { if (!isDisabled && pickerStage === 'end' && startNorm) setHoveredDate(day); }}
+                                    onMouseLeave={() => setHoveredDate(null)}
+                                    onClick={() => {
+                                      if (isDisabled) return;
+                                      if (pickerStage === 'start') {
+                                        setSelectedStartDate(day); setSelectedDate(null); setTimeDuration('');
+                                        setPickerStage('end'); setCurrentDate(new Date(day.getFullYear(), day.getMonth(), 1));
+                                      } else {
+                                        setSelectedDate(day); setTimeDuration(day.toISOString()); setHoveredDate(null);
+                                      }
+                                    }}
+                                  >
+                                    <span className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium z-10
+                                      ${isStart || isEnd || isHoverEnd ? 'bg-[#0C4B20] text-white shadow-sm' : ''}
+                                      ${!isStart && !isEnd && !isHoverEnd && isToday ? 'ring-2 ring-[#0C4B20] text-[#0C4B20]' : ''}
+                                      ${!isStart && !isEnd && !isHoverEnd && !isToday && isDisabled ? 'text-gray-300' : ''}
+                                      ${!isStart && !isEnd && !isHoverEnd && !isToday && !isDisabled && isCurrentMonth ? 'text-gray-700 hover:bg-green-200 cursor-pointer' : ''}
+                                      ${!isCurrentMonth && !isDisabled ? 'text-gray-400' : ''}
+                                    `}>
+                                      {day.getDate()}
+                                    </span>
                                   </div>
-                                ))}
-                              </div>
-                              
-                              {/* Calendar Days */}
-                              <div className="grid grid-cols-7 gap-1">
-                                {(() => {
-                                  const year = currentDate.getFullYear();
-                                  const month = currentDate.getMonth();
-                                  const firstDay = new Date(year, month, 1);
-                                  const startDate = new Date(firstDay);
-                                  startDate.setDate(startDate.getDate() - firstDay.getDay());
-
-                                  // 90-day campaign window: selectedStartDate (or today) → start + 90 days
-                                  const campaignStart = selectedStartDate ? new Date(selectedStartDate) : new Date();
-                                  campaignStart.setHours(0, 0, 0, 0);
-                                  const campaignMaxEnd = addDays(campaignStart, 90);
-                                  
-                                  const days = [];
-                                  for (let i = 0; i < 42; i++) {
-                                    const day = new Date(startDate);
-                                    day.setDate(startDate.getDate() + i);
-
-                                    const dayNorm = new Date(day);
-                                    dayNorm.setHours(0, 0, 0, 0);
-                                    const isDisabled = dayNorm < campaignStart || dayNorm > campaignMaxEnd;
-                                    const isCurrentMonth = day.getMonth() === month;
-                                    const isToday = day.toDateString() === new Date().toDateString();
-                                    const isSelected = selectedDate && day.toDateString() === selectedDate.toDateString();
-                                    
-                                    days.push(
-                                      <div 
-                                        key={i}
-                                        title={isDisabled ? (dayNorm < campaignStart ? 'Past date' : 'Beyond 90-day campaign limit') : undefined}
-                                        className={`h-10 flex items-center justify-center font-normal rounded-lg transition-colors ${
-                                          isDisabled
-                                            ? 'text-gray-300 opacity-40 cursor-not-allowed'
-                                            : isSelected
-                                            ? 'bg-[#0C4B20] text-white font-medium shadow-sm cursor-pointer'
-                                            : isToday
-                                            ? 'bg-blue-100 text-blue-700 font-medium cursor-pointer'
-                                            : !isCurrentMonth
-                                            ? 'text-gray-400 opacity-50 hover:bg-gray-100 cursor-pointer'
-                                            : 'text-gray-700 hover:bg-gray-100 cursor-pointer'
-                                        }`}
-                                        onClick={() => {
-                                          if (isDisabled) return;
-                                          setSelectedDate(day);
-                                          setTimeDuration(day.toISOString());
-                                        }}
-                                      >
-                                        {day.getDate()}
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  return days.slice(0, 35); // Show 5 weeks
-                                })()}
-                              </div>
-                            </div>
+                                );
+                              });
+                            })()}
                           </div>
-                          <div className="mt-6 pt-4 border-t border-gray-100">
-                            <div className="flex items-center space-x-3 mb-3">
-                              <Clock className="h-5 w-5 text-gray-500" />
-                              <span className="text-base font-medium text-gray-700">Select Time</span>
-                            </div>
-                            <select 
-                              className="flex h-[58px] w-full rounded-2xl border border-black bg-transparent px-4 py-3 font-poppins text-base transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#0C4B20] focus:border-[#0C4B20]"
-                              onChange={(e) => {
-                                if (timeDuration) {
-                                  const date = new Date(timeDuration);
-                                  const [hours, minutes] = e.target.value.split(':');
-                                  date.setHours(parseInt(hours), parseInt(minutes));
-                                  setTimeDuration(date.toISOString());
-                                }
-                              }}
-                              defaultValue="09:00"
-                            >
-                              <option value="09:00">9:00 AM</option>
-                              <option value="12:00">12:00 PM</option>
-                              <option value="15:00">3:00 PM</option>
-                              <option value="18:00">6:00 PM</option>
-                              <option value="21:00">9:00 PM</option>
-                            </select>
-                            <div className="mt-4 text-center space-y-1">
-                              {selectedDate ? (
-                                <p className="text-sm text-[#0C4B20] font-medium bg-green-50 py-2 px-4 rounded-lg">
-                                  Campaign duration: {differenceInDays(selectedDate, selectedStartDate || new Date()) + 1} day{differenceInDays(selectedDate, selectedStartDate || new Date()) !== 0 ? 's' : ''}
+
+                          {/* Time + confirm — shown after end date picked */}
+                          {selectedStartDate && selectedDate && (
+                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                              <div className="flex items-center gap-3">
+                                <Clock className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm font-medium text-gray-700">End Time</span>
+                                <select
+                                  className="ml-auto h-9 rounded-xl border border-gray-300 bg-white px-3 text-sm focus:ring-2 focus:ring-[#0C4B20] focus:outline-none"
+                                  defaultValue="09:00"
+                                  onChange={(e) => {
+                                    const date = new Date(timeDuration || selectedDate.toISOString());
+                                    const [h, m] = e.target.value.split(':');
+                                    date.setHours(parseInt(h), parseInt(m));
+                                    setTimeDuration(date.toISOString());
+                                  }}>
+                                  <option value="09:00">9:00 AM</option>
+                                  <option value="12:00">12:00 PM</option>
+                                  <option value="15:00">3:00 PM</option>
+                                  <option value="18:00">6:00 PM</option>
+                                  <option value="21:00">9:00 PM</option>
+                                </select>
+                              </div>
+                              <div className="bg-green-50 rounded-xl px-4 py-2.5 text-center">
+                                <p className="text-sm font-semibold text-[#0C4B20]">
+                                  {format(selectedStartDate, 'MMM d')} → {format(selectedDate, 'MMM d, yyyy')} · {differenceInDays(selectedDate, selectedStartDate)} days
                                 </p>
-                              ) : (
-                                <p className="text-sm text-gray-500 bg-gray-50 py-2 px-4 rounded-lg">Max campaign duration: 90 days</p>
-                              )}
-                              <p className="text-xs text-gray-400 px-2">Per SEC policy, campaigns run up to 90 days. Extensions of up to another 90 days may be requested by the issuer and are subject to approval.</p>
+                                <p className="text-xs text-gray-400 mt-0.5">Per SEC policy, max 90 days. Extensions subject to approval.</p>
+                              </div>
+                              <button className="w-full py-2.5 bg-[#0C4B20] text-white rounded-xl text-sm font-semibold hover:bg-[#0C4B20]/90 transition-colors"
+                                onClick={() => setCalendarOpen(false)}>
+                                Confirm Dates
+                              </button>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </PopoverContent>
                     </Popover>
