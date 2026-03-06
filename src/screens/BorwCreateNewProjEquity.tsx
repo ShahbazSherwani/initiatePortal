@@ -220,16 +220,16 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                       <div className="mb-3 bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-gray-700 leading-relaxed">
                         <p className="font-semibold text-[#0C4B20] mb-1">How equity percentage works</p>
                         <p>This is the share of profits or dividends investors collectively receive. A higher percentage attracts more investment but reduces your retained earnings. Balance generosity with long-term project sustainability.</p>
-                        <p className="mt-1 text-gray-500">Example: 25% equity share means investors collectively receive 25% of all declared dividends.</p>
+                        <p className="mt-1 text-gray-500">Example: 5% equity share means investors collectively receive 5% of all declared dividends.</p>
                       </div>
                     )}
                     <Input
-                      placeholder="Enter investor equity share (e.g., 25%)"
+                      placeholder="Enter investor equity share (e.g., 5%)"
                       className="w-full py-3 px-3 rounded-2xl border"
                       value={investorPercentage}
                       onChange={e => setInvestorPercentage(e.target.value)}
                     />
-                    <p className="mt-1.5 text-xs text-gray-500">Typical equity campaigns offer <span className="font-semibold text-[#0C4B20]">10%–40%</span> to investors depending on funding needs.</p>
+                    <p className="mt-1.5 text-xs text-gray-500">Typical equity campaigns offer <span className="font-semibold text-[#0C4B20]">1%–5%</span> to investors depending on funding needs.</p>
                   </div>
 
                   {/* Dividend Frequency */}
