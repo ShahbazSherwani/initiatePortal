@@ -48,19 +48,21 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedStartDate, setSelectedStartDate] = useState<Date | null>(null);
 
   const onSubmit = () => {
     setForm(f => ({
       ...f,
-      selectedType: "equity", // or "lending"
+      selectedType: "equity",
       projectDetails: {
-        ...f.projectDetails, // <-- This keeps the image and any other previous fields!
+        ...f.projectDetails,
         projectRequirements,
         investorPercentage,
         dividendFrequency,
         dividendOther,
         product,
         timeDuration,
+        campaignStartDate: selectedStartDate ? selectedStartDate.toISOString() : new Date().toISOString(),
         location,
         overview,
         videoLink,
@@ -266,6 +268,32 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                     <label className="font-medium text-black text-base block mb-2">
                       Select Time Duration
                     </label>
+
+                    {/* Campaign Start Date */}
+                    <div className="mb-3">
+                      <label className="text-sm font-medium text-gray-600 block mb-1">Campaign Start Date</label>
+                      <input
+                        type="date"
+                        className="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#0C4B20] focus:outline-none"
+                        min={new Date().toISOString().split('T')[0]}
+                        max={addDays(new Date(), 89).toISOString().split('T')[0]}
+                        value={selectedStartDate ? selectedStartDate.toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const d = new Date(e.target.value + 'T00:00:00');
+                            setSelectedStartDate(d);
+                            setSelectedDate(null);
+                            setTimeDuration('');
+                            setCurrentDate(d);
+                          } else {
+                            setSelectedStartDate(null);
+                          }
+                        }}
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Leave blank to start today. You can schedule a future start date.</p>
+                    </div>
+
+                    <label className="text-sm font-medium text-gray-600 block mb-1">Campaign End Date</label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -321,8 +349,8 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                                   const startDate = new Date(firstDay);
                                   startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-                                  // 90-day campaign window: today → today + 90 days
-                                  const campaignStart = new Date();
+                                  // 90-day campaign window: selectedStartDate (or today) → start + 90 days
+                                  const campaignStart = selectedStartDate ? new Date(selectedStartDate) : new Date();
                                   campaignStart.setHours(0, 0, 0, 0);
                                   const campaignMaxEnd = addDays(campaignStart, 90);
                                   
@@ -395,7 +423,7 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                             <div className="mt-4 text-center space-y-1">
                               {selectedDate ? (
                                 <p className="text-sm text-[#0C4B20] font-medium bg-green-50 py-2 px-4 rounded-lg">
-                                  Campaign duration: {differenceInDays(selectedDate, new Date()) + 1} day{differenceInDays(selectedDate, new Date()) !== 0 ? 's' : ''}
+                                  Campaign duration: {differenceInDays(selectedDate, selectedStartDate || new Date()) + 1} day{differenceInDays(selectedDate, selectedStartDate || new Date()) !== 0 ? 's' : ''}
                                 </p>
                               ) : (
                                 <p className="text-sm text-gray-500 bg-gray-50 py-2 px-4 rounded-lg">Max campaign duration: 90 days</p>

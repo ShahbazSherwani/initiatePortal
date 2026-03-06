@@ -20,6 +20,7 @@ import {
   MenuIcon,
   UploadIcon,
   ChevronRightIcon,
+  Info,
 } from "lucide-react";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
@@ -47,6 +48,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedStartDate, setSelectedStartDate] = useState<Date | null>(null);
+  const [showInterestInfo, setShowInterestInfo] = useState(false);
 
   // Handle upload click
   const handleUploadClick = () => {
@@ -58,10 +61,11 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
       ...f,
       selectedType: "lending",
       projectDetails: {
-        ...f.projectDetails, // <-- This keeps the image and any other previous fields!
+        ...f.projectDetails,
         projectRequirements,
         investorPercentage,
         timeDuration,
+        campaignStartDate: selectedStartDate ? selectedStartDate.toISOString() : new Date().toISOString(),
         product,
         location,
         overview,
@@ -163,17 +167,54 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   />
                 </div>
 
-                {/* Investor Percentage */}
+                {/* Monthly Interest Rate */}
                 <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Investor Percentage
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="font-medium text-black text-base">
+                      Monthly Interest Rate (%)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowInterestInfo(v => !v)}
+                      className="flex items-center gap-1 text-xs text-[#0C4B20] hover:underline"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                      {showInterestInfo ? 'Hide info' : 'How does this work?'}
+                    </button>
+                  </div>
+                  {showInterestInfo && (
+                    <div className="mb-3 bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-gray-700 leading-relaxed">
+                      <p className="font-semibold text-[#0C4B20] mb-1">How monthly interest works</p>
+                      <p>Investors lend your project money and earn this rate on their principal each month for the campaign duration. A higher rate attracts more investors but increases your repayment cost — balance competitiveness with sustainability.</p>
+                      <p className="mt-1 text-gray-500">Example: ₱100,000 at 2%/month for 3 months = ₱6,000 total interest paid to investors.</p>
+                    </div>
+                  )}
                   <Input
-                    placeholder="Enter here %"
+                    placeholder="Enter monthly interest rate (e.g., 2%)"
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.1}
                     className="w-full py-3 px-3 rounded-2xl border"
                     value={investorPercentage}
-                    onChange={(e) => setInvestorPercentage(e.target.value)}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (e.target.value === '' || e.target.value === '-') {
+                        setInvestorPercentage('');
+                      } else if (val > 5) {
+                        setInvestorPercentage('5');
+                      } else {
+                        setInvestorPercentage(e.target.value);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val) && val < 1) setInvestorPercentage('1');
+                    }}
                   />
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Typical campaigns offer <span className="font-semibold text-[#0C4B20]">1%–5%</span> monthly interest, depending on project risk and duration. Maximum allowed: <span className="font-semibold">5%</span>.
+                  </p>
                 </div>
 
                 {/* Select Time Duration */}
@@ -181,6 +222,32 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   <label className="font-medium text-black text-base block mb-2">
                     Select Time Duration
                   </label>
+
+                  {/* Campaign Start Date */}
+                  <div className="mb-3">
+                    <label className="text-sm font-medium text-gray-600 block mb-1">Campaign Start Date</label>
+                    <input
+                      type="date"
+                      className="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#0C4B20] focus:outline-none"
+                      min={new Date().toISOString().split('T')[0]}
+                      max={addDays(new Date(), 89).toISOString().split('T')[0]}
+                      value={selectedStartDate ? selectedStartDate.toISOString().split('T')[0] : ''}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const d = new Date(e.target.value + 'T00:00:00');
+                          setSelectedStartDate(d);
+                          setSelectedDate(null);
+                          setTimeDuration('');
+                          setCurrentDate(d);
+                        } else {
+                          setSelectedStartDate(null);
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Leave blank to start today. You can schedule a future start date.</p>
+                  </div>
+
+                  <label className="text-sm font-medium text-gray-600 block mb-1">Campaign End Date</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -236,8 +303,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                                 const startDate = new Date(firstDay);
                                 startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-                                // 90-day campaign window: today → today + 90 days
-                                const campaignStart = new Date();
+                                // 90-day campaign window: selectedStartDate (or today) → start + 90 days
+                                const campaignStart = selectedStartDate ? new Date(selectedStartDate) : new Date();
                                 campaignStart.setHours(0, 0, 0, 0);
                                 const campaignMaxEnd = addDays(campaignStart, 90);
                                 
@@ -310,7 +377,7 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                           <div className="mt-4 text-center space-y-1">
                             {selectedDate ? (
                               <p className="text-sm text-[#0C4B20] font-medium bg-green-50 py-2 px-4 rounded-lg">
-                                Campaign duration: {differenceInDays(selectedDate, new Date()) + 1} day{differenceInDays(selectedDate, new Date()) !== 0 ? 's' : ''}
+                                Campaign duration: {differenceInDays(selectedDate, selectedStartDate || new Date()) + 1} day{differenceInDays(selectedDate, selectedStartDate || new Date()) !== 0 ? 's' : ''}
                               </p>
                             ) : (
                               <p className="text-sm text-gray-500 bg-gray-50 py-2 px-4 rounded-lg">Max campaign duration: 90 days</p>
