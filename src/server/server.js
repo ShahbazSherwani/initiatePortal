@@ -4800,22 +4800,35 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
       console.log(`⚠️ Using default investor values due to DB error:`, dbError.message);
     }
     
-    // Calculate investment limits based on annual income
+    // Calculate investment limits based on annual income (SEC Crowdfunding Rules)
+    // Qualified Investor (≥₱10M income): no cap
+    // Standard (≥₱2M income): 10% of annual income per issuer
+    // Retail (< ₱2M income): 5% of annual income per issuer
+    const QI_THRESHOLD = 10000000;
     let maxInvestmentPercentage = 0;
     let maxInvestmentAmount = 0;
-    
-    if (investorIncome >= 2000000) { // 2M PHP or above
+    let investorTier = 'retail';
+    let isQualifiedInvestor = false;
+
+    if (investorIncome >= QI_THRESHOLD) {
+      isQualifiedInvestor = true;
+      investorTier = 'qualified';
+      maxInvestmentPercentage = null; // no cap
+      maxInvestmentAmount = Infinity;
+    } else if (investorIncome >= 2000000) {
+      investorTier = 'standard';
       maxInvestmentPercentage = 10;
-    } else { // Below 2M PHP
+      maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
+    } else {
+      investorTier = 'retail';
       maxInvestmentPercentage = 5;
+      maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
     }
     
-    maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
+    console.log(`📊 Investment limits for user ${uid}: Income: ₱${investorIncome.toLocaleString()}, Tier: ${investorTier}, Max %: ${maxInvestmentPercentage ?? 'No Cap'}, Max Amount: ${maxInvestmentAmount === Infinity ? 'Unlimited' : '₱' + maxInvestmentAmount.toLocaleString()}`);
     
-    console.log(`📊 Investment limits for user ${uid}: Income: ₱${investorIncome.toLocaleString()}, Max %: ${maxInvestmentPercentage}%, Max Amount: ₱${maxInvestmentAmount.toLocaleString()}`);
-    
-    // Check if requested amount exceeds limit
-    if (parseFloat(amount) > maxInvestmentAmount) {
+    // Check if requested amount exceeds limit (Qualified Investors are never blocked)
+    if (!isQualifiedInvestor && parseFloat(amount) > maxInvestmentAmount) {
       console.log(`❌ Investment amount ₱${parseFloat(amount).toLocaleString()} exceeds limit of ₱${maxInvestmentAmount.toLocaleString()}`);
       
       // Create notification for exceeding investment limit
@@ -4832,7 +4845,8 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
         error: `Investment amount exceeds your limit of ₱${maxInvestmentAmount.toLocaleString()} (${maxInvestmentPercentage}% of annual income of ₱${investorIncome.toLocaleString()})`,
         maxAmount: maxInvestmentAmount,
         userIncome: investorIncome,
-        limitPercentage: maxInvestmentPercentage
+        limitPercentage: maxInvestmentPercentage,
+        investorTier
       });
     }
     
@@ -5278,10 +5292,12 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         bp.first_name,
         bp.last_name,
         (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
-        w.balance as wallet_balance
+        w.balance as wallet_balance,
+        ip.annual_income as investor_annual_income
       FROM users u
       LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
       LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
+      LEFT JOIN investor_profiles ip ON u.firebase_uid = ip.firebase_uid
       WHERE u.current_account_type != 'deleted' OR u.current_account_type IS NULL
       ORDER BY u.created_at DESC
     `);
@@ -5318,7 +5334,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         lastActivity: row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : '',
         totalProjects: parseInt(row.total_projects) || 0,
         activeProjects: 0, // Would need to calculate from project data
-        isQualifiedInvestor: false, // Would need investor profile data
+        isQualifiedInvestor: (row.investor_annual_income >= 10000000), // QI = ₱10M+ annual income
         location: '', // Would need address data
         walletBalance: parseFloat(row.wallet_balance) || 0,
         isAdmin: row.is_admin || false
@@ -7070,9 +7086,12 @@ app.get('/api/user/investment-eligibility', verifyToken, async (req, res) => {
       remainingCapacity: Math.max(0, remainingCapacity),
       activeInvestments,
       isEligible: verificationStatus === 'verified' && investorIncome > 0,
+      investorTier: investorIncome >= 10000000 ? 'qualified' : investorIncome >= 2000000 ? 'standard' : 'retail',
+      isQualifiedInvestor: investorIncome >= 10000000,
       investmentTiers: {
-        retail: { minIncome: 0, maxIncome: 1999999, maxPercentage: 5 },
-        individual: { minIncome: 2000000, maxIncome: Infinity, maxPercentage: 10 }
+        retail:     { minIncome: 0,        maxIncome: 1999999,  maxPercentage: 5,    label: 'Retail Investor' },
+        standard:   { minIncome: 2000000,  maxIncome: 9999999,  maxPercentage: 10,   label: 'Standard Investor' },
+        qualified:  { minIncome: 10000000, maxIncome: Infinity,  maxPercentage: null, label: 'Qualified Investor' }
       }
     });
   } catch (err) {

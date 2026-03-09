@@ -35,6 +35,7 @@ export const InvestorProjectView: React.FC = () => {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [eligibility, setEligibility] = useState<any>(null);
   // const [showTopUpModal, setShowTopUpModal] = useState(false); // Disabled for PayMongo
   const [insufficientFundsError, setInsufficientFundsError] = useState<InsufficientFundsError>({
     show: false,
@@ -98,6 +99,19 @@ export const InvestorProjectView: React.FC = () => {
       fetchProject();
     }
   }, [projectId]);
+
+  // Fetch investor classification + remaining limit
+  useEffect(() => {
+    const fetchEligibility = async () => {
+      try {
+        const data = await authFetch(`${API_BASE_URL}/user/investment-eligibility`);
+        setEligibility(data);
+      } catch (e) {
+        // non-blocking
+      }
+    };
+    fetchEligibility();
+  }, []);
   
   if (loading) {
     return (
@@ -325,8 +339,37 @@ export const InvestorProjectView: React.FC = () => {
                   </div>
                 ) : !showConfirm ? (
                   <div>
+                    {/* Investor Classification Badge */}
+                    {eligibility && (
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                          eligibility.investorTier === 'qualified'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : eligibility.investorTier === 'standard'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : 'bg-gray-50 text-gray-600 border-gray-200'
+                        }`}>
+                          {eligibility.investorTier === 'qualified' && '★ '}
+                          {eligibility.investorTier === 'qualified'
+                            ? 'Qualified Investor — No Cap'
+                            : eligibility.investorTier === 'standard'
+                            ? 'Standard Investor — 10% limit'
+                            : 'Retail Investor — 5% limit'}
+                        </span>
+                        {eligibility.investorTier !== 'qualified' && (
+                          <span className="text-xs text-gray-500">
+                            Remaining capacity: <span className="font-semibold text-[#0C4B20]">₱{Math.max(0, eligibility.remainingCapacity || 0).toLocaleString()}</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <h3 className="font-medium mb-2">How much would you like to invest?</h3>
-                    <p className="text-sm text-gray-500 mb-3">Minimum investment: ₱100</p>
+                    <p className="text-sm text-gray-500 mb-1">Minimum investment: ₱100</p>
+                    {eligibility && eligibility.investorTier !== 'qualified' && (
+                      <p className="text-xs text-gray-400 mb-3">
+                        Your {eligibility.investorTier} investor limit: ₱{(eligibility.maxInvestmentAmount || 0).toLocaleString()} · Used: ₱{((eligibility.maxInvestmentAmount || 0) - Math.max(0, eligibility.remainingCapacity || 0)).toLocaleString()}
+                      </p>
+                    )}
                     <div className="flex gap-4">
                       <Input 
                         type="number"
@@ -339,11 +382,18 @@ export const InvestorProjectView: React.FC = () => {
                       <Button 
                         onClick={() => setShowConfirm(true)}
                         className="bg-[#0C4B20] text-white hover:bg-[#8FB200]"
-                        disabled={!investmentAmount || parseFloat(investmentAmount) < 100}
+                        disabled={!investmentAmount || parseFloat(investmentAmount) < 100 ||
+                          (eligibility && eligibility.investorTier !== 'qualified' && parseFloat(investmentAmount) > Math.max(0, eligibility.remainingCapacity || 0))}
                       >
                         Continue
                       </Button>
                     </div>
+                    {eligibility && eligibility.investorTier !== 'qualified' && investmentAmount &&
+                      parseFloat(investmentAmount) > Math.max(0, eligibility.remainingCapacity || 0) && (
+                      <p className="mt-2 text-xs text-red-500 font-medium">
+                        ⚠ Amount exceeds your remaining investment capacity of ₱{Math.max(0, eligibility.remainingCapacity || 0).toLocaleString()}.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-gray-50 p-4 rounded-lg">

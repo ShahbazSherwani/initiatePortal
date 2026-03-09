@@ -35,6 +35,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
 
   // Local state for form fields
   const [projectRequirements, setProjectRequirements] = useState("");
+  const [minimumTarget, setMinimumTarget] = useState("");
   const [investorPercentage, setInvestorPercentage] = useState("");
   const [dividendFrequency, setDividendFrequency] = useState("");
   const [dividendOther, setDividendOther] = useState("");
@@ -62,6 +63,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
       projectDetails: {
         ...f.projectDetails,
         projectRequirements,
+        minimumTarget: minimumTarget ? parseFloat(minimumTarget) : '',
         investorPercentage,
         dividendFrequency,
         dividendOther,
@@ -185,11 +187,11 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                     {/* Project Requirements */}
                   <div>
                     <label className="font-medium text-black text-base block mb-2">
-                      Project Requirements
+                      Maximum Funding Target
                     </label>
                         <div className="relative">
                           <Input
-                            placeholder="Enter amount"
+                            placeholder="Enter total amount needed (e.g. 500000)"
                             type="text"
                             inputMode="decimal"
                             className="w-full py-3 pl-3 rounded-2xl border"
@@ -204,6 +206,34 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                             </div>
                           )}
                         </div>
+                    <p className="mt-1 text-xs text-gray-400">Maximum amount you wish to raise in this campaign.</p>
+                  </div>
+
+                  {/* Minimum Funding Target */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="font-medium text-black text-base">Minimum Funding Target</label>
+                      <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5 font-medium">Required by SEC</span>
+                    </div>
+                    <Input
+                      placeholder="Enter minimum amount to proceed (e.g. 100000)"
+                      type="number"
+                      min={0}
+                      className="w-full py-3 pl-3 rounded-2xl border"
+                      value={minimumTarget}
+                      onChange={(e) => setMinimumTarget(e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      If total pledges don’t reach this amount by campaign end, all investors are automatically refunded. Must be ≤ maximum target.
+                    </p>
+                    {minimumTarget && projectRequirements && parseFloat(minimumTarget) > parseFloat(projectRequirements) && (
+                      <p className="mt-1 text-xs text-red-500 font-medium">⚠ Minimum target cannot exceed maximum target.</p>
+                    )}
+                    {minimumTarget && projectRequirements && parseFloat(minimumTarget) <= parseFloat(projectRequirements) && (
+                      <p className="mt-1 text-xs text-green-600">
+                        ✓ Campaign proceeds if ₱{parseFloat(minimumTarget).toLocaleString()} or more is raised.
+                      </p>
+                    )}
                   </div>
 
                   {/* Investor Percentage */}
