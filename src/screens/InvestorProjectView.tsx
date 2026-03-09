@@ -12,6 +12,7 @@ import { toast } from "react-hot-toast";
 import { API_BASE_URL } from '../config/environment';
 import { investInProject, authFetch } from '../lib/api';
 import { createPaymentCheckout } from '../lib/paymongo';
+import { InvestorEducationModal } from '../components/InvestorEducationModal';
 // import { TopUpModal } from '../components/TopUpModal'; // Disabled for PayMongo integration
 
 // Interface for insufficient funds error (kept for reference, not used with PayMongo)
@@ -36,6 +37,8 @@ export const InvestorProjectView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [eligibility, setEligibility] = useState<any>(null);
+  const [educationCompleted, setEducationCompleted] = useState<boolean | null>(null);
+  const [showEducationModal, setShowEducationModal] = useState(false);
   // const [showTopUpModal, setShowTopUpModal] = useState(false); // Disabled for PayMongo
   const [insufficientFundsError, setInsufficientFundsError] = useState<InsufficientFundsError>({
     show: false,
@@ -112,6 +115,19 @@ export const InvestorProjectView: React.FC = () => {
     };
     fetchEligibility();
   }, []);
+
+  // Fetch investor education status
+  useEffect(() => {
+    const checkEducation = async () => {
+      try {
+        const data = await authFetch(`${API_BASE_URL}/user/education-status`);
+        setEducationCompleted(data.completed === true);
+      } catch {
+        setEducationCompleted(false);
+      }
+    };
+    checkEducation();
+  }, []);
   
   if (loading) {
     return (
@@ -181,6 +197,10 @@ export const InvestorProjectView: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
+      {/* Investor Education Modal Gate */}
+      {showEducationModal && (
+        <InvestorEducationModal onComplete={() => { setEducationCompleted(true); setShowEducationModal(false); }} />
+      )}
       {/* Insufficient Funds Modal */}
       {insufficientFundsError.show && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -339,6 +359,19 @@ export const InvestorProjectView: React.FC = () => {
                   </div>
                 ) : !showConfirm ? (
                   <div>
+                    {/* Education module gate */}
+                    {educationCompleted === false && (
+                      <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+                        <span className="text-xl mt-0.5">🎓</span>
+                        <div>
+                          <p className="text-sm font-semibold text-amber-800">Complete the Investor Education Module first</p>
+                          <p className="text-xs text-amber-600 mt-0.5 mb-2">Required by SEC Crowdfunding Rules before placing your first investment.</p>
+                          <Button size="sm" className="bg-amber-500 text-white hover:bg-amber-600 h-8 text-xs px-3" onClick={() => setShowEducationModal(true)}>
+                            Start Education Module →
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     {/* Investor Classification Badge */}
                     {eligibility && (
                       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -383,6 +416,7 @@ export const InvestorProjectView: React.FC = () => {
                         onClick={() => setShowConfirm(true)}
                         className="bg-[#0C4B20] text-white hover:bg-[#8FB200]"
                         disabled={!investmentAmount || parseFloat(investmentAmount) < 100 ||
+                          educationCompleted === false ||
                           (eligibility && eligibility.investorTier !== 'qualified' && parseFloat(investmentAmount) > Math.max(0, eligibility.remainingCapacity || 0))}
                       >
                         Continue

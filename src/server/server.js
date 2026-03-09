@@ -7100,6 +7100,59 @@ app.get('/api/user/investment-eligibility', verifyToken, async (req, res) => {
   }
 });
 
+// ─── Investor Education Module ────────────────────────────────────────────────
+
+// Ensure education columns exist (idempotent)
+const ensureEducationColumns = async () => {
+  try {
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS education_completed BOOLEAN DEFAULT FALSE`);
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS education_completed_at TIMESTAMP`);
+  } catch (e) { /* columns may already exist */ }
+};
+ensureEducationColumns();
+
+// GET /api/user/education-status
+app.get('/api/user/education-status', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  try {
+    const result = await db.query(
+      `SELECT education_completed, education_completed_at FROM investor_profiles WHERE firebase_uid = $1`,
+      [uid]
+    );
+    if (result.rows.length === 0) {
+      return res.json({ completed: false, completedAt: null });
+    }
+    const row = result.rows[0];
+    res.json({
+      completed: row.education_completed === true,
+      completedAt: row.education_completed_at || null
+    });
+  } catch (err) {
+    console.error('Error fetching education status:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// POST /api/user/complete-education
+app.post('/api/user/complete-education', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  try {
+    // Upsert investor_profiles row (create if not exists then update)
+    await db.query(`
+      INSERT INTO investor_profiles (firebase_uid, education_completed, education_completed_at)
+      VALUES ($1, TRUE, NOW())
+      ON CONFLICT (firebase_uid)
+      DO UPDATE SET education_completed = TRUE, education_completed_at = COALESCE(investor_profiles.education_completed_at, NOW())
+    `, [uid]);
+    res.json({ success: true, completedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('Error completing education module:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Get user's investments
 app.get('/api/user/investments', verifyToken, async (req, res) => {
   const uid = req.uid;
