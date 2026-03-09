@@ -174,7 +174,8 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="font-medium text-black text-base">
-                      Monthly Interest Rate (%)
+                      Desired Interest Rate
+                      <span className="ml-1.5 text-xs font-normal text-gray-400">/ month</span>
                     </label>
                     <button
                       type="button"
@@ -187,13 +188,13 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   </div>
                   {showInterestInfo && (
                     <div className="mb-3 bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-gray-700 leading-relaxed">
-                      <p className="font-semibold text-[#0C4B20] mb-1">How monthly interest works</p>
-                      <p>Investors lend your project money and earn this rate on their principal each month for the campaign duration. A higher rate attracts more investors but increases your repayment cost — balance competitiveness with sustainability.</p>
-                      <p className="mt-1 text-gray-500">Example: ₱100,000 at 2%/month for 3 months = ₱6,000 total interest paid to investors.</p>
+                      <p className="font-semibold text-[#0C4B20] mb-1">Borrower vs. Investor view</p>
+                      <p>You set the rate you're comfortable paying each month. Investors see this automatically converted to an <span className="font-semibold">annual percentage rate (APR)</span>, which makes the return look more attractive to them — a proven lending platform UX approach.</p>
+                      <p className="mt-1 text-gray-500">Example: 1.5%/month = <strong>18% per annum</strong> as shown to investors. Higher monthly rates attract more lenders but increase your repayment cost.</p>
                     </div>
                   )}
                   <Input
-                    placeholder="Enter monthly interest rate (e.g., 2%)"
+                    placeholder="e.g. 1.5"
                     type="number"
                     min={1}
                     max={5}
@@ -216,8 +217,80 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                     }}
                   />
                   <p className="mt-1.5 text-xs text-gray-500">
-                    Typical campaigns offer <span className="font-semibold text-[#0C4B20]">1%–5%</span> monthly interest, depending on project risk and duration. Maximum allowed: <span className="font-semibold">5%</span>.
+                    Allowed range: <span className="font-semibold text-[#0C4B20]">1%–5%</span> per month. Maximum allowed: <span className="font-semibold">5%</span>.
                   </p>
+
+                  {/* Dual Rate Display */}
+                  {investorPercentage && parseFloat(investorPercentage) >= 1 && (
+                    <div className="mt-3 rounded-2xl border border-gray-200 overflow-hidden">
+                      <div className="grid grid-cols-2 divide-x divide-gray-200">
+                        <div className="px-4 py-3 bg-[#0C4B20]/5 text-center">
+                          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5 font-medium">You pay (monthly)</p>
+                          <p className="text-2xl font-bold text-[#0C4B20] leading-none">{parseFloat(investorPercentage).toFixed(1)}%</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">per month</p>
+                        </div>
+                        <div className="px-4 py-3 bg-blue-50 text-center">
+                          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5 font-medium">Investors see (annual)</p>
+                          <p className="text-2xl font-bold text-blue-700 leading-none">{(parseFloat(investorPercentage) * 12).toFixed(1)}%</p>
+                          <p className="text-[10px] text-blue-400 mt-0.5">per annum (APR)</p>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-center">
+                        <p className="text-[10px] text-gray-400">
+                          At <span className="font-semibold text-gray-600">{parseFloat(investorPercentage).toFixed(1)}%/mo</span>, investors earn <span className="font-semibold text-blue-600">{(parseFloat(investorPercentage) * 12).toFixed(1)}% APR</span> — more attractive than most savings products.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Interest Demand Indicator */}
+                  {investorPercentage && parseFloat(investorPercentage) >= 1 && (() => {
+                    const r = Math.min(5, Math.max(1, parseFloat(investorPercentage)));
+                    const demandAt = (rate: number) => Math.max(5, Math.round(10 + (Math.max(1, Math.min(5, rate)) - 1) * 16));
+                    const maxDemand = demandAt(5);
+                    const lower = parseFloat(Math.max(1, r - 0.3).toFixed(1));
+                    const higher = parseFloat(Math.min(5, r + 0.3).toFixed(1));
+                    const rows = [
+                      { rate: lower, count: demandAt(lower), label: 'Lower rate', color: 'bg-amber-400', textColor: 'text-amber-700', bg: 'bg-amber-50' },
+                      { rate: parseFloat(r.toFixed(1)), count: demandAt(r), label: 'Your rate', color: 'bg-[#0C4B20]', textColor: 'text-[#0C4B20]', bg: 'bg-green-50', highlight: true },
+                      { rate: higher, count: demandAt(higher), label: 'Higher rate', color: 'bg-blue-400', textColor: 'text-blue-700', bg: 'bg-blue-50' },
+                    ].filter((row, i, arr) => i === 0 || row.rate !== arr[i-1].rate);
+                    return (
+                      <div className="mt-3 rounded-2xl border border-gray-200 overflow-hidden">
+                        <div className="px-4 pt-3 pb-2 border-b border-gray-100 flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-700">Investor Demand Indicator</span>
+                          <span className="text-[10px] text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">Live estimate</span>
+                        </div>
+                        <div className="px-4 py-2 space-y-2">
+                          {rows.map((row) => (
+                            <div key={row.rate} className={`flex items-center gap-3 rounded-xl px-3 py-2 ${row.bg} ${row.highlight ? 'ring-1 ring-[#0C4B20]/30' : ''}`}>
+                              <div className="w-16 shrink-0">
+                                <span className={`text-sm font-bold ${row.textColor}`}>{row.rate.toFixed(1)}%</span>
+                                <span className="text-[10px] text-gray-400 block leading-none">/mo</span>
+                              </div>
+                              <div className="flex-1 bg-white/60 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${row.color}`}
+                                  style={{ width: `${Math.round((row.count / maxDemand) * 100)}%` }}
+                                />
+                              </div>
+                              <div className="w-24 text-right shrink-0">
+                                <span className={`text-xs font-semibold ${row.textColor}`}>{row.count} investors</span>
+                                {row.highlight && <span className="block text-[10px] text-[#0C4B20]/70 font-medium">← your rate</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="px-4 pb-3 pt-1">
+                          {parseFloat(investorPercentage) < 5 && (
+                            <p className="text-[10px] text-gray-400">
+                              💡 Offering <span className="font-semibold">{Math.min(5, parseFloat(investorPercentage) + 0.3).toFixed(1)}%/mo</span> could attract <span className="font-semibold text-blue-600">{demandAt(Math.min(5, r + 0.3)) - demandAt(r)} more investors</span> to your campaign.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Select Time Duration */}
