@@ -35,6 +35,7 @@ ALTER TABLE vulnerability_scans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vulnerability_scan_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE migration_tracker ENABLE ROW LEVEL SECURITY;
+ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 
 -- ========================================
 -- 2. CREATE POLICIES FOR SERVICE ROLE
@@ -145,6 +146,16 @@ CREATE POLICY "Service role has full access to payment_transactions" ON payment_
 
 CREATE POLICY "Users can view own payment transactions" ON payment_transactions
   FOR SELECT USING (auth.uid()::text = firebase_uid);
+
+-- Support tickets
+CREATE POLICY "Service role has full access to support_tickets" ON support_tickets
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Users can insert own support tickets" ON support_tickets
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can view own support tickets" ON support_tickets
+  FOR SELECT USING (auth.uid()::text = user_id);
 
 -- ========================================
 -- VERIFICATION
