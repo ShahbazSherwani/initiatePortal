@@ -5293,12 +5293,10 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         bp.first_name,
         bp.last_name,
         (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
-        w.balance as wallet_balance,
-        ip.annual_income as investor_annual_income
+        w.balance as wallet_balance
       FROM users u
       LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
       LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
-      LEFT JOIN investor_profiles ip ON u.firebase_uid = ip.firebase_uid
       WHERE u.current_account_type != 'deleted' OR u.current_account_type IS NULL
       ORDER BY u.created_at DESC
     `);
@@ -5325,7 +5323,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         lastActivity: row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : '',
         totalProjects: parseInt(row.total_projects) || 0,
         activeProjects: 0,
-        isQualifiedInvestor: (row.investor_annual_income >= 10000000),
+        isQualifiedInvestor: false,
         location: '',
         walletBalance: parseFloat(row.wallet_balance) || 0,
         isAdmin: row.is_admin || false
