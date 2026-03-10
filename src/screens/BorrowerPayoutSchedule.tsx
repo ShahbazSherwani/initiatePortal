@@ -1,5 +1,5 @@
 // src/screens/BorrowerPayoutSchedule.tsx
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
@@ -11,6 +11,13 @@ import { useProjectForm } from "../contexts/ProjectFormContext";
 import { useProjects } from "../contexts/ProjectsContext";
 import { v4 as uuidv4 } from "uuid";
 
+/** Returns the number of whole months between two dates (min 1). */
+function monthsBetween(start: Date, end: Date): number {
+  const years = end.getFullYear() - start.getFullYear();
+  const months = end.getMonth() - start.getMonth();
+  return Math.max(1, years * 12 + months);
+}
+
 
 export const BorrowerPayoutSchedule: React.FC = () => {
 
@@ -18,29 +25,81 @@ export const BorrowerPayoutSchedule: React.FC = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // form state
-  const [totalPayoutReq, setTotalPayoutReq] = useState("");
-  const [scheduleDate, setScheduleDate] = useState("");
-  const [scheduleAmount, setScheduleAmount] = useState("");
-  const [payoutPercent, setPayoutPercent] = useState("");
-  const [netIncome, setNetIncome] = useState("");
-  const [penaltyAgree, setPenaltyAgree] = useState(false);
-  const [legalAgree, setLegalAgree] = useState(false);
-
   const { form, setForm } = useProjectForm();
   const { addProject } = useProjects();
+
+  // ─── Derived values from earlier steps ────────────────────────────────────
+  const principal    = parseFloat(form.projectDetails?.projectRequirements || "0") || 0;
+  const monthlyRate  = parseFloat(form.projectDetails?.investorPercentage  || "0") || 0;
+  const startDateRaw = form.projectDetails?.campaignStartDate;
+  const endDateRaw   = form.projectDetails?.timeDuration;
+
+  const campaignMonths =
+    startDateRaw && endDateRaw
+      ? monthsBetween(new Date(startDateRaw), new Date(endDateRaw))
+      : 1;
+
+  // Total payout = principal + total interest (simple interest)
+  const totalInterest      = principal * (monthlyRate / 100) * campaignMonths;
+  const computedTotalPayout = principal + totalInterest;
+
+  // ─── Form state ────────────────────────────────────────────────────────────
+  const [totalPayoutReq, setTotalPayoutReq] = useState(
+    computedTotalPayout > 0 ? computedTotalPayout.toFixed(2) : ""
+  );
+  const [scheduleDate,    setScheduleDate]   = useState("");
+  const [scheduleAmount,  setScheduleAmount] = useState(
+    computedTotalPayout > 0 ? computedTotalPayout.toFixed(2) : ""
+  );
+  const [payoutPercent, setPayoutPercent] = useState(
+    principal > 0 && computedTotalPayout > 0
+      ? "100"
+      : ""
+  );
+  const [netIncome, setNetIncome] = useState(
+    computedTotalPayout > 0 ? computedTotalPayout.toFixed(2) : ""
+  );
+  const [penaltyAgree, setPenaltyAgree] = useState(false);
+  const [legalAgree,   setLegalAgree]   = useState(false);
+
+  // Match/Mismatch state
+  type MatchResult = "match" | "mismatch" | null;
+  const [matchResult, setMatchResult] = useState<MatchResult>(null);
+
+  // Re-sync pre-fills if form context loads asynchronously
+  useEffect(() => {
+    if (computedTotalPayout > 0) {
+      setTotalPayoutReq(computedTotalPayout.toFixed(2));
+      setScheduleAmount(computedTotalPayout.toFixed(2));
+      setNetIncome(computedTotalPayout.toFixed(2));
+      setPayoutPercent("100");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.projectDetails?.projectRequirements, form.projectDetails?.investorPercentage]);
 
   if (!token) return <Navigate to="/login" />;
 
   const handleGeneratePayout = () => {
-    // TODO: compute totalPayoutReq from backend or formula
+    // Recalculate and refresh the field
+    if (computedTotalPayout > 0) {
+      setTotalPayoutReq(computedTotalPayout.toFixed(2));
+    }
   };
 
   const handleMatchMismatch = () => {
-    // TODO: compute netIncome based on schedule vs total
+    const total    = parseFloat(totalPayoutReq) || 0;
+    const entered  = parseFloat(netIncome)       || 0;
+    // Allow ±1 peso tolerance for rounding
+    setMatchResult(Math.abs(total - entered) <= 1 ? "match" : "mismatch");
   };
 
+  const isMatchValidated = matchResult === "match";
+
   const handleContinue = () => {
+    if (!isMatchValidated) {
+      alert("Please confirm the payout amounts match before continuing.");
+      return;
+    }
     setForm(f => ({
       ...f,
       payoutSchedule: {
@@ -53,7 +112,6 @@ export const BorrowerPayoutSchedule: React.FC = () => {
         legalAgree,
       },
     }));
-    // Navigate to next step or submit directly
     handleFinalSubmit();
   };
 
@@ -64,12 +122,12 @@ export const BorrowerPayoutSchedule: React.FC = () => {
       type: (form.selectedType === "equity" || form.selectedType === "lending")
         ? form.selectedType
         : "lending",
-      details: form.projectDetails, // includes image
+      details: form.projectDetails,
       milestones: form.milestones,
       roi: form.roi,
       sales: form.sales,
       payoutSchedule: form.payoutSchedule,
-      status: "pending", // <-- Add this for pending approval
+      status: "pending",
     });
     setForm({
       selectedType: null,
@@ -80,7 +138,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
       payoutSchedule: {},
       projectId: "",
     });
-    navigate("/borwMyProj"); // Make sure this route matches your "My Projects" page
+    navigate("/borwMyProj");
   };
 
   return (
@@ -150,20 +208,48 @@ export const BorrowerPayoutSchedule: React.FC = () => {
               <label className="block mb-3 font-semibold text-gray-800 text-sm sm:text-base">
                 Generate Total Payout Required
               </label>
+
+              {/* Breakdown info */}
+              {principal > 0 && (
+                <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="bg-white rounded-lg border border-gray-200 p-3">
+                    <p className="text-xs text-gray-500 mb-1">Principal</p>
+                    <p className="font-semibold text-gray-800">₱{principal.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white rounded-lg border border-gray-200 p-3">
+                    <p className="text-xs text-gray-500 mb-1">Monthly Rate</p>
+                    <p className="font-semibold text-gray-800">{monthlyRate}%</p>
+                  </div>
+                  <div className="bg-white rounded-lg border border-gray-200 p-3">
+                    <p className="text-xs text-gray-500 mb-1">Duration</p>
+                    <p className="font-semibold text-gray-800">{campaignMonths} mo.</p>
+                  </div>
+                  <div className="bg-white rounded-lg border border-[#0C4B20] p-3">
+                    <p className="text-xs text-[#0C4B20] mb-1">Total Interest</p>
+                    <p className="font-semibold text-[#0C4B20]">₱{totalInterest.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Input
                   placeholder="Total Payout Required"
                   value={totalPayoutReq}
-                  onChange={e => setTotalPayoutReq(e.target.value)}
+                  onChange={e => { setTotalPayoutReq(e.target.value); setMatchResult(null); }}
                   className="flex-1 rounded-xl border-gray-300 focus:border-[#0C4B20] focus:ring-[#0C4B20] p-3 text-sm sm:text-base"
                 />
-                <Button 
-                  onClick={handleGeneratePayout} 
+                <Button
+                  onClick={handleGeneratePayout}
                   className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200] text-white px-4 py-3 rounded-xl transition-colors text-sm sm:text-base font-medium min-w-fit"
                 >
                   Generate Total Payout Required
                 </Button>
               </div>
+              {principal > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Formula: ₱{principal.toLocaleString()} + (₱{principal.toLocaleString()} × {monthlyRate}% × {campaignMonths} months) = <span className="font-semibold text-[#0C4B20]">₱{computedTotalPayout.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                </p>
+              )}
             </div>
 
             {/* Enter Details for Payout Schedule */}
@@ -190,7 +276,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
                     <Input
                       placeholder="Amount"
                       value={scheduleAmount}
-                      onChange={e => setScheduleAmount(e.target.value)}
+                      onChange={e => { setScheduleAmount(e.target.value); setMatchResult(null); }}
                       className="w-full rounded-xl border-gray-300 focus:border-[#0C4B20] focus:ring-[#0C4B20] p-3 text-sm sm:text-base"
                     />
                   </div>
@@ -219,16 +305,34 @@ export const BorrowerPayoutSchedule: React.FC = () => {
                 <Input
                   placeholder="Enter Amount"
                   value={netIncome}
-                  onChange={e => setNetIncome(e.target.value)}
+                  onChange={e => { setNetIncome(e.target.value); setMatchResult(null); }}
                   className="flex-1 rounded-xl border-[#0C4B20] ring-[#8FB200] p-3 text-sm sm:text-base bg-white"
                 />
-                <Button 
-                  onClick={handleMatchMismatch} 
+                <Button
+                  onClick={handleMatchMismatch}
                   className="whitespace-nowrap bg-[#0C4B20] hover:bg-[#8FB200] transition-colors text-sm sm:text-base font-medium"
                 >
                   Match/Mismatch
                 </Button>
               </div>
+
+              {/* Match / Mismatch result badge */}
+              {matchResult === "match" && (
+                <div className="mt-4 flex items-center gap-2 bg-green-50 border border-green-300 text-green-800 rounded-lg px-4 py-3 text-sm font-medium">
+                  <span className="text-lg">✅</span>
+                  <span>Match — the total payout amount is correct.</span>
+                </div>
+              )}
+              {matchResult === "mismatch" && (
+                <div className="mt-4 flex items-center gap-2 bg-red-50 border border-red-300 text-red-800 rounded-lg px-4 py-3 text-sm font-medium">
+                  <span className="text-lg">❌</span>
+                  <span>
+                    Mismatch — entered ₱{(parseFloat(netIncome) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} but
+                    Total Payout Required is ₱{(parseFloat(totalPayoutReq) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}.
+                    Please adjust to proceed.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Agreements */}
@@ -263,10 +367,13 @@ export const BorrowerPayoutSchedule: React.FC = () => {
               <Button
                 className="bg-[#0C4B20] hover:bg-[#8FB200] text-white w-full py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 onClick={handleContinue}
-                disabled={!penaltyAgree || !legalAgree}
+                disabled={!penaltyAgree || !legalAgree || !isMatchValidated}
               >
                 Add Payout Schedule
               </Button>
+              {(!isMatchValidated && (penaltyAgree && legalAgree)) && (
+                <p className="mt-2 text-center text-xs text-red-500">Please click Match/Mismatch and confirm the amounts match to continue.</p>
+              )}
             </div>
           </div>
           </div>
