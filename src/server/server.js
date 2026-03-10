@@ -1567,18 +1567,19 @@ app.post('/api/send-verification-email', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Get user details
+    // Get user details — user may not be in DB yet if email verification
+    // is triggered before the profile creation step completes.
     const userResult = await db.query(
       'SELECT full_name, email_verified FROM users WHERE firebase_uid = $1',
       [firebase_uid]
     );
 
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    let email_verified = false;
+    let userName = name || 'User';
+    if (userResult.rows.length > 0) {
+      email_verified = userResult.rows[0].email_verified;
+      userName = name || userResult.rows[0].full_name || 'User';
     }
-
-    const { full_name, email_verified } = userResult.rows[0];
-    const userName = name || full_name || 'User';
 
     if (email_verified) {
       return res.status(400).json({ error: 'Email already verified' });
@@ -1748,17 +1749,19 @@ app.post('/api/resend-verification-email', verifyToken, async (req, res) => {
   try {
     const firebase_uid = req.uid;
 
-    // Get user details from users table (no email column in users table)
+    // User may not be in DB yet if email verification is triggered before
+    // profile creation completes — fall back to Firebase Auth instead of 404.
     const userResult = await db.query(
       'SELECT full_name, email_verified FROM users WHERE firebase_uid = $1',
       [firebase_uid]
     );
 
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    let full_name = 'User';
+    let email_verified = false;
+    if (userResult.rows.length > 0) {
+      full_name = userResult.rows[0].full_name || 'User';
+      email_verified = userResult.rows[0].email_verified;
     }
-
-    const { full_name, email_verified } = userResult.rows[0];
 
     if (email_verified) {
       return res.status(400).json({ error: 'Email already verified' });
