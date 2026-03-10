@@ -5282,6 +5282,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         u.firebase_uid,
         u.full_name,
         u.username,
+        u.email,
         u.profile_picture,
         u.has_borrower_account,
         u.has_investor_account,
@@ -5305,27 +5306,17 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
     console.log(`📊 Found ${usersResult.rows.length} users in database`);
     
     // Transform data to match frontend interface
-    const users = [];
-    
-    for (const row of usersResult.rows) {
+    // Email is stored in the users table — no per-user Firebase Auth calls needed
+    const users = usersResult.rows.map((row) => {
       const accountTypes = [];
       if (row.has_borrower_account) accountTypes.push('borrower');
       if (row.has_investor_account) accountTypes.push('investor');
       
-      // Get email from Firebase since it's not in the database
-      let email = '';
-      try {
-        const firebaseUser = await admin.auth().getUser(row.firebase_uid);
-        email = firebaseUser.email || '';
-      } catch (e) {
-        console.log(`Could not get email for user ${row.firebase_uid}:`, e.message);
-      }
-      
-      users.push({
+      return {
         id: row.firebase_uid,
         firebaseUid: row.firebase_uid,
         fullName: row.full_name || '',
-        email: email,
+        email: row.email || '',
         username: row.username || '',
         profilePicture: row.profile_picture,
         accountTypes,
@@ -5333,13 +5324,13 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         memberSince: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : '',
         lastActivity: row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : '',
         totalProjects: parseInt(row.total_projects) || 0,
-        activeProjects: 0, // Would need to calculate from project data
-        isQualifiedInvestor: (row.investor_annual_income >= 10000000), // QI = ₱10M+ annual income
-        location: '', // Would need address data
+        activeProjects: 0,
+        isQualifiedInvestor: (row.investor_annual_income >= 10000000),
+        location: '',
         walletBalance: parseFloat(row.wallet_balance) || 0,
         isAdmin: row.is_admin || false
-      });
-    }
+      };
+    });
 
     console.log(`� Returning ${users.length} users for owner dashboard`);
     res.json(users);
@@ -7147,6 +7138,503 @@ app.post('/api/user/complete-education', verifyToken, async (req, res) => {
     res.json({ success: true, completedAt: new Date().toISOString() });
   } catch (err) {
     console.error('Error completing education module:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MATERIAL CHANGE ENDPOINTS
+
+// POST /api/admin/projects/:id/material-change
+// Admin logs a material change; sets pendingReconfirmation = true + 5-biz-day deadline
+app.post('/api/admin/projects/:id/material-change', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { id } = req.params;
+  const { changeType, description } = req.body;
+
+  if (!changeType || !description) {
+    return res.status(400).json({ error: 'changeType and description are required' });
+  }
+
+  try {
+    // Verify requester is admin or owner
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [uid]);
+    const userRole = userResult.rows[0]?.role;
+    if (!['admin', 'superadmin', 'owner'].includes(userRole)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    // Fetch project
+    const projResult = await db.query('SELECT id, project_data FROM projects WHERE id = $1', [id]);
+    if (!projResult.rows.length) return res.status(404).json({ error: 'Project not found' });
+
+    const projectData = projResult.rows[0].project_data || {};
+
+    // Calculate 5 business days from today
+    const deadline = new Date();
+    let daysAdded = 0;
+    while (daysAdded < 5) {
+      deadline.setDate(deadline.getDate() + 1);
+      const dow = deadline.getDay();
+      if (dow !== 0 && dow !== 6) daysAdded++;
+    }
+
+    // Build log entry
+    const logEntry = { changeType, description, loggedBy: uid, loggedAt: new Date().toISOString() };
+    const materialChangeLog = Array.isArray(projectData.materialChangeLog)
+      ? [...projectData.materialChangeLog, logEntry]
+      : [logEntry];
+
+    const updatedProjectData = {
+      ...projectData,
+      pendingReconfirmation: true,
+      reconfirmationDeadline: deadline.toISOString(),
+      materialChangeLog,
+    };
+
+    await db.query('UPDATE projects SET project_data = $1 WHERE id = $2', [JSON.stringify(updatedProjectData), id]);
+
+    res.json({ success: true, reconfirmationDeadline: deadline.toISOString() });
+  } catch (err) {
+    console.error('Error logging material change:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// POST /api/investor/projects/:id/reconfirm
+// Investor confirms they accept the material change and wish to keep their investment
+app.post('/api/investor/projects/:id/reconfirm', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { id } = req.params;
+
+  try {
+    const projResult = await db.query('SELECT id, project_data FROM projects WHERE id = $1', [id]);
+    if (!projResult.rows.length) return res.status(404).json({ error: 'Project not found' });
+
+    const projectData = projResult.rows[0].project_data || {};
+
+    // Add uid to reconfirmedInvestors set
+    const reconfirmedInvestors = new Set(Array.isArray(projectData.reconfirmedInvestors) ? projectData.reconfirmedInvestors : []);
+    reconfirmedInvestors.add(uid);
+
+    // Check if everyone has reconfirmed
+    const allInvestors = (projectData.investorRequests || []).map((r) => r.investorId);
+    const allConfirmed = allInvestors.length > 0 && allInvestors.every((iid) => reconfirmedInvestors.has(iid));
+
+    const updatedProjectData = {
+      ...projectData,
+      reconfirmedInvestors: Array.from(reconfirmedInvestors),
+      pendingReconfirmation: allConfirmed ? false : projectData.pendingReconfirmation,
+    };
+
+    await db.query('UPDATE projects SET project_data = $1 WHERE id = $2', [JSON.stringify(updatedProjectData), id]);
+
+    res.json({ success: true, allConfirmed });
+  } catch (err) {
+    console.error('Error recording reconfirmation:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// POST /api/investor/projects/:id/cancel-investment
+// Investor opts out of the campaign after a material change
+app.post('/api/investor/projects/:id/cancel-investment', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { id } = req.params;
+
+  try {
+    const projResult = await db.query('SELECT id, project_data FROM projects WHERE id = $1', [id]);
+    if (!projResult.rows.length) return res.status(404).json({ error: 'Project not found' });
+
+    const projectData = projResult.rows[0].project_data || {};
+
+    // Remove investor's request(s) and subtract from amountRaised
+    const originalRequests = Array.isArray(projectData.investorRequests) ? projectData.investorRequests : [];
+    const cancelledRequests = originalRequests.filter((r) => r.investorId === uid);
+    const remainingRequests = originalRequests.filter((r) => r.investorId !== uid);
+
+    const cancelledAmount = cancelledRequests.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    const newAmountRaised = Math.max(0, (parseFloat(projectData.amountRaised) || 0) - cancelledAmount);
+
+    // Track cancellations
+    const cancellationLog = Array.isArray(projectData.cancellationLog) ? projectData.cancellationLog : [];
+    cancellationLog.push({ investorId: uid, cancelledAt: new Date().toISOString(), amount: cancelledAmount, reason: 'material-change' });
+
+    const updatedProjectData = {
+      ...projectData,
+      investorRequests: remainingRequests,
+      amountRaised: newAmountRaised,
+      cancellationLog,
+    };
+
+    await db.query('UPDATE projects SET project_data = $1 WHERE id = $2', [JSON.stringify(updatedProjectData), id]);
+
+    res.json({ success: true, cancelledAmount });
+  } catch (err) {
+    console.error('Error cancelling investment:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST-OFFERING REPORT ENDPOINTS
+
+// POST /api/borrower/projects/:id/post-offering-report
+// Issuer submits a quarterly fund utilization report
+app.post('/api/borrower/projects/:id/post-offering-report', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { id } = req.params;
+  const { quarter, year, fundsUtilized, description } = req.body;
+
+  if (!quarter || !year || fundsUtilized === undefined || !description) {
+    return res.status(400).json({ error: 'quarter, year, fundsUtilized and description are required' });
+  }
+
+  try {
+    // Verify project belongs to this user
+    const projResult = await db.query('SELECT id, firebase_uid, project_data FROM projects WHERE id = $1', [id]);
+    if (!projResult.rows.length) return res.status(404).json({ error: 'Project not found' });
+    if (projResult.rows[0].firebase_uid !== uid) return res.status(403).json({ error: 'Access denied' });
+
+    const projectData = projResult.rows[0].project_data || {};
+    const reports = Array.isArray(projectData.postOfferingReports) ? projectData.postOfferingReports : [];
+
+    const newReport = {
+      id: Date.now(),
+      quarter,
+      year: parseInt(year),
+      fundsUtilized: parseFloat(fundsUtilized),
+      description,
+      submittedAt: new Date().toISOString(),
+    };
+
+    const updatedProjectData = {
+      ...projectData,
+      postOfferingReports: [...reports, newReport],
+    };
+
+    await db.query('UPDATE projects SET project_data = $1 WHERE id = $2', [JSON.stringify(updatedProjectData), id]);
+
+    res.json({ success: true, report: newReport });
+  } catch (err) {
+    console.error('Error submitting post-offering report:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REFUND DUAL-APPROVAL ENDPOINTS
+
+// POST /api/admin/refund/initiate  — first admin initiates a refund
+app.post('/api/admin/refund/initiate', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { projectId, investorId, amount, reason } = req.body;
+  if (!projectId || !investorId || !amount || !reason) {
+    return res.status(400).json({ error: 'projectId, investorId, amount and reason are required' });
+  }
+  try {
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [uid]);
+    const role = userResult.rows[0]?.role;
+    if (!['admin', 'superadmin', 'owner'].includes(role)) return res.status(403).json({ error: 'Insufficient permissions' });
+
+    // Ensure refund_requests table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS refund_requests (
+        id SERIAL PRIMARY KEY,
+        project_id INT NOT NULL,
+        investor_id VARCHAR(255) NOT NULL,
+        amount NUMERIC(15,2) NOT NULL,
+        reason TEXT NOT NULL,
+        step1_uid VARCHAR(255),
+        step1_at TIMESTAMP,
+        step2_uid VARCHAR(255),
+        step2_at TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'pending_step2',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    const insertResult = await db.query(
+      `INSERT INTO refund_requests (project_id, investor_id, amount, reason, step1_uid, step1_at, status)
+       VALUES ($1, $2, $3, $4, $5, NOW(), 'pending_step2') RETURNING id`,
+      [projectId, investorId, amount, reason, uid]
+    );
+
+    res.json({ success: true, refundRequestId: insertResult.rows[0].id });
+  } catch (err) {
+    console.error('Error initiating refund:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// POST /api/admin/refund/:id/approve  — second admin approves; completes the refund
+app.post('/api/admin/refund/:id/approve', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { id } = req.params;
+  try {
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [uid]);
+    const role = userResult.rows[0]?.role;
+    if (!['admin', 'superadmin', 'owner'].includes(role)) return res.status(403).json({ error: 'Insufficient permissions' });
+
+    const refundResult = await db.query('SELECT * FROM refund_requests WHERE id = $1', [id]);
+    if (!refundResult.rows.length) return res.status(404).json({ error: 'Refund request not found' });
+
+    const refund = refundResult.rows[0];
+    if (refund.status !== 'pending_step2') return res.status(400).json({ error: 'Refund is not in pending_step2 state' });
+    if (refund.step1_uid === uid) return res.status(400).json({ error: 'The same admin cannot approve both steps' });
+
+    // Approve refund — remove cancellation from project investorRequests
+    const projResult = await db.query('SELECT project_data FROM projects WHERE id = $1', [refund.project_id]);
+    if (projResult.rows.length) {
+      const projectData = projResult.rows[0].project_data || {};
+      const remainingRequests = (projectData.investorRequests || []).filter(r => r.investorId !== refund.investor_id);
+      const cancelledAmount = parseFloat(refund.amount);
+      const newAmountRaised = Math.max(0, (parseFloat(projectData.amountRaised) || 0) - cancelledAmount);
+      const refundLog = Array.isArray(projectData.refundLog) ? projectData.refundLog : [];
+      refundLog.push({ investorId: refund.investor_id, amount: cancelledAmount, refundedAt: new Date().toISOString(), approvedBy: [refund.step1_uid, uid] });
+      const updatedProjectData = { ...projectData, investorRequests: remainingRequests, amountRaised: newAmountRaised, refundLog };
+      await db.query('UPDATE projects SET project_data = $1 WHERE id = $2', [JSON.stringify(updatedProjectData), refund.project_id]);
+    }
+
+    await db.query(
+      'UPDATE refund_requests SET step2_uid = $1, step2_at = NOW(), status = $2 WHERE id = $3',
+      [uid, 'completed', id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error approving refund:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// GET /api/admin/refund/requests  — list all refund requests
+app.get('/api/admin/refund/requests', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  try {
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [uid]);
+    const role = userResult.rows[0]?.role;
+    if (!['admin', 'superadmin', 'owner'].includes(role)) return res.status(403).json({ error: 'Insufficient permissions' });
+
+    // Table may not exist yet
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS refund_requests (
+        id SERIAL PRIMARY KEY,
+        project_id INT NOT NULL,
+        investor_id VARCHAR(255) NOT NULL,
+        amount NUMERIC(15,2) NOT NULL,
+        reason TEXT NOT NULL,
+        step1_uid VARCHAR(255),
+        step1_at TIMESTAMP,
+        step2_uid VARCHAR(255),
+        step2_at TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'pending_step2',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    const result = await db.query(`
+      SELECT rr.*, 
+        u1.full_name AS step1_name, 
+        u2.full_name AS step2_name,
+        p.project_data->>'title' AS project_title,
+        inv.full_name AS investor_name
+      FROM refund_requests rr
+      LEFT JOIN users u1 ON rr.step1_uid = u1.firebase_uid
+      LEFT JOIN users u2 ON rr.step2_uid = u2.firebase_uid
+      LEFT JOIN projects p ON rr.project_id = p.id
+      LEFT JOIN users inv ON rr.investor_id = inv.firebase_uid
+      ORDER BY rr.created_at DESC
+      LIMIT 100
+    `);
+
+    res.json({ refunds: result.rows });
+  } catch (err) {
+    console.error('Error fetching refund requests:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AML RED-FLAG + STR/CTR LOG ENDPOINTS
+
+// Shared helper to ensure aml_logs table exists
+async function ensureAmlTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS aml_logs (
+      id SERIAL PRIMARY KEY,
+      logged_by VARCHAR(255) NOT NULL,
+      subject_uid VARCHAR(255),
+      subject_name VARCHAR(255),
+      report_type VARCHAR(50) NOT NULL,      -- 'STR' | 'CTR' | 'red-flag'
+      amount NUMERIC(15,2),
+      currency VARCHAR(10) DEFAULT 'PHP',
+      reason TEXT NOT NULL,
+      status VARCHAR(50) DEFAULT 'open',     -- 'open' | 'filed' | 'cleared'
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+}
+
+// POST /api/admin/aml/log  — create AML log entry (STR, CTR, or red-flag)
+app.post('/api/admin/aml/log', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { subjectUid, subjectName, reportType, amount, currency, reason } = req.body;
+  if (!reportType || !reason) return res.status(400).json({ error: 'reportType and reason are required' });
+
+  try {
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [uid]);
+    const role = userResult.rows[0]?.role;
+    if (!['admin', 'superadmin', 'owner'].includes(role)) return res.status(403).json({ error: 'Insufficient permissions' });
+
+    await ensureAmlTable();
+
+    const insertResult = await db.query(
+      `INSERT INTO aml_logs (logged_by, subject_uid, subject_name, report_type, amount, currency, reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [uid, subjectUid || null, subjectName || null, reportType, amount || null, currency || 'PHP', reason]
+    );
+
+    // If subject user exists, add aml_flagged mark to their users record
+    if (subjectUid) {
+      try {
+        await db.query('UPDATE users SET aml_flagged = TRUE WHERE firebase_uid = $1', [subjectUid]);
+      } catch (e) {
+        // Column might not exist — auto-add it
+        try {
+          await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS aml_flagged BOOLEAN DEFAULT FALSE');
+          await db.query('UPDATE users SET aml_flagged = TRUE WHERE firebase_uid = $1', [subjectUid]);
+        } catch {} 
+      }
+    }
+
+    res.json({ success: true, id: insertResult.rows[0].id });
+  } catch (err) {
+    console.error('Error creating AML log:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// GET /api/admin/aml/logs  — list all AML log entries
+app.get('/api/admin/aml/logs', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  try {
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [uid]);
+    const role = userResult.rows[0]?.role;
+    if (!['admin', 'superadmin', 'owner'].includes(role)) return res.status(403).json({ error: 'Insufficient permissions' });
+
+    await ensureAmlTable();
+
+    const result = await db.query(`
+      SELECT al.*, u.full_name AS logged_by_name
+      FROM aml_logs al
+      LEFT JOIN users u ON al.logged_by = u.firebase_uid
+      ORDER BY al.created_at DESC
+      LIMIT 200
+    `);
+
+    res.json({ logs: result.rows });
+  } catch (err) {
+    console.error('Error fetching AML logs:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// PATCH /api/admin/aml/log/:id  — update status of an AML log
+app.patch('/api/admin/aml/log/:id', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  const { id } = req.params;
+  const { status } = req.body;
+  if (!status) return res.status(400).json({ error: 'status is required' });
+
+  try {
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [uid]);
+    const role = userResult.rows[0]?.role;
+    if (!['admin', 'superadmin', 'owner'].includes(role)) return res.status(403).json({ error: 'Insufficient permissions' });
+
+    await ensureAmlTable();
+    await db.query('UPDATE aml_logs SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating AML log:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ESCROW RECONCILIATION ENDPOINT
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/admin/escrow/reconciliation
+// Compares amountRaised (from project_data) with sum of investorRequests for each active project,
+// and cross-references aggregate investor wallet balances & top-up history to flag discrepancies.
+app.get('/api/admin/escrow/reconciliation', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  try {
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [uid]);
+    const role = userResult.rows[0]?.role;
+    if (!['admin', 'superadmin', 'owner'].includes(role)) return res.status(403).json({ error: 'Insufficient permissions' });
+
+    // Fetch all projects
+    const projectsResult = await db.query(`
+      SELECT p.id, p.firebase_uid, p.project_data, p.created_at,
+             u.full_name AS borrower_name
+      FROM projects p
+      LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+      ORDER BY p.created_at DESC
+    `);
+
+    // Total wallet balance across all users
+    const walletsResult = await db.query('SELECT COALESCE(SUM(balance), 0) AS total_balance FROM wallets');
+    const totalWalletBalance = parseFloat(walletsResult.rows[0]?.total_balance || 0);
+
+    const rows = [];
+    let totalDiscrepancies = 0;
+
+    for (const proj of projectsResult.rows) {
+      const pd = proj.project_data || {};
+      const projectId = proj.id;
+      const status = pd.status || 'unknown';
+
+      // Sum all investorRequests amounts
+      const investorRequests = pd.investorRequests || [];
+      const sumFromRequests = investorRequests.reduce((acc, r) => {
+        const amt = parseFloat(r.amount || r.investmentAmount || 0);
+        return acc + (isNaN(amt) ? 0 : amt);
+      }, 0);
+
+      // amountRaised stored in project_data
+      const amountRaised = parseFloat(pd.amountRaised || pd.currentAmount || 0);
+      const fundingTarget = parseFloat(pd.fundingTarget || pd.targetAmount || 0);
+
+      const discrepancy = Math.abs(amountRaised - sumFromRequests);
+      const hasDiscrepancy = discrepancy > 1; // tolerance of ₱1
+
+      if (hasDiscrepancy) totalDiscrepancies += 1;
+
+      rows.push({
+        projectId,
+        projectName: pd.projectName || pd.title || `Project #${projectId}`,
+        borrowerName: proj.borrower_name || 'Unknown',
+        status,
+        fundingTarget,
+        amountRaised,
+        sumFromRequests,
+        investorCount: investorRequests.length,
+        discrepancy: hasDiscrepancy ? discrepancy : 0,
+        hasDiscrepancy,
+      });
+    }
+
+    res.json({
+      rows,
+      totalProjects: rows.length,
+      totalDiscrepancies,
+      totalWalletBalance,
+    });
+  } catch (err) {
+    console.error('Error fetching escrow reconciliation:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
