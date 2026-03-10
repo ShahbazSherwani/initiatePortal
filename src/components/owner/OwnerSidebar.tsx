@@ -17,7 +17,10 @@ import {
   UserCogIcon,
   XIcon,
   BarChart3Icon,
-  MessageCircleIcon
+  MessageCircleIcon,
+  ShieldCheckIcon,
+  ShieldOffIcon,
+  ScaleIcon,
 } from 'lucide-react';
 
 interface OwnerSidebarProps {
@@ -126,13 +129,16 @@ export const OwnerSidebar: React.FC<OwnerSidebarProps> = ({
     // Reports & Analytics
     { icon: <BarChart3Icon className="w-5 h-5" />, label: "Reports", to: '/owner/reports', key: 'reports', adminOnly: true },
     { icon: <MessageCircleIcon className="w-5 h-5" />, label: "Support Tickets", to: '/owner/tickets', key: 'tickets', adminOnly: true },
+    { icon: <ShieldCheckIcon className="w-5 h-5" />, label: "Compliance", to: '/owner/compliance', key: 'compliance', adminOnly: true },
+    { icon: <ShieldOffIcon className="w-5 h-5" />, label: "AML Logs", to: '/owner/aml', key: 'aml', adminOnly: true },
+    { icon: <ScaleIcon className="w-5 h-5" />, label: "Escrow Recon", to: '/owner/escrow', key: 'escrow', adminOnly: true },
     
     // Existing Admin Tools
     { icon: <SettingsIcon className="w-5 h-5" />, label: "Admin Projects", to: '/admin/projects', key: 'admin-projects', adminOnly: true },
-    { icon: <WalletIcon className="w-5 h-5" />, label: "Top-up Requests", to: '/admin/topup-requests', key: 'admin-topup', adminOnly: true },
+    // { icon: <WalletIcon className="w-5 h-5" />, label: "Top-up Requests", to: '/admin/topup-requests', key: 'admin-topup', adminOnly: true }, // hidden — re-enable when ready
     { icon: <TrendingUpIcon className="w-5 h-5" />, label: "Investment Requests", to: '/admin/investment-requests', key: 'admin-investments', requiredPermissions: ['investments.view', 'investments.edit'] },
     
-    { icon: <UserCogIcon className="w-5 h-5" />, label: "Settings", to: '/owner/settings', key: 'settings', adminOnly: false },
+    // { icon: <UserCogIcon className="w-5 h-5" />, label: "Settings", to: '/owner/settings', key: 'settings', adminOnly: false }, // hidden — re-enable when ready
   ];
 
   // Filter nav items based on permissions
