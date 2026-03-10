@@ -63,7 +63,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
       projectDetails: {
         ...f.projectDetails,
         projectRequirements,
-        minimumTarget: minimumTarget ? parseFloat(minimumTarget) : '',
+        minimumTarget: projectRequirements ? parseFloat(projectRequirements) : '',
         investorPercentage,
         dividendFrequency,
         dividendOther,

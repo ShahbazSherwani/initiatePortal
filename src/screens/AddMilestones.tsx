@@ -99,6 +99,8 @@ export const AddMilestones: React.FC = () => {
   };
 
   const handleContinue = async () => {
+    const totalFunding = parseFloat(form.projectDetails?.projectRequirements || "0") || 0;
+
     const totalPct = milestones.reduce(
       (sum, m) => sum + parseFloat(m.percentage || "0"),
       0
@@ -107,6 +109,25 @@ export const AddMilestones: React.FC = () => {
       alert("Total percentage cannot exceed 100%");
       return;
     }
+
+    // Validate each milestone amount is within the total funding target
+    if (totalFunding > 0) {
+      for (let i = 0; i < milestones.length; i++) {
+        const amt = parseFloat(milestones[i].amount || "0") || 0;
+        if (amt > totalFunding) {
+          alert(`Milestone ${i + 1} amount (₱${amt.toLocaleString()}) exceeds the Total Funding Target (₱${totalFunding.toLocaleString()}). Please reduce it.`);
+          return;
+        }
+      }
+      const totalMilestoneAmt = milestones.reduce(
+        (sum, m) => sum + (parseFloat(m.amount || "0") || 0), 0
+      );
+      if (totalMilestoneAmt > totalFunding) {
+        alert(`The sum of all milestone amounts (₱${totalMilestoneAmt.toLocaleString()}) exceeds the Total Funding Target (₱${totalFunding.toLocaleString()}). Please adjust.`);
+        return;
+      }
+    }
+
     // milestones already saved in context
     navigate("/borrowROI");
   };
@@ -201,6 +222,17 @@ export const AddMilestones: React.FC = () => {
                             handleFieldChange(idx, "amount", e.target.value)
                           }
                         />
+                        {(() => {
+                          const totalFunding = parseFloat(form.projectDetails?.projectRequirements || "0") || 0;
+                          const amt = parseFloat(m.amount || "0") || 0;
+                          if (totalFunding <= 0) return null;
+                          if (amt > totalFunding) return (
+                            <p className="mt-1 text-xs text-red-500 font-medium">⚠ Exceeds Total Funding Target (₱{totalFunding.toLocaleString()})</p>
+                          );
+                          return (
+                            <p className="mt-1 text-xs text-gray-400">Max: ₱{totalFunding.toLocaleString()}</p>
+                          );
+                        })()}
                       </div>
 
                       <div>

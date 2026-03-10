@@ -67,7 +67,7 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
       projectDetails: {
         ...f.projectDetails,
         projectRequirements,
-        minimumTarget: minimumTarget ? parseFloat(minimumTarget) : '',
+        minimumTarget: projectRequirements ? parseFloat(projectRequirements) : '',
         investorPercentage,
         timeDuration,
         campaignStartDate: selectedStartDate ? selectedStartDate.toISOString() : new Date().toISOString(),
@@ -159,10 +159,10 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
               {/* Left column */}
               <div className="space-y-6">
                 {/* Loan Amount Toggle */}
-                {/* Project Requirements (Maximum Funding Target) */}
+                {/* Total Funding Target */}
                 <div>
                   <label className="font-medium text-black text-base block mb-2">
-                    Maximum Funding Target
+                    Total Funding Target
                   </label>
                   <Input
                     placeholder="Enter total amount needed (e.g. 500000)"
@@ -172,32 +172,10 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                     value={projectRequirements}
                     onChange={(e) => setProjectRequirements(e.target.value)}
                   />
-                  <p className="mt-1 text-xs text-gray-400">Maximum amount you wish to raise in this campaign.</p>
-                </div>
-
-                {/* Minimum Funding Target */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="font-medium text-black text-base">Minimum Funding Target</label>
-                    <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5 font-medium">Required by SEC</span>
-                  </div>
-                  <Input
-                    placeholder="Enter minimum amount to proceed (e.g. 100000)"
-                    type="number"
-                    min={0}
-                    className="w-full py-3 pl-3 rounded-2xl border"
-                    value={minimumTarget}
-                    onChange={(e) => setMinimumTarget(e.target.value)}
-                  />
-                  <p className="mt-1 text-xs text-gray-400">
-                    If total pledges don't reach this amount by campaign end, all investors are automatically refunded. Must be ≤ maximum target.
-                  </p>
-                  {minimumTarget && projectRequirements && parseFloat(minimumTarget) > parseFloat(projectRequirements) && (
-                    <p className="mt-1 text-xs text-red-500 font-medium">⚠ Minimum target cannot exceed maximum target.</p>
-                  )}
-                  {minimumTarget && projectRequirements && parseFloat(minimumTarget) <= parseFloat(projectRequirements) && (
+                  <p className="mt-1 text-xs text-gray-400">Total amount you wish to raise in this campaign.</p>
+                  {projectRequirements && parseFloat(projectRequirements) > 0 && (
                     <p className="mt-1 text-xs text-green-600">
-                      ✓ Campaign proceeds if ₱{parseFloat(minimumTarget).toLocaleString()} or more is raised.
+                      ✓ Milestone amounts must not exceed ₱{parseFloat(projectRequirements).toLocaleString()}.
                     </p>
                   )}
                 </div>
