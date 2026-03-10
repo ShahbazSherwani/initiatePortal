@@ -25,9 +25,18 @@ export const AddMilestones: React.FC = () => {
   const { form, setForm } = useProjectForm();
 
   // start with one empty milestone
-  const [milestones, setMilestones] = useState<Milestone[]>([
-    { amount: "", percentage: "", date: null, file: null },
-  ]);
+  const [milestones, setMilestones] = useState<Milestone[]>(() => {
+    if (form.milestones && form.milestones.length > 0) {
+      return form.milestones.map((m: any) => ({
+        amount: m.amount || "",
+        percentage: m.percentage || "",
+        date: m.date ? new Date(m.date) : null,
+        file: m.file || null,
+        image: m.image || undefined,
+      }));
+    }
+    return [{ amount: "", percentage: "", date: null, file: null }];
+  });
 
   if (!token) return <Navigate to="/login" />;
 
@@ -221,24 +230,34 @@ export const AddMilestones: React.FC = () => {
                         <label className="block mb-1 font-medium">
                           Picture of the Project*
                         </label>
-                        <div className="w-full h-40 border-2 border-dashed rounded-2xl flex items-center justify-center">
-                          <label className="cursor-pointer">
-                            <UploadIcon className="w-8 h-8 mb-2 mx-auto" />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) =>
-                                handleFieldChange(
-                                  idx,
-                                  "file",
-                                  e.target.files?.[0] || null
-                                )
-                              }
-                            />
-                            <div>Upload</div>
-                          </label>
-                        </div>
+                        <label className="cursor-pointer block">
+                          <div className="w-full h-40 border-2 border-dashed rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50">
+                            {m.image ? (
+                              <img
+                                src={m.image}
+                                alt={`Milestone ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-center text-gray-600">
+                                <UploadIcon className="w-8 h-8 mb-2 mx-auto" />
+                                <div>Upload</div>
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) =>
+                              handleFieldChange(
+                                idx,
+                                "file",
+                                e.target.files?.[0] || null
+                              )
+                            }
+                          />
+                        </label>
                       </div>
                     </div>
                   </div>
