@@ -24,6 +24,14 @@ export const AddMilestones: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { form, setForm } = useProjectForm();
 
+  // Campaign date bounds — milestones must fall within the chosen project period
+  const campaignMinDate = form.projectDetails?.campaignStartDate
+    ? new Date(form.projectDetails.campaignStartDate)
+    : undefined;
+  const campaignMaxDate = form.projectDetails?.timeDuration
+    ? new Date(form.projectDetails.timeDuration)
+    : undefined;
+
   // start with one empty milestone
   const [milestones, setMilestones] = useState<Milestone[]>(() => {
     if (form.milestones && form.milestones.length > 0) {
@@ -220,6 +228,8 @@ export const AddMilestones: React.FC = () => {
                           className="w-full py-3 px-3 rounded-2xl border"
                           dateFormat="dd MMM yyyy"
                           popperClassName="z-50"
+                          minDate={campaignMinDate}
+                          maxDate={campaignMaxDate}
                         />
                       </div>
                     </div>
