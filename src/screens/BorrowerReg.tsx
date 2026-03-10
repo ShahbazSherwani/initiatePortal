@@ -4,6 +4,9 @@ import { useRegistration } from "../contexts/RegistrationContext";
 import { Country, State, City } from "country-state-city";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { auth } from "../lib/firebase";
+import { useAuth } from "../contexts/AuthContext";
+import { authFetch } from "../lib/api";
+import { API_BASE_URL } from "../config/environment";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -114,46 +117,15 @@ export const BorrowerReg = (): JSX.Element => {
 
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
+  const { token } = useAuth();
 
   // Fetch existing account data if user already has an investor account
   useEffect(() => {
     const fetchExistingData = async () => {
       try {
-        const user = auth.currentUser;
-        if (!user) return;
+        if (!token) return;
 
-        const token = await user.getIdToken();
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-        const fullUrl = `${apiUrl}/api/profile/existing-account-data?targetAccountType=borrower`;
-        
-        console.log('🔍 Fetching existing account data from:', fullUrl);
-        console.log('👤 User authenticated:', !!user);
-        console.log('🔑 Token exists:', !!token);
-        
-        const response = await fetch(fullUrl, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        console.log('📡 Response status:', response.status);
-        console.log('📡 Response content-type:', response.headers.get('content-type'));
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('❌ Failed to fetch existing account data:', response.status, errorText);
-          return;
-        }
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const htmlText = await response.text();
-          console.error('❌ Expected JSON but got HTML:', htmlText.substring(0, 200));
-          return;
-        }
-
-        const data = await response.json();
+        const data = await authFetch(`${API_BASE_URL}/profile/existing-account-data?targetAccountType=borrower`);
         console.log('📦 Received existing account data:', data);
         
         if (data.hasExistingAccount && data.existingData) {
@@ -251,7 +223,7 @@ export const BorrowerReg = (): JSX.Element => {
     };
 
     fetchExistingData();
-  }, []);
+  }, [token]);
 
   const handleAccountTypeSelect = (type: string) => {
     console.log("Account type selected:", type);
