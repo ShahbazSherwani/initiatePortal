@@ -39,6 +39,8 @@ export const InvestorProjectView: React.FC = () => {
   const [eligibility, setEligibility] = useState<any>(null);
   const [educationCompleted, setEducationCompleted] = useState<boolean | null>(null);
   const [showEducationModal, setShowEducationModal] = useState(false);
+  const [reconfirmLoading, setReconfirmLoading] = useState(false);
+  const [cancelInvestmentLoading, setCancelInvestmentLoading] = useState(false);
   // const [showTopUpModal, setShowTopUpModal] = useState(false); // Disabled for PayMongo
   const [insufficientFundsError, setInsufficientFundsError] = useState<InsufficientFundsError>({
     show: false,
@@ -194,7 +196,32 @@ export const InvestorProjectView: React.FC = () => {
       setProcessingPayment(false);
     }
   };
+  const handleReconfirmInvestment = async () => {
+    setReconfirmLoading(true);
+    try {
+      await authFetch(`${API_BASE_URL}/investor/projects/${projectId}/reconfirm`, { method: 'POST' });
+      toast.success('Investment reconfirmed! Your commitment is maintained.');
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to reconfirm investment');
+    } finally {
+      setReconfirmLoading(false);
+    }
+  };
 
+  const handleCancelInvestment = async () => {
+    if (!window.confirm('Are you sure you want to cancel your investment? This action cannot be undone.')) return;
+    setCancelInvestmentLoading(true);
+    try {
+      await authFetch(`${API_BASE_URL}/investor/projects/${projectId}/cancel-investment`, { method: 'POST' });
+      toast.success('Your investment has been cancelled and your funds will be returned.');
+      setTimeout(() => navigate('/investor/projects'), 1200);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to cancel investment');
+    } finally {
+      setCancelInvestmentLoading(false);
+    }
+  };
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
       {/* Investor Education Modal Gate */}
@@ -359,6 +386,47 @@ export const InvestorProjectView: React.FC = () => {
                   </div>
                 ) : !showConfirm ? (
                   <div>
+                    {/* Material Change Reconfirmation Banner */}
+                    {project?.project_data?.pendingReconfirmation === true &&
+                      (project.project_data.investorRequests || []).some((r: any) => r.investorId === profile?.id) && (
+                      <div className="mb-4 bg-orange-50 border border-orange-300 rounded-2xl px-4 py-3">
+                        <div className="flex items-start gap-3 mb-3">
+                          <span className="text-xl mt-0.5">⚠️</span>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-orange-800">Material Change — Action Required</p>
+                            <p className="text-xs text-orange-700 mt-0.5">
+                              This campaign has been updated with a material change. You must reconfirm or cancel your investment by{' '}
+                              <strong>
+                                {project.project_data.reconfirmationDeadline
+                                  ? new Date(project.project_data.reconfirmationDeadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                                  : 'the deadline'}
+                              </strong>.
+                            </p>
+                            {project.project_data.materialChangeLog?.slice(-1)[0] && (
+                              <p className="text-xs text-orange-600 mt-1 italic">
+                                "{project.project_data.materialChangeLog.slice(-1)[0].description}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                            onClick={handleReconfirmInvestment}
+                            disabled={reconfirmLoading}
+                            className="text-xs px-4 py-2 rounded-lg bg-[#0C4B20] text-white font-medium hover:bg-[#0a3d1a] disabled:opacity-50"
+                          >
+                            {reconfirmLoading ? 'Confirming…' : '✓ Reconfirm Investment'}
+                          </button>
+                          <button
+                            onClick={handleCancelInvestment}
+                            disabled={cancelInvestmentLoading}
+                            className="text-xs px-4 py-2 rounded-lg border border-red-400 text-red-600 font-medium hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {cancelInvestmentLoading ? 'Cancelling…' : '✕ Cancel Investment'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {/* Education module gate */}
                     {educationCompleted === false && (
                       <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">

@@ -63,6 +63,11 @@ export const OwnerProjectDetail: React.FC = () => {
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Material change state
+  const [mcChangeType, setMcChangeType] = useState('');
+  const [mcDescription, setMcDescription] = useState('');
+  const [mcSubmitting, setMcSubmitting] = useState(false);
+
   useEffect(() => {
     if (projectId) {
       fetchProjectDetails();
@@ -133,6 +138,28 @@ export const OwnerProjectDetail: React.FC = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handleMaterialChange = async () => {
+    if (!mcChangeType || !mcDescription.trim()) {
+      toast.error('Please select a change type and provide a description');
+      return;
+    }
+    setMcSubmitting(true);
+    try {
+      await authFetch(`${API_BASE_URL}/admin/projects/${projectId}/material-change`, {
+        method: 'POST',
+        body: JSON.stringify({ changeType: mcChangeType, description: mcDescription }),
+      });
+      toast.success('Material change logged and investors notified for reconfirmation');
+      setMcChangeType('');
+      setMcDescription('');
+      fetchProjectDetails();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to log material change');
+    } finally {
+      setMcSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -607,6 +634,131 @@ export const OwnerProjectDetail: React.FC = () => {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+        {/* Material Change Notification — only for approved/active projects */}
+        {(project.approvalStatus === 'approved' || project.status === 'active') && (
+          <Card className="bg-white shadow-sm border-0 mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangleIcon className="w-5 h-5 text-orange-500" />
+                Material Change Notification
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Existing reconfirmation status */}
+              {project.projectData?.pendingReconfirmation && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
+                  <AlertTriangleIcon className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-orange-800">Reconfirmation Pending</p>
+                    <p className="text-sm text-orange-700 mt-1">
+                      Investors have been notified and must reconfirm or cancel their investment by{' '}
+                      <strong>
+                        {project.projectData.reconfirmationDeadline
+                          ? new Date(project.projectData.reconfirmationDeadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                          : 'deadline not set'}
+                      </strong>.
+                    </p>
+                    {project.projectData.materialChangeLog?.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Change Log</p>
+                        {(project.projectData.materialChangeLog as any[]).slice(-3).map((entry: any, i: number) => (
+                          <div key={i} className="bg-white rounded border border-orange-200 p-2 text-xs text-gray-700">
+                            <span className="font-medium text-orange-700">{entry.changeType?.replace(/-/g, ' ')}</span>
+                            {' — '}{entry.description}
+                            <span className="block text-gray-400 mt-0.5">{new Date(entry.loggedAt).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Log a new material change */}
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  A <strong>material change</strong> is any significant update that may affect investor decisions. Logging one triggers a 5-business-day reconfirmation window for all existing investors.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Change Type <span className="text-red-500">*</span></label>
+                  <select
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
+                    value={mcChangeType}
+                    onChange={e => setMcChangeType(e.target.value)}
+                  >
+                    <option value="">— Select change type —</option>
+                    <option value="funding-amount-changed">Funding amount changed</option>
+                    <option value="interest-rate-equity-changed">Interest rate / equity % changed</option>
+                    <option value="campaign-dates-changed">Campaign dates changed</option>
+                    <option value="use-of-proceeds-changed">Use of proceeds changed</option>
+                    <option value="business-plan-updated">Business plan updated</option>
+                    <option value="other-material-update">Other material update</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-red-500">*</span></label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20] resize-none"
+                    rows={3}
+                    placeholder="Describe the material change in detail…"
+                    value={mcDescription}
+                    onChange={e => setMcDescription(e.target.value)}
+                  />
+                </div>
+                <Button
+                  onClick={handleMaterialChange}
+                  disabled={mcSubmitting || !mcChangeType || !mcDescription.trim()}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  <AlertTriangleIcon className="w-4 h-4 mr-2" />
+                  {mcSubmitting ? 'Notifying Investors…' : 'Log Change & Notify Investors'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Post-Offering Reports — visible for all projects */}
+        <Card className="bg-white shadow-sm border-0 mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileTextIcon className="w-5 h-5 text-[#0C4B20]" />
+              Post-Offering Reports
+              {/* Overdue badge: project is active but 0 reports submitted */}
+              {project.status === 'active' &&
+                (!Array.isArray(project.projectData?.postOfferingReports) || project.projectData.postOfferingReports.length === 0) && (
+                  <span className="ml-2 text-xs font-semibold bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded-full">
+                    ⚠ No Reports Submitted
+                  </span>
+                )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {Array.isArray(project.projectData?.postOfferingReports) && project.projectData.postOfferingReports.length > 0 ? (
+              <div className="space-y-3">
+                {(project.projectData.postOfferingReports as any[]).slice().reverse().map((r: any) => (
+                  <div key={r.id} className="flex items-start gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex-shrink-0 text-center">
+                      <span className="text-sm font-bold text-[#0C4B20] block">{r.quarter}</span>
+                      <span className="text-xs text-gray-500">{r.year}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-700">{r.description}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Funds Utilized: <strong>₱{parseFloat(r.fundsUtilized).toLocaleString()}</strong>
+                        {' · '}Submitted {new Date(r.submittedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 italic">No post-offering reports have been submitted by the issuer yet.</p>
+            )}
           </CardContent>
         </Card>
       </div>

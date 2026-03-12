@@ -61,11 +61,11 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
     ...(profile?.role === 'admin' ? [{ name: "Invest", to: "/invest", color: "text-[#0C4B20]" }] : []),
     // { name: "Donate", to: "/donate", color: "text-[#0C4B20]" },
     { name: "About us", to: "/about", color: "text-black" },
-    { name: "Farming & Livestock", to: "/farming", color: "text-black" },
-    { name: "MSME", to: "/msme", color: "text-black" },
+    { name: "Services", to: "/farming", color: "text-black" },
+    { name: "Contact us", to: "/msme", color: "text-black" },
     // { name: "Microlending", to: "/microlending", color: "text-black" },
-    { name: "Skills & Creators", to: "/skills", color: "text-black" },
-    { name: "Unity", to: "/unity", color: "text-black" },
+    // { name: "Skills & Creators", to: "/skills", color: "text-black" },
+    // { name: "Unity", to: "/unity", color: "text-black" },
   ];
 
   return (

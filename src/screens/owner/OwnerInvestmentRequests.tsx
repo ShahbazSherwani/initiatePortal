@@ -19,7 +19,8 @@ import {
   ClockIcon,
   FilterIcon,
   TrendingUpIcon,
-  FolderIcon
+  FolderIcon,
+  RotateCcwIcon,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -37,11 +38,30 @@ interface InvestmentRequest {
   notes?: string;
 }
 
+interface RefundRequest {
+  id: number;
+  project_id: number;
+  investor_id: string;
+  amount: string;
+  reason: string;
+  step1_uid: string;
+  step1_name: string;
+  step1_at: string;
+  step2_uid: string | null;
+  step2_name: string | null;
+  step2_at: string | null;
+  status: string;
+  created_at: string;
+  project_title: string | null;
+  investor_name: string | null;
+}
+
 const STATUS_TABS = [
   { key: 'all', label: 'All Requests', shortLabel: 'All', icon: <TrendingUpIcon className="w-4 h-4" /> },
   { key: 'pending', label: 'Pending', shortLabel: 'Pending', icon: <ClockIcon className="w-4 h-4" /> },
   { key: 'approved', label: 'Approved', shortLabel: 'Approved', icon: <CheckCircleIcon className="w-4 h-4" /> },
   { key: 'rejected', label: 'Rejected', shortLabel: 'Rejected', icon: <XCircleIcon className="w-4 h-4" /> },
+  { key: 'refunds', label: 'Refunds', shortLabel: 'Refunds', icon: <RotateCcwIcon className="w-4 h-4" /> },
 ];
 
 export const OwnerInvestmentRequests: React.FC = () => {
@@ -51,6 +71,11 @@ export const OwnerInvestmentRequests: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  // Refund state
+  const [refunds, setRefunds] = useState<RefundRequest[]>([]);
+  const [refundForm, setRefundForm] = useState({ projectId: '', investorId: '', amount: '', reason: '' });
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [approving, setApproving] = useState<number | null>(null);
 
   useEffect(() => {
     fetchInvestmentRequests();
@@ -87,12 +112,58 @@ export const OwnerInvestmentRequests: React.FC = () => {
     }
   };
 
+  const fetchRefunds = async () => {
+    try {
+      const data = await authFetch(`${API_BASE_URL}/admin/refund/requests`);
+      setRefunds(data.refunds || []);
+    } catch { /* silently fail */ }
+  };
+
+  React.useEffect(() => {
+    if (activeTab === 'refunds') fetchRefunds();
+  }, [activeTab]);
+
+  const handleInitiateRefund = async () => {
+    if (!refundForm.projectId || !refundForm.investorId || !refundForm.amount || !refundForm.reason) {
+      toast.error('All refund fields are required');
+      return;
+    }
+    setRefundSubmitting(true);
+    try {
+      await authFetch(`${API_BASE_URL}/admin/refund/initiate`, {
+        method: 'POST',
+        body: JSON.stringify(refundForm),
+      });
+      toast.success('Refund request initiated — a second admin must approve it.');
+      setRefundForm({ projectId: '', investorId: '', amount: '', reason: '' });
+      fetchRefunds();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to initiate refund');
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
+
+  const handleApproveRefund = async (refundId: number) => {
+    setApproving(refundId);
+    try {
+      await authFetch(`${API_BASE_URL}/admin/refund/${refundId}/approve`, { method: 'POST' });
+      toast.success('Refund approved and completed.');
+      fetchRefunds();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to approve refund');
+    } finally {
+      setApproving(null);
+    }
+  };
+
   const filterRequests = () => {
     let filtered = requests;
 
     // Filter by status
-    if (activeTab !== 'all') {
+    if (activeTab !== 'all' && activeTab !== 'refunds') {
       filtered = filtered.filter(req => req.status === activeTab);
+
     }
 
     // Filter by search query
@@ -304,6 +375,91 @@ export const OwnerInvestmentRequests: React.FC = () => {
                 </CardContent>
               </Card>
             ))
+          )}
+
+          {/* Refunds Panel */}
+          {activeTab === 'refunds' && (
+            <div className="space-y-6">
+              {/* Existing refund requests */}
+              {refunds.length > 0 && (
+                <div className="space-y-3">
+                  {refunds.map(r => (
+                    <Card key={r.id} className="bg-white shadow-sm border-0">
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                {r.status === 'completed' ? '✓ Completed' : '⏳ Awaiting Step 2 Approval'}
+                              </span>
+                              <span className="text-xs text-gray-400">#{r.id}</span>
+                            </div>
+                            <p className="font-semibold text-gray-900">
+                              {r.investor_name || r.investor_id} → {r.project_title || `Project #${r.project_id}`}
+                            </p>
+                            <p className="text-sm text-gray-600">Amount: <strong>₱{parseFloat(r.amount).toLocaleString()}</strong> · Reason: {r.reason}</p>
+                            <p className="text-xs text-gray-400">
+                              Step 1: {r.step1_name || r.step1_uid} ({r.step1_at ? new Date(r.step1_at).toLocaleString() : '—'})
+                              {r.step2_uid && (` · Step 2: ${r.step2_name || r.step2_uid} (${r.step2_at ? new Date(r.step2_at).toLocaleString() : '—'})`)}
+                            </p>
+                          </div>
+                          {r.status === 'pending_step2' && (
+                            <Button
+                              size="sm"
+                              className="bg-[#0C4B20] text-white hover:bg-[#0a3d1a] flex-shrink-0"
+                              disabled={approving === r.id}
+                              onClick={() => handleApproveRefund(r.id)}
+                            >
+                              <CheckCircleIcon className="w-4 h-4 mr-1" />
+                              {approving === r.id ? 'Approving…' : 'Approve (Step 2)'}
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Initiate new refund */}
+              <Card className="bg-white shadow-sm border-0">
+                <CardContent className="p-5 space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <RotateCcwIcon className="w-4 h-4 text-[#0C4B20]" />
+                      Initiate Refund (Step 1 of 2)
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">A second admin must approve before the refund is executed.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Project ID</label>
+                      <Input placeholder="e.g. 42" value={refundForm.projectId} onChange={e => setRefundForm(p => ({ ...p, projectId: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Investor Firebase UID</label>
+                      <Input placeholder="Investor UID" value={refundForm.investorId} onChange={e => setRefundForm(p => ({ ...p, investorId: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Refund Amount (₱)</label>
+                      <Input type="number" placeholder="0.00" value={refundForm.amount} onChange={e => setRefundForm(p => ({ ...p, amount: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Reason</label>
+                      <Input placeholder="Reason for refund" value={refundForm.reason} onChange={e => setRefundForm(p => ({ ...p, reason: e.target.value }))} />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleInitiateRefund}
+                    disabled={refundSubmitting}
+                    className="bg-[#0C4B20] hover:bg-[#0a3d1a] text-white"
+                  >
+                    <RotateCcwIcon className="w-4 h-4 mr-2" />
+                    {refundSubmitting ? 'Submitting…' : 'Initiate Refund (Step 1)'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       </div>

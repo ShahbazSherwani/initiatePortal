@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjects } from '../contexts/ProjectsContext';
 import { Sidebar } from '../components/Sidebar/Sidebar';
 import { ChevronLeft } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
+import { toast } from 'react-hot-toast';
+import { authFetch } from '../lib/api';
+import { API_BASE_URL } from '../config/environment';
 
 const ProjectDetailsView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -11,6 +14,30 @@ const ProjectDetailsView: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Details');
   const [selectedMilestoneTab, setSelectedMilestoneTab] = useState('ROI (Expense)');
+  const [reportForm, setReportForm] = useState({ quarter: 'Q1', year: new Date().getFullYear().toString(), fundsUtilized: '', description: '' });
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  const handleSubmitReport = async () => {
+    if (!project) return;
+    if (!reportForm.fundsUtilized || !reportForm.description.trim()) {
+      toast.error('Please fill in all report fields');
+      return;
+    }
+    setReportSubmitting(true);
+    try {
+      await authFetch(`${API_BASE_URL}/borrower/projects/${projectId}/post-offering-report`, {
+        method: 'POST',
+        body: JSON.stringify(reportForm),
+      });
+      toast.success('Report submitted successfully!');
+      setReportForm(prev => ({ ...prev, fundsUtilized: '', description: '' }));
+      loadProjects();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to submit report');
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   // Refresh projects when projectId changes to get latest funding data
   React.useEffect(() => {
@@ -186,9 +213,9 @@ const ProjectDetailsView: React.FC = () => {
             </Badge>
           </div>
 
-          {/* Tabs - Only Details and Milestones */}
-          <div className="grid grid-cols-2 mb-6">
-            {['Details', 'Milestones'].map(tab => (
+          {/* Tabs */}
+          <div className="grid grid-cols-3 mb-6">
+            {['Details', 'Milestones', 'Reports'].map(tab => (
               <button
                 key={tab}
                 className={`py-3 px-6 text-center font-medium ${
@@ -420,6 +447,94 @@ const ProjectDetailsView: React.FC = () => {
               ) : (
                 <div className="text-gray-500">No milestones available for this project.</div>
               )}
+            </div>
+          )}
+
+          {/* Post-Offering Reports Tab */}
+          {activeTab === 'Reports' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold mb-1">Post-Offering Reports</h2>
+                <p className="text-sm text-gray-500">Quarterly fund utilization reports required by SEC Rules on Crowdfunding. Submit within 30 days after each quarter ends.</p>
+              </div>
+
+              {/* Existing reports */}
+              {Array.isArray(project.project_data?.postOfferingReports) && project.project_data.postOfferingReports.length > 0 ? (
+                <div className="space-y-3">
+                  {(project.project_data.postOfferingReports as any[]).slice().reverse().map((r: any) => (
+                    <div key={r.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-[#0C4B20]">{r.quarter} {r.year}</span>
+                        <span className="text-xs text-gray-400">{new Date(r.submittedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2">{r.description}</p>
+                      <p className="text-xs text-gray-500">Funds Utilized: <strong>₱{parseFloat(r.fundsUtilized).toLocaleString()}</strong></p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                  No reports submitted yet. Submit your first quarterly report below.
+                </div>
+              )}
+
+              {/* Submit new report */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+                <h3 className="font-semibold text-gray-800">Submit New Report</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Quarter</label>
+                    <select
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
+                      value={reportForm.quarter}
+                      onChange={e => setReportForm(prev => ({ ...prev, quarter: e.target.value }))}
+                    >
+                      <option>Q1</option>
+                      <option>Q2</option>
+                      <option>Q3</option>
+                      <option>Q4</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
+                    <input
+                      type="number"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
+                      value={reportForm.year}
+                      onChange={e => setReportForm(prev => ({ ...prev, year: e.target.value }))}
+                      min={2020}
+                      max={2099}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Funds Utilized (₱)</label>
+                  <input
+                    type="number"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
+                    placeholder="0.00"
+                    value={reportForm.fundsUtilized}
+                    onChange={e => setReportForm(prev => ({ ...prev, fundsUtilized: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">How Funds Were Utilized</label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20] resize-none"
+                    rows={3}
+                    placeholder="Describe how the funds raised were used this quarter…"
+                    value={reportForm.description}
+                    onChange={e => setReportForm(prev => ({ ...prev, description: e.target.value }))}
+                  />
+                </div>
+                <button
+                  onClick={handleSubmitReport}
+                  disabled={reportSubmitting}
+                  className="w-full py-2.5 px-4 bg-[#0C4B20] text-white text-sm font-medium rounded-lg hover:bg-[#0a3d1a] disabled:opacity-50"
+                >
+                  {reportSubmitting ? 'Submitting…' : 'Submit Report'}
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -72,6 +72,9 @@ import { ResetPassword } from "../screens/ResetPassword";
 import { PaymentSuccess } from "../screens/PaymentSuccess";
 import { RaiseTicket } from "../screens/RaiseTicket";
 import { OwnerTickets } from "../screens/owner/OwnerTickets";
+import { OwnerComplianceCalendar } from "../screens/owner/OwnerComplianceCalendar";
+import { OwnerAmlLog } from "../screens/owner/OwnerAmlLog";
+import { OwnerEscrowReconciliation } from "../screens/owner/OwnerEscrowReconciliation";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -909,6 +912,30 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <AdminRoute>
                     <OwnerTickets />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/compliance" 
+                element={
+                  <AdminRoute>
+                    <OwnerComplianceCalendar />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/aml" 
+                element={
+                  <AdminRoute>
+                    <OwnerAmlLog />
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="/owner/escrow" 
+                element={
+                  <AdminRoute>
+                    <OwnerEscrowReconciliation />
                   </AdminRoute>
                 } 
               />

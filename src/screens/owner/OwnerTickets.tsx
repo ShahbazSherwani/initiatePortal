@@ -198,6 +198,17 @@ const InvestmentActions: React.FC<{ ticket: Ticket }> = ({ ticket }) => (
   </div>
 );
 
+// SLA helper: returns hours elapsed and over-SLA flag (SLA = 48 h for open/in_progress)
+const getSLAInfo = (ticket: Ticket) => {
+  if (ticket.status === 'resolved' || ticket.status === 'closed') return null;
+  const created = new Date(ticket.created_at).getTime();
+  const elapsed = (Date.now() - created) / 3600000; // hours
+  const breached = elapsed > 48;
+  const hours = Math.floor(elapsed);
+  const displayTime = hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  return { displayTime, breached };
+};
+
 const QUICK_ACTION_META: Record<string, { label: string; icon: React.ReactNode; description: string }> = {
   project:    { label: 'Project Actions',    icon: <CalendarDays className="w-4 h-4" />, description: 'Extend project deadline directly from here' },
   account:    { label: 'Account Actions',    icon: <ShieldOff className="w-4 h-4" />,   description: 'Check & fix account suspension status' },
@@ -275,7 +286,13 @@ export const OwnerTickets: React.FC = () => {
               <MessageCircle className="w-6 h-6 text-[#0C4B20]" />
               Support Tickets
             </h1>
-            <p className="text-gray-500 mt-1">Manage and respond to user support requests</p>
+            <p className="text-gray-500 mt-1">Manage and respond to user support requests
+              {tickets.filter(t => { const s = getSLAInfo(t); return s?.breached; }).length > 0 && (
+                <span className="ml-2 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                  ⚠ {tickets.filter(t => { const s = getSLAInfo(t); return s?.breached; }).length} SLA breached (&gt;48h)
+                </span>
+              )}
+            </p>
           </div>
           <button onClick={fetchTickets} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:border-[#0C4B20] hover:text-[#0C4B20] transition-colors">
             <RefreshCw className="w-4 h-4" /> Refresh
@@ -317,6 +334,7 @@ export const OwnerTickets: React.FC = () => {
               const currentReply = replyText[ticket.id] ?? (ticket.admin_reply || '');
               const actionMeta = QUICK_ACTION_META[ticket.category] || QUICK_ACTION_META.other;
               const hasActionPanel = ['project', 'account', 'payment', 'investment'].includes(ticket.category);
+              const sla = getSLAInfo(ticket);
 
               return (
                 <div key={ticket.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -334,6 +352,18 @@ export const OwnerTickets: React.FC = () => {
                         <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
                           {actionMeta.icon} {catLabel}
                         </span>
+                        {/* SLA clock badge */}
+                        {sla && (
+                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold border ${
+                            sla.breached
+                              ? 'bg-red-100 text-red-700 border-red-200 animate-pulse'
+                              : 'bg-gray-50 text-gray-500 border-gray-200'
+                          }`}>
+                            <Clock className="w-3 h-3" />
+                            {sla.displayTime}
+                            {sla.breached && ' ⚠ SLA'}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500">
                         <span className="font-medium">{ticket.user_name || ticket.user_email || 'Unknown'}</span>
