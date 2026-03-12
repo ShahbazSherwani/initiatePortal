@@ -636,7 +636,6 @@ export const OwnerProjectDetail: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
 
         {/* Material Change Notification — only for approved/active projects */}
         {(project.approvalStatus === 'approved' || project.status === 'active') && (
