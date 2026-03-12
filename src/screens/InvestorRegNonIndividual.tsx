@@ -18,6 +18,7 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
 
   // Entity Information
   const [entityType, setEntityType] = useState("");
+  const [otherEntityType, setOtherEntityType] = useState("");
   const [entityName, setEntityName] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [tin, setTin] = useState("");
@@ -52,6 +53,12 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
     let hasErrors = false;
 
     // Required fields validation
+    // If "Others" is selected, require the custom entity type field
+    if (entityType === "Others" && (!otherEntityType || otherEntityType.trim() === "")) {
+      newErrors["otherEntityType"] = true;
+      hasErrors = true;
+    }
+
     const requiredFields = [
       { value: entityType, name: "entityType" },
       { value: entityName, name: "entityName" },
@@ -214,7 +221,7 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
   // Entity type options for investors (matching borrower categories)
   const entityTypes = [
     "Sole Proprietor",
-    "MSME",
+    "Corporation",
     "NGO",
     "Foundation",
     "Educational Institution",
@@ -234,7 +241,7 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
       ...reg,
       accountType,
       details: {
-        entityType,
+        entityType: entityType === "Others" ? otherEntityType : entityType,
         entityName,
         registrationNumber,
         tin,
@@ -336,6 +343,18 @@ export const InvestorRegNonIndividual = (): JSX.Element => {
                 </SelectItem>
               ))}
             </ValidatedSelect>
+            {entityType === "Others" && (
+              <div className="mt-3">
+                <ValidatedInput
+                  label="Please specify entity type"
+                  required
+                  hasError={errors.otherEntityType}
+                  value={otherEntityType}
+                  onChange={(e) => setOtherEntityType(e.target.value)}
+                  placeholder="Enter your entity type"
+                />
+              </div>
+            )}
           </section>
 
           {/* Entity Details */}

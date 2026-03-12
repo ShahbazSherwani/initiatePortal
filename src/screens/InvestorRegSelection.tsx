@@ -58,8 +58,8 @@ export const InvestorRegSelection = (): JSX.Element => {
             <p className="font-medium text-lg mb-2">Please select an option</p>
             <div className="flex flex-col sm:flex-row gap-4">
               {[
-                { value: "individual", label: "Individual" },
-                { value: "non-individual", label: "Non-Individual (Entity)" }
+                { value: "individual", label: "Individual (Sole Proprietor)" },
+                { value: "non-individual", label: "Non-Individual (Corporation / Partnership)" }
               ].map(option => (
                 <button
                   key={option.value}
@@ -94,7 +94,7 @@ export const InvestorRegSelection = (): JSX.Element => {
 
           {/* Individual Investor Separate Section */}
           <div className="border-t pt-6">
-            <p className="font-medium text-lg mb-2">Or select Individual Investor</p>
+            <p className="font-medium text-lg mb-2">Or select Retail Investor</p>
             <button
               type="button"
               className={`
@@ -119,7 +119,7 @@ export const InvestorRegSelection = (): JSX.Element => {
                   <div className="w-2 h-2 bg-white rounded-full m-auto mt-0.5"></div>
                 )}
               </div>
-              <span>Individual Investor</span>
+              <span>Retail Investor</span>
             </button>
           </div>
         </div>
