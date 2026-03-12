@@ -73,7 +73,7 @@ export const InvestorProjectView: React.FC = () => {
   
   // Check if user already has an investment in this project
   const investorRequests = project?.project_data?.investorRequests || [];
-  const userInvestment = investorRequests.find(req => req.investorId === profile?.id);
+  const userInvestment = investorRequests.find((req: any) => req.investorId === profile?.id);
   const hasExistingInvestment = !!userInvestment;
   
   console.log("🔍 InvestorProjectView - Project owner:", project?.firebase_uid);
@@ -279,7 +279,7 @@ export const InvestorProjectView: React.FC = () => {
               <Button 
                 onClick={() => {
                   setInsufficientFundsError(prev => ({ ...prev, show: false }));
-                  setShowTopUpModal(true);
+                  // setShowTopUpModal(true);
                 }}
                 className="w-full bg-[#0C4B20] text-white hover:bg-[#8FB200] py-3"
               >
@@ -322,6 +322,13 @@ export const InvestorProjectView: React.FC = () => {
               
               <div className="md:w-2/3">
                 <h1 className="text-2xl font-bold mb-2">{details.product || "Unnamed Project"}</h1>
+                {/* Published — subject to verification notice */}
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 rounded-full text-xs font-medium bg-amber-50 border border-amber-300 text-amber-800">
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  This campaign is published on the platform but remains subject to verification.
+                </div>
                 <p className="text-gray-500 mb-6">{details.overview || "No description available"}</p>
                 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
@@ -433,7 +440,7 @@ export const InvestorProjectView: React.FC = () => {
                         <span className="text-xl mt-0.5">🎓</span>
                         <div>
                           <p className="text-sm font-semibold text-amber-800">Complete the Investor Education Module first</p>
-                          <p className="text-xs text-amber-600 mt-0.5 mb-2">Required by SEC Crowdfunding Rules before placing your first investment.</p>
+                          {/* <p className="text-xs text-amber-600 mt-0.5 mb-2">Required by SEC Crowdfunding Rules before placing your first investment.</p> */}
                           <Button size="sm" className="bg-amber-500 text-white hover:bg-amber-600 h-8 text-xs px-3" onClick={() => setShowEducationModal(true)}>
                             Start Education Module →
                           </Button>

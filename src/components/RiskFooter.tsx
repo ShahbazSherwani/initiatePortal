@@ -1,0 +1,57 @@
+// src/components/RiskFooter.tsx
+import React, { useState } from "react";
+
+export const RiskFooter: React.FC = () => {
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem("riskFooterDismissed") === "true"
+  );
+
+  const handleDismiss = () => {
+    sessionStorage.setItem("riskFooterDismissed", "true");
+    setDismissed(true);
+  };
+
+  if (dismissed) return null;
+
+  return (
+    <div
+      className="fixed bottom-0 left-0 w-full z-50"
+      style={{ background: "rgba(255, 235, 235, 0.97)", borderTop: "1px solid #f0c0c0" }}
+    >
+      <div className="max-w-6xl mx-auto px-4 py-3 relative">
+        {/* Close button */}
+        <button
+          onClick={() => handleDismiss()}
+          className="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-lg font-light leading-none"
+          aria-label="Dismiss risk warning"
+        >
+          ×
+        </button>
+
+        {/* Title */}
+        <p className="text-center text-sm font-bold text-[#5a1a1a] mb-1 tracking-wide">
+          🖐 RISK WARNING 🖐
+        </p>
+
+        {/* Body */}
+        <p className="text-center text-xs text-[#5a1a1a] leading-relaxed max-w-4xl mx-auto">
+          Crowdfunded investments are alternative investments and are thus generally considered high risk and
+          speculative in nature. You are likely not to receive dividends or regular income from such investments.
+          There is a substantial chance that you may lose the entirety of your investment. Fundraiser and
+          campaigns listed or eligible for listing on the Initiate PH platform are not endorsements by Initiate
+          PH regarding investability and may not be construed as financial advice. We caution you to speak to
+          your financial advisor on how to best allocate your portfolio based on your needs and objectives. For
+          additional information, check out our{" "}
+          <a href="/risk-warnings" className="underline text-blue-700 hover:text-blue-900">
+            Risk Warnings.
+          </a>
+        </p>
+
+        {/* Dismiss hint */}
+        <p className="text-center text-[10px] text-gray-500 mt-1">
+          (Click <strong>×</strong> to hide this Notification)
+        </p>
+      </div>
+    </div>
+  );
+};

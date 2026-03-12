@@ -1,5 +1,6 @@
 // src/components/Navigation/Navbar.tsx
 import React, { useState, useContext, useEffect } from "react";
+import { RiskFooter } from '../RiskFooter';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { MenuIcon, XIcon, ChevronDownIcon } from "lucide-react";
@@ -69,6 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
   ];
 
   return (
+    <>
     <nav 
       key={`navbar-${currentAccountType}-${accountTypeKey}`}
         className="relative z-50 w-full bg-white border-b border-gray-200 px-6 py-4" 
@@ -237,5 +239,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
       
     </nav>
     
+    <RiskFooter />
+    
+    </>
   );
 };
