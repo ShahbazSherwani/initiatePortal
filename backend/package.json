@@ -19,7 +19,7 @@
     "pg": "^8.15.5"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "22.x"
   },
   "devDependencies": {
     "node-fetch": "^2.7.0"
