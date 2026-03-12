@@ -1647,11 +1647,8 @@ export const Settings = (): JSX.Element => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <KeyIcon className="w-5 h-5" />
-                    Bank Account Information
+                    Bank Deposit Account Details
                   </CardTitle>
-                  <CardDescription>
-                    Your bank account details from registration. Contact support to modify these details.
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1704,35 +1701,12 @@ export const Settings = (): JSX.Element => {
                       />
                     </div>
 
-                    {/* IBAN */}
-                    <div className="space-y-2">
-                      <Label htmlFor="iban">IBAN</Label>
-                      <Input
-                        id="iban"
-                        value={profileData.bankAccount?.iban || ''}
-                        readOnly
-                        className="bg-gray-50"
-                        placeholder="Not provided"
-                      />
-                    </div>
 
-                    {/* SWIFT Code */}
-                    <div className="space-y-2">
-                      <Label htmlFor="swiftCode">SWIFT Code</Label>
-                      <Input
-                        id="swiftCode"
-                        value={profileData.bankAccount?.swiftCode || ''}
-                        readOnly
-                        className="bg-gray-50"
-                        placeholder="Not provided"
-                      />
-                    </div>
                   </div>
                   
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> Bank account information is set during registration and cannot be modified here. 
-                      If you need to update your bank details, please contact our support team for assistance.
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm text-green-700">
+                      <strong>Note:</strong> The provided bank account details will only be utilized once the campaign has been successfully and fully funded.
                     </p>
                   </div>
                 </CardContent>

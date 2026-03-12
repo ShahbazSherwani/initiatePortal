@@ -25,7 +25,6 @@ import {
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { format, addDays, differenceInDays } from "date-fns";
-import { Clock } from "lucide-react";
 
 export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   const { token } = useContext(AuthContext)!;
@@ -199,12 +198,14 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   {showInterestInfo && (
                     <div className="mb-3 bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-gray-700 leading-relaxed">
                       <p className="font-semibold text-[#0C4B20] mb-1">Borrower vs. Investor view</p>
-                      <p>You set the rate you're comfortable paying each month. Investors see this automatically converted to an <span className="font-semibold">annual percentage rate (APR)</span>, which makes the return look more attractive to them — a proven lending platform UX approach.</p>
-                      <p className="mt-1 text-gray-500">Example: 1.5%/month = <strong>18% per annum</strong> as shown to investors. Higher monthly rates attract more lenders but increase your repayment cost.</p>
+                      <p>As a borrower, you set the monthly interest rate you're comfortable paying each month. For investors,  the platform automatically converts this into an
+                      <span className="font-semibold">Annual Percentage Rate (APR)</span>, so they can easily understand the potential return on their investment. </p>
+                      <p className="mt-1 text-gray-500">For Example, 1.5% per month = <strong>18% per year (APR) as shown to investors. </strong>
+                      Higher monthly interest rates may attract more investors and increase the chances of funding, but they will also increase your total repayment obligation over time. Choose a rate that balances investor attractiveness and sustainable repayment.”</p>
                     </div>
                   )}
                   <Input
-                    placeholder="e.g. 1.5"
+                    placeholder="e.g. 1% - 5%"
                     type="number"
                     min={1}
                     max={5}
@@ -429,33 +430,13 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                           })()}
                         </div>
 
-                        {/* Time + confirm — shown after end date picked */}
+                        {/* Confirm — shown after both dates picked */}
                         {selectedStartDate && selectedDate && (
                           <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                            <div className="flex items-center gap-3">
-                              <Clock className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm font-medium text-gray-700">End Time</span>
-                              <select
-                                className="ml-auto h-9 rounded-xl border border-gray-300 bg-white px-3 text-sm focus:ring-2 focus:ring-[#0C4B20] focus:outline-none"
-                                defaultValue="09:00"
-                                onChange={(e) => {
-                                  const date = new Date(timeDuration || selectedDate.toISOString());
-                                  const [h, m] = e.target.value.split(':');
-                                  date.setHours(parseInt(h), parseInt(m));
-                                  setTimeDuration(date.toISOString());
-                                }}>
-                                <option value="09:00">9:00 AM</option>
-                                <option value="12:00">12:00 PM</option>
-                                <option value="15:00">3:00 PM</option>
-                                <option value="18:00">6:00 PM</option>
-                                <option value="21:00">9:00 PM</option>
-                              </select>
-                            </div>
                             <div className="bg-green-50 rounded-xl px-4 py-2.5 text-center">
                               <p className="text-sm font-semibold text-[#0C4B20]">
                                 {format(selectedStartDate, 'MMM d')} → {format(selectedDate, 'MMM d, yyyy')} · {differenceInDays(selectedDate, selectedStartDate)} days
                               </p>
-                              <p className="text-xs text-gray-400 mt-0.5">Per SEC policy, max 90 days. Extensions subject to approval.</p>
                             </div>
                             <button className="w-full py-2.5 bg-[#0C4B20] text-white rounded-xl text-sm font-semibold hover:bg-[#0C4B20]/90 transition-colors"
                               onClick={() => setCalendarOpen(false)}>
