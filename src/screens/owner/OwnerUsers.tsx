@@ -36,14 +36,32 @@ interface User {
   memberSince: string;
   totalProjects?: number;
   isQualifiedInvestor?: boolean;
+  qualifiedInvestorStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+  annualIncome?: number | string | null;
   location?: string;
   lastActivity?: string;
+}
+
+interface QualifiedInvestorRecord {
+  firebase_uid: string;
+  full_name: string;
+  email: string;
+  annual_income?: number | string | null;
+  gross_annual_income?: number | string | null;
+  is_qualified_investor: boolean;
+  qi_request_status?: 'none' | 'pending' | 'approved' | 'rejected';
+  qi_proof_url?: string;
+  qi_request_notes?: string;
+  qi_request_submitted_at?: string;
+  qi_granted_by?: string;
+  qi_granted_at?: string;
 }
 
 const USER_TABS = [
   { key: 'all', label: 'All Users', shortLabel: 'All', icon: <Users2Icon className="w-4 h-4" /> },
   { key: 'borrower', label: 'Issuers/Borrowers', shortLabel: 'Issuers', icon: <UserIcon className="w-4 h-4" /> },
   { key: 'investor', label: 'Investors', shortLabel: 'Investors', icon: <TrendingUpIcon className="w-4 h-4" /> },
+  { key: 'qualified', label: 'Qualified Investors', shortLabel: 'Qualified', icon: <ShieldCheckIcon className="w-4 h-4" /> },
   { key: 'guarantor', label: 'Guarantors', shortLabel: 'Guarantors', icon: <ShieldCheckIcon className="w-4 h-4" /> },
 ];
 
@@ -54,6 +72,9 @@ export const OwnerUsers: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingQualified, setLoadingQualified] = useState(false);
+  const [qualifiedActionLoading, setQualifiedActionLoading] = useState<string | null>(null);
+  const [qualifiedInvestors, setQualifiedInvestors] = useState<QualifiedInvestorRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'all');
@@ -82,10 +103,21 @@ export const OwnerUsers: React.FC = () => {
       console.log('🔗 API URL:', `${API_BASE_URL}/owner/users`);
       
       const data = await authFetch(`${API_BASE_URL}/owner/users`);
+      let qualifiedData: QualifiedInvestorRecord[] = [];
+      try {
+        setLoadingQualified(true);
+        const qualifiedResponse = await authFetch(`${API_BASE_URL}/owner/qualified-investors`);
+        qualifiedData = qualifiedResponse?.qualifiedInvestors || [];
+      } catch (qualifiedError) {
+        console.warn('Qualified investors list is unavailable:', qualifiedError);
+      } finally {
+        setLoadingQualified(false);
+      }
       console.log('✅ Users fetched successfully:', data?.length || 0, 'users');
       console.log('📊 Raw user data:', data);
       
       setUsers(data || []);
+      setQualifiedInvestors(qualifiedData);
     } catch (error: any) {
       console.error('❌ Error fetching users:', error);
       setError(error.message || 'Failed to load users');
@@ -102,6 +134,11 @@ export const OwnerUsers: React.FC = () => {
 
   const filterUsers = () => {
     let filtered = [...users];
+
+    if (activeTab === 'qualified') {
+      setFilteredUsers([]);
+      return;
+    }
 
     // Filter by search query
     if (searchQuery.trim()) {
@@ -189,6 +226,48 @@ export const OwnerUsers: React.FC = () => {
     }).join(', ');
   };
 
+  const getQualifiedStatusBadge = (status?: string, approved?: boolean) => {
+    if (approved) return <Badge className="bg-green-100 text-green-800 border-0">Approved</Badge>;
+
+    const normalized = status || 'none';
+    if (normalized === 'pending') return <Badge className="bg-amber-100 text-amber-800 border-0">Pending Review</Badge>;
+    if (normalized === 'rejected') return <Badge className="bg-red-100 text-red-800 border-0">Rejected</Badge>;
+    return <Badge className="bg-gray-100 text-gray-700 border-0">Not Submitted</Badge>;
+  };
+
+  const handleQualifiedAction = async (userId: string, action: 'grant' | 'revoke') => {
+    try {
+      const notes = window.prompt(
+        action === 'grant'
+          ? 'Optional notes for granting qualified investor status:'
+          : 'Optional notes for revoking qualified investor status:'
+      ) || '';
+
+      setQualifiedActionLoading(`${userId}:${action}`);
+      await authFetch(`${API_BASE_URL}/owner/qualified-investors/${userId}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify({ notes }),
+      });
+
+      toast.success(action === 'grant' ? 'Qualified status granted' : 'Qualified status revoked');
+      await fetchUsers();
+    } catch (error: any) {
+      toast.error(error?.message || `Failed to ${action} qualified status`);
+    } finally {
+      setQualifiedActionLoading(null);
+    }
+  };
+
+  const filteredQualifiedInvestors = qualifiedInvestors.filter((row) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      (row.full_name || '').toLowerCase().includes(query) ||
+      (row.email || '').toLowerCase().includes(query) ||
+      (row.firebase_uid || '').toLowerCase().includes(query)
+    );
+  });
+
   if (loading) {
     return (
       <OwnerLayout activePage="users">
@@ -265,7 +344,7 @@ export const OwnerUsers: React.FC = () => {
                 </span>
                 {activeTab === tab.key && (
                   <Badge className="ml-1.5 md:ml-2 bg-[#0C4B20] text-white border-0 text-xs">
-                    {filteredUsers.length}
+                    {activeTab === 'qualified' ? filteredQualifiedInvestors.length : filteredUsers.length}
                   </Badge>
                 )}
               </button>
@@ -322,7 +401,97 @@ export const OwnerUsers: React.FC = () => {
         </Card>
 
         {/* Users List */}
-        {filteredUsers.length === 0 ? (
+        {activeTab === 'qualified' ? (
+          filteredQualifiedInvestors.length === 0 ? (
+            <Card className="bg-white shadow-sm border-0">
+              <CardContent className="p-12 text-center">
+                <ShieldCheckIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No qualified investor requests</h3>
+                <p className="text-gray-500">
+                  {loadingQualified ? 'Loading requests...' : 'No investors match the current filters'}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {filteredQualifiedInvestors.map((record) => {
+                const annualIncome = Number(record.annual_income || record.gross_annual_income || 0);
+                const isActionLoadingGrant = qualifiedActionLoading === `${record.firebase_uid}:grant`;
+                const isActionLoadingRevoke = qualifiedActionLoading === `${record.firebase_uid}:revoke`;
+
+                return (
+                  <Card key={record.firebase_uid} className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow">
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{record.full_name || 'Unnamed Investor'}</h3>
+                          <p className="text-sm text-gray-500">{record.email || 'No email'}</p>
+                          <p className="text-xs text-gray-400 mt-1">ID: {record.firebase_uid}</p>
+                        </div>
+                        {getQualifiedStatusBadge(record.qi_request_status, record.is_qualified_investor)}
+                      </div>
+
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>
+                          <span className="font-medium">Annual Income:</span>{' '}
+                          {annualIncome > 0 ? `₱${annualIncome.toLocaleString()}` : 'Not provided'}
+                        </p>
+                        <p>
+                          <span className="font-medium">Proof:</span>{' '}
+                          {record.qi_proof_url ? (
+                            <a href={record.qi_proof_url} target="_blank" rel="noreferrer" className="text-[#0C4B20] underline">
+                              View Document
+                            </a>
+                          ) : (
+                            'Not submitted'
+                          )}
+                        </p>
+                        {record.qi_request_submitted_at && (
+                          <p>
+                            <span className="font-medium">Submitted:</span>{' '}
+                            {new Date(record.qi_request_submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </p>
+                        )}
+                        {record.qi_request_notes && (
+                          <p className="text-xs text-gray-500 italic">“{record.qi_request_notes}”</p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          className="bg-[#0C4B20] text-white hover:bg-[#8FB200]"
+                          onClick={() => handleQualifiedAction(record.firebase_uid, 'grant')}
+                          disabled={isActionLoadingGrant || isActionLoadingRevoke}
+                        >
+                          {isActionLoadingGrant ? 'Granting...' : 'Grant Qualified Access'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-300 text-red-700 hover:bg-red-50"
+                          onClick={() => handleQualifiedAction(record.firebase_uid, 'revoke')}
+                          disabled={isActionLoadingGrant || isActionLoadingRevoke}
+                        >
+                          {isActionLoadingRevoke ? 'Revoking...' : 'Revoke Access'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/owner/users/${record.firebase_uid}`)}
+                          className="text-[#0C4B20] border-[#0C4B20] hover:bg-[#0C4B20] hover:text-white"
+                        >
+                          <EyeIcon className="w-3 h-3 mr-1" />
+                          View Details
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )
+        ) : filteredUsers.length === 0 ? (
           <Card className="bg-white shadow-sm border-0">
             <CardContent className="p-12 text-center">
               <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -411,11 +580,13 @@ export const OwnerUsers: React.FC = () => {
         )}
 
         {/* Pagination would go here */}
-        {filteredUsers.length > 0 && (
+        {(activeTab === 'qualified' ? filteredQualifiedInvestors.length > 0 : filteredUsers.length > 0) && (
           <div className="flex justify-center">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">
-                Showing {filteredUsers.length} of {users.length} users
+                {activeTab === 'qualified'
+                  ? `Showing ${filteredQualifiedInvestors.length} qualified investor records`
+                  : `Showing ${filteredUsers.length} of ${users.length} users`}
               </span>
             </div>
           </div>

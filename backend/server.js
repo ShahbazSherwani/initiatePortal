@@ -2292,10 +2292,10 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "You cannot invest in your own project" });
     }
     
-    // Get investor profile to check annual income and existing investments
-    // For now, use default values since annual_income column may not exist
-    let investorIncome = 1000000; // Default 1M PHP for testing
-    let verificationStatus = 'verified'; // Default verified for testing
+    // Get investor profile to check annual income and qualification status
+    let investorIncome = 1000000;
+    let verificationStatus = 'verified';
+    let isQualifiedInvestor = false;
     
     try {
       const investorResult = await db.query(
@@ -2305,41 +2305,52 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
       
       if (investorResult.rows.length > 0) {
         const profile = investorResult.rows[0];
-        // Check if annual_income column exists
-        if ('annual_income' in profile) {
-          investorIncome = profile.annual_income || 1000000;
+        const rawIncome = profile.annual_income ?? profile.gross_annual_income;
+        if (rawIncome !== undefined && rawIncome !== null) {
+          const parsedIncome = Number(String(rawIncome).replace(/[^0-9.]/g, ''));
+          investorIncome = Number.isFinite(parsedIncome) ? parsedIncome : 1000000;
         }
         if ('verification_status' in profile) {
           verificationStatus = profile.verification_status || 'verified';
         }
+        isQualifiedInvestor = profile.is_qualified_investor === true || profile.qualified_investor === true;
         console.log(`📊 Investor profile found:`, profile);
       }
     } catch (dbError) {
       console.log(`⚠️ Using default investor values due to DB error:`, dbError.message);
     }
     
-    // Calculate investment limits based on annual income
+    // SEC Crowdfunding limits
+    // Qualified investor: no cap (admin-approved only)
+    // Retail investor with annual income > 2M: 10%
+    // Retail investor with annual income <= 2M: 5%
     let maxInvestmentPercentage = 0;
     let maxInvestmentAmount = 0;
+    let investorTier = 'retail';
+    let retailLimitPercentage = 5;
     
-    if (investorIncome >= 2000000) { // 2M PHP or above
-      maxInvestmentPercentage = 10;
-    } else { // Below 2M PHP
-      maxInvestmentPercentage = 5;
+    if (isQualifiedInvestor) {
+      investorTier = 'qualified';
+      maxInvestmentPercentage = null;
+      maxInvestmentAmount = Infinity;
+    } else {
+      retailLimitPercentage = investorIncome > 2000000 ? 10 : 5;
+      maxInvestmentPercentage = retailLimitPercentage;
+      maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
     }
-    
-    maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
     
     console.log(`📊 Investment limits for user ${uid}: Income: ₱${investorIncome.toLocaleString()}, Max %: ${maxInvestmentPercentage}%, Max Amount: ₱${maxInvestmentAmount.toLocaleString()}`);
     
     // Check if requested amount exceeds limit
-    if (parseFloat(amount) > maxInvestmentAmount) {
+    if (!isQualifiedInvestor && parseFloat(amount) > maxInvestmentAmount) {
       console.log(`❌ Investment amount ₱${parseFloat(amount).toLocaleString()} exceeds limit of ₱${maxInvestmentAmount.toLocaleString()}`);
       return res.status(400).json({ 
         error: `Investment amount exceeds your limit of ₱${maxInvestmentAmount.toLocaleString()} (${maxInvestmentPercentage}% of annual income of ₱${investorIncome.toLocaleString()})`,
         maxAmount: maxInvestmentAmount,
         userIncome: investorIncome,
-        limitPercentage: maxInvestmentPercentage
+        limitPercentage: maxInvestmentPercentage,
+        investorTier,
+        retailLimitPercentage
       });
     }
     
@@ -3524,8 +3535,10 @@ app.get('/api/user/investment-eligibility', verifyToken, async (req, res) => {
   
   try {
     // Get investor profile with error handling for missing columns
-    let investorIncome = 1000000; // Default 1M PHP
-    let verificationStatus = 'verified'; // Default verified
+    let investorIncome = 1000000;
+    let verificationStatus = 'verified';
+    let isQualifiedInvestor = false;
+    let qiRequestStatus = 'none';
     
     try {
       const investorResult = await db.query(
@@ -3535,28 +3548,34 @@ app.get('/api/user/investment-eligibility', verifyToken, async (req, res) => {
       
       if (investorResult.rows.length > 0) {
         const profile = investorResult.rows[0];
-        if ('annual_income' in profile) {
-          investorIncome = profile.annual_income || 1000000;
+        const rawIncome = profile.annual_income ?? profile.gross_annual_income;
+        if (rawIncome !== undefined && rawIncome !== null) {
+          const parsedIncome = Number(String(rawIncome).replace(/[^0-9.]/g, ''));
+          investorIncome = Number.isFinite(parsedIncome) ? parsedIncome : 1000000;
         }
         if ('verification_status' in profile) {
           verificationStatus = profile.verification_status || 'verified';
         }
+        isQualifiedInvestor = profile.is_qualified_investor === true || profile.qualified_investor === true;
+        qiRequestStatus = profile.qi_request_status || 'none';
       }
     } catch (dbError) {
       console.log(`⚠️ Using default investor values:`, dbError.message);
     }
     
-    // Calculate investment limits
+    // SEC calculation: qualified investors have no cap; retail gets 5%/10%
     let maxInvestmentPercentage = 0;
     let maxInvestmentAmount = 0;
+    const investorTier = isQualifiedInvestor ? 'qualified' : 'retail';
+    const retailLimitPercentage = investorIncome > 2000000 ? 10 : 5;
     
-    if (investorIncome >= 2000000) { // 2M PHP or above
-      maxInvestmentPercentage = 10;
-    } else { // Below 2M PHP
-      maxInvestmentPercentage = 5;
+    if (isQualifiedInvestor) {
+      maxInvestmentPercentage = null;
+      maxInvestmentAmount = Infinity;
+    } else {
+      maxInvestmentPercentage = retailLimitPercentage;
+      maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
     }
-    
-    maxInvestmentAmount = (investorIncome * maxInvestmentPercentage) / 100;
     
     // Get user's current total investments
     const projectsResult = await db.query(`
@@ -3585,25 +3604,222 @@ app.get('/api/user/investment-eligibility', verifyToken, async (req, res) => {
       });
     });
     
-    const remainingCapacity = maxInvestmentAmount - totalInvestments;
+    const remainingCapacity = isQualifiedInvestor ? Infinity : (maxInvestmentAmount - totalInvestments);
     
     res.json({
       annualIncome: investorIncome,
       verificationStatus,
       maxInvestmentPercentage,
-      maxInvestmentAmount,
+      maxInvestmentAmount: isQualifiedInvestor ? null : maxInvestmentAmount,
       totalInvestments,
-      remainingCapacity: Math.max(0, remainingCapacity),
+      remainingCapacity: isQualifiedInvestor ? null : Math.max(0, remainingCapacity),
       activeInvestments,
       isEligible: verificationStatus === 'verified' && investorIncome > 0,
+      investorTier,
+      isQualifiedInvestor,
+      retailLimitPercentage: isQualifiedInvestor ? null : retailLimitPercentage,
+      qiRequestStatus,
       investmentTiers: {
-        retail: { minIncome: 0, maxIncome: 1999999, maxPercentage: 5 },
-        individual: { minIncome: 2000000, maxIncome: Infinity, maxPercentage: 10 }
+        retail: { minIncome: 0, maxIncome: 2000000, maxPercentage: 5, label: 'Retail Investor (≤ ₱2M)' },
+        retailPlus: { minIncome: 2000000.01, maxIncome: Infinity, maxPercentage: 10, label: 'Retail Investor (> ₱2M)' },
+        qualified: { minIncome: null, maxIncome: null, maxPercentage: null, label: 'Qualified Investor (No Cap, Admin Approved)' }
       }
     });
   } catch (err) {
     console.error("Error fetching investment eligibility:", err);
     res.status(500).json({ error: "Database error" });
+  }
+});
+
+const ensureQualifiedInvestorColumns = async () => {
+  try {
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS is_qualified_investor BOOLEAN DEFAULT FALSE`);
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS qi_request_status VARCHAR(20) DEFAULT 'none'`);
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS qi_proof_url TEXT`);
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS qi_request_notes TEXT`);
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS qi_request_submitted_at TIMESTAMP`);
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS qi_granted_by TEXT`);
+    await db.query(`ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS qi_granted_at TIMESTAMP`);
+  } catch (e) {
+    console.error('Error ensuring qualified investor columns:', e.message);
+  }
+};
+ensureQualifiedInvestorColumns();
+
+app.get('/api/user/qualified-investor/status', verifyToken, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT annual_income, gross_annual_income,
+              COALESCE(is_qualified_investor, qualified_investor, FALSE) AS is_qualified_investor,
+              qi_request_status, qi_proof_url, qi_request_notes,
+              qi_request_submitted_at, qi_granted_by, qi_granted_at
+       FROM investor_profiles
+       WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+
+    if (!result.rows.length) {
+      return res.json({
+        isQualifiedInvestor: false,
+        requestStatus: 'none',
+        proofUrl: '',
+        requestNotes: '',
+        annualIncome: null,
+        submittedAt: null,
+        grantedAt: null,
+        grantedBy: null
+      });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      isQualifiedInvestor: row.is_qualified_investor === true,
+      requestStatus: row.qi_request_status || 'none',
+      proofUrl: row.qi_proof_url || '',
+      requestNotes: row.qi_request_notes || '',
+      annualIncome: row.annual_income || row.gross_annual_income || null,
+      submittedAt: row.qi_request_submitted_at || null,
+      grantedAt: row.qi_granted_at || null,
+      grantedBy: row.qi_granted_by || null
+    });
+  } catch (err) {
+    console.error('Error fetching qualified investor status:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.post('/api/user/qualified-investor/request', verifyToken, async (req, res) => {
+  const { proofUrl, notes } = req.body || {};
+  if (!proofUrl || String(proofUrl).trim() === '') {
+    return res.status(400).json({ error: 'proofUrl is required' });
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO investor_profiles (firebase_uid, qi_proof_url, qi_request_notes, qi_request_status, qi_request_submitted_at, updated_at)
+       VALUES ($1, $2, $3, 'pending', NOW(), NOW())
+       ON CONFLICT (firebase_uid)
+       DO UPDATE SET qi_proof_url = EXCLUDED.qi_proof_url,
+                     qi_request_notes = EXCLUDED.qi_request_notes,
+                     qi_request_status = 'pending',
+                     qi_request_submitted_at = NOW(),
+                     updated_at = NOW()`,
+      [req.uid, String(proofUrl).trim(), notes || null]
+    );
+
+    res.json({ success: true, requestStatus: 'pending' });
+  } catch (err) {
+    console.error('Error submitting qualified investor request:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/api/owner/qualified-investors', verifyToken, async (req, res) => {
+  try {
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [req.uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    const result = await db.query(`
+      SELECT u.firebase_uid, u.full_name, u.email,
+             ip.annual_income, ip.gross_annual_income,
+             COALESCE(ip.is_qualified_investor, ip.qualified_investor, FALSE) AS is_qualified_investor,
+             ip.qi_request_status, ip.qi_proof_url,
+             ip.qi_request_notes, ip.qi_request_submitted_at, ip.qi_granted_by, ip.qi_granted_at
+      FROM users u
+      JOIN investor_profiles ip ON ip.firebase_uid = u.firebase_uid
+      WHERE u.has_investor_account = true
+      ORDER BY
+        CASE ip.qi_request_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END,
+        ip.qi_request_submitted_at DESC NULLS LAST,
+        u.created_at DESC
+    `);
+
+    res.json({ qualifiedInvestors: result.rows });
+  } catch (err) {
+    console.error('Error fetching qualified investors list:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.post('/api/owner/qualified-investors/:userId/grant', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  const { notes } = req.body || {};
+
+  try {
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [req.uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    const result = await db.query(
+      `UPDATE investor_profiles
+       SET is_qualified_investor = TRUE,
+           qualified_investor = TRUE,
+           qi_request_status = 'approved',
+           qi_request_notes = COALESCE($2, qi_request_notes),
+           qi_granted_by = $3,
+           qi_granted_at = NOW(),
+           updated_at = NOW()
+       WHERE firebase_uid = $1
+       RETURNING firebase_uid, is_qualified_investor, qi_request_status, qi_granted_at`,
+      [userId, notes || null, req.uid]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Investor profile not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Error granting qualified investor:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.post('/api/owner/qualified-investors/:userId/revoke', verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  const { notes } = req.body || {};
+
+  try {
+    const adminCheck = await db.query(
+      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      [req.uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Access denied - Admin privileges required' });
+    }
+
+    const result = await db.query(
+      `UPDATE investor_profiles
+       SET is_qualified_investor = FALSE,
+           qualified_investor = FALSE,
+           qi_request_status = 'rejected',
+           qi_request_notes = COALESCE($2, qi_request_notes),
+           updated_at = NOW()
+       WHERE firebase_uid = $1
+       RETURNING firebase_uid, is_qualified_investor, qi_request_status`,
+      [userId, notes || null]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Investor profile not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Error revoking qualified investor:', err);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 

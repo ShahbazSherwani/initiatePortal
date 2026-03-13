@@ -1,16 +1,13 @@
 // src/screens/InvestorProjectView.tsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useProjects } from "../contexts/ProjectsContext";
 import { AuthContext } from "../contexts/AuthContext";
-import { useNotifications } from "../contexts/NotificationContext";
-import { Navbar } from "../components/Navigation/navbar";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { toast } from "react-hot-toast";
 import { API_BASE_URL } from '../config/environment';
-import { investInProject, authFetch } from '../lib/api';
+import { authFetch } from '../lib/api';
 import { createPaymentCheckout } from '../lib/paymongo';
 import { InvestorEducationModal } from '../components/InvestorEducationModal';
 // import { TopUpModal } from '../components/TopUpModal'; // Disabled for PayMongo integration
@@ -26,7 +23,6 @@ interface InsufficientFundsError {
 export const InvestorProjectView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { profile } = React.useContext(AuthContext)!;
-  const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
   
   console.log("🎯 InvestorProjectView loaded with projectId:", projectId);
@@ -453,16 +449,12 @@ export const InvestorProjectView: React.FC = () => {
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
                           eligibility.investorTier === 'qualified'
                             ? 'bg-purple-50 text-purple-700 border-purple-200'
-                            : eligibility.investorTier === 'standard'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-gray-50 text-gray-600 border-gray-200'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
                         }`}>
                           {eligibility.investorTier === 'qualified' && '★ '}
                           {eligibility.investorTier === 'qualified'
                             ? 'Qualified Investor — No Cap'
-                            : eligibility.investorTier === 'standard'
-                            ? 'Standard Investor — 10% limit'
-                            : 'Retail Investor — 5% limit'}
+                            : `Retail Investor — ${eligibility.retailLimitPercentage || 5}% limit`}
                         </span>
                         {eligibility.investorTier !== 'qualified' && (
                           <span className="text-xs text-gray-500">

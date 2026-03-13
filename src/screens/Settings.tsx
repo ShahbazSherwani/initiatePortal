@@ -183,11 +183,27 @@ export const Settings = (): JSX.Element => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingPicture, setIsUploadingPicture] = useState(false);
+  const [qiStatus, setQiStatus] = useState({
+    isQualifiedInvestor: false,
+    requestStatus: 'none',
+    proofUrl: '',
+    requestNotes: '',
+    annualIncome: '',
+    submittedAt: null as string | null,
+    grantedAt: null as string | null,
+    grantedBy: null as string | null,
+  });
+  const [qiForm, setQiForm] = useState({
+    proofUrl: '',
+    notes: '',
+  });
+  const [qiSubmitting, setQiSubmitting] = useState(false);
 
   // Load user data on component mount
   useEffect(() => {
     if (user) {
       loadUserData();
+      fetchQualifiedInvestorStatus();
     }
   }, [user]);
 
@@ -382,6 +398,54 @@ export const Settings = (): JSX.Element => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchQualifiedInvestorStatus = async () => {
+    try {
+      const result = await authFetch(`${API_BASE_URL}/user/qualified-investor/status`);
+      setQiStatus({
+        isQualifiedInvestor: result?.isQualifiedInvestor === true,
+        requestStatus: result?.requestStatus || 'none',
+        proofUrl: result?.proofUrl || '',
+        requestNotes: result?.requestNotes || '',
+        annualIncome: result?.annualIncome || '',
+        submittedAt: result?.submittedAt || null,
+        grantedAt: result?.grantedAt || null,
+        grantedBy: result?.grantedBy || null,
+      });
+      setQiForm({
+        proofUrl: result?.proofUrl || '',
+        notes: result?.requestNotes || '',
+      });
+    } catch (error) {
+      console.error('Failed to load qualified investor status:', error);
+    }
+  };
+
+  const handleQualifiedInvestorRequest = async () => {
+    if (!qiForm.proofUrl || qiForm.proofUrl.trim() === '') {
+      alert('Please provide a proof document URL before submitting.');
+      return;
+    }
+
+    try {
+      setQiSubmitting(true);
+      await authFetch(`${API_BASE_URL}/user/qualified-investor/request`, {
+        method: 'POST',
+        body: JSON.stringify({
+          proofUrl: qiForm.proofUrl.trim(),
+          notes: qiForm.notes?.trim() || '',
+        }),
+      });
+
+      alert('Qualified investor request submitted successfully.');
+      await fetchQualifiedInvestorStatus();
+    } catch (error: any) {
+      console.error('Qualified investor request failed:', error);
+      alert(error?.message || 'Failed to submit qualified investor request.');
+    } finally {
+      setQiSubmitting(false);
     }
   };
 
@@ -1708,6 +1772,71 @@ export const Settings = (): JSX.Element => {
                     <p className="text-sm text-green-700">
                       <strong>Note:</strong> The provided bank account details will only be utilized once the campaign has been successfully and fully funded.
                     </p>
+                  </div>
+
+                  <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-amber-900">Qualified Investor Verification</h3>
+                      <p className="text-xs text-amber-800 mt-1">
+                        Qualified investors are exempt from retail percentage caps after admin approval of submitted proof.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-amber-900">
+                      <div>
+                        <span className="font-medium">Current Status:</span>{' '}
+                        {qiStatus.isQualifiedInvestor ? 'Approved' : (qiStatus.requestStatus || 'none')}
+                      </div>
+                      <div>
+                        <span className="font-medium">Annual Income:</span>{' '}
+                        {qiStatus.annualIncome ? `₱${Number(qiStatus.annualIncome).toLocaleString()}` : 'Not provided'}
+                      </div>
+                      {qiStatus.submittedAt && (
+                        <div>
+                          <span className="font-medium">Submitted:</span>{' '}
+                          {new Date(qiStatus.submittedAt).toLocaleDateString()}
+                        </div>
+                      )}
+                      {qiStatus.grantedAt && (
+                        <div>
+                          <span className="font-medium">Approved:</span>{' '}
+                          {new Date(qiStatus.grantedAt).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="qiProofUrl">Proof Document URL</Label>
+                      <Input
+                        id="qiProofUrl"
+                        value={qiForm.proofUrl}
+                        onChange={(e) => setQiForm(prev => ({ ...prev, proofUrl: e.target.value }))}
+                        placeholder="Paste URL to audited FS / CPA certificate / license document"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="qiNotes">Submission Notes (optional)</Label>
+                      <textarea
+                        id="qiNotes"
+                        value={qiForm.notes}
+                        onChange={(e) => setQiForm(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={3}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
+                        placeholder="Add details about your qualification proof"
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        onClick={handleQualifiedInvestorRequest}
+                        disabled={qiSubmitting}
+                        className="bg-[#0C4B20] hover:bg-[#8FB200] text-white"
+                      >
+                        {qiSubmitting ? 'Submitting...' : 'Submit for Qualified Investor Review'}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
