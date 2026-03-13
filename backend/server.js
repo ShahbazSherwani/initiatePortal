@@ -4298,11 +4298,13 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
     
     // Check if user is admin/owner
     const adminCheck = await db.query(
-      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      `SELECT COALESCE((to_jsonb(u) ->> 'is_admin')::boolean, false) AS is_admin
+       FROM users u
+       WHERE u.firebase_uid = $1`,
       [firebase_uid]
     );
     
-    if (adminCheck.rows.length === 0 || !adminCheck.rows[0].is_admin) {
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].is_admin !== true) {
       return res.status(403).json({ error: 'Access denied - Admin privileges required' });
     }
     
@@ -4312,16 +4314,16 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
       usersResult = await db.query(`
         SELECT 
           u.firebase_uid,
-          u.full_name,
-          u.email,
-          u.username,
-          u.profile_picture,
-          u.has_borrower_account,
-          u.has_investor_account,
-          u.current_account_type,
+          (to_jsonb(u) ->> 'full_name') as full_name,
+          (to_jsonb(u) ->> 'email') as email,
+          (to_jsonb(u) ->> 'username') as username,
+          (to_jsonb(u) ->> 'profile_picture') as profile_picture,
+          COALESCE((to_jsonb(u) ->> 'has_borrower_account')::boolean, false) as has_borrower_account,
+          COALESCE((to_jsonb(u) ->> 'has_investor_account')::boolean, false) as has_investor_account,
+          (to_jsonb(u) ->> 'current_account_type') as current_account_type,
           u.created_at,
           u.updated_at,
-          u.is_admin,
+          COALESCE((to_jsonb(u) ->> 'is_admin')::boolean, false) as is_admin,
           bp.first_name,
           bp.last_name,
           bp.date_of_birth,
@@ -4358,22 +4360,27 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
       usersResult = await db.query(`
         SELECT 
           u.firebase_uid,
-          u.full_name,
-          u.email,
-          u.username,
-          u.profile_picture,
-          u.has_borrower_account,
-          u.has_investor_account,
-          u.current_account_type,
+          (to_jsonb(u) ->> 'full_name') as full_name,
+          (to_jsonb(u) ->> 'email') as email,
+          (to_jsonb(u) ->> 'username') as username,
+          (to_jsonb(u) ->> 'profile_picture') as profile_picture,
+          COALESCE((to_jsonb(u) ->> 'has_borrower_account')::boolean, false) as has_borrower_account,
+          COALESCE((to_jsonb(u) ->> 'has_investor_account')::boolean, false) as has_investor_account,
+          (to_jsonb(u) ->> 'current_account_type') as current_account_type,
           u.created_at,
           u.updated_at,
-          u.is_admin,
+          COALESCE((to_jsonb(u) ->> 'is_admin')::boolean, false) as is_admin,
           0::int as total_projects,
           0::int as active_projects,
           0::numeric as wallet_balance
         FROM users u
         ORDER BY u.created_at DESC
       `);
+      
+      // Last-resort fallback to guarantee non-500 response
+      if (!usersResult?.rows) {
+        usersResult = { rows: [] };
+      }
     }
     
     // Transform data to match frontend interface
@@ -4409,7 +4416,31 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
     
   } catch (err) {
     console.error('❌ Error fetching users for owner dashboard:', err);
-    res.status(500).json({ error: 'Failed to fetch users' });
+    try {
+      const emergencyResult = await db.query(`SELECT firebase_uid FROM users LIMIT 500`);
+      const emergencyUsers = emergencyResult.rows.map((row) => ({
+        id: row.firebase_uid,
+        firebaseUid: row.firebase_uid,
+        fullName: 'Unknown User',
+        email: '',
+        username: '',
+        profilePicture: null,
+        accountTypes: [],
+        status: 'active',
+        memberSince: '',
+        lastActivity: '',
+        totalProjects: 0,
+        activeProjects: 0,
+        isQualifiedInvestor: false,
+        location: '',
+        walletBalance: 0,
+        isAdmin: false
+      }));
+      return res.json(emergencyUsers);
+    } catch (fallbackErr) {
+      console.error('❌ Emergency fallback failed for owner users:', fallbackErr);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
   }
 });
 

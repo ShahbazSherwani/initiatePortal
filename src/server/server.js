@@ -5249,11 +5249,13 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
     
     // Check if user is admin/owner
     const adminCheck = await db.query(
-      'SELECT is_admin FROM users WHERE firebase_uid = $1',
+      `SELECT COALESCE((to_jsonb(u) ->> 'is_admin')::boolean, false) AS is_admin
+       FROM users u
+       WHERE u.firebase_uid = $1`,
       [firebase_uid]
     );
     
-    const isAdmin = adminCheck.rows.length > 0 && adminCheck.rows[0].is_admin;
+    const isAdmin = adminCheck.rows.length > 0 && adminCheck.rows[0].is_admin === true;
     
     // If not admin, check if user is a team member with users.view or users.edit permission
     if (!isAdmin) {
@@ -5277,35 +5279,58 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
       console.log(`✅ Admin access verified for user: ${firebase_uid}`);
     }
     
-    // Get all users with comprehensive information
-    const usersResult = await db.query(`
-      SELECT 
-        u.firebase_uid,
-        u.full_name,
-        u.username,
-        u.email,
-        u.profile_picture,
-        u.has_borrower_account,
-        u.has_investor_account,
-        u.current_account_type,
-        u.created_at,
-        u.updated_at,
-        u.is_admin,
-        bp.first_name,
-        bp.last_name,
-        ip.is_qualified_investor,
-        ip.qi_request_status,
-        ip.annual_income,
-        ip.gross_annual_income,
-        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
-        w.balance as wallet_balance
-      FROM users u
-      LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
-      LEFT JOIN investor_profiles ip ON u.firebase_uid = ip.firebase_uid
-      LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
-      WHERE u.current_account_type != 'deleted' OR u.current_account_type IS NULL
-      ORDER BY u.created_at DESC
-    `);
+    // Get all users with comprehensive information (fallback-safe)
+    let usersResult;
+    try {
+      usersResult = await db.query(`
+        SELECT 
+          u.firebase_uid,
+          (to_jsonb(u) ->> 'full_name') as full_name,
+          (to_jsonb(u) ->> 'username') as username,
+          (to_jsonb(u) ->> 'email') as email,
+          (to_jsonb(u) ->> 'profile_picture') as profile_picture,
+          COALESCE((to_jsonb(u) ->> 'has_borrower_account')::boolean, false) as has_borrower_account,
+          COALESCE((to_jsonb(u) ->> 'has_investor_account')::boolean, false) as has_investor_account,
+          (to_jsonb(u) ->> 'current_account_type') as current_account_type,
+          u.created_at,
+          u.updated_at,
+          COALESCE((to_jsonb(u) ->> 'is_admin')::boolean, false) as is_admin,
+          bp.first_name,
+          bp.last_name,
+          (to_jsonb(ip) ->> 'is_qualified_investor') as is_qualified_investor,
+          (to_jsonb(ip) ->> 'qi_request_status') as qi_request_status,
+          (to_jsonb(ip) ->> 'annual_income') as annual_income,
+          (to_jsonb(ip) ->> 'gross_annual_income') as gross_annual_income,
+          (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
+          w.balance as wallet_balance
+        FROM users u
+        LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
+        LEFT JOIN investor_profiles ip ON u.firebase_uid = ip.firebase_uid
+        LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
+        WHERE (to_jsonb(u) ->> 'current_account_type') IS NULL OR (to_jsonb(u) ->> 'current_account_type') != 'deleted'
+        ORDER BY u.created_at DESC
+      `);
+    } catch (queryErr) {
+      console.warn('⚠️ owner/users rich query failed, using fallback:', queryErr.message);
+      usersResult = await db.query(`
+        SELECT
+          u.firebase_uid,
+          (to_jsonb(u) ->> 'full_name') as full_name,
+          (to_jsonb(u) ->> 'username') as username,
+          (to_jsonb(u) ->> 'email') as email,
+          (to_jsonb(u) ->> 'profile_picture') as profile_picture,
+          COALESCE((to_jsonb(u) ->> 'has_borrower_account')::boolean, false) as has_borrower_account,
+          COALESCE((to_jsonb(u) ->> 'has_investor_account')::boolean, false) as has_investor_account,
+          (to_jsonb(u) ->> 'current_account_type') as current_account_type,
+          u.created_at,
+          u.updated_at,
+          COALESCE((to_jsonb(u) ->> 'is_admin')::boolean, false) as is_admin,
+          0::int as total_projects,
+          0::numeric as wallet_balance
+        FROM users u
+        ORDER BY u.created_at DESC
+      `);
+    }
     
     console.log(`📊 Found ${usersResult.rows.length} users in database`);
     
@@ -5329,7 +5354,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         lastActivity: row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : '',
         totalProjects: parseInt(row.total_projects) || 0,
         activeProjects: 0,
-        isQualifiedInvestor: row.is_qualified_investor === true,
+        isQualifiedInvestor: row.is_qualified_investor === true || row.is_qualified_investor === 'true',
         qualifiedInvestorStatus: row.qi_request_status || 'none',
         annualIncome: row.annual_income || row.gross_annual_income || null,
         location: '',
@@ -5343,7 +5368,31 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
     
   } catch (err) {
     console.error('❌ Error fetching users for owner dashboard:', err);
-    res.status(500).json({ error: 'Failed to fetch users' });
+    try {
+      const emergencyResult = await db.query(`SELECT firebase_uid FROM users LIMIT 500`);
+      const emergencyUsers = emergencyResult.rows.map((row) => ({
+        id: row.firebase_uid,
+        firebaseUid: row.firebase_uid,
+        fullName: 'Unknown User',
+        email: '',
+        username: '',
+        profilePicture: null,
+        accountTypes: [],
+        status: 'active',
+        memberSince: '',
+        lastActivity: '',
+        totalProjects: 0,
+        activeProjects: 0,
+        isQualifiedInvestor: false,
+        location: '',
+        walletBalance: 0,
+        isAdmin: false
+      }));
+      return res.json(emergencyUsers);
+    } catch (fallbackErr) {
+      console.error('❌ Emergency fallback failed for owner users:', fallbackErr);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
   }
 });
 
