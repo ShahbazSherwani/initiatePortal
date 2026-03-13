@@ -4306,51 +4306,75 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Access denied - Admin privileges required' });
     }
     
-    // Get all users with comprehensive information
-    const usersResult = await db.query(`
-      SELECT 
-        u.firebase_uid,
-        u.full_name,
-        u.email,
-        u.username,
-        u.profile_picture,
-        u.has_borrower_account,
-        u.has_investor_account,
-        u.current_account_type,
-        u.created_at,
-        u.updated_at,
-        u.is_admin,
-        bp.first_name,
-        bp.last_name,
-        bp.date_of_birth,
-        bp.nationality,
-        bp.phone_number,
-        bp.present_address,
-        bp.permanent_address,
-        bp.city,
-        bp.state,
-        bp.postal_code,
-        bp.country,
-        bp.occupation,
-        bp.business_type,
-        bp.company_name,
-        bp.industry_type,
-        (to_jsonb(ip) ->> 'qualified_investor') as qualified_investor,
-        (to_jsonb(ip) ->> 'is_qualified_investor') as is_qualified_investor,
-        (to_jsonb(ip) ->> 'qi_request_status') as qi_request_status,
-        (to_jsonb(ip) ->> 'annual_income') as annual_income,
-        (to_jsonb(ip) ->> 'gross_annual_income') as gross_annual_income,
-        (to_jsonb(ip) ->> 'investor_type') as investor_type,
-        (to_jsonb(ip) ->> 'risk_tolerance') as risk_tolerance,
-        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
-        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid AND COALESCE(project_data->>'status', '') = 'active') as active_projects,
-        w.balance as wallet_balance
-      FROM users u
-      LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
-      LEFT JOIN investor_profiles ip ON u.firebase_uid = ip.firebase_uid
-      LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
-      ORDER BY u.created_at DESC
-    `);
+    // Get users (robust against schema drift: fallback to minimal users-only query)
+    let usersResult;
+    try {
+      usersResult = await db.query(`
+        SELECT 
+          u.firebase_uid,
+          u.full_name,
+          u.email,
+          u.username,
+          u.profile_picture,
+          u.has_borrower_account,
+          u.has_investor_account,
+          u.current_account_type,
+          u.created_at,
+          u.updated_at,
+          u.is_admin,
+          bp.first_name,
+          bp.last_name,
+          bp.date_of_birth,
+          bp.nationality,
+          bp.phone_number,
+          bp.present_address,
+          bp.permanent_address,
+          bp.city,
+          bp.state,
+          bp.postal_code,
+          bp.country,
+          bp.occupation,
+          bp.business_type,
+          bp.company_name,
+          bp.industry_type,
+          (to_jsonb(ip) ->> 'qualified_investor') as qualified_investor,
+          (to_jsonb(ip) ->> 'is_qualified_investor') as is_qualified_investor,
+          (to_jsonb(ip) ->> 'qi_request_status') as qi_request_status,
+          (to_jsonb(ip) ->> 'annual_income') as annual_income,
+          (to_jsonb(ip) ->> 'gross_annual_income') as gross_annual_income,
+          (to_jsonb(ip) ->> 'investor_type') as investor_type,
+          (to_jsonb(ip) ->> 'risk_tolerance') as risk_tolerance,
+          (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
+          (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid AND COALESCE(project_data->>'status', '') = 'active') as active_projects,
+          w.balance as wallet_balance
+        FROM users u
+        LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
+        LEFT JOIN investor_profiles ip ON u.firebase_uid = ip.firebase_uid
+        LEFT JOIN wallets w ON u.firebase_uid = w.firebase_uid
+        ORDER BY u.created_at DESC
+      `);
+    } catch (queryErr) {
+      console.warn('⚠️ owner/users rich query failed, using fallback:', queryErr.message);
+      usersResult = await db.query(`
+        SELECT 
+          u.firebase_uid,
+          u.full_name,
+          u.email,
+          u.username,
+          u.profile_picture,
+          u.has_borrower_account,
+          u.has_investor_account,
+          u.current_account_type,
+          u.created_at,
+          u.updated_at,
+          u.is_admin,
+          0::int as total_projects,
+          0::int as active_projects,
+          0::numeric as wallet_balance
+        FROM users u
+        ORDER BY u.created_at DESC
+      `);
+    }
     
     // Transform data to match frontend interface
     const users = usersResult.rows.map(row => {
