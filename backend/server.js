@@ -4335,11 +4335,15 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         bp.business_type,
         bp.company_name,
         bp.industry_type,
-        ip.qualified_investor,
-        ip.investor_type,
-        ip.risk_tolerance,
+        (to_jsonb(ip) ->> 'qualified_investor') as qualified_investor,
+        (to_jsonb(ip) ->> 'is_qualified_investor') as is_qualified_investor,
+        (to_jsonb(ip) ->> 'qi_request_status') as qi_request_status,
+        (to_jsonb(ip) ->> 'annual_income') as annual_income,
+        (to_jsonb(ip) ->> 'gross_annual_income') as gross_annual_income,
+        (to_jsonb(ip) ->> 'investor_type') as investor_type,
+        (to_jsonb(ip) ->> 'risk_tolerance') as risk_tolerance,
         (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid) as total_projects,
-        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid AND status = 'active') as active_projects,
+        (SELECT COUNT(*) FROM projects WHERE firebase_uid = u.firebase_uid AND COALESCE(project_data->>'status', '') = 'active') as active_projects,
         w.balance as wallet_balance
       FROM users u
       LEFT JOIN borrower_profiles bp ON u.firebase_uid = bp.firebase_uid
@@ -4367,7 +4371,9 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
         lastActivity: row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : '',
         totalProjects: parseInt(row.total_projects) || 0,
         activeProjects: parseInt(row.active_projects) || 0,
-        isQualifiedInvestor: row.qualified_investor || false,
+        isQualifiedInvestor: row.is_qualified_investor === 'true' || row.qualified_investor === 'true',
+        qualifiedInvestorStatus: row.qi_request_status || 'none',
+        annualIncome: row.annual_income || row.gross_annual_income || null,
         location: row.city && row.state ? `${row.city}, ${row.state}` : (row.country || ''),
         walletBalance: parseFloat(row.wallet_balance) || 0,
         isAdmin: row.is_admin || false
