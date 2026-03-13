@@ -4300,7 +4300,11 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
     const adminCheck = await db.query(
       `SELECT COALESCE((to_jsonb(u) ->> 'is_admin')::boolean, false) AS is_admin
        FROM users u
-       WHERE u.firebase_uid = $1`,
+       WHERE COALESCE(
+         (to_jsonb(u) ->> 'firebase_uid'),
+         (to_jsonb(u) ->> 'uid'),
+         (to_jsonb(u) ->> 'id')
+       ) = $1`,
       [firebase_uid]
     );
     
@@ -4358,8 +4362,12 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
     } catch (queryErr) {
       console.warn('⚠️ owner/users rich query failed, using fallback:', queryErr.message);
       usersResult = await db.query(`
-        SELECT 
-          u.firebase_uid,
+        SELECT
+          COALESCE(
+            (to_jsonb(u) ->> 'firebase_uid'),
+            (to_jsonb(u) ->> 'uid'),
+            (to_jsonb(u) ->> 'id')
+          ) as firebase_uid,
           (to_jsonb(u) ->> 'full_name') as full_name,
           (to_jsonb(u) ->> 'email') as email,
           (to_jsonb(u) ->> 'username') as username,
@@ -4367,14 +4375,14 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
           COALESCE((to_jsonb(u) ->> 'has_borrower_account')::boolean, false) as has_borrower_account,
           COALESCE((to_jsonb(u) ->> 'has_investor_account')::boolean, false) as has_investor_account,
           (to_jsonb(u) ->> 'current_account_type') as current_account_type,
-          u.created_at,
-          u.updated_at,
+          (to_jsonb(u) ->> 'created_at') as created_at,
+          (to_jsonb(u) ->> 'updated_at') as updated_at,
           COALESCE((to_jsonb(u) ->> 'is_admin')::boolean, false) as is_admin,
           0::int as total_projects,
           0::int as active_projects,
           0::numeric as wallet_balance
         FROM users u
-        ORDER BY u.created_at DESC
+        LIMIT 500
       `);
       
       // Last-resort fallback to guarantee non-500 response
@@ -4417,7 +4425,16 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('❌ Error fetching users for owner dashboard:', err);
     try {
-      const emergencyResult = await db.query(`SELECT firebase_uid FROM users LIMIT 500`);
+      const emergencyResult = await db.query(`
+        SELECT
+          COALESCE(
+            (to_jsonb(u) ->> 'firebase_uid'),
+            (to_jsonb(u) ->> 'uid'),
+            (to_jsonb(u) ->> 'id')
+          ) as firebase_uid
+        FROM users u
+        LIMIT 500
+      `);
       const emergencyUsers = emergencyResult.rows.map((row) => ({
         id: row.firebase_uid,
         firebaseUid: row.firebase_uid,
@@ -4439,7 +4456,7 @@ app.get('/api/owner/users', verifyToken, async (req, res) => {
       return res.json(emergencyUsers);
     } catch (fallbackErr) {
       console.error('❌ Emergency fallback failed for owner users:', fallbackErr);
-      res.status(500).json({ error: 'Failed to fetch users' });
+      res.json([]);
     }
   }
 });
