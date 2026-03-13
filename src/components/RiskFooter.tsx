@@ -30,18 +30,19 @@ export const RiskFooter: React.FC = () => {
 
         {/* Title */}
         <p className="text-center text-sm font-bold text-[#5a1a1a] mb-1 tracking-wide">
-          🖐 RISK WARNING 🖐
+          RISK WARNING
         </p>
 
         {/* Body */}
         <p className="text-center text-xs text-[#5a1a1a] leading-relaxed max-w-4xl mx-auto">
-          Crowdfunded investments are alternative investments and are thus generally considered high risk and
-          speculative in nature. You are likely not to receive dividends or regular income from such investments.
-          There is a substantial chance that you may lose the entirety of your investment. Fundraiser and
-          campaigns listed or eligible for listing on the Initiate PH platform are not endorsements by Initiate
-          PH regarding investability and may not be construed as financial advice. We caution you to speak to
-          your financial advisor on how to best allocate your portfolio based on your needs and objectives. For
-          additional information, check out our{" "}
+        Investing through crowdfunding platform involves significant risks,
+        including the possible loss of your entire investment.
+        Securities offered on this platform are typically issued by early-stage or growing
+        companies and may carry a higher risk compared to traditional investments.
+        These investments are generally illiquid and may not be easily sold or transferred.
+        Returns are not guaranteed, and past performance or projections do not assure
+        future results. Investors should carefully review all available information and
+        invest only funds they can afford to lose.
           <a href="/risk-warnings" className="underline text-blue-700 hover:text-blue-900">
             Risk Warnings.
           </a>
