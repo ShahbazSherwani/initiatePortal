@@ -4988,72 +4988,118 @@ app.post('/api/admin/projects/:projectId/investments/:investorId/review', verify
       return res.status(404).json({ error: "Investment request not found" });
     }
     
+    const investmentRequest = projectData.investorRequests[investmentIndex];
+    const currentStatus = investmentRequest.status;
+    const isPayMongoRequest =
+      investmentRequest.paymentMethod === 'paymongo' ||
+      !!investmentRequest.checkoutId ||
+      investmentRequest.paymentStatus === 'paid';
+
+    // PayMongo webhook may mark status as "paid" before admin review.
+    const isReviewableStatus = currentStatus === 'pending' || currentStatus === 'paid';
+
     // Check if investment is already processed
-    if (projectData.investorRequests[investmentIndex].status !== 'pending') {
+    if (!isReviewableStatus) {
       await client.query('ROLLBACK');
       return res.status(400).json({ 
-        error: `Investment request is already ${projectData.investorRequests[investmentIndex].status}`,
-        currentStatus: projectData.investorRequests[investmentIndex].status
+        error: `Investment request is already ${currentStatus}`,
+        currentStatus
       });
     }
     
     // Update the investment request status
-    projectData.investorRequests[investmentIndex].status = action === 'approve' ? 'approved' : 'rejected';
-    projectData.investorRequests[investmentIndex].reviewedAt = new Date().toISOString();
-    projectData.investorRequests[investmentIndex].reviewedBy = adminUid;
+    investmentRequest.status = action === 'approve' ? 'approved' : 'rejected';
+    investmentRequest.reviewedAt = new Date().toISOString();
+    investmentRequest.reviewedBy = adminUid;
     
     if (comment) {
-      projectData.investorRequests[investmentIndex].adminComment = comment;
+      investmentRequest.adminComment = comment;
     }
     
     let walletUpdateInfo = null;
     
-    // If approved, update the funding meter and deduct from investor's wallet
+    // If approved, verify payment source and update project funding.
     if (action === 'approve') {
-      const approvedAmount = projectData.investorRequests[investmentIndex].amount;
-      
-      // First, check investor's wallet balance to ensure they still have sufficient funds
-      const walletResult = await client.query(
-        'SELECT balance FROM wallets WHERE firebase_uid = $1',
-        [investorId]
-      );
-      
-      const currentBalance = walletResult.rows[0]?.balance || 0;
-      
-      if (currentBalance < approvedAmount) {
+      const approvedAmount = parseFloat(investmentRequest.amount) || 0;
+
+      if (approvedAmount <= 0) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ 
-          error: `Cannot approve investment. Investor's current wallet balance (₱${currentBalance.toLocaleString()}) is insufficient for the investment amount (₱${approvedAmount.toLocaleString()})`,
-          currentBalance,
-          requiredAmount: approvedAmount,
-          shortfall: approvedAmount - currentBalance
-        });
+        return res.status(400).json({ error: 'Invalid approved investment amount' });
       }
-      
-      // Deduct the investment amount from investor's wallet
-      const deductResult = await client.query(
-        `UPDATE wallets 
-         SET balance = balance - $1, updated_at = NOW() 
-         WHERE firebase_uid = $2
-         RETURNING balance`,
-        [approvedAmount, investorId]
-      );
-      
-      if (deductResult.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: "Failed to update investor wallet. Wallet not found." });
+
+      if (isPayMongoRequest) {
+        let paymongoPaid = investmentRequest.paymentStatus === 'paid' || currentStatus === 'paid';
+
+        if (!paymongoPaid && investmentRequest.checkoutId) {
+          const paidTx = await client.query(
+            `SELECT status
+             FROM payment_transactions
+             WHERE paymongo_checkout_id = $1
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [investmentRequest.checkoutId]
+          );
+          paymongoPaid = paidTx.rows[0]?.status === 'paid';
+        }
+
+        if (!paymongoPaid) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'Cannot approve investment. PayMongo payment is not confirmed as paid yet.'
+          });
+        }
+
+        investmentRequest.paymentStatus = 'paid';
+        walletUpdateInfo = {
+          investorId,
+          amountDeducted: 0,
+          deductionProcessed: false,
+          paymentVerified: true,
+          paymentMethod: 'paymongo'
+        };
+      } else {
+        // Legacy path for older wallet-funded records.
+        const walletResult = await client.query(
+          'SELECT balance FROM wallets WHERE firebase_uid = $1',
+          [investorId]
+        );
+
+        const currentBalance = parseFloat(walletResult.rows[0]?.balance || 0);
+
+        if (currentBalance < approvedAmount) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: `Cannot approve investment. Investor's current wallet balance (₱${currentBalance.toLocaleString()}) is insufficient for the investment amount (₱${approvedAmount.toLocaleString()})`,
+            currentBalance,
+            requiredAmount: approvedAmount,
+            shortfall: approvedAmount - currentBalance
+          });
+        }
+
+        const deductResult = await client.query(
+          `UPDATE wallets
+           SET balance = balance - $1, updated_at = NOW()
+           WHERE firebase_uid = $2
+           RETURNING balance`,
+          [approvedAmount, investorId]
+        );
+
+        if (deductResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Failed to update investor wallet. Wallet not found.' });
+        }
+
+        const newBalance = parseFloat(deductResult.rows[0].balance || 0);
+        walletUpdateInfo = {
+          investorId,
+          amountDeducted: approvedAmount,
+          newBalance,
+          deductionProcessed: true,
+          paymentVerified: true,
+          paymentMethod: 'wallet'
+        };
       }
-      
-      const newBalance = deductResult.rows[0].balance;
-      console.log(`💳 Wallet deduction: Deducted ₱${approvedAmount.toLocaleString()} from investor ${investorId}. New balance: ₱${newBalance.toLocaleString()}`);
-      
-      walletUpdateInfo = {
-        investorId: investorId,
-        amountDeducted: approvedAmount,
-        newBalance: newBalance,
-        deductionProcessed: true
-      };
-      
+
       // Initialize funding tracking if it doesn't exist
       if (!projectData.funding) {
         projectData.funding = {
@@ -5171,6 +5217,8 @@ app.get('/api/admin/investment-requests', verifyToken, async (req, res) => {
       console.log(`📋 Project ${row.id} has ${allRequests.length} total investment requests`);
       
       for (const request of allRequests) {
+        const normalizedStatus = request.status === 'paid' ? 'pending' : (request.status || 'pending');
+
         // Get investor details
         const investorResult = await db.query(
           `SELECT full_name FROM users WHERE firebase_uid = $1`,
@@ -5186,7 +5234,7 @@ app.get('/api/admin/investment-requests', verifyToken, async (req, res) => {
           investorName: investorResult.rows[0]?.full_name || 'Unknown Investor',
           amount: request.amount,
           date: request.date,
-          status: request.status || 'pending',
+          status: normalizedStatus,
           projectData: projectData
         });
       }
