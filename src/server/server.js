@@ -47,6 +47,11 @@ class SimpleCache {
   }
 
   set(key, value, ttlSeconds = 300) {
+    // Cap cache at 500 entries to prevent unbounded memory growth
+    if (this.cache.size >= 500) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
     const expiresAt = Date.now() + (ttlSeconds * 1000);
     this.cache.set(key, { value, expiresAt });
   }
@@ -304,24 +309,17 @@ try {
     
     const timeUntilScan = tomorrow2AM.getTime() - now.getTime();
     
-    setTimeout(async () => {
+    const runAndScheduleNext = async () => {
       console.log('🔍 Running scheduled vulnerability scan...');
       try {
         await vulnerabilityScanner.runFullScan();
       } catch (error) {
         console.error('Scheduled scan failed:', error);
       }
-      
-      // Schedule next scan (24 hours later)
-      setInterval(async () => {
-        console.log('🔍 Running scheduled vulnerability scan...');
-        try {
-          await vulnerabilityScanner.runFullScan();
-        } catch (error) {
-          console.error('Scheduled scan failed:', error);
-        }
-      }, 24 * 60 * 60 * 1000); // Every 24 hours
-    }, timeUntilScan);
+      // Schedule next scan in 24 hours (no nested setInterval)
+      setTimeout(runAndScheduleNext, 24 * 60 * 60 * 1000);
+    };
+    setTimeout(runAndScheduleNext, timeUntilScan);
     
     console.log(`⏰ Daily vulnerability scans scheduled (next scan in ${Math.round(timeUntilScan / 1000 / 60 / 60)}h)`);
   };
@@ -858,9 +856,9 @@ const app = express();
 // Trust proxy for Render/reverse proxy deployments (fixes express-rate-limit X-Forwarded-For warnings)
 app.set('trust proxy', 1);
 
-// Increase body size limit to 50MB
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Body size limit
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // CORS configuration for production
 const corsOptions = {
@@ -5233,21 +5231,35 @@ app.get('/api/admin/investment-requests', verifyToken, async (req, res) => {
     
     // Process results to extract ALL investment requests (pending, approved, rejected)
     const allInvestments = [];
+    // Collect unique investor IDs to batch-fetch names (avoid N+1 queries)
+    const investorIds = new Set();
+    
+    for (const row of result.rows) {
+      const allRequests = row.project_data?.investorRequests || [];
+      for (const request of allRequests) {
+        if (request.investorId) investorIds.add(request.investorId);
+      }
+    }
+    
+    // Batch fetch all investor names in one query
+    const investorNames = {};
+    if (investorIds.size > 0) {
+      const ids = Array.from(investorIds);
+      const investorResult = await db.query(
+        `SELECT firebase_uid, full_name FROM users WHERE firebase_uid = ANY($1)`,
+        [ids]
+      );
+      for (const row of investorResult.rows) {
+        investorNames[row.firebase_uid] = row.full_name;
+      }
+    }
     
     for (const row of result.rows) {
       const projectData = row.project_data;
       const allRequests = projectData.investorRequests || [];
       
-      console.log(`📋 Project ${row.id} has ${allRequests.length} total investment requests`);
-      
       for (const request of allRequests) {
         const normalizedStatus = request.status === 'paid' ? 'pending' : (request.status || 'pending');
-
-        // Get investor details
-        const investorResult = await db.query(
-          `SELECT full_name FROM users WHERE firebase_uid = $1`,
-          [request.investorId]
-        );
         
         allInvestments.push({
           projectId: row.id,
@@ -5255,19 +5267,15 @@ app.get('/api/admin/investment-requests', verifyToken, async (req, res) => {
           borrowerName: row.borrower_name,
           borrowerUid: row.firebase_uid,
           investorId: request.investorId,
-          investorName: investorResult.rows[0]?.full_name || 'Unknown Investor',
+          investorName: investorNames[request.investorId] || 'Unknown Investor',
           amount: request.amount,
           date: request.date,
-          status: normalizedStatus,
-          projectData: projectData
+          status: normalizedStatus
         });
       }
     }
     
     console.log(`📤 Returning ${allInvestments.length} total investment requests to admin`);
-    console.log(`   - Pending: ${allInvestments.filter(i => i.status === 'pending').length}`);
-    console.log(`   - Approved: ${allInvestments.filter(i => i.status === 'approved').length}`);
-    console.log(`   - Rejected: ${allInvestments.filter(i => i.status === 'rejected').length}`);
     res.json(allInvestments);
     
   } catch (err) {
@@ -5851,11 +5859,7 @@ app.get('/api/projects', verifyToken, async (req, res) => {
       query += ` WHERE ${conditions.join(' AND ')}`;
     }
     
-    console.log("Projects query:", query);
-    console.log("With params:", params);
-    
     const { rows } = await db.query(query, params);
-    console.log(`Returning ${rows.length} projects`);
     
     res.json(rows);
   } catch (err) {
@@ -8696,7 +8700,7 @@ app.get('/api/admin/audit-logs/export', verifyToken, async (req, res) => {
     const logs = await auditLogger.query({
       startDate,
       endDate,
-      limit: 10000 // Max export limit
+      limit: 1000 // Max export limit
     });
     
     // Log the export action
