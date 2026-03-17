@@ -21,6 +21,9 @@ import {
   UploadIcon,
   ChevronRightIcon,
   Info,
+  DownloadIcon,
+  CheckCircleIcon,
+  XIcon,
 } from "lucide-react";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
@@ -42,8 +45,10 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   const [location, setLocation] = useState("");
   const [overview, setOverview] = useState("");
   const [videoLink, setVideoLink] = useState("");
-  const [imagePreview, setImagePreview] = useState<string | null>(null); // State for image preview
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [detailsFormFile, setDetailsFormFile] = useState<{ name: string; data: string } | null>(null);
+  const detailsFormRef = useRef<HTMLInputElement>(null);
   
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -59,7 +64,63 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
     fileInputRef.current?.click();
   };
 
+  const handleDownloadTemplate = () => {
+    const csvContent = [
+      'Field,Value',
+      'Business Name,',
+      'Business Registration Number,',
+      'Business Address,',
+      'City,',
+      'Province/State,',
+      'Country,',
+      'Postal Code,',
+      'Business Type (Sole Proprietorship/Partnership/Corporation),',
+      'Industry/Sector,',
+      'Year Established,',
+      'Number of Employees,',
+      'Annual Revenue (PHP),',
+      'Contact Person Name,',
+      'Contact Person Position,',
+      'Contact Email,',
+      'Contact Phone Number,',
+      'Purpose of Funding,',
+      'How Funds Will Be Used,',
+      'Expected Revenue Impact,',
+      'Collateral Description (if any),',
+      'Existing Loans/Liabilities (if any),',
+    ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Project_Details_Form.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDetailsFormUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setDetailsFormFile({ name: file.name, data: reader.result as string });
+      setForm(f => ({
+        ...f,
+        projectDetails: {
+          ...f.projectDetails,
+          projectDetailsForm: { name: file.name, data: reader.result as string },
+        },
+      }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const onSubmit = () => {
+    if (!detailsFormFile) {
+      alert('Please download the Project Details Form, fill it out, and upload it before continuing.');
+      return;
+    }
     setForm(f => ({
       ...f,
       selectedType: "lending",
@@ -462,16 +523,55 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   />
                 </div>
 
-                {/* Location */}
+                {/* Project Details Form */}
                 <div>
                   <label className="font-medium text-black text-base block mb-2">
-                    Location
+                    Project Details Form <span className="text-red-500">*</span>
                   </label>
-                  <Input
-                    placeholder="Enter here"
-                    className="w-full py-3 px-3 rounded-2xl border"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
+                  <p className="text-sm text-gray-500 mb-3">
+                    Download the template below, fill in all required details, and upload the completed file.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className="flex items-center gap-2 px-4 py-2.5 mb-3 border border-[#1B5E20] text-[#1B5E20] rounded-xl text-sm font-medium hover:bg-green-50 transition-colors"
+                  >
+                    <DownloadIcon className="w-4 h-4" />
+                    Download Template
+                  </button>
+                  <div
+                    onClick={() => detailsFormRef.current?.click()}
+                    className={`w-full border-2 border-dashed rounded-2xl p-4 flex items-center cursor-pointer hover:bg-gray-50 transition-colors ${
+                      detailsFormFile ? 'border-green-400 bg-green-50/50' : 'border-gray-300'
+                    }`}
+                  >
+                    {detailsFormFile ? (
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                          <span className="text-sm text-green-800 font-medium truncate max-w-[200px]">{detailsFormFile.name}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setDetailsFormFile(null); }}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <XIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center w-full py-2">
+                        <UploadIcon className="w-6 h-6 mb-1 text-gray-400" />
+                        <span className="text-sm text-gray-500">Upload completed form</span>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={detailsFormRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls,.pdf,.doc,.docx"
+                    onChange={handleDetailsFormUpload}
+                    className="hidden"
                   />
                 </div>
 
