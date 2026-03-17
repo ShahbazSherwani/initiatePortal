@@ -9,6 +9,11 @@ import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
 
 const ProjectDetailsView: React.FC = () => {
+  const sectionTitleClass = 'text-xl font-semibold text-gray-900';
+  const cardTitleClass = 'text-lg font-semibold text-gray-900';
+  const labelClass = 'text-sm font-medium text-gray-600';
+  const valueClass = 'text-sm font-semibold text-gray-900';
+
   const { projectId } = useParams<{ projectId: string }>();
   const { projects, loadProjects } = useProjects();
   const navigate = useNavigate();
@@ -18,6 +23,7 @@ const ProjectDetailsView: React.FC = () => {
   const [reportForm, setReportForm] = useState({ quarter: 'Q1', year: new Date().getFullYear().toString(), fundsUtilized: '', description: '' });
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [latestProject, setLatestProject] = useState<any | null>(null);
+  const [liveEscrowStatus, setLiveEscrowStatus] = useState<string>('');
 
   const handleSubmitReport = async () => {
     if (!project) return;
@@ -46,12 +52,21 @@ const ProjectDetailsView: React.FC = () => {
     if (projectId) {
       console.log("🔄 Refreshing project data for ID:", projectId);
       loadProjects();
-      authFetch(`${API_BASE_URL}/projects/${projectId}`)
+      authFetch(`${API_BASE_URL}/projects/${projectId}?_=${Date.now()}`)
         .then((freshProject) => {
           setLatestProject(freshProject);
         })
         .catch((error) => {
           console.warn('Failed to fetch latest project details, using context data:', error);
+        });
+      authFetch(`${API_BASE_URL}/projects/${projectId}/escrow-status?_=${Date.now()}`)
+        .then((escrowData) => {
+          if (escrowData?.escrowStatus) {
+            setLiveEscrowStatus(escrowData.escrowStatus);
+          }
+        })
+        .catch((error) => {
+          console.warn('Failed to fetch live escrow status, using project data fallback:', error);
         });
       window.scrollTo({ top: 0, behavior: 'auto' });
       contentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -198,6 +213,7 @@ const ProjectDetailsView: React.FC = () => {
   const estimatedReturn = calculateEstimatedReturn();
   const projectData = project.project_data || {};
   const escrowStatus =
+    liveEscrowStatus ||
     projectData.escrowStatus ||
     projectData.escrow_status ||
     projectData?.details?.escrowStatus ||
@@ -240,14 +256,14 @@ const ProjectDetailsView: React.FC = () => {
           </div>
 
           {/* Tabs */}
-          <div className="grid grid-cols-3 mb-6">
+          <div className="grid grid-cols-3 mb-6 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
             {['Details', 'Milestones', 'Reports'].map(tab => (
               <button
                 key={tab}
                 className={`py-3 px-6 text-center font-medium ${
                   activeTab === tab 
-                    ? 'bg-[#0C4B20] text-white rounded-lg' 
-                    : 'bg-white text-gray-700 border border-gray-200'
+                    ? 'bg-[#0C4B20] text-white' 
+                    : 'bg-transparent text-gray-700 border-r border-gray-200 last:border-r-0'
                 }`}
                 onClick={() => setActiveTab(tab)}
               >
@@ -259,7 +275,7 @@ const ProjectDetailsView: React.FC = () => {
           {/* Project Details */}
           {activeTab === 'Details' && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold">About Project</h2>
+              <h2 className={sectionTitleClass}>About Project</h2>
 
               <div className="border border-gray-200 rounded-xl p-4 md:p-5 bg-white shadow-sm">
                 <div className="flex items-center justify-between mb-3">
@@ -298,23 +314,23 @@ const ProjectDetailsView: React.FC = () => {
               </div>
               
               {/* Project title */}
-              <h3 className="text-xl font-bold">
+              <h3 className={cardTitleClass}>
                 {project.project_data?.details?.product || "UBE Field"}
               </h3>
               
               {/* Project details grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 p-5 rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Project ID:</p>
-                  <p className="font-medium">PFLA{project.id}5N</p>
+                  <p className={`${labelClass} mb-1`}>Project ID:</p>
+                  <p className={valueClass}>PFLA{project.id}5N</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Issuer/Partner:</p>
-                  <p className="font-medium">{project.project_data?.details?.issuer || 'Alexa John'}</p>
+                  <p className={`${labelClass} mb-1`}>Issuer/Partner:</p>
+                  <p className={valueClass}>{project.project_data?.details?.issuer || 'Alexa John'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Sec Registration No:</p>
-                  <p className="font-medium">{project.project_data?.details?.secRegistration || '35147'}</p>
+                  <p className={`${labelClass} mb-1`}>Sec Registration No:</p>
+                  <p className={valueClass}>{project.project_data?.details?.secRegistration || '35147'}</p>
                 </div>
               </div>
               
@@ -332,24 +348,24 @@ const ProjectDetailsView: React.FC = () => {
                   ></div>
                 </div>
                 <div>
-                  <p className="font-medium text-lg">PHP {totalFundingRequired.toLocaleString()}</p>
-                  <p className="text-sm text-gray-500">Project Requirement</p>
+                  <p className="text-lg font-semibold text-gray-900">PHP {totalFundingRequired.toLocaleString()}</p>
+                  <p className={labelClass}>Project Requirement</p>
                 </div>
               </div>
               
               {/* Stats cards */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="border border-gray-200 rounded-lg p-4 text-center">
-                  <p className="text-2xl font-bold">{fundingPercentage}%</p>
-                  <p className="text-sm text-gray-500">Funded</p>
+                  <p className="text-2xl font-semibold text-gray-900">{fundingPercentage}%</p>
+                  <p className={labelClass}>Funded</p>
                 </div>
                 <div className="border border-gray-200 rounded-lg p-4 text-center">
-                  <p className="text-2xl font-bold">{daysRemaining}</p>
-                  <p className="text-sm text-gray-500">Days Left</p>
+                  <p className="text-2xl font-semibold text-gray-900">{daysRemaining}</p>
+                  <p className={labelClass}>Days Left</p>
                 </div>
                 <div className="border border-gray-200 rounded-lg p-4 text-center">
-                  <p className="text-2xl font-bold">{estimatedReturn}%</p>
-                  <p className="text-sm text-gray-500">Est. Return(P.A)</p>
+                  <p className="text-2xl font-semibold text-gray-900">{estimatedReturn}%</p>
+                  <p className={labelClass}>Est. Return(P.A)</p>
                 </div>
               </div>
             </div>
@@ -357,13 +373,13 @@ const ProjectDetailsView: React.FC = () => {
 
           {/* Milestones Tab Content */}
           {activeTab === 'Milestones' && (
-            <div>
-              <h2 className="text-xl font-bold mb-4">Project Milestones</h2>
+            <div className="space-y-6">
+              <h2 className={sectionTitleClass}>Project Milestones</h2>
               {Array.isArray(project.project_data?.milestones) && project.project_data.milestones.length > 0 ? (
                 project.project_data.milestones.map((milestone, idx) => (
-                  <div key={idx} className="mb-8 border-b border-gray-100 pb-8">
-                    <h3 className="text-lg font-medium mb-6">Milestone {idx + 1}</h3>
-                    <div className="flex gap-6 mb-8">
+                  <div key={idx} className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 space-y-5">
+                    <h3 className={cardTitleClass}>Milestone {idx + 1}</h3>
+                    <div className="flex gap-6">
                       <div className="w-32 h-24">
                         <img 
                           src={milestone.image || "/default-farm.jpg"}
@@ -374,23 +390,25 @@ const ProjectDetailsView: React.FC = () => {
                       <div className="flex-1">
                         <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                           <div>
-                            <p className="text-sm text-gray-500">Amount:</p>
-                            <p className="font-medium">PHP {milestone.amount?.toLocaleString() || '-'}</p>
+                            <p className={labelClass}>Amount:</p>
+                            <p className={valueClass}>PHP {milestone.amount?.toLocaleString() || '-'}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500">Percentage%:</p>
-                            <p className="font-medium">{milestone.percentage || '-'}%</p>
+                            <p className={labelClass}>Percentage%:</p>
+                            <p className={valueClass}>{milestone.percentage || '-'}%</p>
                           </div>
                         </div>
                       </div>
                     </div>
                     {/* Milestone sub-tabs */}
-                    <div className="grid grid-cols-3 gap-2 mb-8">
+                    <div className="grid grid-cols-3 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
                       {['ROI (Expense)', 'ROI (Sales)', 'Payout Schedule'].map(tab => (
                         <button
                           key={tab}
-                          className={`py-3 rounded-lg font-medium text-center text-sm ${
-                            selectedMilestoneTab === tab ? 'bg-[#0C4B20] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          className={`py-3 font-medium text-center text-sm ${
+                            selectedMilestoneTab === tab
+                              ? 'bg-[#0C4B20] text-white'
+                              : 'bg-transparent text-gray-700 border-r border-gray-200 last:border-r-0 hover:bg-gray-100'
                           }`}
                           onClick={() => setSelectedMilestoneTab(tab)}
                         >
@@ -400,88 +418,88 @@ const ProjectDetailsView: React.FC = () => {
                     </div>
                     {/* ROI Expense Content */}
                     {selectedMilestoneTab === 'ROI (Expense)' && (
-                      <div>
-                        <h3 className="text-xl font-bold mb-6">ROI (Expense)</h3>
-                        <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
+                      <div className="rounded-xl border border-gray-200 bg-white p-5">
+                        <h3 className={`${cardTitleClass} mb-5`}>ROI (Expense)</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 mb-6">
                           <div>
-                            <p className="text-sm text-gray-500 mb-2">Description:</p>
+                            <p className={`${labelClass} mb-2`}>Description:</p>
                             <p className="text-sm leading-relaxed">{milestone.expenseDescription || '-'}</p>
                           </div>
                           <div className="space-y-4">
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Price Per Unit:</p>
-                              <p className="font-medium">{milestone.expensePricePerUnit ? `${milestone.expensePricePerUnit} PHP` : '-'}</p>
+                              <p className={`${labelClass} mb-1`}>Price Per Unit:</p>
+                              <p className={valueClass}>{milestone.expensePricePerUnit ? `${milestone.expensePricePerUnit} PHP` : '-'}</p>
                             </div>
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Unit of Measure:</p>
-                              <p className="font-medium">{milestone.expenseUnitOfMeasure || '-'}</p>
+                              <p className={`${labelClass} mb-1`}>Unit of Measure:</p>
+                              <p className={valueClass}>{milestone.expenseUnitOfMeasure || '-'}</p>
                             </div>
                           </div>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500 mb-1">Total Amount:</p>
-                          <p className="font-medium text-xl">{milestone.expenseTotalAmount ? `${milestone.expenseTotalAmount} PHP` : '-'}</p>
+                          <p className={`${labelClass} mb-1`}>Total Amount:</p>
+                          <p className="text-xl font-semibold text-gray-900">{milestone.expenseTotalAmount ? `${milestone.expenseTotalAmount} PHP` : '-'}</p>
                         </div>
                       </div>
                     )}
                     {/* ROI Sales Content */}
                     {selectedMilestoneTab === 'ROI (Sales)' && (
-                      <div>
-                        <h3 className="text-xl font-bold mb-6">ROI (Sales)</h3>
-                        <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
+                      <div className="rounded-xl border border-gray-200 bg-white p-5">
+                        <h3 className={`${cardTitleClass} mb-5`}>ROI (Sales)</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 mb-6">
                           <div>
-                            <p className="text-sm text-gray-500 mb-2">Description:</p>
+                            <p className={`${labelClass} mb-2`}>Description:</p>
                             <p className="text-sm leading-relaxed">{milestone.salesDescription || '-'}</p>
                           </div>
                           <div className="space-y-4">
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Price Per Unit:</p>
-                              <p className="font-medium">{milestone.salesPricePerUnit ? `${milestone.salesPricePerUnit} PHP` : '-'}</p>
+                              <p className={`${labelClass} mb-1`}>Price Per Unit:</p>
+                              <p className={valueClass}>{milestone.salesPricePerUnit ? `${milestone.salesPricePerUnit} PHP` : '-'}</p>
                             </div>
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Unit of Measure:</p>
-                              <p className="font-medium">{milestone.salesUnitOfMeasure || '-'}</p>
+                              <p className={`${labelClass} mb-1`}>Unit of Measure:</p>
+                              <p className={valueClass}>{milestone.salesUnitOfMeasure || '-'}</p>
                             </div>
                           </div>
                         </div>
                         <div className="space-y-4">
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Total Amount:</p>
-                            <p className="font-medium text-xl">{milestone.salesTotalAmount ? `${milestone.salesTotalAmount} PHP` : '-'}</p>
+                            <p className={`${labelClass} mb-1`}>Total Amount:</p>
+                            <p className="text-xl font-semibold text-gray-900">{milestone.salesTotalAmount ? `${milestone.salesTotalAmount} PHP` : '-'}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Net Income Calculation:</p>
-                            <p className="font-medium text-xl">{milestone.netIncomeCalculation ? `${milestone.netIncomeCalculation} PHP` : '-'}</p>
+                            <p className={`${labelClass} mb-1`}>Net Income Calculation:</p>
+                            <p className="text-xl font-semibold text-gray-900">{milestone.netIncomeCalculation ? `${milestone.netIncomeCalculation} PHP` : '-'}</p>
                           </div>
                         </div>
                       </div>
                     )}
                     {/* Payout Schedule Content */}
                     {selectedMilestoneTab === 'Payout Schedule' && (
-                      <div>
-                        <h3 className="text-xl font-bold mb-6">Payout Schedule</h3>
-                        <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-8">
+                      <div className="rounded-xl border border-gray-200 bg-white p-5">
+                        <h3 className={`${cardTitleClass} mb-5`}>Payout Schedule</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Generate Total Payout Required:</p>
-                            <p className="font-medium">{milestone.payoutRequired ? `${milestone.payoutRequired} PHP` : '-'}</p>
+                            <p className={`${labelClass} mb-1`}>Generate Total Payout Required:</p>
+                            <p className={valueClass}>{milestone.payoutRequired ? `${milestone.payoutRequired} PHP` : '-'}</p>
                           </div>
                           <div></div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">% of Total Payout (Capital +Interest):</p>
-                            <p className="font-medium">{milestone.payoutCapitalInterest ? `${milestone.payoutCapitalInterest} PHP` : '-'}</p>
+                            <p className={`${labelClass} mb-1`}>% of Total Payout (Capital +Interest):</p>
+                            <p className={valueClass}>{milestone.payoutCapitalInterest ? `${milestone.payoutCapitalInterest} PHP` : '-'}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Payout Date:</p>
-                            <p className="font-medium">{milestone.payoutDate || '-'}</p>
+                            <p className={`${labelClass} mb-1`}>Payout Date:</p>
+                            <p className={valueClass}>{milestone.payoutDate || '-'}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Amount:</p>
-                            <p className="font-medium">{milestone.payoutAmount ? `${milestone.payoutAmount} PHP` : '-'}</p>
+                            <p className={`${labelClass} mb-1`}>Amount:</p>
+                            <p className={valueClass}>{milestone.payoutAmount ? `${milestone.payoutAmount} PHP` : '-'}</p>
                           </div>
                           <div></div>
                           <div>
-                            <p className="text-sm text-gray-500 mb-1">Generate Net Income Calculation:</p>
-                            <p className="font-medium">{milestone.netIncomeCalculation ? `${milestone.netIncomeCalculation} PHP` : '-'}</p>
+                            <p className={`${labelClass} mb-1`}>Generate Net Income Calculation:</p>
+                            <p className={valueClass}>{milestone.netIncomeCalculation ? `${milestone.netIncomeCalculation} PHP` : '-'}</p>
                           </div>
                         </div>
                       </div>
@@ -489,7 +507,7 @@ const ProjectDetailsView: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <div className="text-gray-500">No milestones available for this project.</div>
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 text-gray-500">No milestones available for this project.</div>
               )}
             </div>
           )}
@@ -497,37 +515,37 @@ const ProjectDetailsView: React.FC = () => {
           {/* Post-Offering Reports Tab */}
           {activeTab === 'Reports' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold mb-1">Post-Offering Reports</h2>
-                <p className="text-sm text-gray-500">Quarterly fund utilization reports required by SEC Rules on Crowdfunding. Submit within 30 days after each quarter ends.</p>
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
+                <h2 className={`${sectionTitleClass} mb-1`}>Post-Offering Reports</h2>
+                <p className={labelClass}>Quarterly fund utilization reports required by SEC Rules on Crowdfunding. Submit within 30 days after each quarter ends.</p>
               </div>
 
               {/* Existing reports */}
               {Array.isArray(project.project_data?.postOfferingReports) && project.project_data.postOfferingReports.length > 0 ? (
                 <div className="space-y-3">
                   {(project.project_data.postOfferingReports as any[]).slice().reverse().map((r: any) => (
-                    <div key={r.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                    <div key={r.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold text-[#0C4B20]">{r.quarter} {r.year}</span>
                         <span className="text-xs text-gray-400">{new Date(r.submittedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                       </div>
                       <p className="text-sm text-gray-700 mb-2">{r.description}</p>
-                      <p className="text-xs text-gray-500">Funds Utilized: <strong>₱{parseFloat(r.fundsUtilized).toLocaleString()}</strong></p>
+                      <p className={labelClass}>Funds Utilized: <strong className="text-gray-900">₱{parseFloat(r.fundsUtilized).toLocaleString()}</strong></p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-800">
                   No reports submitted yet. Submit your first quarterly report below.
                 </div>
               )}
 
               {/* Submit new report */}
               <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-                <h3 className="font-semibold text-gray-800">Submit New Report</h3>
+                <h3 className={cardTitleClass}>Submit New Report</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Quarter</label>
+                    <label className={`${labelClass} block mb-1`}>Quarter</label>
                     <select
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
                       value={reportForm.quarter}
@@ -540,7 +558,7 @@ const ProjectDetailsView: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
+                    <label className={`${labelClass} block mb-1`}>Year</label>
                     <input
                       type="number"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
@@ -552,7 +570,7 @@ const ProjectDetailsView: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Funds Utilized (₱)</label>
+                  <label className={`${labelClass} block mb-1`}>Funds Utilized (₱)</label>
                   <input
                     type="number"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
@@ -562,7 +580,7 @@ const ProjectDetailsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">How Funds Were Utilized</label>
+                  <label className={`${labelClass} block mb-1`}>How Funds Were Utilized</label>
                   <textarea
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20] resize-none"
                     rows={3}
