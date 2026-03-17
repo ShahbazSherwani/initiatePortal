@@ -32,6 +32,11 @@ export interface CreatePaymentRequest {
   projectId: string;
   projectName: string;
   description?: string;
+  disclosureForms?: {
+    declarationForm?: { name: string; data: string };
+    investmentLimitForm?: { name: string; data: string };
+    riskAcknowledgementForm?: { name: string; data: string };
+  };
 }
 
 export interface PaymentResponse {
@@ -61,6 +66,7 @@ export async function createPaymentCheckout(
         projectId: request.projectId,
         projectName: request.projectName,
         description: request.description || `Investment in ${request.projectName}`,
+        disclosureForms: request.disclosureForms,
       }),
     });
     

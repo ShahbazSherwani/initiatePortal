@@ -5138,7 +5138,7 @@ async function paymongoRequest(endpoint, method = 'GET', data = null) {
 // Create PayMongo checkout session for investment
 app.post('/api/payments/create-checkout', verifyToken, async (req, res) => {
   const uid = req.uid;
-  const { amount, projectId, projectName, description } = req.body;
+  const { amount, projectId, projectName, description, disclosureForms } = req.body;
   
   console.log(`💳 Creating PayMongo checkout - User: ${uid}, Project: ${projectId}, Amount: ${amount}`);
   
@@ -5239,6 +5239,56 @@ app.post('/api/payments/create-checkout', verifyToken, async (req, res) => {
         checkoutData.data.attributes.reference_number
       ]
     );
+
+    // Store disclosure forms if provided
+    if (disclosureForms) {
+      try {
+        await db.query(
+          `CREATE TABLE IF NOT EXISTS investor_disclosure_forms (
+            id SERIAL PRIMARY KEY,
+            firebase_uid TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            declaration_form_name TEXT,
+            declaration_form_data TEXT,
+            investment_limit_form_name TEXT,
+            investment_limit_form_data TEXT,
+            risk_acknowledgement_form_name TEXT,
+            risk_acknowledgement_form_data TEXT,
+            submitted_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(firebase_uid, project_id)
+          )`
+        );
+        await db.query(
+          `INSERT INTO investor_disclosure_forms (
+            firebase_uid, project_id,
+            declaration_form_name, declaration_form_data,
+            investment_limit_form_name, investment_limit_form_data,
+            risk_acknowledgement_form_name, risk_acknowledgement_form_data,
+            submitted_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+          ON CONFLICT (firebase_uid, project_id) DO UPDATE SET
+            declaration_form_name = EXCLUDED.declaration_form_name,
+            declaration_form_data = EXCLUDED.declaration_form_data,
+            investment_limit_form_name = EXCLUDED.investment_limit_form_name,
+            investment_limit_form_data = EXCLUDED.investment_limit_form_data,
+            risk_acknowledgement_form_name = EXCLUDED.risk_acknowledgement_form_name,
+            risk_acknowledgement_form_data = EXCLUDED.risk_acknowledgement_form_data,
+            submitted_at = NOW()`,
+          [
+            uid, projectId,
+            disclosureForms.declarationForm?.name || null,
+            disclosureForms.declarationForm?.data || null,
+            disclosureForms.investmentLimitForm?.name || null,
+            disclosureForms.investmentLimitForm?.data || null,
+            disclosureForms.riskAcknowledgementForm?.name || null,
+            disclosureForms.riskAcknowledgementForm?.data || null,
+          ]
+        );
+        console.log(`📋 Disclosure forms stored for user ${uid}, project ${projectId}`);
+      } catch (dfErr) {
+        console.error('⚠️ Failed to store disclosure forms (non-blocking):', dfErr.message);
+      }
+    }
     
     res.json({
       success: true,

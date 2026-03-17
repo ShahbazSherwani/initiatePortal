@@ -1,5 +1,5 @@
 // src/screens/InvestorProjectView.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import { Sidebar } from "../components/Sidebar/Sidebar";
@@ -44,6 +44,15 @@ export const InvestorProjectView: React.FC = () => {
     requiredAmount: 0,
     shortfall: 0
   });
+
+  // Disclosure form states
+  const [declarationForm, setDeclarationForm] = useState<{ name: string; data: string } | null>(null);
+  const [investmentLimitForm, setInvestmentLimitForm] = useState<{ name: string; data: string } | null>(null);
+  const [riskAcknowledgementForm, setRiskAcknowledgementForm] = useState<{ name: string; data: string } | null>(null);
+  const declarationFormRef = useRef<HTMLInputElement>(null);
+  const investmentLimitFormRef = useRef<HTMLInputElement>(null);
+  const riskAcknowledgementFormRef = useRef<HTMLInputElement>(null);
+  const allDisclosureFormsUploaded = !!declarationForm && !!investmentLimitForm && !!riskAcknowledgementForm;
   
   // Helper function to format duration
   const formatDuration = (duration: string) => {
@@ -146,6 +155,33 @@ export const InvestorProjectView: React.FC = () => {
   const projectData = project.project_data || {};
   const details = projectData.details || {};
   
+  // Disclosure form download handlers
+  const handleDownloadDisclosureForm = (filename: string) => {
+    const a = document.createElement('a');
+    a.href = `/${filename}`;
+    a.download = filename;
+    a.click();
+  };
+
+  // Generic disclosure form upload handler
+  const handleDisclosureFormUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: React.Dispatch<React.SetStateAction<{ name: string; data: string } | null>>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be under 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setter({ name: file.name, data: reader.result as string });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   // PayMongo payment handler - redirects to PayMongo checkout
   const handleInvest = async () => {
     console.log("🎯 handleInvest called with amount:", investmentAmount);
@@ -172,7 +208,12 @@ export const InvestorProjectView: React.FC = () => {
         amount: amount,
         projectId: projectId!,
         projectName: details.product || "Investment Project",
-        description: `Investment in ${details.product || "project"}`
+        description: `Investment in ${details.product || "project"}`,
+        disclosureForms: {
+          declarationForm: declarationForm || undefined,
+          investmentLimitForm: investmentLimitForm || undefined,
+          riskAcknowledgementForm: riskAcknowledgementForm || undefined,
+        },
       });
       
       console.log("📥 PayMongo checkout result:", result);
@@ -463,6 +504,79 @@ export const InvestorProjectView: React.FC = () => {
                         )}
                       </div>
                     )}
+                    {/* Disclosure Forms Section */}
+                    <div className="mb-6 bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                      <h3 className="font-semibold text-base mb-1">Required Disclosure Forms</h3>
+                      <p className="text-xs text-gray-500 mb-4">Download each form, fill in the required details, then upload the completed file before proceeding.</p>
+
+                      {/* Form 1: Declaration of External Crowdfunding Investments */}
+                      <div className="mb-4">
+                        <label className="font-medium text-sm block mb-1">1. Declaration of External Crowdfunding Investments <span className="text-red-500">*</span></label>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button type="button" onClick={() => handleDownloadDisclosureForm('Declaration_of_External_Crowdfunding_Investments.pdf')} className="flex items-center gap-1.5 px-3 py-2 border border-[#1B5E20] text-[#1B5E20] rounded-xl text-xs font-medium hover:bg-green-50 transition-colors">
+                            ⬇ Download Form
+                          </button>
+                          <div onClick={() => declarationFormRef.current?.click()} className={`flex-1 min-w-[200px] border-2 border-dashed rounded-xl p-2.5 flex items-center cursor-pointer hover:bg-gray-50 transition-colors ${declarationForm ? 'border-green-400 bg-green-50/50' : 'border-gray-300'}`}>
+                            {declarationForm ? (
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-xs text-green-800 font-medium truncate max-w-[180px]">✓ {declarationForm.name}</span>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setDeclarationForm(null); }} className="text-gray-400 hover:text-red-500 ml-2">✕</button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400 w-full text-center">Upload completed form</span>
+                            )}
+                          </div>
+                        </div>
+                        <input ref={declarationFormRef} type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleDisclosureFormUpload(e, setDeclarationForm)} className="hidden" />
+                      </div>
+
+                      {/* Form 2: Retail Investor Investment Limit Agreement */}
+                      <div className="mb-4">
+                        <label className="font-medium text-sm block mb-1">2. Retail Investor Investment Limit Agreement <span className="text-red-500">*</span></label>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button type="button" onClick={() => handleDownloadDisclosureForm('Retail_Investor_Investment_Limit_Agreement.pdf')} className="flex items-center gap-1.5 px-3 py-2 border border-[#1B5E20] text-[#1B5E20] rounded-xl text-xs font-medium hover:bg-green-50 transition-colors">
+                            ⬇ Download Form
+                          </button>
+                          <div onClick={() => investmentLimitFormRef.current?.click()} className={`flex-1 min-w-[200px] border-2 border-dashed rounded-xl p-2.5 flex items-center cursor-pointer hover:bg-gray-50 transition-colors ${investmentLimitForm ? 'border-green-400 bg-green-50/50' : 'border-gray-300'}`}>
+                            {investmentLimitForm ? (
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-xs text-green-800 font-medium truncate max-w-[180px]">✓ {investmentLimitForm.name}</span>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setInvestmentLimitForm(null); }} className="text-gray-400 hover:text-red-500 ml-2">✕</button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400 w-full text-center">Upload completed form</span>
+                            )}
+                          </div>
+                        </div>
+                        <input ref={investmentLimitFormRef} type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleDisclosureFormUpload(e, setInvestmentLimitForm)} className="hidden" />
+                      </div>
+
+                      {/* Form 3: Retail Investors RISK Acknowledgement Statement */}
+                      <div>
+                        <label className="font-medium text-sm block mb-1">3. Retail Investors Risk Acknowledgement Statement <span className="text-red-500">*</span></label>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button type="button" onClick={() => handleDownloadDisclosureForm('Retail_Investors_Risk_Acknowledgement_Statement.pdf')} className="flex items-center gap-1.5 px-3 py-2 border border-[#1B5E20] text-[#1B5E20] rounded-xl text-xs font-medium hover:bg-green-50 transition-colors">
+                            ⬇ Download Form
+                          </button>
+                          <div onClick={() => riskAcknowledgementFormRef.current?.click()} className={`flex-1 min-w-[200px] border-2 border-dashed rounded-xl p-2.5 flex items-center cursor-pointer hover:bg-gray-50 transition-colors ${riskAcknowledgementForm ? 'border-green-400 bg-green-50/50' : 'border-gray-300'}`}>
+                            {riskAcknowledgementForm ? (
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-xs text-green-800 font-medium truncate max-w-[180px]">✓ {riskAcknowledgementForm.name}</span>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setRiskAcknowledgementForm(null); }} className="text-gray-400 hover:text-red-500 ml-2">✕</button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400 w-full text-center">Upload completed form</span>
+                            )}
+                          </div>
+                        </div>
+                        <input ref={riskAcknowledgementFormRef} type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleDisclosureFormUpload(e, setRiskAcknowledgementForm)} className="hidden" />
+                      </div>
+
+                      {!allDisclosureFormsUploaded && (
+                        <p className="mt-3 text-xs text-amber-600 font-medium">⚠ All 3 disclosure forms must be uploaded before you can proceed with your investment.</p>
+                      )}
+                    </div>
+
                     <h3 className="font-medium mb-2">How much would you like to invest?</h3>
                     <p className="text-sm text-gray-500 mb-1">Minimum investment: ₱100</p>
                     {eligibility && eligibility.investorTier !== 'qualified' && (
@@ -484,6 +598,7 @@ export const InvestorProjectView: React.FC = () => {
                         className="bg-[#0C4B20] text-white hover:bg-[#8FB200]"
                         disabled={!investmentAmount || parseFloat(investmentAmount) < 100 ||
                           educationCompleted === false ||
+                          !allDisclosureFormsUploaded ||
                           (eligibility && eligibility.investorTier !== 'qualified' && parseFloat(investmentAmount) > Math.max(0, eligibility.remainingCapacity || 0))}
                       >
                         Continue
