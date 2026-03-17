@@ -166,20 +166,28 @@ export const BorrowerOccupation: React.FC = () => {
         dateOfBirth: registration.details?.dateOfBirth || null,
         phoneNumber: registration.details?.phoneNumber || null,
         mobileNumber: registration.details?.mobileNumber || registration.details?.phoneNumber || null,
+        countryCode: registration.details?.countryCode || null,
         emailAddress: profile?.email || registration.details?.email || null,
         
         // Address information
-        street: registration.details?.street || null,
+        street: registration.details?.street || registration.details?.streetAddress || null,
         barangay: registration.details?.barangay || null,
         city: registration.details?.city || registration.details?.cityName || null,
         state: registration.details?.state || registration.details?.stateIso || null,
         country: registration.details?.country || registration.details?.countryIso || null,
         postalCode: registration.details?.postalCode || null,
+        presentAddress: registration.details?.presentAddress || [
+          registration.details?.street,
+          registration.details?.barangay,
+          registration.details?.cityName,
+          registration.details?.stateIso
+        ].filter(Boolean).join(', ') || null,
+        permanentAddress: registration.details?.permanentAddress || null,
         
         // Identification documents
         nationalId: registration.details?.nationalId || null,
-        passport: registration.details?.passport || null,
-        tin: registration.details?.tin || null,
+        passport: registration.details?.passport || registration.details?.passportNumber || null,
+        tin: registration.details?.tin || registration.details?.tinNumber || null,
         
         // Document files
         nationalIdFile: nationalIdFileBase64,
@@ -187,13 +195,31 @@ export const BorrowerOccupation: React.FC = () => {
         
         // Employment information
         occupation: registration.details?.occupation || groupTypeMapping[selectedGroup] || null,
-        natureOfBusiness: groupTypeMapping[selectedGroup] || null,
+        employerName: registration.details?.employerName || registration.details?.companyName || null,
+        employerAddress: registration.details?.employerAddress || null,
+        employmentStatus: registration.details?.employmentStatus || null,
+        monthlyIncome: registration.details?.monthlyIncome || registration.details?.income || null,
+        grossAnnualIncome: registration.details?.grossAnnualIncome || registration.details?.annualIncome || null,
+        sourceOfIncome: registration.details?.sourceOfIncome || registration.details?.incomeSource || null,
+        natureOfBusiness: registration.details?.natureOfBusiness || groupTypeMapping[selectedGroup] || null,
         
         // Individual account fields
         placeOfBirth: isIndividual ? registration.details?.placeOfBirth || null : null,
         gender: isIndividual ? registration.details?.gender || null : null,
         civilStatus: isIndividual ? registration.details?.civilStatus || null : null,
         nationality: isIndividual ? registration.details?.nationality || null : null,
+        motherMaidenName: isIndividual ? registration.details?.motherMaidenName || null : null,
+        contactEmail: profile?.email || registration.details?.contactPersonEmail || registration.details?.contactEmail || null,
+        groupType: registration.details?.groupType || groupTypeMapping[selectedGroup] || null,
+        secondaryIdType: registration.details?.secondaryIdType || null,
+        secondaryIdNumber: registration.details?.secondaryIdNumber || null,
+
+        // Emergency contact
+        emergencyContactName: registration.details?.emergencyContactName || null,
+        emergencyContactRelationship: registration.details?.emergencyContactRelationship || null,
+        emergencyContactPhone: registration.details?.emergencyContactPhone || null,
+        emergencyContactEmail: registration.details?.emergencyContactEmail || null,
+        emergencyContactAddress: registration.details?.emergencyContactAddress || null,
         
         // Entity info for non-individual
         entityType: !isIndividual ? registration.details?.entityType : null,
@@ -216,6 +242,29 @@ export const BorrowerOccupation: React.FC = () => {
         registrationCertFile: !isIndividual ? registrationCertFileBase64 : null,
         tinCertFile: !isIndividual ? tinCertFileBase64 : null,
         authorizationFile: !isIndividual ? authorizationFileBase64 : null,
+
+        // Business registration
+        businessRegistrationType: !isIndividual ? registration.details?.businessRegistrationType || registration.details?.entityType : null,
+        businessRegistrationNumber: !isIndividual ? registration.details?.registrationNumber : null,
+        businessRegistrationDate: !isIndividual ? registration.details?.businessRegistrationDate : null,
+        corporateTin: registration.details?.tin || registration.details?.corporateTin || null,
+
+        // Authorized signatory
+        authorizedSignatoryName: !isIndividual ? registration.details?.authorizedSignatoryName || registration.details?.contactPersonName : null,
+        authorizedSignatoryPosition: !isIndividual ? registration.details?.authorizedSignatoryPosition || registration.details?.contactPersonPosition : null,
+        authorizedSignatoryIdType: !isIndividual ? registration.details?.authorizedSignatoryIdType || null : null,
+        authorizedSignatoryIdNumber: !isIndividual ? registration.details?.authorizedSignatoryIdNumber : null,
+
+        // GIS fields
+        gisTotalAssets: registration.details?.gisTotalAssets || null,
+        gisTotalLiabilities: registration.details?.gisTotalLiabilities || null,
+        gisPaidUpCapital: registration.details?.gisPaidUpCapital || null,
+        gisNumberOfStockholders: registration.details?.gisNumberOfStockholders || null,
+        gisNumberOfEmployees: registration.details?.gisNumberOfEmployees || null,
+
+        // PEP status
+        isPoliticallyExposedPerson: registration.details?.pepStatus === 'yes',
+        pepDetails: registration.details?.pepStatus === 'yes' ? 'PEP status confirmed during registration' : null,
         
         // Bank account details - not required in registration flow anymore
         account_name: null,
