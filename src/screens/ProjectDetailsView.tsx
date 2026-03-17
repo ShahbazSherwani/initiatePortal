@@ -52,21 +52,22 @@ const ProjectDetailsView: React.FC = () => {
     if (projectId) {
       console.log("🔄 Refreshing project data for ID:", projectId);
       loadProjects();
-      authFetch(`${API_BASE_URL}/projects/${projectId}?_=${Date.now()}`)
+      authFetch(`${API_BASE_URL}/projects/${projectId}?_=${Date.now()}`, { cache: 'no-store' })
         .then((freshProject) => {
           setLatestProject(freshProject);
         })
         .catch((error) => {
-          console.warn('Failed to fetch latest project details, using context data:', error);
+          console.error('Failed to fetch latest project details, using context data:', error);
         });
-      authFetch(`${API_BASE_URL}/projects/${projectId}/escrow-status?_=${Date.now()}`)
-        .then((escrowData) => {
+      authFetch(`${API_BASE_URL}/projects/${projectId}/escrow-status?_=${Date.now()}`, { cache: 'no-store' })
+        .then((escrowData: any) => {
+          console.log("🏦 Escrow status fetch result:", escrowData);
           if (escrowData?.escrowStatus) {
             setLiveEscrowStatus(escrowData.escrowStatus);
           }
         })
         .catch((error) => {
-          console.warn('Failed to fetch live escrow status, using project data fallback:', error);
+          console.error('Failed to fetch live escrow status:', error);
         });
       window.scrollTo({ top: 0, behavior: 'auto' });
       contentRef.current?.scrollTo({ top: 0, behavior: 'auto' });

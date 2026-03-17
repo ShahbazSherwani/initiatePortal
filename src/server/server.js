@@ -4595,6 +4595,30 @@ projectsRouter.put("/:id", verifyToken, async (req, res) => {
   }
 });
 
+// Get escrow status for a single project (must be before /:id to avoid route conflict)
+projectsRouter.get("/:id/escrow-status", verifyToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const projectResult = await db.query(
+      `SELECT project_data, updated_at FROM projects WHERE id = $1`,
+      [id]
+    );
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const projectData = projectResult.rows[0].project_data || {};
+    res.json({
+      success: true,
+      escrowStatus: projectData.escrowStatus || projectData.escrow_status || 'pending',
+      escrowNotes: projectData.escrowNotes || '',
+      escrowUpdatedAt: projectData.escrowUpdatedAt || projectResult.rows[0].updated_at || null
+    });
+  } catch (err) {
+    console.error('Error fetching escrow status:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // Get a single project (with ownership check for editing)
 projectsRouter.get("/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
