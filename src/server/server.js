@@ -10090,9 +10090,12 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
         placeOfBirth: '',
         gender: '',
         civilStatus: '',
+        maritalStatus: '',
         nationality: '',
         motherMaidenName: '',
         contactEmail: userEmail,
+        emailAddress: userEmail,
+        mobileNumber: '',
         groupType: '',
         secondaryIdType: '',
         secondaryIdNumber: ''
@@ -10186,9 +10189,12 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           placeOfBirth: borrower.place_of_birth || '',
           gender: borrower.gender || '',
           civilStatus: borrower.civil_status || '',
+          maritalStatus: borrower.civil_status || '',
           nationality: borrower.nationality || '',
           motherMaidenName: borrower.mother_maiden_name || '',
           contactEmail: borrower.contact_email || borrower.email_address || userEmail,
+          emailAddress: borrower.email_address || borrower.contact_email || userEmail,
+          mobileNumber: borrower.mobile_number || '',
           groupType: borrower.group_type || '',
           secondaryIdType: borrower.secondary_id_type || '',
           secondaryIdNumber: borrower.secondary_id_number || ''
@@ -10368,9 +10374,12 @@ app.get('/api/owner/users/:userId', verifyToken, async (req, res) => {
           profileData.personalInfo.placeOfBirth = investor.place_of_birth || '';
           profileData.personalInfo.gender = investor.gender || '';
           profileData.personalInfo.civilStatus = investor.civil_status || '';
+          profileData.personalInfo.maritalStatus = investor.civil_status || '';
           profileData.personalInfo.nationality = investor.nationality || '';
           profileData.personalInfo.motherMaidenName = investor.mother_maiden_name || '';
           profileData.personalInfo.contactEmail = investor.contact_email || investor.email_address || userEmail;
+          profileData.personalInfo.emailAddress = investor.email_address || investor.contact_email || userEmail;
+          profileData.personalInfo.mobileNumber = investor.mobile_number || '';
           profileData.personalInfo.secondaryIdType = investor.secondary_id_type || '';
           profileData.personalInfo.secondaryIdNumber = investor.secondary_id_number || '';
         }
