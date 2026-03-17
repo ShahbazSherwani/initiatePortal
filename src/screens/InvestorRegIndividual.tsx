@@ -163,8 +163,10 @@ export const InvestorRegIndividual = (): JSX.Element => {
           // Pre-populate personal profile fields
           if (existingData.personalInfo) {
             console.log('👤 [INVESTOR] Personal info data:', existingData.personalInfo);
-            // Note: Investor form doesn't have these fields, but borrower might
-            // We'll pre-populate what we can
+            if (existingData.personalInfo.firstName) setFirstName(existingData.personalInfo.firstName);
+            if (existingData.personalInfo.middleName) setMiddleName(existingData.personalInfo.middleName);
+            if (existingData.personalInfo.lastName) setLastName(existingData.personalInfo.lastName);
+            if (existingData.personalInfo.suffixName) setSuffixName(existingData.personalInfo.suffixName);
           }
           
           // Pre-populate address fields
@@ -172,9 +174,9 @@ export const InvestorRegIndividual = (): JSX.Element => {
             console.log('📍 [INVESTOR] Address data:', existingData.address);
             setStreet(existingData.address.street || existingData.address.present_address || "");
             setBarangay(existingData.address.barangay || "");
-            setCountryIso(existingData.address.countryIso || existingData.address.country_iso || "");
-            setStateIso(existingData.address.stateIso || existingData.address.state_iso || "");
-            setCityName(existingData.address.cityName || existingData.address.city || "");
+            setCountryIso(existingData.address.country || existingData.address.countryIso || existingData.address.country_iso || "");
+            setStateIso(existingData.address.state || existingData.address.stateIso || existingData.address.state_iso || "");
+            setCityName(existingData.address.city || existingData.address.cityName || "");
             setPostalCode(existingData.address.postalCode || existingData.address.postal_code || "");
           }
           
