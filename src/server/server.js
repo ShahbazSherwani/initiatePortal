@@ -8249,6 +8249,68 @@ app.get('/api/admin/projects/:id', verifyToken, async (req, res) => {
   }
 });
 
+// Manual escrow status update (ABCapital integration placeholder)
+app.post('/api/admin/projects/:id/escrow-status', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { escrowStatus, notes } = req.body || {};
+
+  const allowedStatuses = ['pending', 'funds_received', 'escrow_secured', 'released_to_issuer'];
+
+  if (!allowedStatuses.includes(escrowStatus)) {
+    return res.status(400).json({
+      error: 'Invalid escrow status',
+      allowedStatuses
+    });
+  }
+
+  try {
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Unauthorized: Admin access required' });
+    }
+
+    const projectResult = await db.query(
+      `SELECT project_data FROM projects WHERE id = $1`,
+      [id]
+    );
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const projectData = projectResult.rows[0].project_data || {};
+    projectData.escrowStatus = escrowStatus;
+    projectData.escrowUpdatedAt = new Date().toISOString();
+    projectData.escrowUpdatedBy = req.uid;
+    if (typeof notes === 'string' && notes.trim()) {
+      projectData.escrowNotes = notes.trim();
+    }
+
+    await db.query(
+      `UPDATE projects
+       SET project_data = $1, updated_at = NOW()
+       WHERE id = $2`,
+      [projectData, id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Escrow status updated successfully',
+      escrowStatus: projectData.escrowStatus,
+      escrowUpdatedAt: projectData.escrowUpdatedAt,
+      escrowUpdatedBy: projectData.escrowUpdatedBy,
+      escrowNotes: projectData.escrowNotes || ''
+    });
+  } catch (err) {
+    console.error('Error updating escrow status:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // Update or add this endpoint for calendar/investor view
 
 app.get('/api/calendar/projects', verifyToken, async (req, res) => {

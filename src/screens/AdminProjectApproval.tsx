@@ -17,6 +17,9 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [remoteProject, setRemoteProject] = useState<any>(null);
+  const [escrowStatus, setEscrowStatus] = useState('pending');
+  const [escrowNotes, setEscrowNotes] = useState('');
+  const [escrowSaving, setEscrowSaving] = useState(false);
   
   // IMPORTANT: Define handleApproveReject with useCallback BEFORE using it in any other hooks
   const handleApproveReject = useCallback(async (actionType: 'approve' | 'reject') => {
@@ -102,6 +105,41 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
       fetchProject();
     }
   }, [project, projectId]);
+
+  useEffect(() => {
+    const source = project || remoteProject;
+    if (source?.project_data) {
+      setEscrowStatus(source.project_data.escrowStatus || 'pending');
+      setEscrowNotes(source.project_data.escrowNotes || '');
+    }
+  }, [project, remoteProject]);
+
+  const handleEscrowStatusUpdate = async () => {
+    setEscrowSaving(true);
+    try {
+      const result = await authFetch(`${API_BASE_URL}/admin/projects/${projectId}/escrow-status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          escrowStatus,
+          notes: escrowNotes
+        })
+      });
+
+      if (result?.success) {
+        toast.success('Escrow status updated');
+      } else {
+        toast.error('Failed to update escrow status');
+      }
+    } catch (error: any) {
+      console.error('Escrow update failed:', error);
+      toast.error(error?.message || 'Failed to update escrow status');
+    } finally {
+      setEscrowSaving(false);
+    }
+  };
   
   // Auto-trigger approval/rejection if action is provided - ALWAYS include this hook
   useEffect(() => {
@@ -183,6 +221,43 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
             <div className="mb-6">
               <h2 className="text-xl font-semibold mb-2">Project Overview</h2>
               <p>{displayProject?.project_data?.details?.overview || 'No overview provided'}</p>
+            </div>
+
+            <div className="mb-8 border rounded-lg p-4 bg-gray-50">
+              <h2 className="text-xl font-semibold mb-3">Escrow Status Tracker (Manual)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Escrow Status</label>
+                  <select
+                    value={escrowStatus}
+                    onChange={(e) => setEscrowStatus(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="funds_received">Funds Received</option>
+                    <option value="escrow_secured">Escrow Secured</option>
+                    <option value="released_to_issuer">Released to Issuer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Notes (Optional)</label>
+                  <input
+                    type="text"
+                    value={escrowNotes}
+                    onChange={(e) => setEscrowNotes(e.target.value)}
+                    placeholder="Escrow remarks"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <Button
+                className="mt-4 bg-[#0C4B20] hover:bg-[#0A3D1A] text-white"
+                onClick={handleEscrowStatusUpdate}
+                disabled={escrowSaving}
+              >
+                {escrowSaving ? 'Saving...' : 'Update Escrow Status'}
+              </Button>
             </div>
             
             <div className="mb-8">

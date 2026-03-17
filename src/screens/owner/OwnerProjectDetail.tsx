@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { OwnerLayout } from '../../layouts/OwnerLayout';
+import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -60,8 +61,12 @@ interface ProjectDetail {
 export const OwnerProjectDetail: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [escrowStatus, setEscrowStatus] = useState('pending');
+  const [escrowNotes, setEscrowNotes] = useState('');
+  const [escrowSaving, setEscrowSaving] = useState(false);
 
   // Material change state
   const [mcChangeType, setMcChangeType] = useState('');
@@ -82,11 +87,44 @@ export const OwnerProjectDetail: React.FC = () => {
       console.log('Project title:', data.title);
       console.log('Funding amount:', data.fundingAmount);
       setProject(data);
+      const initialEscrowStatus = data?.projectData?.escrowStatus || 'pending';
+      setEscrowStatus(initialEscrowStatus);
+      setEscrowNotes(data?.projectData?.escrowNotes || '');
     } catch (error) {
       console.error('Error fetching project details:', error);
       toast.error('Failed to load project details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const escrowStatusOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'funds_received', label: 'Funds Received' },
+    { value: 'escrow_secured', label: 'Escrow Secured' },
+    { value: 'released_to_issuer', label: 'Released to Issuer' }
+  ];
+
+  const handleSaveEscrowStatus = async () => {
+    if (!projectId) return;
+
+    setEscrowSaving(true);
+    try {
+      await authFetch(`${API_BASE_URL}/admin/projects/${projectId}/escrow-status`, {
+        method: 'POST',
+        body: JSON.stringify({
+          escrowStatus,
+          notes: escrowNotes
+        })
+      });
+
+      toast.success('Escrow status updated successfully');
+      await fetchProjectDetails();
+    } catch (error: any) {
+      console.error('Error updating escrow status:', error);
+      toast.error(error?.message || 'Failed to update escrow status');
+    } finally {
+      setEscrowSaving(false);
     }
   };
 
@@ -341,6 +379,57 @@ export const OwnerProjectDetail: React.FC = () => {
 
         {/* Project Type Specific Information */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Escrow Controls (Admin only) */}
+          {profile?.isAdmin && (
+            <Card className="bg-white shadow-sm border-0 lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheckIcon className="w-5 h-5 text-[#0C4B20]" />
+                  Escrow Integration Status (Manual)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-600 block mb-1">Escrow Status</label>
+                    <select
+                      value={escrowStatus}
+                      onChange={(e) => setEscrowStatus(e.target.value)}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      {escrowStatusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600 block mb-1">Notes (Optional)</label>
+                    <input
+                      type="text"
+                      value={escrowNotes}
+                      onChange={(e) => setEscrowNotes(e.target.value)}
+                      placeholder="e.g. ABCapital confirmation ref"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <p className="text-xs text-gray-500">
+                    Current status on campaign page: <span className="font-semibold">{escrowStatusOptions.find(s => s.value === (project.projectData?.escrowStatus || 'pending'))?.label || 'Pending'}</span>
+                  </p>
+                  <Button
+                    onClick={handleSaveEscrowStatus}
+                    disabled={escrowSaving}
+                    className="bg-[#0C4B20] text-white hover:bg-[#0A3D1A]"
+                  >
+                    {escrowSaving ? 'Saving...' : 'Update Escrow Status'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Financial/Investment Details */}
           <Card className="bg-white shadow-sm border-0">
             <CardHeader>

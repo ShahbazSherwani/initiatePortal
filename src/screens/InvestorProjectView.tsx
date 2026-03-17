@@ -145,6 +145,14 @@ export const InvestorProjectView: React.FC = () => {
   
   const projectData = project.project_data || {};
   const details = projectData.details || {};
+  const escrowStatus = projectData.escrowStatus || 'pending';
+  const escrowSteps = [
+    { key: 'pending', label: 'Pending' },
+    { key: 'funds_received', label: 'Funds Received' },
+    { key: 'escrow_secured', label: 'Escrow Secured' },
+    { key: 'released_to_issuer', label: 'Released to Issuer' }
+  ];
+  const escrowCurrentIndex = Math.max(0, escrowSteps.findIndex((step) => step.key === escrowStatus));
   
   // PayMongo payment handler - redirects to PayMongo checkout
   const handleInvest = async () => {
@@ -326,6 +334,34 @@ export const InvestorProjectView: React.FC = () => {
                   This campaign is published on the platform but remains subject to verification.
                 </div>
                 <p className="text-gray-500 mb-6">{details.overview || "No description available"}</p>
+
+                {/* Escrow status tracker (manual admin updates until ABCapital integration) */}
+                <div className="mb-6 border border-gray-200 rounded-xl p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-800">Escrow Status</h3>
+                    <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#0C4B20]/10 text-[#0C4B20]">
+                      {escrowSteps[escrowCurrentIndex]?.label || 'Pending'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {escrowSteps.map((step, index) => {
+                      const completed = index <= escrowCurrentIndex;
+                      return (
+                        <div
+                          key={step.key}
+                          className={`text-xs rounded-lg border px-2 py-2 text-center font-medium ${
+                            completed
+                              ? 'bg-[#0C4B20] text-white border-[#0C4B20]'
+                              : 'bg-white text-gray-500 border-gray-200'
+                          }`}
+                        >
+                          {step.label}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                   <div>
