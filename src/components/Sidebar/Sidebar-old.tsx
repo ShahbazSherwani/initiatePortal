@@ -60,12 +60,12 @@ const investorNavItems: NavItem[] = [
 
 // Common navigation items for all accounts
 const commonNavItems: NavItem[] = [
-  {
-    icon: <img src="/group-26.png" alt="Donation" className="w-3.5 h-5" />,
-    label: "Donation",
-    to: '/donation',
-    key: 'donation'
-  },
+  // {
+  //   icon: <img src="/group-26.png" alt="Donation" className="w-3.5 h-5" />,
+  //   label: "Donation",
+  //   to: '/donation',
+  //   key: 'donation'
+  // },
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
   { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/help', key: 'help' },
 ];

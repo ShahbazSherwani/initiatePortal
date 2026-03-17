@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { AppRoutes } from "./routes/AppRoutes";
+import Footer from "./layouts/Footer";
 import { AuthProvider } from './contexts/AuthContext';  // correct path
 import { ProjectsProvider } from './contexts/ProjectsContext'; // <-- Add this import
 import { AccountProvider } from './contexts/AccountContext'; // Add AccountProvider
@@ -22,6 +23,7 @@ root.render(
           <NotificationProvider> {/* Add NotificationProvider */}
             <ProjectsProvider> {/* <-- Wrap your routes with ProjectsProvider */}
               <AppRoutes />
+              <Footer />
             </ProjectsProvider>
           </NotificationProvider>
         </AccountProvider>

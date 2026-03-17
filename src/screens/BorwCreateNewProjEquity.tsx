@@ -213,7 +213,7 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="font-medium text-black text-base">Minimum Funding Target</label>
-                      <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5 font-medium">Required by SEC</span>
+                      <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5 font-medium"></span>
                     </div>
                     <Input
                       placeholder="Enter minimum amount to proceed (e.g. 100000)"

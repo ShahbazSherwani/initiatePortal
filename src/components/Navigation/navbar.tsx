@@ -1,10 +1,8 @@
 // src/components/Navigation/Navbar.tsx
-import React, { useState, useContext, useEffect } from "react";
-import { RiskFooter } from '../RiskFooter';
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { MenuIcon, XIcon, ChevronDownIcon } from "lucide-react";
-import { AuthContext } from "../../contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from '../../contexts/AuthContext';
 import { useAccount } from '../../contexts/AccountContext';
@@ -26,12 +24,11 @@ export interface NavbarProps {
 
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onBack }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountTypeKey, setAccountTypeKey] = useState(0); // Force re-render key
   const { token, profile, logout, profilePicture } = useAuth();
   const { currentAccountType, borrowerProfile, investorProfile } = useAccount();
-  const location = useLocation();
   const navigate = useNavigate();
 
   // Listen for account switches and force re-render
@@ -238,8 +235,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, onBack }) => {
       </div>
       
     </nav>
-    
-    <RiskFooter />
     
     </>
   );
