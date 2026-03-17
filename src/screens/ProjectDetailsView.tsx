@@ -17,6 +17,7 @@ const ProjectDetailsView: React.FC = () => {
   const [selectedMilestoneTab, setSelectedMilestoneTab] = useState('ROI (Expense)');
   const [reportForm, setReportForm] = useState({ quarter: 'Q1', year: new Date().getFullYear().toString(), fundsUtilized: '', description: '' });
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [latestProject, setLatestProject] = useState<any | null>(null);
 
   const handleSubmitReport = async () => {
     if (!project) return;
@@ -45,6 +46,13 @@ const ProjectDetailsView: React.FC = () => {
     if (projectId) {
       console.log("🔄 Refreshing project data for ID:", projectId);
       loadProjects();
+      authFetch(`${API_BASE_URL}/projects/${projectId}`)
+        .then((freshProject) => {
+          setLatestProject(freshProject);
+        })
+        .catch((error) => {
+          console.warn('Failed to fetch latest project details, using context data:', error);
+        });
       window.scrollTo({ top: 0, behavior: 'auto' });
       contentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
     }
@@ -54,7 +62,8 @@ const ProjectDetailsView: React.FC = () => {
   console.log("ProjectDetailsView - projects in context:", projects);
 
   // Convert projectId to number for comparison since DB IDs are numbers
-  const project = projects.find(p => p.id === parseInt(projectId as string, 10));
+  const fallbackProject = projects.find(p => p.id === parseInt(projectId as string, 10));
+  const project = latestProject || fallbackProject;
   console.log("ProjectDetailsView - found project:", project);
   
   // Debug: Log the actual project data structure
@@ -188,7 +197,12 @@ const ProjectDetailsView: React.FC = () => {
   
   const estimatedReturn = calculateEstimatedReturn();
   const projectData = project.project_data || {};
-  const escrowStatus = projectData.escrowStatus || 'pending';
+  const escrowStatus =
+    projectData.escrowStatus ||
+    projectData.escrow_status ||
+    projectData?.details?.escrowStatus ||
+    projectData?.details?.escrow_status ||
+    'pending';
   const escrowSteps = [
     { key: 'pending', label: 'Pending' },
     { key: 'funds_received', label: 'Funds Received' },
@@ -247,7 +261,7 @@ const ProjectDetailsView: React.FC = () => {
             <div className="space-y-6">
               <h2 className="text-xl font-bold">About Project</h2>
 
-              <div className="border border-[#0C4B20]/20 rounded-xl p-4 md:p-5 bg-gradient-to-r from-[#0C4B20]/5 to-white">
+              <div className="border border-gray-200 rounded-xl p-4 md:p-5 bg-white shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm md:text-base font-semibold text-gray-800">Escrow Status</h3>
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#0C4B20]/10 text-[#0C4B20]">
@@ -261,7 +275,7 @@ const ProjectDetailsView: React.FC = () => {
                     return (
                       <div
                         key={step.key}
-                        className={`text-xs rounded-lg border px-2 py-2 text-center font-medium transition-colors ${
+                        className={`text-xs rounded-md border px-2 py-2 text-center font-medium transition-colors ${
                           completed
                             ? 'bg-[#0C4B20] text-white border-[#0C4B20]'
                             : 'bg-white text-gray-500 border-gray-200'
@@ -272,15 +286,6 @@ const ProjectDetailsView: React.FC = () => {
                     );
                   })}
                 </div>
-              </div>
-              
-              {/* More options button */}
-              <div className="flex justify-end">
-                <button className="text-gray-400 hover:text-gray-600">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                  </svg>
-                </button>
               </div>
               
               {/* Project image */}
@@ -298,7 +303,7 @@ const ProjectDetailsView: React.FC = () => {
               </h3>
               
               {/* Project details grid */}
-              <div className="grid grid-cols-2 gap-y-6 gap-x-8 p-4 rounded-xl border border-gray-100 bg-gray-50/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 p-5 rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Project ID:</p>
                   <p className="font-medium">PFLA{project.id}5N</p>
@@ -314,7 +319,7 @@ const ProjectDetailsView: React.FC = () => {
               </div>
               
               {/* Funding progress section */}
-              <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
+              <div className="p-5 rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between mb-2 text-sm text-gray-500">
                   <span>PHP 0</span>
                   <span>PHP {Math.round(totalFundingRequired * 0.4).toLocaleString()}</span>

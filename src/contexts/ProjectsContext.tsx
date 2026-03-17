@@ -99,12 +99,14 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
       const endpoint = currentAccountType === 'investor' 
         ? '/calendar/projects' 
         : '/projects';
+      const endpointWithBust = `${endpoint}?_=${Date.now()}`;
 
       console.log("Using endpoint:", endpoint);
-      console.log("Full URL:", `${API_BASE_URL}${endpoint}`);
+      console.log("Full URL:", `${API_BASE_URL}${endpointWithBust}`);
 
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}${endpointWithBust}`, {
         method: 'GET',
+        cache: 'no-store',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
