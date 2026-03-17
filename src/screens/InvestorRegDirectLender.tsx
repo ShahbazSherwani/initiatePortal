@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -6,6 +6,7 @@ import { useAccount } from "../contexts/AccountContext";
 import { authFetch } from "../lib/api";
 import { API_BASE_URL } from '../config/environment';
 import { Country, State, City } from "country-state-city";
+import { getPsgcCitiesMunicipalities, getPsgcProvinces } from "../lib/psgc";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { Button } from "../components/ui/button";
 import { ValidatedInput, ValidatedSelect, ValidatedFileUpload } from "../components/ValidatedFormFields";
@@ -56,6 +57,9 @@ export const InvestorRegDirectLender = (): JSX.Element => {
   const [stateIso, setStateIso] = useState("");
   const [cityName, setCityName] = useState("");
   const [postalCode, setPostalCode] = useState("");
+
+  const [phProvinces, setPhProvinces] = useState<Array<{ code: string; name: string }>>([]);
+  const [phCities, setPhCities] = useState<Array<{ code: string; name: string }>>([]);
 
   // Validation state
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -108,8 +112,16 @@ export const InvestorRegDirectLender = (): JSX.Element => {
   };
 
   const countries = Country.getAllCountries();
-  const states = countryIso ? State.getStatesOfCountry(countryIso) : [];
-  const cities = stateIso ? City.getCitiesOfState(countryIso, stateIso) : [];
+  const states: Array<{ isoCode: string; name: string }> = countryIso
+    ? countryIso === "PH"
+      ? phProvinces.map((province) => ({ isoCode: province.code, name: province.name }))
+      : State.getStatesOfCountry(countryIso).map((state) => ({ isoCode: state.isoCode, name: state.name }))
+    : [];
+  const cities: Array<{ name: string }> = stateIso
+    ? countryIso === "PH"
+      ? phCities.map((city) => ({ name: city.name }))
+      : City.getCitiesOfState(countryIso, stateIso).map((city) => ({ name: city.name }))
+    : [];
 
   const { registration, setRegistration } = useRegistration();
   const { refreshAccounts, setAccountType: setUserAccountType } = useAccount();
@@ -117,6 +129,54 @@ export const InvestorRegDirectLender = (): JSX.Element => {
   const navigate = useNavigate();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (countryIso !== "PH") {
+      setPhProvinces([]);
+      return;
+    }
+
+    let cancelled = false;
+    getPsgcProvinces()
+      .then((provinces) => {
+        if (!cancelled) {
+          setPhProvinces(provinces);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPhProvinces([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [countryIso]);
+
+  useEffect(() => {
+    if (countryIso !== "PH" || !stateIso) {
+      setPhCities([]);
+      return;
+    }
+
+    let cancelled = false;
+    getPsgcCitiesMunicipalities(stateIso)
+      .then((citiesMunicipalities) => {
+        if (!cancelled) {
+          setPhCities(citiesMunicipalities);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPhCities([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [countryIso, stateIso]);
 
   const handleLenderTypeSelect = (type: string) => {
     setLenderType(type);

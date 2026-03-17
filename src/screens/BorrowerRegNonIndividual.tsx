@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useRegistration } from "../contexts/RegistrationContext";
 import { Country, State, City } from "country-state-city";
+import { getPsgcCitiesMunicipalities, getPsgcProvinces } from "../lib/psgc";
 import { Testimonials } from "../screens/LogIn/Testimonials";
 import { auth } from "../lib/firebase";
 import { useAuth } from "../contexts/AuthContext";
@@ -75,13 +76,107 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
   const [cityName, setCityName] = useState("");
   const [postalCode, setPostalCode] = useState("");
 
+  const [phProvinces, setPhProvinces] = useState<Array<{ code: string; name: string }>>([]);
+  const [phCities, setPhCities] = useState<Array<{ code: string; name: string }>>([]);
+  const [phPrincipalOfficeCities, setPhPrincipalOfficeCities] = useState<Array<{ code: string; name: string }>>([]);
+
   const countries = Country.getAllCountries();
-  const states = countryIso ? State.getStatesOfCountry(countryIso) : [];
-  const cities = stateIso ? City.getCitiesOfState(countryIso, stateIso) : [];
+  const states: Array<{ isoCode: string; name: string }> = countryIso
+    ? countryIso === "PH"
+      ? phProvinces.map((province) => ({ isoCode: province.code, name: province.name }))
+      : State.getStatesOfCountry(countryIso).map((state) => ({ isoCode: state.isoCode, name: state.name }))
+    : [];
+  const cities: Array<{ name: string }> = stateIso
+    ? countryIso === "PH"
+      ? phCities.map((city) => ({ name: city.name }))
+      : City.getCitiesOfState(countryIso, stateIso).map((city) => ({ name: city.name }))
+    : [];
+  const principalOfficeStates: Array<{ isoCode: string; name: string }> = principalOfficeCountry
+    ? principalOfficeCountry === "PH"
+      ? phProvinces.map((province) => ({ isoCode: province.code, name: province.name }))
+      : State.getStatesOfCountry(principalOfficeCountry).map((state) => ({ isoCode: state.isoCode, name: state.name }))
+    : [];
+  const principalOfficeCities: Array<{ name: string }> = principalOfficeState
+    ? principalOfficeCountry === "PH"
+      ? phPrincipalOfficeCities.map((city) => ({ name: city.name }))
+      : City.getCitiesOfState(principalOfficeCountry, principalOfficeState).map((city) => ({ name: city.name }))
+    : [];
 
   const { setRegistration } = useRegistration();
   const navigate = useNavigate();
   const { token } = useAuth();
+
+  useEffect(() => {
+    if (countryIso !== "PH" && principalOfficeCountry !== "PH") {
+      setPhProvinces([]);
+      return;
+    }
+
+    let cancelled = false;
+    getPsgcProvinces()
+      .then((provinces) => {
+        if (!cancelled) {
+          setPhProvinces(provinces);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPhProvinces([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [countryIso, principalOfficeCountry]);
+
+  useEffect(() => {
+    if (countryIso !== "PH" || !stateIso) {
+      setPhCities([]);
+      return;
+    }
+
+    let cancelled = false;
+    getPsgcCitiesMunicipalities(stateIso)
+      .then((citiesMunicipalities) => {
+        if (!cancelled) {
+          setPhCities(citiesMunicipalities);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPhCities([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [countryIso, stateIso]);
+
+  useEffect(() => {
+    if (principalOfficeCountry !== "PH" || !principalOfficeState) {
+      setPhPrincipalOfficeCities([]);
+      return;
+    }
+
+    let cancelled = false;
+    getPsgcCitiesMunicipalities(principalOfficeState)
+      .then((citiesMunicipalities) => {
+        if (!cancelled) {
+          setPhPrincipalOfficeCities(citiesMunicipalities);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPhPrincipalOfficeCities([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [principalOfficeCountry, principalOfficeState]);
 
   // Fetch existing account data if user already has an investor account
   useEffect(() => {
@@ -743,7 +838,11 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                 <Select
                   required
                   value={principalOfficeCountry}
-                  onValueChange={setPrincipalOfficeCountry}
+                  onValueChange={(value) => {
+                    setPrincipalOfficeCountry(value);
+                    setPrincipalOfficeState("");
+                    setPrincipalOfficeCity("");
+                  }}
                 >
                   <SelectTrigger className="h-14 rounded-2xl">
                     <SelectValue placeholder="Select country" />
@@ -764,14 +863,17 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                 <Select
                   required
                   value={principalOfficeState}
-                  onValueChange={setPrincipalOfficeState}
+                  onValueChange={(value) => {
+                    setPrincipalOfficeState(value);
+                    setPrincipalOfficeCity("");
+                  }}
                   disabled={!principalOfficeCountry}
                 >
                   <SelectTrigger className="h-14 rounded-2xl">
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
-                    {principalOfficeCountry && State.getStatesOfCountry(principalOfficeCountry).map(s => (
+                    {principalOfficeStates.map(s => (
                       <SelectItem key={s.isoCode} value={s.isoCode}>
                         {s.name}
                       </SelectItem>
@@ -792,7 +894,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
                     <SelectValue placeholder="Select city" />
                   </SelectTrigger>
                   <SelectContent>
-                    {principalOfficeState && City.getCitiesOfState(principalOfficeCountry, principalOfficeState).map(ci => (
+                    {principalOfficeCities.map(ci => (
                       <SelectItem key={ci.name} value={ci.name}>
                         {ci.name}
                       </SelectItem>

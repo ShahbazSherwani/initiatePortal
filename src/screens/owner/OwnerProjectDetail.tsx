@@ -379,8 +379,7 @@ export const OwnerProjectDetail: React.FC = () => {
 
         {/* Project Type Specific Information */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Escrow Controls (Admin only) */}
-          {profile?.isAdmin && (
+          {/* Escrow Controls */}
             <Card className="bg-white shadow-sm border-0 lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -428,7 +427,6 @@ export const OwnerProjectDetail: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-          )}
 
           {/* Financial/Investment Details */}
           <Card className="bg-white shadow-sm border-0">

@@ -12,6 +12,7 @@ const ProjectDetailsView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { projects, loadProjects } = useProjects();
   const navigate = useNavigate();
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState('Details');
   const [selectedMilestoneTab, setSelectedMilestoneTab] = useState('ROI (Expense)');
   const [reportForm, setReportForm] = useState({ quarter: 'Q1', year: new Date().getFullYear().toString(), fundsUtilized: '', description: '' });
@@ -44,6 +45,8 @@ const ProjectDetailsView: React.FC = () => {
     if (projectId) {
       console.log("🔄 Refreshing project data for ID:", projectId);
       loadProjects();
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      contentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
     }
   }, [projectId, loadProjects]);
 
@@ -184,17 +187,26 @@ const ProjectDetailsView: React.FC = () => {
   const daysRemaining = getDaysRemaining();
   
   const estimatedReturn = calculateEstimatedReturn();
+  const projectData = project.project_data || {};
+  const escrowStatus = projectData.escrowStatus || 'pending';
+  const escrowSteps = [
+    { key: 'pending', label: 'Pending' },
+    { key: 'funds_received', label: 'Funds Received' },
+    { key: 'escrow_secured', label: 'Escrow Secured' },
+    { key: 'released_to_issuer', label: 'Released to Issuer' }
+  ];
+  const escrowCurrentIndex = Math.max(0, escrowSteps.findIndex((step) => step.key === escrowStatus));
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-1">
       {/* Sidebar */}
       <div className="hidden md:block w-[325px]">
         <Sidebar activePage="My Issuer/Borrower" />
       </div>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
+      <main className="flex-1">
+        <div ref={contentRef} className="w-[90%] mx-auto bg-white rounded-t-[30px] p-4 md:p-8 md:w-full md:mx-0 min-h-screen flex flex-col animate-fadeIn delay-300">
           {/* Back button */}
           <div className="flex items-center mb-6">
             <ChevronLeft 
@@ -232,11 +244,38 @@ const ProjectDetailsView: React.FC = () => {
 
           {/* Project Details */}
           {activeTab === 'Details' && (
-            <div>
-              <h2 className="text-xl font-bold mb-4">About Project</h2>
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold">About Project</h2>
+
+              <div className="border border-[#0C4B20]/20 rounded-xl p-4 md:p-5 bg-gradient-to-r from-[#0C4B20]/5 to-white">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm md:text-base font-semibold text-gray-800">Escrow Status</h3>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#0C4B20]/10 text-[#0C4B20]">
+                    {escrowSteps[escrowCurrentIndex]?.label || 'Pending'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {escrowSteps.map((step, index) => {
+                    const completed = index <= escrowCurrentIndex;
+                    return (
+                      <div
+                        key={step.key}
+                        className={`text-xs rounded-lg border px-2 py-2 text-center font-medium transition-colors ${
+                          completed
+                            ? 'bg-[#0C4B20] text-white border-[#0C4B20]'
+                            : 'bg-white text-gray-500 border-gray-200'
+                        }`}
+                      >
+                        {step.label}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
               
               {/* More options button */}
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-end">
                 <button className="text-gray-400 hover:text-gray-600">
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -245,7 +284,7 @@ const ProjectDetailsView: React.FC = () => {
               </div>
               
               {/* Project image */}
-              <div className="mb-6">
+              <div className="rounded-xl overflow-hidden border border-gray-100">
                 <img 
                   src={project.project_data?.details?.image || "/default-farm.jpg"}
                   alt="Project" 
@@ -254,12 +293,12 @@ const ProjectDetailsView: React.FC = () => {
               </div>
               
               {/* Project title */}
-              <h3 className="text-xl font-bold mb-6">
+              <h3 className="text-xl font-bold">
                 {project.project_data?.details?.product || "UBE Field"}
               </h3>
               
               {/* Project details grid */}
-              <div className="grid grid-cols-2 gap-y-6 gap-x-8 mb-8">
+              <div className="grid grid-cols-2 gap-y-6 gap-x-8 p-4 rounded-xl border border-gray-100 bg-gray-50/50">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Project ID:</p>
                   <p className="font-medium">PFLA{project.id}5N</p>
@@ -275,7 +314,7 @@ const ProjectDetailsView: React.FC = () => {
               </div>
               
               {/* Funding progress section */}
-              <div className="mb-8">
+              <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
                 <div className="flex items-center justify-between mb-2 text-sm text-gray-500">
                   <span>PHP 0</span>
                   <span>PHP {Math.round(totalFundingRequired * 0.4).toLocaleString()}</span>

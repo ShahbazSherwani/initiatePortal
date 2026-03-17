@@ -203,6 +203,14 @@ export const BorrowerOccupation: React.FC = () => {
         contactPersonPosition: !isIndividual ? registration.details?.contactPersonPosition : null,
         contactPersonEmail: !isIndividual ? registration.details?.contactPersonEmail : null,
         contactPersonPhone: !isIndividual ? registration.details?.contactPersonPhone : null,
+
+        // Principal office address (non-individual)
+        principalOfficeStreet: !isIndividual ? registration.details?.principalOfficeStreet : null,
+        principalOfficeBarangay: !isIndividual ? registration.details?.principalOfficeBarangay : null,
+        principalOfficeCountry: !isIndividual ? registration.details?.principalOfficeCountry : null,
+        principalOfficeState: !isIndividual ? registration.details?.principalOfficeState : null,
+        principalOfficeCity: !isIndividual ? registration.details?.principalOfficeCity : null,
+        principalOfficePostalCode: !isIndividual ? registration.details?.principalOfficePostalCode : null,
         
         // Entity document files
         registrationCertFile: !isIndividual ? registrationCertFileBase64 : null,
