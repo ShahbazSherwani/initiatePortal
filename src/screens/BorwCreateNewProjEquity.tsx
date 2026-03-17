@@ -62,38 +62,10 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
   const [showEquityInfo, setShowEquityInfo] = useState(false);
 
   const handleDownloadTemplate = () => {
-    const csvContent = [
-      'Field,Value',
-      'Business Name,',
-      'Business Registration Number,',
-      'Business Address,',
-      'City,',
-      'Province/State,',
-      'Country,',
-      'Postal Code,',
-      'Business Type (Sole Proprietorship/Partnership/Corporation),',
-      'Industry/Sector,',
-      'Year Established,',
-      'Number of Employees,',
-      'Annual Revenue (PHP),',
-      'Contact Person Name,',
-      'Contact Person Position,',
-      'Contact Email,',
-      'Contact Phone Number,',
-      'Purpose of Funding,',
-      'How Funds Will Be Used,',
-      'Expected Revenue Impact,',
-      'Equity Offered (%),',
-      'Current Company Valuation (PHP),',
-      'Existing Investors (if any),',
-    ].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Project_Details_Form.csv';
+    a.href = '/Issuer_Form_3.pdf';
+    a.download = 'Issuer_Form_3.pdf';
     a.click();
-    URL.revokeObjectURL(url);
   };
 
   const handleDetailsFormUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,7 +88,7 @@ export const BorrowerCreateNewEq: React.FC = (): JSX.Element => {
 
   const onSubmit = () => {
     if (!detailsFormFile) {
-      alert('Please download the Project Details Form, fill it out, and upload it before continuing.');
+      alert('Please download the Issuer Form 3, fill it out, and upload it before continuing.');
       return;
     }
     setForm(f => ({
@@ -541,10 +513,10 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                   {/* Project Details Form */}
                   <div>
                     <label className="font-medium text-black text-base block mb-2">
-                      Project Details Form <span className="text-red-500">*</span>
+                      Issuer Form 3 <span className="text-red-500">*</span>
                     </label>
                     <p className="text-sm text-gray-500 mb-3">
-                      Download the template below, fill in all required details, and upload the completed file.
+                      Download the Issuer Form 3 below, fill in all required details, and upload the completed file.
                     </p>
                     <button
                       type="button"
@@ -552,7 +524,7 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                       className="flex items-center gap-2 px-4 py-2.5 mb-3 border border-[#1B5E20] text-[#1B5E20] rounded-xl text-sm font-medium hover:bg-green-50 transition-colors"
                     >
                       <DownloadIcon className="w-4 h-4" />
-                      Download Template
+                      Download Issuer Form 3
                     </button>
                     <div
                       onClick={() => detailsFormRef.current?.click()}
