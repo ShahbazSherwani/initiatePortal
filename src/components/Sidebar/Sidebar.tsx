@@ -78,13 +78,13 @@ const investorNavItems: NavItem[] = [
 // Common navigation items for borrowers
 const borrowerCommonNavItems: NavItem[] = [
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
-  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/help', key: 'help' },
+  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/knowledge-base', key: 'help' },
 ];
 
 // Common navigation items for investors (no donation)
 const investorCommonNavItems: NavItem[] = [
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
-  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/help', key: 'help' },
+  { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/knowledge-base', key: 'help' },
 ];
 
 interface SidebarProps {
@@ -163,6 +163,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
     if (navItem.key === 'wallet' && currentAccountType === 'investor' && location.pathname === '/borrowBank') return true;
     if (navItem.key === 'my-investments' && location.pathname === '/investor/investments') return true;
     if (navItem.key === 'initiate-request' && location.pathname === '/borrow/request') return true;
+    if (navItem.key === 'help' && (location.pathname === '/help' || location.pathname.startsWith('/knowledge-base'))) return true;
     if (navItem.key === 'home' && currentAccountType === 'borrower' && location.pathname === '/borrow') return true;
     if (navItem.key === 'calendar' && currentAccountType === 'borrower' && location.pathname === '/borrowCalendar') return true;
     if (navItem.key === 'wallet' && currentAccountType === 'borrower' && location.pathname === '/borrowBank') return true;

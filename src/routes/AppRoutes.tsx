@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useParams } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import { LogIn } from "../screens/LogIn/LogIn";
 import { RegisterStep } from "../screens/LogIn/RegisterStep";
@@ -75,6 +75,8 @@ import { OwnerTickets } from "../screens/owner/OwnerTickets";
 import { OwnerComplianceCalendar } from "../screens/owner/OwnerComplianceCalendar";
 import { OwnerAmlLog } from "../screens/owner/OwnerAmlLog";
 import { OwnerEscrowReconciliation } from "../screens/owner/OwnerEscrowReconciliation";
+import KnowledgeBase from "../screens/FAQs/KnowledgeBase";
+import KnowledgeBaseArticle from "../screens/FAQs/KnowledgeBaseArticle";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -329,6 +331,11 @@ const ProjectCreationGuard: React.FC<{ children: JSX.Element }> = ({ children })
   
   console.log('✅ Project creation allowed');
   return children;
+};
+
+const KnowledgeBaseArticleRoute: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>();
+  return <KnowledgeBaseArticle slug={slug} />;
 };
 
 export const AppRoutes: React.FC = () => {
@@ -965,6 +972,32 @@ export const AppRoutes: React.FC = () => {
                     <Settings />
                   </PrivateRoute>
                 } 
+              />
+
+              {/* FAQs / Knowledge Base */}
+              <Route
+                path="/help"
+                element={
+                  <PrivateRoute>
+                    <Navigate to="/knowledge-base" replace />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/knowledge-base"
+                element={
+                  <PrivateRoute>
+                    <KnowledgeBase />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/knowledge-base/articles/:slug"
+                element={
+                  <PrivateRoute>
+                    <KnowledgeBaseArticleRoute />
+                  </PrivateRoute>
+                }
               />
             </Route>
           </Routes>
