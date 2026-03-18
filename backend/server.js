@@ -737,7 +737,11 @@ app.get('/api/accounts', verifyToken, async (req, res) => {
     );
     
     if (userQuery.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      console.log('ℹ️ User not yet in DB, returning empty accounts for:', firebase_uid);
+      return res.json({
+        user: { currentAccountType: null },
+        accounts: {}
+      });
     }
     
     const user = userQuery.rows[0];
