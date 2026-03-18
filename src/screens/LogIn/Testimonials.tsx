@@ -81,7 +81,7 @@ export const Testimonials = () => {
           <Card className="rounded-xl bg-white pt-3 lg:pt-6">
             <CardContent className="p-3 lg:p-6">
               <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-xs lg:text-sm">John Doe</span>
+                <span className="font-medium text-xs lg:text-sm">Juan dela Cruz</span>
                 <div className="flex gap-1">
                   {[...Array(5)].map((_, i) => (
                     <img key={i} src="/star-1.svg" alt="star" className="w-2 lg:w-4 h-2 lg:h-4" />
@@ -137,7 +137,7 @@ export const Testimonials = () => {
           <Card className="rounded-xl bg-white pt-3 lg:pt-5">
             <CardContent className="p-3 lg:p-6">
               <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-xs lg:text-sm">Alexa John</span>
+                <span className="font-medium text-xs lg:text-sm">Maria Reyes</span>
                 <div className="flex gap-1">
                   {[...Array(5)].map((_, i) => (
                     <img key={i} src="/star-1.svg" alt="star" className="w-2 lg:w-4 h-2 lg:h-4" />
@@ -145,7 +145,7 @@ export const Testimonials = () => {
                 </div>
               </div>
               <p className="text-xs lg:text-sm leading-snug">
-                Investie has truly elevated my investment journey.
+                Initiate has truly elevated my investment journey.
               </p>
             </CardContent>
           </Card>

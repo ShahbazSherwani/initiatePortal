@@ -77,6 +77,7 @@ import { OwnerAmlLog } from "../screens/owner/OwnerAmlLog";
 import { OwnerEscrowReconciliation } from "../screens/owner/OwnerEscrowReconciliation";
 import KnowledgeBase from "../screens/FAQs/KnowledgeBase";
 import KnowledgeBaseArticle from "../screens/FAQs/KnowledgeBaseArticle";
+import Footer from "../layouts/Footer";
 
 // A wrapper for protected routes
 const PrivateRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -1001,6 +1002,7 @@ export const AppRoutes: React.FC = () => {
               />
             </Route>
           </Routes>
+          <Footer />
         </ProjectFormProvider>
       </ProjectsProvider>
     </RegistrationProvider>

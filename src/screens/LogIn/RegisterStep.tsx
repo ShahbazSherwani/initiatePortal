@@ -531,7 +531,7 @@ export const RegisterStep = (): JSX.Element => {
             className="mr-2"
           />
           <label className="text-sm">
-            I agree to Investie’s{" "}
+            I agree to Initiate's{" "}
             <Link to="#" className="underline text-[#203863]">
               Terms of Use
             </Link>{" "}

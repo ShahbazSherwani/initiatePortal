@@ -421,7 +421,7 @@ export const InvestorRegIncomeDetails = (): JSX.Element => {
                 required
               />
               <Label className={`text-sm leading-relaxed ${errors.confirmationChecked ? "text-red-500" : ""}`}>
-                I confirm that the details above are true and Investie will not be held 
+                I confirm that the details above are true and Initiate will not be held 
                 liable for false information, either intentional or not.*
               </Label>
             </div>
