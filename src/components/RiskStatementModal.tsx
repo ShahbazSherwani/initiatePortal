@@ -97,7 +97,7 @@ export const RiskStatementModal: React.FC<RiskStatementModalProps> = ({
                   <AlertTriangle className="w-8 h-8 text-red-600" />
                   <Dialog.Title
                     as="h2"
-                    className="text-2xl font-bold leading-6 text-gray-900"
+                    className="text-2xl font-bold leading-6 text-red-600"
                   >
                     Risk Statement
                   </Dialog.Title>
@@ -141,10 +141,10 @@ export const RiskStatementModal: React.FC<RiskStatementModalProps> = ({
                 </p>
 
                 <p className="text-base">
-                  While <span className="font-semibold">INITIATE PH</span> ensures that campaigns undergo eligibility 
+                  While <span className="font-bold text-red-600">INITIATE PH</span> ensures that campaigns undergo eligibility 
                   checks and disclosures as required by law, such inclusion on the platform does not constitute an 
                   endorsement, recommendation, or guarantee of the issuer, its business model, or its likelihood of 
-                  success. <span className="font-semibold">INITIATE PH</span> does not provide investment advice, and 
+                  success. <span className="font-bold text-red-600">INITIATE PH</span> does not provide investment advice, and 
                   investors remain solely responsible for their investment decisions.
                 </p>
 
@@ -157,7 +157,7 @@ export const RiskStatementModal: React.FC<RiskStatementModalProps> = ({
                 <p className="text-base font-medium">
                   For a more detailed discussion of risks, investor responsibilities, and best practices, please refer 
                   to the Investor's Guide and other learning materials provided on the{" "}
-                  <span className="font-semibold">INITIATE PH</span> platform.
+                  <span className="font-bold text-red-600">INITIATE PH</span> platform.
                 </p>
 
                 {/* Scroll indicator */}
