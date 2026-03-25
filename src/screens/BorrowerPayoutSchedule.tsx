@@ -123,6 +123,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
         ? form.selectedType
         : "lending",
       details: form.projectDetails,
+      issuerForm: form.issuerForm || null,
       milestones: form.milestones,
       roi: form.roi,
       sales: form.sales,
@@ -132,6 +133,7 @@ export const BorrowerPayoutSchedule: React.FC = () => {
     setForm({
       selectedType: null,
       projectDetails: {},
+      issuerForm: null,
       milestones: [],
       roi: {},
       sales: {},

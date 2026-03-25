@@ -21,13 +21,12 @@ import {
   UploadIcon,
   ChevronRightIcon,
   Info,
-  DownloadIcon,
-  CheckCircleIcon,
-  XIcon,
 } from "lucide-react";
 import { useProjectForm } from "../contexts/ProjectFormContext";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { format, addDays, differenceInDays } from "date-fns";
+import { IssuerFormDigital, defaultIssuerFormData, validateIssuerForm } from "../components/IssuerFormDigital";
+import type { IssuerFormData } from "../components/IssuerFormDigital";
 
 export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   const { token } = useContext(AuthContext)!;
@@ -47,8 +46,10 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
   const [videoLink, setVideoLink] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [detailsFormFile, setDetailsFormFile] = useState<{ name: string; data: string } | null>(null);
-  const detailsFormRef = useRef<HTMLInputElement>(null);
+  const [issuerFormData, setIssuerFormData] = useState<IssuerFormData>(
+    form.issuerForm || { ...defaultIssuerFormData }
+  );
+  const [issuerFormErrors, setIssuerFormErrors] = useState<string[]>([]);
   
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -64,39 +65,21 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
     fileInputRef.current?.click();
   };
 
-  const handleDownloadTemplate = () => {
-    const a = document.createElement('a');
-    a.href = '/Issuer_Form_3.pdf';
-    a.download = 'Issuer_Form_3.pdf';
-    a.click();
-  };
-
-  const handleDetailsFormUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setDetailsFormFile({ name: file.name, data: reader.result as string });
-      setForm(f => ({
-        ...f,
-        projectDetails: {
-          ...f.projectDetails,
-          projectDetailsForm: { name: file.name, data: reader.result as string },
-        },
-      }));
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
   const onSubmit = () => {
-    if (!detailsFormFile) {
-      alert('Please download the Issuer Form 3, fill it out, and upload it before continuing.');
+    // Validate issuer form
+    const errors = validateIssuerForm(issuerFormData);
+    if (errors.length > 0) {
+      setIssuerFormErrors(errors);
+      // Scroll to top to show errors
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    setIssuerFormErrors([]);
+
     setForm(f => ({
       ...f,
       selectedType: "lending",
+      issuerForm: issuerFormData,
       projectDetails: {
         ...f.projectDetails,
         projectRequirements,
@@ -496,55 +479,12 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   />
                 </div>
 
-                {/* Project Details Form */}
+                {/* Issuer Form 3 — Digital Form */}
                 <div>
-                  <label className="font-medium text-black text-base block mb-2">
-                    Issuer Form 3 <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-sm text-gray-500 mb-3">
-                    Download the Issuer Form 3 below, fill in all required details, and upload the completed file.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleDownloadTemplate}
-                    className="flex items-center gap-2 px-4 py-2.5 mb-3 border border-[#1B5E20] text-[#1B5E20] rounded-xl text-sm font-medium hover:bg-green-50 transition-colors"
-                  >
-                    <DownloadIcon className="w-4 h-4" />
-                    Download Issuer Form 3
-                  </button>
-                  <div
-                    onClick={() => detailsFormRef.current?.click()}
-                    className={`w-full border-2 border-dashed rounded-2xl p-4 flex items-center cursor-pointer hover:bg-gray-50 transition-colors ${
-                      detailsFormFile ? 'border-green-400 bg-green-50/50' : 'border-gray-300'
-                    }`}
-                  >
-                    {detailsFormFile ? (
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                          <span className="text-sm text-green-800 font-medium truncate max-w-[200px]">{detailsFormFile.name}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setDetailsFormFile(null); }}
-                          className="text-gray-400 hover:text-red-500"
-                        >
-                          <XIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center w-full py-2">
-                        <UploadIcon className="w-6 h-6 mb-1 text-gray-400" />
-                        <span className="text-sm text-gray-500">Upload completed form</span>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    ref={detailsFormRef}
-                    type="file"
-                    accept=".csv,.xlsx,.xls,.pdf,.doc,.docx"
-                    onChange={handleDetailsFormUpload}
-                    className="hidden"
+                  <IssuerFormDigital
+                    data={issuerFormData}
+                    onChange={setIssuerFormData}
+                    errors={issuerFormErrors}
                   />
                 </div>
 

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
+import type { IssuerFormData } from "../components/IssuerFormDigital";
 
 export interface Milestone {
   amount: string;
@@ -11,6 +12,7 @@ export interface ProjectForm {
   projectId: string; // Make sure this exists
   selectedType: string | null;
   projectDetails: any;
+  issuerForm: IssuerFormData | null;
   milestones: Milestone[];
   roi: any;
   sales: any;
@@ -30,6 +32,7 @@ export const ProjectFormProvider: React.FC<{ children: React.ReactNode }> = ({ c
     projectId: "",
     selectedType: null,
     projectDetails: {},
+    issuerForm: null,
     milestones: [],
     roi: {},
     sales: {},
@@ -46,6 +49,7 @@ export const ProjectFormProvider: React.FC<{ children: React.ReactNode }> = ({ c
       projectId: project.id, // ID is always on the top level
       selectedType: projectData.type || '',
       projectDetails: projectData.details || {},
+      issuerForm: projectData.issuerForm || null,
       milestones: projectData.milestones || [],
       roi: projectData.roi || {},
       sales: projectData.sales || {},

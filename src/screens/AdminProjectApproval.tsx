@@ -7,6 +7,7 @@ import { Textarea } from '../components/ui/textarea';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
+import { IssuerFormDigital, defaultIssuerFormData } from '../components/IssuerFormDigital';
 
 export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> = ({ action }) => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -218,10 +219,24 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
               </div>
             )}
 
-            {/* Project Details Form (uploaded by borrower) */}
-            {displayProject?.project_data?.details?.projectDetailsForm && (
+            {/* Issuer Form 3 — Digital Form (new) */}
+            {displayProject?.project_data?.issuerForm && (
               <div className="mb-6">
-                <h2 className="text-xl font-semibold mb-2">Issuer Form 3</h2>
+                <h2 className="text-xl font-semibold mb-2">Issuer Form 3 (Digital)</h2>
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <IssuerFormDigital
+                    data={{ ...defaultIssuerFormData, ...displayProject.project_data.issuerForm }}
+                    onChange={() => {}}
+                    readOnly={true}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Legacy: Project Details Form PDF (uploaded by borrower) */}
+            {!displayProject?.project_data?.issuerForm && displayProject?.project_data?.details?.projectDetailsForm && (
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold mb-2">Issuer Form 3 (Legacy PDF Upload)</h2>
                 <div className="flex items-center gap-3 p-3 bg-gray-50 border rounded-lg">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#1B5E20" strokeWidth="2" width="20" height="20"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                   <span className="text-sm font-medium text-gray-700 flex-1 truncate">
