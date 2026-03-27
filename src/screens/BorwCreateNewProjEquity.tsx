@@ -492,15 +492,6 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                     </Popover>
                   </div>
 
-                  {/* Issuer Form 3 — Digital Form */}
-                  <div>
-                    <IssuerFormDigital
-                      data={issuerFormData}
-                      onChange={setIssuerFormData}
-                      errors={issuerFormErrors}
-                    />
-                  </div>
-
                   {/* Project Overview */}
                   <div>
                     <label className="font-medium text-black text-base block mb-2">
@@ -513,13 +504,6 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                       onChange={e => setOverview(e.target.value)}
                     />
                   </div>
-
-                  <Button
-                    className="w-full bg-[#0C4B20] text-white py-3 rounded-lg font-medium"
-                    onClick={onSubmit}
-                  >
-                    Continue
-                  </Button>
                 </div>
 
                 {/* Right column */}
@@ -579,6 +563,22 @@ const handleInvestorPercentage = (event: React.ChangeEvent<HTMLInputElement>) =>
                 </div>
               </div>
             </div>
+
+            {/* Issuer Form 3 — Full Width */}
+            <div className="mt-8">
+              <IssuerFormDigital
+                data={issuerFormData}
+                onChange={setIssuerFormData}
+                errors={issuerFormErrors}
+              />
+            </div>
+
+            <Button
+              className="w-full mt-8 bg-[#0C4B20] text-white py-3 rounded-lg font-medium"
+              onClick={onSubmit}
+            >
+              Continue
+            </Button>
           </div>
         </main>
       </div>

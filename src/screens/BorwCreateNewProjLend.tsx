@@ -479,15 +479,6 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                   />
                 </div>
 
-                {/* Issuer Form 3 — Digital Form */}
-                <div>
-                  <IssuerFormDigital
-                    data={issuerFormData}
-                    onChange={setIssuerFormData}
-                    errors={issuerFormErrors}
-                  />
-                </div>
-
                 {/* Project Overview */}
                 <div>
                   <label className="font-medium text-black text-base block mb-2">
@@ -500,13 +491,6 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                     onChange={(e) => setOverview(e.target.value)}
                   />
                 </div>
-
-                <Button
-                  className="w-full bg-[#0C4B20] hover:bg-[#8FB200] text-white py-3 rounded-lg font-medium"
-                  onClick={onSubmit}
-                >
-                  Continue
-                </Button>
               </div>
 
               {/* Right column */}
@@ -566,6 +550,22 @@ export const BorrowerCreateNew: React.FC = (): JSX.Element => {
                 </div>
               </div>
             </div>
+
+            {/* Issuer Form 3 — Full Width */}
+            <div className="mt-8">
+              <IssuerFormDigital
+                data={issuerFormData}
+                onChange={setIssuerFormData}
+                errors={issuerFormErrors}
+              />
+            </div>
+
+            <Button
+              className="w-full mt-8 bg-[#0C4B20] hover:bg-[#8FB200] text-white py-3 rounded-lg font-medium"
+              onClick={onSubmit}
+            >
+              Continue
+            </Button>
           </div>
         </main>
       </div>

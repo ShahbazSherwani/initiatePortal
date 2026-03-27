@@ -197,21 +197,27 @@ export function validateIssuerForm(data: IssuerFormData): string[] {
   return errors;
 }
 
+// ─── Shared input class to match parent form styling ─────────────────────────
+const inputClass = "w-full py-3 px-3 rounded-2xl border";
+const textareaClass = "w-full py-3 px-3 rounded-2xl border resize-none";
+const labelClass = "font-medium text-black text-base block mb-2";
+const subLabelClass = "font-medium text-gray-600 text-base block mb-2";
+
 // ─── Collapsible Section ─────────────────────────────────────────────────────
 
 function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-gray-200 rounded-lg mb-4">
+    <div className="border border-gray-200 rounded-2xl mb-6">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-t-lg text-left font-semibold text-sm text-gray-800"
+        className="w-full flex items-center justify-between px-6 py-4 bg-gray-50 hover:bg-gray-100 rounded-t-2xl text-left font-semibold text-base text-gray-800"
       >
         {title}
-        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
       </button>
-      {open && <div className="p-4 space-y-4">{children}</div>}
+      {open && <div className="px-6 py-6 space-y-6">{children}</div>}
     </div>
   );
 }
@@ -290,20 +296,20 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
   };
 
   return (
-    <div className="space-y-2">
-      <div className="mb-4">
-        <h2 className="text-lg font-bold text-gray-900">SEC Form CF — Issuer Form 3</h2>
-        <p className="text-sm text-gray-500 mt-1">
+    <div className="space-y-4">
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-black">SEC Form CF — Issuer Form 3</h2>
+        <p className="text-sm text-gray-400 mt-1">
           Complete all required sections below. Fields marked with <span className="text-red-500">*</span> are required.
         </p>
       </div>
 
       {errors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-          <div className="flex items-center gap-2 text-red-700 font-medium text-sm mb-1">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
+          <div className="flex items-center gap-2 text-red-700 font-medium text-sm mb-2">
             <AlertCircle className="h-4 w-4" /> Please fix the following errors:
           </div>
-          <ul className="text-sm text-red-600 list-disc list-inside">
+          <ul className="text-sm text-red-600 list-disc list-inside space-y-0.5">
             {errors.map((e, i) => <li key={i}>{e}</li>)}
           </ul>
         </div>
@@ -311,11 +317,11 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
 
       {/* ── Section 1: Issuer Information ── */}
       <Section title="Section 1: Information on the Issuer" defaultOpen={true}>
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Business Type */}
           <div>
-            <Label className="text-sm font-medium">Business Type <span className="text-red-500">*</span></Label>
-            <RadioGroup value={data.businessType} onValueChange={(v) => update('businessType', v)} disabled={readOnly} className="flex flex-wrap gap-3 mt-1">
+            <label className={labelClass}>Business Type <span className="text-red-500">*</span></label>
+            <RadioGroup value={data.businessType} onValueChange={(v) => update('businessType', v)} disabled={readOnly} className="flex flex-wrap gap-4 mt-1">
               {['Single Proprietorship', 'Cooperative', 'Partnership', 'Corporation', 'Others'].map((t) => (
                 <div key={t} className="flex items-center space-x-2">
                   <RadioGroupItem value={t} id={`bt-${t}`} />
@@ -324,14 +330,14 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
               ))}
             </RadioGroup>
             {data.businessType === 'Others' && (
-              <Input placeholder="Specify other type" value={data.businessTypeOther} onChange={(e) => update('businessTypeOther', e.target.value)} disabled={readOnly} className="mt-2 max-w-xs" />
+              <Input placeholder="Specify other type" value={data.businessTypeOther} onChange={(e) => update('businessTypeOther', e.target.value)} disabled={readOnly} className={`mt-3 ${inputClass}`} />
             )}
           </div>
 
           {/* Business Size */}
           <div>
-            <Label className="text-sm font-medium">Size of Business <span className="text-red-500">*</span></Label>
-            <RadioGroup value={data.businessSize} onValueChange={(v) => update('businessSize', v)} disabled={readOnly} className="flex flex-wrap gap-3 mt-1">
+            <label className={labelClass}>Size of Business <span className="text-red-500">*</span></label>
+            <RadioGroup value={data.businessSize} onValueChange={(v) => update('businessSize', v)} disabled={readOnly} className="flex flex-wrap gap-4 mt-1">
               {[
                 { value: 'micro', label: 'Micro (≤₱3M)' },
                 { value: 'small', label: 'Small (₱3M–₱15M)' },
@@ -348,8 +354,8 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
 
           {/* Registration */}
           <div>
-            <Label className="text-sm font-medium">Registration Authority</Label>
-            <div className="flex flex-wrap gap-3 mt-1">
+            <label className={labelClass}>Registration Authority</label>
+            <div className="flex flex-wrap gap-4 mt-1">
               {['Municipality', 'DTI', 'SEC', 'Other'].map((a) => (
                 <div key={a} className="flex items-center space-x-2">
                   <Checkbox
@@ -363,75 +369,79 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
               ))}
             </div>
             {data.registrationAuthority.includes('Other') && (
-              <Input placeholder="Specify agency" value={data.registrationOther} onChange={(e) => update('registrationOther', e.target.value)} disabled={readOnly} className="mt-2 max-w-xs" />
+              <Input placeholder="Specify agency" value={data.registrationOther} onChange={(e) => update('registrationOther', e.target.value)} disabled={readOnly} className={`mt-3 ${inputClass}`} />
             )}
           </div>
 
           {/* TIN, SEC Reg, DTI Reg */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label className="text-sm font-medium">TIN <span className="text-red-500">*</span></Label>
-              <Input value={data.tin} onChange={(e) => update('tin', e.target.value)} disabled={readOnly} placeholder="Tax Identification Number" />
+              <label className={labelClass}>TIN <span className="text-red-500">*</span></label>
+              <Input value={data.tin} onChange={(e) => update('tin', e.target.value)} disabled={readOnly} placeholder="Tax Identification Number" className={inputClass} />
             </div>
             <div>
-              <Label className="text-sm font-medium">SEC Registration No.</Label>
-              <Input value={data.secRegNo} onChange={(e) => update('secRegNo', e.target.value)} disabled={readOnly} />
+              <label className={labelClass}>SEC Registration No.</label>
+              <Input value={data.secRegNo} onChange={(e) => update('secRegNo', e.target.value)} disabled={readOnly} className={inputClass} />
             </div>
             <div>
-              <Label className="text-sm font-medium">DTI Registration No.</Label>
-              <Input value={data.dtiRegNo} onChange={(e) => update('dtiRegNo', e.target.value)} disabled={readOnly} />
+              <label className={labelClass}>DTI Registration No.</label>
+              <Input value={data.dtiRegNo} onChange={(e) => update('dtiRegNo', e.target.value)} disabled={readOnly} className={inputClass} />
             </div>
           </div>
 
           {/* Company Name & Employees */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label className="text-sm font-medium">Company Name <span className="text-red-500">*</span></Label>
-              <Input value={data.companyName} onChange={(e) => update('companyName', e.target.value)} disabled={readOnly} />
+              <label className={labelClass}>Company Name <span className="text-red-500">*</span></label>
+              <Input value={data.companyName} onChange={(e) => update('companyName', e.target.value)} disabled={readOnly} className={inputClass} />
             </div>
             <div>
-              <Label className="text-sm font-medium">Total Number of Employees</Label>
-              <Input type="number" value={data.totalEmployees} onChange={(e) => update('totalEmployees', e.target.value)} disabled={readOnly} />
+              <label className={labelClass}>Total Number of Employees</label>
+              <Input type="number" value={data.totalEmployees} onChange={(e) => update('totalEmployees', e.target.value)} disabled={readOnly} className={inputClass} />
             </div>
           </div>
 
           {/* Owner (for sole proprietorship/partnership) */}
           {(data.businessType === 'Single Proprietorship' || data.businessType === 'Partnership') && (
             <div>
-              <Label className="text-sm font-medium text-gray-600 mb-2 block">Owner / Partner Information</Label>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <Input placeholder="Last Name" value={data.ownerLastName} onChange={(e) => update('ownerLastName', e.target.value)} disabled={readOnly} />
-                <Input placeholder="First Name" value={data.ownerFirstName} onChange={(e) => update('ownerFirstName', e.target.value)} disabled={readOnly} />
-                <Input placeholder="Middle Name" value={data.ownerMiddleName} onChange={(e) => update('ownerMiddleName', e.target.value)} disabled={readOnly} />
-                <Input placeholder="Marital Status" value={data.ownerMaritalStatus} onChange={(e) => update('ownerMaritalStatus', e.target.value)} disabled={readOnly} />
+              <label className={subLabelClass}>Owner / Partner Information</label>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Input placeholder="Last Name" value={data.ownerLastName} onChange={(e) => update('ownerLastName', e.target.value)} disabled={readOnly} className={inputClass} />
+                <Input placeholder="First Name" value={data.ownerFirstName} onChange={(e) => update('ownerFirstName', e.target.value)} disabled={readOnly} className={inputClass} />
+                <Input placeholder="Middle Name" value={data.ownerMiddleName} onChange={(e) => update('ownerMiddleName', e.target.value)} disabled={readOnly} className={inputClass} />
+                <Input placeholder="Marital Status" value={data.ownerMaritalStatus} onChange={(e) => update('ownerMaritalStatus', e.target.value)} disabled={readOnly} className={inputClass} />
               </div>
             </div>
           )}
 
           {/* Address */}
           <div>
-            <Label className="text-sm font-medium text-gray-600 mb-2 block">Business Address</Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Input placeholder="No." value={data.addressNo} onChange={(e) => update('addressNo', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Street" value={data.addressStreet} onChange={(e) => update('addressStreet', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Barangay" value={data.addressBarangay} onChange={(e) => update('addressBarangay', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Municipality/City *" value={data.addressCity} onChange={(e) => update('addressCity', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Province" value={data.addressProvince} onChange={(e) => update('addressProvince', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Region" value={data.addressRegion} onChange={(e) => update('addressRegion', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Zip Code" value={data.addressZip} onChange={(e) => update('addressZip', e.target.value)} disabled={readOnly} />
+            <label className={subLabelClass}>Business Address</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Input placeholder="No." value={data.addressNo} onChange={(e) => update('addressNo', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Street" value={data.addressStreet} onChange={(e) => update('addressStreet', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Barangay" value={data.addressBarangay} onChange={(e) => update('addressBarangay', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Municipality/City *" value={data.addressCity} onChange={(e) => update('addressCity', e.target.value)} disabled={readOnly} className={inputClass} />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+              <Input placeholder="Province" value={data.addressProvince} onChange={(e) => update('addressProvince', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Region" value={data.addressRegion} onChange={(e) => update('addressRegion', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Zip Code" value={data.addressZip} onChange={(e) => update('addressZip', e.target.value)} disabled={readOnly} className={inputClass} />
             </div>
           </div>
 
           {/* Contact */}
           <div>
-            <Label className="text-sm font-medium text-gray-600 mb-2 block">Contact Information</Label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <Input placeholder="Area Code" value={data.areaCode} onChange={(e) => update('areaCode', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Telephone" value={data.telephone} onChange={(e) => update('telephone', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Fax" value={data.fax} onChange={(e) => update('fax', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Cellphone *" value={data.cellphone} onChange={(e) => update('cellphone', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Email *" type="email" value={data.email} onChange={(e) => update('email', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Website" value={data.website} onChange={(e) => update('website', e.target.value)} disabled={readOnly} />
+            <label className={subLabelClass}>Contact Information</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input placeholder="Area Code" value={data.areaCode} onChange={(e) => update('areaCode', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Telephone" value={data.telephone} onChange={(e) => update('telephone', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Fax" value={data.fax} onChange={(e) => update('fax', e.target.value)} disabled={readOnly} className={inputClass} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <Input placeholder="Cellphone *" value={data.cellphone} onChange={(e) => update('cellphone', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Email *" type="email" value={data.email} onChange={(e) => update('email', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Website" value={data.website} onChange={(e) => update('website', e.target.value)} disabled={readOnly} className={inputClass} />
             </div>
           </div>
         </div>
@@ -440,38 +450,38 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
       {/* ── Section 1.1: Directors & Officers ── */}
       <Section title="Section 1.1: Directors and Officers">
         {data.directorsOfficers.map((dir, i) => (
-          <div key={i} className="border border-gray-100 rounded-lg p-3 mb-3 bg-white">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Director/Officer #{i + 1}</span>
+          <div key={i} className="border border-gray-100 rounded-2xl p-5 mb-4 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-medium text-black text-base">Director/Officer #{i + 1}</span>
               {!readOnly && data.directorsOfficers.length > 1 && (
                 <button type="button" onClick={() => removeDirector(i)} className="text-red-500 hover:text-red-700">
                   <Trash2 className="h-4 w-4" />
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
-              <Input placeholder="Full Name" value={dir.fullName} onChange={(e) => updateDirector(i, 'fullName', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Current Position" value={dir.currentPosition} onChange={(e) => updateDirector(i, 'currentPosition', e.target.value)} disabled={readOnly} />
-              <Input placeholder="Current Function" value={dir.currentFunction} onChange={(e) => updateDirector(i, 'currentFunction', e.target.value)} disabled={readOnly} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <Input placeholder="Full Name" value={dir.fullName} onChange={(e) => updateDirector(i, 'fullName', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Current Position" value={dir.currentPosition} onChange={(e) => updateDirector(i, 'currentPosition', e.target.value)} disabled={readOnly} className={inputClass} />
+              <Input placeholder="Current Function" value={dir.currentFunction} onChange={(e) => updateDirector(i, 'currentFunction', e.target.value)} disabled={readOnly} className={inputClass} />
             </div>
-            <Label className="text-xs text-gray-500 mb-1 block">Employment History (Past 3 Years)</Label>
+            <label className="text-sm text-gray-500 mb-2 block">Employment History (Past 3 Years)</label>
             {dir.employmentHistory.map((h, j) => (
-              <div key={j} className="grid grid-cols-3 gap-2 mb-1">
-                <Input placeholder="Year" value={h.year} onChange={(e) => updateDirectorHistory(i, j, 'year', e.target.value)} disabled={readOnly} className="text-sm" />
-                <Input placeholder="Position" value={h.position} onChange={(e) => updateDirectorHistory(i, j, 'position', e.target.value)} disabled={readOnly} className="text-sm" />
-                <Input placeholder="Employer" value={h.employer} onChange={(e) => updateDirectorHistory(i, j, 'employer', e.target.value)} disabled={readOnly} className="text-sm" />
+              <div key={j} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                <Input placeholder="Year" value={h.year} onChange={(e) => updateDirectorHistory(i, j, 'year', e.target.value)} disabled={readOnly} className={inputClass} />
+                <Input placeholder="Position" value={h.position} onChange={(e) => updateDirectorHistory(i, j, 'position', e.target.value)} disabled={readOnly} className={inputClass} />
+                <Input placeholder="Employer" value={h.employer} onChange={(e) => updateDirectorHistory(i, j, 'employer', e.target.value)} disabled={readOnly} className={inputClass} />
               </div>
             ))}
             {!readOnly && (
-              <button type="button" onClick={() => addDirectorHistory(i)} className="text-xs text-[#1B5E20] hover:underline mt-1">
+              <button type="button" onClick={() => addDirectorHistory(i)} className="text-sm text-[#1B5E20] hover:underline mt-1">
                 + Add employment history row
               </button>
             )}
           </div>
         ))}
         {!readOnly && (
-          <Button type="button" variant="outline" size="sm" onClick={addDirector} className="flex items-center gap-1">
-            <Plus className="h-3 w-3" /> Add Director/Officer
+          <Button type="button" variant="outline" onClick={addDirector} className="flex items-center gap-2 rounded-2xl px-4 py-3">
+            <Plus className="h-4 w-4" /> Add Director/Officer
           </Button>
         )}
       </Section>
@@ -479,21 +489,29 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
       {/* ── Section 1.2: Beneficial Owners ── */}
       <Section title="Section 1.2: Beneficial Owners (10%+ Ownership)">
         {data.beneficialOwners.map((owner, i) => (
-          <div key={i} className="flex items-center gap-3 mb-2">
-            <span className="text-xs text-gray-400 w-4">#{i + 1}</span>
-            <Input placeholder="Full Name" value={owner.fullName} onChange={(e) => updateOwner(i, 'fullName', e.target.value)} disabled={readOnly} className="flex-1" />
-            <Input placeholder="Voting Power %" value={owner.votingPower} onChange={(e) => updateOwner(i, 'votingPower', e.target.value)} disabled={readOnly} className="w-28" />
-            <Input placeholder="Ownership %" value={owner.ownershipPercent} onChange={(e) => updateOwner(i, 'ownershipPercent', e.target.value)} disabled={readOnly} className="w-28" />
+          <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-4 mb-4 items-end">
+            <div>
+              {i === 0 && <label className={labelClass}>Full Name</label>}
+              <Input placeholder="Full Name" value={owner.fullName} onChange={(e) => updateOwner(i, 'fullName', e.target.value)} disabled={readOnly} className={inputClass} />
+            </div>
+            <div className="md:w-40">
+              {i === 0 && <label className={labelClass}>Voting Power %</label>}
+              <Input placeholder="Voting Power %" value={owner.votingPower} onChange={(e) => updateOwner(i, 'votingPower', e.target.value)} disabled={readOnly} className={inputClass} />
+            </div>
+            <div className="md:w-40">
+              {i === 0 && <label className={labelClass}>Ownership %</label>}
+              <Input placeholder="Ownership %" value={owner.ownershipPercent} onChange={(e) => updateOwner(i, 'ownershipPercent', e.target.value)} disabled={readOnly} className={inputClass} />
+            </div>
             {!readOnly && data.beneficialOwners.length > 1 && (
-              <button type="button" onClick={() => removeOwner(i)} className="text-red-500 hover:text-red-700">
+              <button type="button" onClick={() => removeOwner(i)} className="text-red-500 hover:text-red-700 pb-3">
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
           </div>
         ))}
         {!readOnly && (
-          <Button type="button" variant="outline" size="sm" onClick={addOwner} className="flex items-center gap-1">
-            <Plus className="h-3 w-3" /> Add Beneficial Owner
+          <Button type="button" variant="outline" onClick={addOwner} className="flex items-center gap-2 rounded-2xl px-4 py-3">
+            <Plus className="h-4 w-4" /> Add Beneficial Owner
           </Button>
         )}
       </Section>
@@ -501,61 +519,61 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
       {/* ── Section 1.2(a): Ownership & Capital Structure ── */}
       <Section title="Section 1.2(a): Ownership & Capital Structure">
         <div>
-          <Label className="text-sm font-medium">Description of ownership and capital structure</Label>
-          <Textarea rows={3} value={data.ownershipCapitalStructure} onChange={(e) => update('ownershipCapitalStructure', e.target.value)} disabled={readOnly} placeholder="Describe the ownership and capital structure of the issuer..." />
+          <label className={labelClass}>Description of ownership and capital structure</label>
+          <Textarea rows={4} value={data.ownershipCapitalStructure} onChange={(e) => update('ownershipCapitalStructure', e.target.value)} disabled={readOnly} placeholder="Describe the ownership and capital structure of the issuer..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Terms of Securities Being Offered</Label>
-          <Textarea rows={3} value={data.termsOfSecurities} onChange={(e) => update('termsOfSecurities', e.target.value)} disabled={readOnly} placeholder="Describe the terms of the securities being offered..." />
+          <label className={labelClass}>Terms of Securities Being Offered</label>
+          <Textarea rows={4} value={data.termsOfSecurities} onChange={(e) => update('termsOfSecurities', e.target.value)} disabled={readOnly} placeholder="Describe the terms of the securities being offered..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">How Principal Shareholders' Rights Affect Purchasers</Label>
-          <Textarea rows={3} value={data.principalShareholdersRights} onChange={(e) => update('principalShareholdersRights', e.target.value)} disabled={readOnly} placeholder="Describe how rights of principal shareholders could affect purchasers..." />
+          <label className={labelClass}>How Principal Shareholders' Rights Affect Purchasers</label>
+          <Textarea rows={4} value={data.principalShareholdersRights} onChange={(e) => update('principalShareholdersRights', e.target.value)} disabled={readOnly} placeholder="Describe how rights of principal shareholders could affect purchasers..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">How Securities Are Valued</Label>
-          <Textarea rows={3} value={data.howSecuritiesValued} onChange={(e) => update('howSecuritiesValued', e.target.value)} disabled={readOnly} placeholder="Describe how securities are valued..." />
+          <label className={labelClass}>How Securities Are Valued</label>
+          <Textarea rows={4} value={data.howSecuritiesValued} onChange={(e) => update('howSecuritiesValued', e.target.value)} disabled={readOnly} placeholder="Describe how securities are valued..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Risk to Purchasers (Minority Ownership, Corporate Actions)</Label>
-          <Textarea rows={3} value={data.riskToPurchasers} onChange={(e) => update('riskToPurchasers', e.target.value)} disabled={readOnly} placeholder="Describe risks associated with minority ownership..." />
+          <label className={labelClass}>Risk to Purchasers (Minority Ownership, Corporate Actions)</label>
+          <Textarea rows={4} value={data.riskToPurchasers} onChange={(e) => update('riskToPurchasers', e.target.value)} disabled={readOnly} placeholder="Describe risks associated with minority ownership..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Restrictions on Transfer of Securities</Label>
-          <Textarea rows={3} value={data.restrictionsOnTransfer} onChange={(e) => update('restrictionsOnTransfer', e.target.value)} disabled={readOnly} placeholder="Describe any restrictions on the transfer of securities..." />
+          <label className={labelClass}>Restrictions on Transfer of Securities</label>
+          <Textarea rows={4} value={data.restrictionsOnTransfer} onChange={(e) => update('restrictionsOnTransfer', e.target.value)} disabled={readOnly} placeholder="Describe any restrictions on the transfer of securities..." className={textareaClass} />
         </div>
       </Section>
 
       {/* ── Section 1.3 & 1.4 ── */}
       <Section title="Section 1.3–1.4: Material Interest & Risk Factors">
         <div>
-          <Label className="text-sm font-medium">Direct or Indirect Material Interest (transactions &gt;5% of aggregate capital)</Label>
-          <Textarea rows={3} value={data.materialInterest} onChange={(e) => update('materialInterest', e.target.value)} disabled={readOnly} placeholder="Describe any material interest of directors, officers, or principal shareholders..." />
+          <label className={labelClass}>Direct or Indirect Material Interest (transactions &gt;5% of aggregate capital)</label>
+          <Textarea rows={4} value={data.materialInterest} onChange={(e) => update('materialInterest', e.target.value)} disabled={readOnly} placeholder="Describe any material interest of directors, officers, or principal shareholders..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Material Risk Factors</Label>
-          <Textarea rows={3} value={data.materialRiskFactors} onChange={(e) => update('materialRiskFactors', e.target.value)} disabled={readOnly} placeholder="Describe the material risk factors associated with this offering..." />
+          <label className={labelClass}>Material Risk Factors</label>
+          <Textarea rows={4} value={data.materialRiskFactors} onChange={(e) => update('materialRiskFactors', e.target.value)} disabled={readOnly} placeholder="Describe the material risk factors associated with this offering..." className={textareaClass} />
         </div>
       </Section>
 
       {/* ── Section 2: Business Plan ── */}
       <Section title="Section 2: Business Plan">
         <div>
-          <Label className="text-sm font-medium">Nature of Business <span className="text-red-500">*</span></Label>
-          <Textarea rows={3} value={data.natureOfBusiness} onChange={(e) => update('natureOfBusiness', e.target.value)} disabled={readOnly} placeholder="Describe the nature of your business..." />
+          <label className={labelClass}>Nature of Business <span className="text-red-500">*</span></label>
+          <Textarea rows={4} value={data.natureOfBusiness} onChange={(e) => update('natureOfBusiness', e.target.value)} disabled={readOnly} placeholder="Describe the nature of your business..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Business Plan with Respect to CF Offering <span className="text-red-500">*</span></Label>
-          <Textarea rows={4} value={data.businessPlan} onChange={(e) => update('businessPlan', e.target.value)} disabled={readOnly} placeholder="Describe your business plan in relation to this crowdfunding offering..." />
+          <label className={labelClass}>Business Plan with Respect to CF Offering <span className="text-red-500">*</span></label>
+          <Textarea rows={5} value={data.businessPlan} onChange={(e) => update('businessPlan', e.target.value)} disabled={readOnly} placeholder="Describe your business plan in relation to this crowdfunding offering..." className={textareaClass} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label className="text-sm font-medium">Target Offering Amount (₱) <span className="text-red-500">*</span></Label>
-            <Input type="number" value={data.targetOfferingAmount} onChange={(e) => update('targetOfferingAmount', e.target.value)} disabled={readOnly} placeholder="0.00" />
+            <label className={labelClass}>Target Offering Amount (₱) <span className="text-red-500">*</span></label>
+            <Input type="number" value={data.targetOfferingAmount} onChange={(e) => update('targetOfferingAmount', e.target.value)} disabled={readOnly} placeholder="0.00" className={inputClass} />
           </div>
           <div>
-            <Label className="text-sm font-medium">Target Offering Deadline</Label>
-            <Input type="date" value={data.targetOfferingDeadline} onChange={(e) => update('targetOfferingDeadline', e.target.value)} disabled={readOnly} />
+            <label className={labelClass}>Target Offering Deadline</label>
+            <Input type="date" value={data.targetOfferingDeadline} onChange={(e) => update('targetOfferingDeadline', e.target.value)} disabled={readOnly} className={inputClass} />
           </div>
         </div>
       </Section>
@@ -563,31 +581,32 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
       {/* ── Section 3: Use of Proceeds ── */}
       <Section title="Section 3: Use of Proceeds">
         <div>
-          <Label className="text-sm font-medium">Purpose and Intended Use of Proceeds <span className="text-red-500">*</span></Label>
-          <Textarea rows={4} value={data.useOfProceeds} onChange={(e) => update('useOfProceeds', e.target.value)} disabled={readOnly} placeholder="Describe how the funds raised will be used..." />
+          <label className={labelClass}>Purpose and Intended Use of Proceeds <span className="text-red-500">*</span></label>
+          <Textarea rows={5} value={data.useOfProceeds} onChange={(e) => update('useOfProceeds', e.target.value)} disabled={readOnly} placeholder="Describe how the funds raised will be used..." className={textareaClass} />
         </div>
       </Section>
 
       {/* ── Section 4: Investment Commitments ── */}
       <Section title="Section 4: Investment Commitments & Oversubscription">
         <div>
-          <Label className="text-sm font-medium">Statement if Commitments Less Than Target</Label>
-          <Textarea rows={2} value={data.investmentCommitmentsLessThanTarget} onChange={(e) => update('investmentCommitmentsLessThanTarget', e.target.value)} disabled={readOnly} placeholder="What happens if investment commitments do not reach the target amount..." />
+          <label className={labelClass}>Statement if Commitments Less Than Target</label>
+          <Textarea rows={3} value={data.investmentCommitmentsLessThanTarget} onChange={(e) => update('investmentCommitmentsLessThanTarget', e.target.value)} disabled={readOnly} placeholder="What happens if investment commitments do not reach the target amount..." className={textareaClass} />
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-start space-x-3">
           <Checkbox
             id="materialChangesAck"
             checked={data.investorMaterialChangesAck}
             onCheckedChange={(checked) => update('investorMaterialChangesAck', !!checked)}
             disabled={readOnly}
+            className="mt-0.5"
           />
-          <Label htmlFor="materialChangesAck" className="text-sm">
+          <Label htmlFor="materialChangesAck" className="text-sm leading-relaxed">
             I acknowledge that investors will be notified of any material changes to the offering and given the opportunity to reconfirm their commitment.
           </Label>
         </div>
         <div>
-          <Label className="text-sm font-medium">Accept Investments in Excess of Target?</Label>
-          <RadioGroup value={data.acceptExcessInvestments} onValueChange={(v) => update('acceptExcessInvestments', v)} disabled={readOnly} className="flex gap-4 mt-1">
+          <label className={labelClass}>Accept Investments in Excess of Target?</label>
+          <RadioGroup value={data.acceptExcessInvestments} onValueChange={(v) => update('acceptExcessInvestments', v)} disabled={readOnly} className="flex gap-6 mt-1">
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="yes" id="excess-yes" />
               <Label htmlFor="excess-yes" className="text-sm">Yes</Label>
@@ -599,100 +618,101 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
           </RadioGroup>
         </div>
         {data.acceptExcessInvestments === 'yes' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 border-l-2 border-green-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-5 border-l-2 border-green-200">
             <div>
-              <Label className="text-sm font-medium">Maximum Amount (₱)</Label>
-              <Input type="number" value={data.excessMaxAmount} onChange={(e) => update('excessMaxAmount', e.target.value)} disabled={readOnly} placeholder="0.00" />
+              <label className={labelClass}>Maximum Amount (₱)</label>
+              <Input type="number" value={data.excessMaxAmount} onChange={(e) => update('excessMaxAmount', e.target.value)} disabled={readOnly} placeholder="0.00" className={inputClass} />
             </div>
             <div>
-              <Label className="text-sm font-medium">Oversubscription Allocation Method</Label>
-              <Input value={data.oversubscriptionMethod} onChange={(e) => update('oversubscriptionMethod', e.target.value)} disabled={readOnly} placeholder="e.g. Pro-rata, first-come first-served" />
+              <label className={labelClass}>Oversubscription Allocation Method</label>
+              <Input value={data.oversubscriptionMethod} onChange={(e) => update('oversubscriptionMethod', e.target.value)} disabled={readOnly} placeholder="e.g. Pro-rata, first-come first-served" className={inputClass} />
             </div>
           </div>
         )}
         <div>
-          <Label className="text-sm font-medium">Process for Completing or Canceling Commitments</Label>
-          <Textarea rows={2} value={data.completingCancelingCommitment} onChange={(e) => update('completingCancelingCommitment', e.target.value)} disabled={readOnly} placeholder="Describe the process for investors to complete or cancel their commitments..." />
+          <label className={labelClass}>Process for Completing or Canceling Commitments</label>
+          <Textarea rows={3} value={data.completingCancelingCommitment} onChange={(e) => update('completingCancelingCommitment', e.target.value)} disabled={readOnly} placeholder="Describe the process for investors to complete or cancel their commitments..." className={textareaClass} />
         </div>
       </Section>
 
       {/* ── Section 5: Method of Determining Price ── */}
       <Section title="Section 5: Method of Determining Price of Securities">
         <div>
-          <Label className="text-sm font-medium">Description <span className="text-red-500">*</span></Label>
-          <Textarea rows={3} value={data.methodDeterminingPrice} onChange={(e) => update('methodDeterminingPrice', e.target.value)} disabled={readOnly} placeholder="Describe the method used to determine the price of the securities..." />
+          <label className={labelClass}>Description <span className="text-red-500">*</span></label>
+          <Textarea rows={4} value={data.methodDeterminingPrice} onChange={(e) => update('methodDeterminingPrice', e.target.value)} disabled={readOnly} placeholder="Describe the method used to determine the price of the securities..." className={textareaClass} />
         </div>
       </Section>
 
       {/* ── Section 6: Past Exempt Offerings ── */}
       <Section title="Section 6: Exempt Offerings in the Past 3 Years">
         <div>
-          <Label className="text-sm font-medium">Description</Label>
-          <Textarea rows={3} value={data.pastExemptOfferings} onChange={(e) => update('pastExemptOfferings', e.target.value)} disabled={readOnly} placeholder="Describe any exempt offerings conducted in the past three years..." />
+          <label className={labelClass}>Description</label>
+          <Textarea rows={4} value={data.pastExemptOfferings} onChange={(e) => update('pastExemptOfferings', e.target.value)} disabled={readOnly} placeholder="Describe any exempt offerings conducted in the past three years..." className={textareaClass} />
         </div>
       </Section>
 
       {/* ── Section 7: Financials ── */}
       <Section title="Section 7: Financial Information">
         <div>
-          <Label className="text-sm font-medium">Indebtedness (amount, interest rate, maturity, terms)</Label>
-          <Textarea rows={3} value={data.indebtedness} onChange={(e) => update('indebtedness', e.target.value)} disabled={readOnly} placeholder="Describe the issuer's outstanding debt obligations..." />
+          <label className={labelClass}>Indebtedness (amount, interest rate, maturity, terms)</label>
+          <Textarea rows={4} value={data.indebtedness} onChange={(e) => update('indebtedness', e.target.value)} disabled={readOnly} placeholder="Describe the issuer's outstanding debt obligations..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Liquidity</Label>
-          <Textarea rows={2} value={data.liquidity} onChange={(e) => update('liquidity', e.target.value)} disabled={readOnly} placeholder="Describe the issuer's liquidity position..." />
+          <label className={labelClass}>Liquidity</label>
+          <Textarea rows={3} value={data.liquidity} onChange={(e) => update('liquidity', e.target.value)} disabled={readOnly} placeholder="Describe the issuer's liquidity position..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Capital Resources</Label>
-          <Textarea rows={2} value={data.capitalResources} onChange={(e) => update('capitalResources', e.target.value)} disabled={readOnly} placeholder="Describe the issuer's capital resources..." />
+          <label className={labelClass}>Capital Resources</label>
+          <Textarea rows={3} value={data.capitalResources} onChange={(e) => update('capitalResources', e.target.value)} disabled={readOnly} placeholder="Describe the issuer's capital resources..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Historical Operations</Label>
-          <Textarea rows={2} value={data.historicalOperations} onChange={(e) => update('historicalOperations', e.target.value)} disabled={readOnly} placeholder="Describe the history of the issuer's operations..." />
+          <label className={labelClass}>Historical Operations</label>
+          <Textarea rows={3} value={data.historicalOperations} onChange={(e) => update('historicalOperations', e.target.value)} disabled={readOnly} placeholder="Describe the history of the issuer's operations..." className={textareaClass} />
         </div>
         <div>
-          <Label className="text-sm font-medium">Others</Label>
-          <Textarea rows={2} value={data.financialOther} onChange={(e) => update('financialOther', e.target.value)} disabled={readOnly} placeholder="Any other relevant financial information..." />
+          <label className={labelClass}>Others</label>
+          <Textarea rows={3} value={data.financialOther} onChange={(e) => update('financialOther', e.target.value)} disabled={readOnly} placeholder="Any other relevant financial information..." className={textareaClass} />
         </div>
       </Section>
 
       {/* ── Section 8: Intermediary ── */}
       <Section title="Section 8: Intermediary Information">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label className="text-sm font-medium">Intermediary Name</Label>
-            <Input value={data.intermediaryName} onChange={(e) => update('intermediaryName', e.target.value)} disabled={readOnly} placeholder="Name of intermediary" />
+            <label className={labelClass}>Intermediary Name</label>
+            <Input value={data.intermediaryName} onChange={(e) => update('intermediaryName', e.target.value)} disabled={readOnly} placeholder="Name of intermediary" className={inputClass} />
           </div>
           <div>
-            <Label className="text-sm font-medium">SEC Registration No.</Label>
-            <Input value={data.intermediarySecRegNo} onChange={(e) => update('intermediarySecRegNo', e.target.value)} disabled={readOnly} />
+            <label className={labelClass}>SEC Registration No.</label>
+            <Input value={data.intermediarySecRegNo} onChange={(e) => update('intermediarySecRegNo', e.target.value)} disabled={readOnly} className={inputClass} />
           </div>
-          <div>
-            <Label className="text-sm font-medium">Type</Label>
-            <RadioGroup value={data.intermediaryType} onValueChange={(v) => update('intermediaryType', v)} disabled={readOnly} className="flex gap-3 mt-1">
-              {['Broker', 'Investment House', 'Funding Portal'].map((t) => (
-                <div key={t} className="flex items-center space-x-2">
-                  <RadioGroupItem value={t} id={`intType-${t}`} />
-                  <Label htmlFor={`intType-${t}`} className="text-sm">{t}</Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-          <div>
-            <Label className="text-sm font-medium">Compensation (Amount / Percentage)</Label>
-            <Input value={data.intermediaryCompensation} onChange={(e) => update('intermediaryCompensation', e.target.value)} disabled={readOnly} placeholder="e.g. 5% of total funds raised" />
-          </div>
+        </div>
+        <div>
+          <label className={labelClass}>Type</label>
+          <RadioGroup value={data.intermediaryType} onValueChange={(v) => update('intermediaryType', v)} disabled={readOnly} className="flex gap-6 mt-1">
+            {['Broker', 'Investment House', 'Funding Portal'].map((t) => (
+              <div key={t} className="flex items-center space-x-2">
+                <RadioGroupItem value={t} id={`intType-${t}`} />
+                <Label htmlFor={`intType-${t}`} className="text-sm">{t}</Label>
+              </div>
+            ))}
+          </RadioGroup>
+        </div>
+        <div>
+          <label className={labelClass}>Compensation (Amount / Percentage)</label>
+          <Input value={data.intermediaryCompensation} onChange={(e) => update('intermediaryCompensation', e.target.value)} disabled={readOnly} placeholder="e.g. 5% of total funds raised" className={inputClass} />
         </div>
       </Section>
 
       {/* ── Disqualification ── */}
       <Section title="Disqualification Provisions">
-        <div className="flex items-start space-x-2">
+        <div className="flex items-start space-x-3">
           <Checkbox
             id="disqualNone"
             checked={data.disqualificationNone}
             onCheckedChange={(checked) => update('disqualificationNone', !!checked)}
             disabled={readOnly}
+            className="mt-0.5"
           />
           <Label htmlFor="disqualNone" className="text-sm leading-relaxed">
             <span className="text-red-500">*</span> I hereby certify that the issuer, its directors, officers, and beneficial owners of 10% or more of the issuer's outstanding equity securities are NOT subject to any of the disqualification provisions under Section 12 of the SEC Crowdfunding Rules.
@@ -702,30 +722,30 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
 
       {/* ── Signatures ── */}
       <Section title="Certification & Signatures">
-        <p className="text-sm text-gray-600 mb-3">
+        <p className="text-sm text-gray-500 mb-4">
           By typing your name below, you certify that the information provided in this form is true and correct to the best of your knowledge.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label className="text-sm font-medium">Principal Executive Officer <span className="text-red-500">*</span></Label>
-            <Input value={data.principalExecutiveOfficer} onChange={(e) => update('principalExecutiveOfficer', e.target.value)} disabled={readOnly} placeholder="Full Name" />
+            <label className={labelClass}>Principal Executive Officer <span className="text-red-500">*</span></label>
+            <Input value={data.principalExecutiveOfficer} onChange={(e) => update('principalExecutiveOfficer', e.target.value)} disabled={readOnly} placeholder="Full Name" className={inputClass} />
           </div>
           <div>
-            <Label className="text-sm font-medium">Comptroller</Label>
-            <Input value={data.comptroller} onChange={(e) => update('comptroller', e.target.value)} disabled={readOnly} placeholder="Full Name" />
+            <label className={labelClass}>Comptroller</label>
+            <Input value={data.comptroller} onChange={(e) => update('comptroller', e.target.value)} disabled={readOnly} placeholder="Full Name" className={inputClass} />
           </div>
           <div>
-            <Label className="text-sm font-medium">Principal Operating Officer</Label>
-            <Input value={data.principalOperatingOfficer} onChange={(e) => update('principalOperatingOfficer', e.target.value)} disabled={readOnly} placeholder="Full Name" />
+            <label className={labelClass}>Principal Operating Officer</label>
+            <Input value={data.principalOperatingOfficer} onChange={(e) => update('principalOperatingOfficer', e.target.value)} disabled={readOnly} placeholder="Full Name" className={inputClass} />
           </div>
           <div>
-            <Label className="text-sm font-medium">Corporate Secretary</Label>
-            <Input value={data.corporateSecretary} onChange={(e) => update('corporateSecretary', e.target.value)} disabled={readOnly} placeholder="Full Name" />
+            <label className={labelClass}>Corporate Secretary</label>
+            <Input value={data.corporateSecretary} onChange={(e) => update('corporateSecretary', e.target.value)} disabled={readOnly} placeholder="Full Name" className={inputClass} />
           </div>
         </div>
-        <div className="max-w-xs">
-          <Label className="text-sm font-medium">Date <span className="text-red-500">*</span></Label>
-          <Input type="date" value={data.signatureDate} onChange={(e) => update('signatureDate', e.target.value)} disabled={readOnly} />
+        <div className="md:w-1/2">
+          <label className={labelClass}>Date <span className="text-red-500">*</span></label>
+          <Input type="date" value={data.signatureDate} onChange={(e) => update('signatureDate', e.target.value)} disabled={readOnly} className={inputClass} />
         </div>
       </Section>
     </div>
