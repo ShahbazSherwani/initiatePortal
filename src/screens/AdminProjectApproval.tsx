@@ -8,6 +8,8 @@ import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
 import { IssuerFormDigital, defaultIssuerFormData } from '../components/IssuerFormDigital';
+// @ts-ignore - JSX component without type declarations
+import CampaignPage from './Updated Campaign Page/CampaignPage';
 
 export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> = ({ action }) => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -21,6 +23,7 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
   const [escrowStatus, setEscrowStatus] = useState('pending');
   const [escrowNotes, setEscrowNotes] = useState('');
   const [escrowSaving, setEscrowSaving] = useState(false);
+  const [showCampaignPreview, setShowCampaignPreview] = useState(false);
   
   // IMPORTANT: Define handleApproveReject with useCallback BEFORE using it in any other hooks
   const handleApproveReject = useCallback(async (actionType: 'approve' | 'reject') => {
@@ -218,6 +221,75 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
                 />
               </div>
             )}
+
+            {/* Campaign Preview (as investors will see it) */}
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={() => setShowCampaignPreview(prev => !prev)}
+                className="flex items-center gap-2 text-lg font-semibold text-[#1B3A2D] hover:underline mb-3"
+              >
+                <span>{showCampaignPreview ? '▼' : '▶'}</span>
+                Campaign Preview (Investor View)
+              </button>
+              {showCampaignPreview && (() => {
+                const d = displayProject?.project_data?.details || {};
+                const iss = displayProject?.project_data?.issuerForm || {};
+                const esVal = displayProject?.project_data?.escrowStatus || 'pending';
+                const esMap: Record<string, number> = { pending: 0, funds_received: 1, escrow_secured: 2, released_to_issuer: 3 };
+                const sIdx = esMap[esVal] ?? 0;
+                const formatDur = (dateStr?: string) => {
+                  if (!dateStr) return "N/A";
+                  const end = new Date(dateStr);
+                  const now = new Date();
+                  const diffMs = end.getTime() - now.getTime();
+                  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                  if (diffDays <= 0) return "Ended";
+                  if (diffDays > 365) return `${Math.round(diffDays / 365)} years`;
+                  if (diffDays > 30) return `${Math.round(diffDays / 30)} months`;
+                  return `${diffDays} days`;
+                };
+                return (
+                  <div className="border rounded-xl overflow-hidden">
+                    <CampaignPage
+                      embedded
+                      sidebarContent={false}
+                      campaign={{
+                        title: d.product || "Unnamed Project",
+                        status: displayProject?.project_data?.status || "Pending",
+                        description: d.overview || "",
+                        riskLevel: d.riskLevel || "Medium",
+                        requiredFunding: `₱${parseFloat(d.projectRequirements || d.loanAmount || d.investmentAmount || "0").toLocaleString()}`,
+                        estReturn: `${d.investorPercentage || "N/A"}%`,
+                        duration: formatDur(d.timeDuration),
+                        minInvestment: 100,
+                      }}
+                      company={{
+                        name: iss.companyName || displayProject?.full_name || "Issuer",
+                        registeredName: iss.companyName || "",
+                        industry: iss.natureOfBusiness ? iss.natureOfBusiness.substring(0, 80) : "",
+                        city: iss.addressCity || d.location || "",
+                        secRegistration: iss.secRegNo || "",
+                        description: iss.natureOfBusiness || d.overview || "",
+                        teamSize: iss.totalEmployees || "",
+                        website: iss.website || "",
+                      }}
+                      escrowSteps={[
+                        { label: "Pending", done: sIdx >= 0, active: sIdx === 0 },
+                        { label: "Funds Received", done: sIdx >= 1, active: sIdx === 1 },
+                        { label: "Escrow Secured", done: sIdx >= 2, active: sIdx === 2 },
+                        { label: "Released to Issuer", done: sIdx >= 3, active: sIdx === 3 },
+                      ]}
+                      gallery={d.image ? [{ id: 1, url: d.image, caption: d.product || "Project Image" }] : []}
+                      keyPeople={(iss.directorsOfficers || []).slice(0, 5).map((p: any) => ({ name: p.fullName || "Officer", role: p.currentPosition || p.currentFunction || "Officer" }))}
+                      directors={(iss.directorsOfficers || []).map((p: any) => ({ name: p.fullName || "Director", position: p.currentPosition || p.currentFunction || "Director/Officer", type: "Director" as const }))}
+                      financials={[]}
+                      documents={[]}
+                    />
+                  </div>
+                );
+              })()}
+            </div>
 
             {/* Issuer Form 3 — Digital Form (new) */}
             {displayProject?.project_data?.issuerForm && (
