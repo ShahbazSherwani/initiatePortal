@@ -152,7 +152,7 @@ export default function Footer() {
                 </a>
                 <a href="tel:+639123456789" className="iph-footer__contact-item">
                   <span className="iph-footer__contact-icon"><PhoneFilledIcon /></span>
-                  <span>0912-345-6789</span>
+                  <span>02-70014628</span>
                 </a>
                 <a href="https://maps.app.goo.gl/swKVvrLJ8UNRDLs56" target="_blank" rel="noopener noreferrer" className="iph-footer__contact-item">
                   <span className="iph-footer__contact-icon"><LocationFilledIcon /></span>
