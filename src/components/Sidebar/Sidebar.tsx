@@ -15,7 +15,8 @@ import {
   MessageCircle,
   PanelsTopLeft,
   HandCoins,
-  XIcon
+  XIcon,
+  Activity
 } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
 import { AuthContext } from '../../contexts/AuthContext';
@@ -79,12 +80,14 @@ const investorNavItems: NavItem[] = [
 const borrowerCommonNavItems: NavItem[] = [
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
   { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/knowledge-base', key: 'help' },
+  { icon: <Activity className="w-5 h-5" />, label: "System Status", to: '/knowledge-base/articles/what-happens-if-initiate-ph-experiences-downtime', key: 'system-status' },
 ];
 
 // Common navigation items for investors (no donation)
 const investorCommonNavItems: NavItem[] = [
   { icon: <SettingsIcon className="w-5 h-5" />, label: "Settings", to: '/settings', key: 'settings' },
   { icon: <HelpCircleIcon className="w-5 h-5" />, label: "FAQs", to: '/knowledge-base', key: 'help' },
+  { icon: <Activity className="w-5 h-5" />, label: "System Status", to: '/knowledge-base/articles/what-happens-if-initiate-ph-experiences-downtime', key: 'system-status' },
 ];
 
 interface SidebarProps {
