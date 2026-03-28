@@ -254,6 +254,7 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
                     <CampaignPage
                       embedded
                       sidebarContent={false}
+                      approvalStatus={displayProject?.project_data?.approvalStatus || 'pending'}
                       campaign={{
                         title: d.product || "Unnamed Project",
                         status: displayProject?.project_data?.status || "Pending",
@@ -282,9 +283,9 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
                       ]}
                       gallery={d.image ? [{ id: 1, url: d.image, caption: d.product || "Project Image" }] : []}
                       keyPeople={(iss.directorsOfficers || []).slice(0, 5).map((p: any) => ({ name: p.fullName || "Officer", role: p.currentPosition || p.currentFunction || "Officer" }))}
-                      directors={(iss.directorsOfficers || []).map((p: any) => ({ name: p.fullName || "Director", position: p.currentPosition || p.currentFunction || "Director/Officer", type: "Director" as const }))}
-                      financials={[]}
-                      documents={[]}
+                      directors={(iss.directorsOfficers || []).map((p: any) => ({ name: p.fullName || "Director", position: p.currentPosition || p.currentFunction || "Director/Officer", type: (p.type === 'Management' ? 'Management' : 'Director') as 'Director' | 'Management' }))}
+                      financials={(iss.financialStatements || []).map((f: any) => ({ year: f.year || "", grossRevenue: parseFloat(f.grossRevenue) || 0, netIncome: parseFloat(f.netIncome) || 0, totalAssets: parseFloat(f.totalAssets) || 0, totalLiabilities: parseFloat(f.totalLiabilities) || 0 }))}
+                      documents={(iss.campaignDocuments || []).map((dc: any) => ({ name: dc.name || "Document", type: dc.fileType || "PDF", size: dc.fileSize || "—", category: dc.category || "General", url: dc.fileData || "#" }))}
                     />
                   </div>
                 );

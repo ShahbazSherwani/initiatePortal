@@ -13,7 +13,24 @@ export interface DirectorOfficer {
   fullName: string;
   currentPosition: string;
   currentFunction: string;
+  type: 'Director' | 'Management';
   employmentHistory: { year: string; position: string; employer: string }[];
+}
+
+export interface FinancialStatement {
+  year: string;
+  grossRevenue: string;
+  netIncome: string;
+  totalAssets: string;
+  totalLiabilities: string;
+}
+
+export interface CampaignDocument {
+  name: string;
+  category: 'Financial' | 'Legal' | 'General';
+  fileData: string; // base64 data URL
+  fileSize: string;
+  fileType: string;
 }
 
 export interface BeneficialOwner {
@@ -23,6 +40,9 @@ export interface BeneficialOwner {
 }
 
 export interface IssuerFormData {
+  // Campaign Data
+  financialStatements: FinancialStatement[];
+  campaignDocuments: CampaignDocument[];
   // Section 1: Issuer Information
   businessType: string;
   businessTypeOther: string;
@@ -135,7 +155,9 @@ export const defaultIssuerFormData: IssuerFormData = {
   fax: '',
   cellphone: '',
   email: '',
-  directorsOfficers: [{ fullName: '', currentPosition: '', currentFunction: '', employmentHistory: [{ year: '', position: '', employer: '' }] }],
+  financialStatements: [],
+  campaignDocuments: [],
+  directorsOfficers: [{ fullName: '', currentPosition: '', currentFunction: '', type: 'Director' as const, employmentHistory: [{ year: '', position: '', employer: '' }] }],
   beneficialOwners: [{ fullName: '', votingPower: '', ownershipPercent: '' }],
   ownershipCapitalStructure: '',
   termsOfSecurities: '',
@@ -253,7 +275,7 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
   const addDirector = () => {
     onChange({
       ...data,
-      directorsOfficers: [...data.directorsOfficers, { fullName: '', currentPosition: '', currentFunction: '', employmentHistory: [{ year: '', position: '', employer: '' }] }],
+      directorsOfficers: [...data.directorsOfficers, { fullName: '', currentPosition: '', currentFunction: '', type: 'Director' as const, employmentHistory: [{ year: '', position: '', employer: '' }] }],
     });
   };
 
@@ -284,6 +306,47 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
   const removeOwner = (index: number) => {
     if (data.beneficialOwners.length <= 1) return;
     onChange({ ...data, beneficialOwners: data.beneficialOwners.filter((_, i) => i !== index) });
+  };
+
+  // ── Financial Statements helpers ──
+  const updateFinancial = (index: number, field: keyof FinancialStatement, value: string) => {
+    const updated = [...(data.financialStatements || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    onChange({ ...data, financialStatements: updated });
+  };
+
+  const addFinancialYear = () => {
+    const currentYear = new Date().getFullYear();
+    const existing = (data.financialStatements || []).map(f => f.year);
+    const nextYear = existing.length > 0 ? String(Math.min(...existing.map(Number)) - 1) : String(currentYear);
+    onChange({
+      ...data,
+      financialStatements: [...(data.financialStatements || []), { year: nextYear, grossRevenue: '', netIncome: '', totalAssets: '', totalLiabilities: '' }],
+    });
+  };
+
+  const removeFinancialYear = (index: number) => {
+    onChange({ ...data, financialStatements: (data.financialStatements || []).filter((_, i) => i !== index) });
+  };
+
+  // ── Campaign Documents helpers ──
+  const addCampaignDocument = (file: File, category: 'Financial' | 'Legal' | 'General') => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const newDoc: CampaignDocument = {
+        name: file.name,
+        category,
+        fileData: reader.result as string,
+        fileSize: file.size < 1024 * 1024 ? `${(file.size / 1024).toFixed(0)} KB` : `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        fileType: file.name.split('.').pop()?.toUpperCase() || 'FILE',
+      };
+      onChange({ ...data, campaignDocuments: [...(data.campaignDocuments || []), newDoc] });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeCampaignDocument = (index: number) => {
+    onChange({ ...data, campaignDocuments: (data.campaignDocuments || []).filter((_, i) => i !== index) });
   };
 
   const toggleRegistration = (val: string) => {
@@ -459,10 +522,19 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
               <Input placeholder="Full Name" value={dir.fullName} onChange={(e) => updateDirector(i, 'fullName', e.target.value)} disabled={readOnly} className={inputClass} />
               <Input placeholder="Current Position" value={dir.currentPosition} onChange={(e) => updateDirector(i, 'currentPosition', e.target.value)} disabled={readOnly} className={inputClass} />
               <Input placeholder="Current Function" value={dir.currentFunction} onChange={(e) => updateDirector(i, 'currentFunction', e.target.value)} disabled={readOnly} className={inputClass} />
+              <select
+                value={dir.type || 'Director'}
+                onChange={(e) => updateDirector(i, 'type', e.target.value)}
+                disabled={readOnly}
+                className={`${inputClass} h-10`}
+              >
+                <option value="Director">Director</option>
+                <option value="Management">Management</option>
+              </select>
             </div>
             <label className="text-sm text-gray-500 mb-2 block">Employment History (Past 3 Years)</label>
             {dir.employmentHistory.map((h, j) => (
@@ -673,6 +745,92 @@ export const IssuerFormDigital: React.FC<IssuerFormDigitalProps> = ({ data, onCh
           <label className={labelClass}>Others</label>
           <Textarea rows={3} value={data.financialOther} onChange={(e) => update('financialOther', e.target.value)} disabled={readOnly} placeholder="Any other relevant financial information..." className={textareaClass} />
         </div>
+      </Section>
+
+      {/* ── Financial Statements (Structured — for Campaign Page) ── */}
+      <Section title="Financial Statements (Campaign Display)">
+        <p className="text-sm text-gray-500 mb-4">Add annual financial figures that will be displayed on the public campaign page. Investors use these to assess the company.</p>
+        {(data.financialStatements || []).map((fs, i) => (
+          <div key={i} className="border border-gray-100 rounded-2xl p-5 mb-4 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-medium text-black text-base">FY {fs.year || '—'}</span>
+              {!readOnly && (
+                <button type="button" onClick={() => removeFinancialYear(i)} className="text-red-500 hover:text-red-700">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className={labelClass}>Year</label>
+                <Input placeholder="e.g. 2024" value={fs.year} onChange={(e) => updateFinancial(i, 'year', e.target.value)} disabled={readOnly} className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Gross Revenue (₱)</label>
+                <Input type="number" placeholder="0" value={fs.grossRevenue} onChange={(e) => updateFinancial(i, 'grossRevenue', e.target.value)} disabled={readOnly} className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Net Income (₱)</label>
+                <Input type="number" placeholder="0" value={fs.netIncome} onChange={(e) => updateFinancial(i, 'netIncome', e.target.value)} disabled={readOnly} className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Total Assets (₱)</label>
+                <Input type="number" placeholder="0" value={fs.totalAssets} onChange={(e) => updateFinancial(i, 'totalAssets', e.target.value)} disabled={readOnly} className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Total Liabilities (₱)</label>
+                <Input type="number" placeholder="0" value={fs.totalLiabilities} onChange={(e) => updateFinancial(i, 'totalLiabilities', e.target.value)} disabled={readOnly} className={inputClass} />
+              </div>
+            </div>
+          </div>
+        ))}
+        {!readOnly && (
+          <Button type="button" variant="outline" onClick={addFinancialYear} className="flex items-center gap-2 rounded-2xl px-4 py-3">
+            <Plus className="h-4 w-4" /> Add Financial Year
+          </Button>
+        )}
+      </Section>
+
+      {/* ── Campaign Documents ── */}
+      <Section title="Campaign Documents">
+        <p className="text-sm text-gray-500 mb-4">Upload documents that investors can view on the campaign page (e.g. annual reports, SEC certificates, business permits).</p>
+        {(data.campaignDocuments || []).map((doc, i) => (
+          <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl mb-3">
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+              <span className="text-xs font-bold text-red-600">{doc.fileType}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-800 truncate">{doc.name}</p>
+              <p className="text-xs text-gray-400">{doc.fileType} · {doc.fileSize} · {doc.category}</p>
+            </div>
+            {!readOnly && (
+              <button type="button" onClick={() => removeCampaignDocument(i)} className="text-gray-400 hover:text-red-500 flex-shrink-0">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ))}
+        {!readOnly && (
+          <div className="flex flex-wrap gap-3">
+            {(['Financial', 'Legal', 'General'] as const).map((cat) => (
+              <label key={cat} className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) addCampaignDocument(file, cat);
+                    e.target.value = '';
+                  }}
+                />
+                <span className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Plus className="h-4 w-4" /> Upload {cat}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
       </Section>
 
       {/* ── Section 8: Intermediary ── */}

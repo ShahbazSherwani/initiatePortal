@@ -300,13 +300,31 @@ export const InvestorProjectView: React.FC = () => {
   const directorsData = (issuer.directorsOfficers || []).map((d: any) => ({
     name: d.fullName || "Director",
     position: d.currentPosition || d.currentFunction || "Director/Officer",
-    type: "Director" as const,
+    type: (d.type === 'Management' ? 'Management' : 'Director') as 'Director' | 'Management',
   }));
 
   // Key people (same source)
   const keyPeopleData = (issuer.directorsOfficers || []).slice(0, 5).map((d: any) => ({
     name: d.fullName || "Officer",
     role: d.currentPosition || d.currentFunction || "Officer",
+  }));
+
+  // Map financial statements from issuerForm
+  const financialsData = (issuer.financialStatements || []).map((f: any) => ({
+    year: f.year || "",
+    grossRevenue: parseFloat(f.grossRevenue) || 0,
+    netIncome: parseFloat(f.netIncome) || 0,
+    totalAssets: parseFloat(f.totalAssets) || 0,
+    totalLiabilities: parseFloat(f.totalLiabilities) || 0,
+  }));
+
+  // Map campaign documents from issuerForm
+  const documentsData = (issuer.campaignDocuments || []).map((d: any) => ({
+    name: d.name || "Document",
+    type: d.fileType || "PDF",
+    size: d.fileSize || "—",
+    category: d.category || "General",
+    url: d.fileData || "#",
   }));
 
   // Escrow steps from escrow status
@@ -562,14 +580,15 @@ export const InvestorProjectView: React.FC = () => {
         <main className="flex-1 overflow-y-auto">
           <CampaignPage
             embedded
+            approvalStatus={projectData.approvalStatus || 'pending'}
             campaign={campaignProps}
             company={companyProps}
             escrowSteps={escrowStepsData}
             gallery={gallery}
             keyPeople={keyPeopleData}
             directors={directorsData}
-            financials={[]}
-            documents={[]}
+            financials={financialsData}
+            documents={documentsData}
             sidebarContent={investmentSidebar}
           />
         </main>
