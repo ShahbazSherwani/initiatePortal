@@ -14488,6 +14488,243 @@ app.get('/api/admin/ticket-actions/user-status/:userId', verifyToken, async (req
   }
 });
 
+// ─── Investor Suitability Assessment ──────────────────────────────────────────
+
+// Ensure suitability tables exist (idempotent)
+const ensureSuitabilityTables = async () => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS investor_suitability_assessments (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(firebase_uid) ON DELETE CASCADE,
+        assessment_version VARCHAR(10) NOT NULL DEFAULT '1.0',
+        full_name VARCHAR(255),
+        date_of_birth DATE,
+        nationality VARCHAR(100),
+        government_id_or_tin VARCHAR(100),
+        address TEXT,
+        contact_number VARCHAR(50),
+        email VARCHAR(255),
+        employment_status VARCHAR(30),
+        occupation_or_business_type VARCHAR(255),
+        gross_annual_income_band VARCHAR(30),
+        net_worth_band VARCHAR(30),
+        liquidity_band VARCHAR(30),
+        main_investment_goal VARCHAR(30),
+        investment_horizon VARCHAR(30),
+        investment_knowledge_level VARCHAR(30),
+        investment_experience TEXT[],
+        reaction_to_loss VARCHAR(30),
+        high_risk_allocation VARCHAR(30),
+        risk_comfort_statement VARCHAR(30),
+        income_score INTEGER DEFAULT 0,
+        net_worth_score INTEGER DEFAULT 0,
+        liquidity_score INTEGER DEFAULT 0,
+        knowledge_score INTEGER DEFAULT 0,
+        experience_score INTEGER DEFAULT 0,
+        primary_goal_score INTEGER DEFAULT 0,
+        horizon_score INTEGER DEFAULT 0,
+        reaction_score INTEGER DEFAULT 0,
+        allocation_score INTEGER DEFAULT 0,
+        risk_attitude_score INTEGER DEFAULT 0,
+        total_score INTEGER DEFAULT 0,
+        investor_risk_profile VARCHAR(20) NOT NULL DEFAULT 'conservative',
+        declaration_accepted BOOLEAN DEFAULT FALSE,
+        risk_disclosure_accepted BOOLEAN DEFAULT FALSE,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_suitability_user ON investor_suitability_assessments(user_id)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_suitability_active ON investor_suitability_assessments(user_id, is_active) WHERE is_active = TRUE`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS suitability_completed BOOLEAN DEFAULT FALSE`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS suitability_score INTEGER`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS suitability_profile VARCHAR(20)`);
+  } catch (e) {
+    console.log('Suitability tables setup note:', e.message);
+  }
+};
+ensureSuitabilityTables();
+
+// Scoring functions (server-side authoritative)
+const SUITABILITY_SCORES = {
+  income: { below_250k: 2, '250k_to_500k': 4, '500k_to_1m': 6, '1m_to_5m': 8, above_5m: 10 },
+  net_worth: { below_500k: 4, '500k_to_1m': 6, '1m_to_5m': 8, above_5m: 10 },
+  liquidity: { below_100k: 4, '100k_to_500k': 8, above_500k: 10 },
+  knowledge: { none: 1, basic: 6, intermediate: 8, advanced: 10 },
+  experience: { none: 0, bank_deposits: 2, bonds: 3, stocks: 4, mutual_funds_or_uitf: 3, real_estate: 4, private_placements_or_crowdfunding: 4, crypto_or_alternatives: 3 },
+  goal: { capital_preservation: 2, regular_income: 5, moderate_growth: 7, high_growth_speculative: 10 },
+  horizon: { less_than_1_year: 2, one_to_three_years: 5, three_to_five_years: 8, more_than_five_years: 10 },
+  reaction: { sell_all: 2, wait_and_monitor: 6, invest_more: 10 },
+  allocation: { less_than_10_percent: 2, ten_to_thirty_percent: 6, over_30_percent: 10 },
+  risk_attitude: { guaranteed_low_returns: 2, moderate_fluctuations_for_growth: 6, comfortable_with_losses_for_high_returns: 10 },
+};
+
+function calculateServerSuitabilityScore(answers) {
+  const income_score = SUITABILITY_SCORES.income[answers.gross_annual_income_band] || 0;
+  const net_worth_score = SUITABILITY_SCORES.net_worth[answers.net_worth_band] || 0;
+  const liquidity_score = SUITABILITY_SCORES.liquidity[answers.liquidity_band] || 0;
+  const knowledge_score = SUITABILITY_SCORES.knowledge[answers.investment_knowledge_level] || 0;
+
+  // Experience: sum all selected, capped at 10
+  const experiences = Array.isArray(answers.investment_experience) ? answers.investment_experience : [];
+  const rawExpScore = experiences.reduce((sum, e) => sum + (SUITABILITY_SCORES.experience[e] || 0), 0);
+  const experience_score = Math.min(rawExpScore, 10);
+
+  const primary_goal_score = SUITABILITY_SCORES.goal[answers.main_investment_goal] || 0;
+  const horizon_score = SUITABILITY_SCORES.horizon[answers.investment_horizon] || 0;
+  const reaction_score = SUITABILITY_SCORES.reaction[answers.reaction_to_loss] || 0;
+  const allocation_score = SUITABILITY_SCORES.allocation[answers.high_risk_allocation] || 0;
+  const risk_attitude_score = SUITABILITY_SCORES.risk_attitude[answers.risk_comfort_statement] || 0;
+
+  const total_score = income_score + net_worth_score + liquidity_score +
+    knowledge_score + experience_score + primary_goal_score + horizon_score +
+    reaction_score + allocation_score + risk_attitude_score;
+
+  let investor_risk_profile = 'conservative';
+  if (total_score >= 71) investor_risk_profile = 'aggressive';
+  else if (total_score >= 41) investor_risk_profile = 'moderate';
+
+  return {
+    income_score, net_worth_score, liquidity_score,
+    knowledge_score, experience_score,
+    primary_goal_score, horizon_score,
+    reaction_score, allocation_score, risk_attitude_score,
+    total_score, investor_risk_profile,
+  };
+}
+
+// POST: Submit new suitability assessment
+app.post('/api/investor/suitability-assessment', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  try {
+    const a = req.body;
+
+    // Validate required fields
+    if (!a.full_name || !a.email) {
+      return res.status(400).json({ error: 'Full name and email are required.' });
+    }
+    if (!a.declaration_accepted || !a.risk_disclosure_accepted) {
+      return res.status(400).json({ error: 'You must accept both declarations.' });
+    }
+
+    // Score on the server (authoritative)
+    const score = calculateServerSuitabilityScore(a);
+
+    // Deactivate previous assessments
+    await db.query(
+      `UPDATE investor_suitability_assessments SET is_active = FALSE, updated_at = NOW() WHERE user_id = $1 AND is_active = TRUE`,
+      [uid]
+    );
+
+    // Insert new assessment
+    const insertResult = await db.query(`
+      INSERT INTO investor_suitability_assessments (
+        user_id, assessment_version,
+        full_name, date_of_birth, nationality, government_id_or_tin, address, contact_number, email,
+        employment_status, occupation_or_business_type,
+        gross_annual_income_band, net_worth_band, liquidity_band,
+        main_investment_goal, investment_horizon, investment_knowledge_level, investment_experience,
+        reaction_to_loss, high_risk_allocation, risk_comfort_statement,
+        income_score, net_worth_score, liquidity_score,
+        knowledge_score, experience_score, primary_goal_score, horizon_score,
+        reaction_score, allocation_score, risk_attitude_score,
+        total_score, investor_risk_profile,
+        declaration_accepted, risk_disclosure_accepted
+      ) VALUES (
+        $1, '1.0',
+        $2, $3, $4, $5, $6, $7, $8,
+        $9, $10,
+        $11, $12, $13,
+        $14, $15, $16, $17,
+        $18, $19, $20,
+        $21, $22, $23,
+        $24, $25, $26, $27,
+        $28, $29, $30,
+        $31, $32,
+        $33, $34
+      ) RETURNING *
+    `, [
+      uid,
+      a.full_name, a.date_of_birth || null, a.nationality || null, a.government_id_or_tin || null,
+      a.address || null, a.contact_number || null, a.email,
+      a.employment_status, a.occupation_or_business_type || null,
+      a.gross_annual_income_band, a.net_worth_band, a.liquidity_band,
+      a.main_investment_goal, a.investment_horizon, a.investment_knowledge_level,
+      Array.isArray(a.investment_experience) ? a.investment_experience : [],
+      a.reaction_to_loss, a.high_risk_allocation, a.risk_comfort_statement,
+      score.income_score, score.net_worth_score, score.liquidity_score,
+      score.knowledge_score, score.experience_score, score.primary_goal_score, score.horizon_score,
+      score.reaction_score, score.allocation_score, score.risk_attitude_score,
+      score.total_score, score.investor_risk_profile,
+      true, true,
+    ]);
+
+    // Update cached columns on users table
+    await db.query(
+      `UPDATE users SET suitability_completed = TRUE, suitability_score = $1, suitability_profile = $2 WHERE firebase_uid = $3`,
+      [score.total_score, score.investor_risk_profile, uid]
+    );
+
+    res.json({ success: true, assessment: score });
+  } catch (err) {
+    console.error('Error submitting suitability assessment:', err);
+    res.status(500).json({ error: 'Failed to save assessment' });
+  }
+});
+
+// GET: Fetch current active assessment
+app.get('/api/investor/suitability-assessment', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  try {
+    const result = await db.query(
+      `SELECT * FROM investor_suitability_assessments WHERE user_id = $1 AND is_active = TRUE ORDER BY created_at DESC LIMIT 1`,
+      [uid]
+    );
+    if (result.rows.length === 0) {
+      return res.json({ success: true, assessment: null });
+    }
+    res.json({ success: true, assessment: result.rows[0] });
+  } catch (err) {
+    console.error('Error fetching suitability assessment:', err);
+    res.status(500).json({ error: 'Failed to fetch assessment' });
+  }
+});
+
+// GET: Fetch assessment history
+app.get('/api/investor/suitability-assessment/history', verifyToken, async (req, res) => {
+  const uid = req.uid;
+  try {
+    const result = await db.query(
+      `SELECT * FROM investor_suitability_assessments WHERE user_id = $1 ORDER BY created_at DESC`,
+      [uid]
+    );
+    res.json({ success: true, assessments: result.rows });
+  } catch (err) {
+    console.error('Error fetching suitability history:', err);
+    res.status(500).json({ error: 'Failed to fetch assessment history' });
+  }
+});
+
+// Admin: Fetch suitability assessments for a specific user
+app.get('/api/owner/users/:userId/suitability', verifyToken, async (req, res) => {
+  try {
+    const adminCheck = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [req.uid]);
+    if (!adminCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { userId } = req.params;
+    const result = await db.query(
+      `SELECT * FROM investor_suitability_assessments WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    res.json({ success: true, assessments: result.rows });
+  } catch (err) {
+    console.error('Error fetching user suitability data:', err);
+    res.status(500).json({ error: 'Failed to fetch suitability data' });
+  }
+});
+
 // ==================== SERVER START ====================
 
 const server = app.listen(PORT, () => {

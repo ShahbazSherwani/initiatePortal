@@ -63,6 +63,7 @@ import { OwnerInvestmentRequests } from "../screens/owner/OwnerInvestmentRequest
 import { OwnerReports } from "../screens/owner/OwnerReports";
 import { InvestorRegIncomeDetails } from "../screens/InvestorRegIncomeDetails";
 import { InvestorRegBankDetails } from "../screens/InvestorRegBankDetails";
+import InvestorSuitabilityAssessment from "../screens/InvestorSuitabilityAssessment";
 import Settings from "../screens/Settings";
 import BorwCreateNewProjDonation from "../screens/BorwCreateNewProjDonation";
 import BorwCreateNewProjRewards from "../screens/BorwCreateNewProjRewards";
@@ -401,7 +402,7 @@ export const AppRoutes: React.FC = () => {
         }
       }
       // If user needs to set up accounts
-      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrower-reg-non-individual" && currentPath !== "/borrower-bank-details-non-individual" && currentPath !== "/borrowocu" && currentPath !== "/borrowWallet" && currentPath !== "/investor/register" && currentPath !== "/investor-reg-individual" && currentPath !== "/investor-reg-non-individual" && currentPath !== "/investor-reg-direct-lender" && currentPath !== "/investor-reg-income-details" && currentPath !== "/investor-reg-bank-details" && currentPath !== "/register" && currentPath !== "/verification-pending" && !currentPath.startsWith("/verify-email/")) {
+      else if (!profile.hasCompletedRegistration && currentPath !== "/borrow" && currentPath !== "/borrowreg" && currentPath !== "/borrower-reg-non-individual" && currentPath !== "/borrower-bank-details-non-individual" && currentPath !== "/borrowocu" && currentPath !== "/borrowWallet" && currentPath !== "/investor/register" && currentPath !== "/investor-reg-individual" && currentPath !== "/investor-reg-non-individual" && currentPath !== "/investor-reg-direct-lender" && currentPath !== "/investor-reg-income-details" && currentPath !== "/investor-reg-bank-details" && currentPath !== "/investor/suitability-assessment" && currentPath !== "/register" && currentPath !== "/verification-pending" && !currentPath.startsWith("/verify-email/")) {
         navigate("/borrow", { replace: true });
       }
     } else if (!loading && !user) {
@@ -728,6 +729,14 @@ export const AppRoutes: React.FC = () => {
                 element={
                   <PrivateRoute>
                     <InvestorRegBankDetails />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/investor/suitability-assessment" 
+                element={
+                  <PrivateRoute>
+                    <InvestorSuitabilityAssessment />
                   </PrivateRoute>
                 } 
               />

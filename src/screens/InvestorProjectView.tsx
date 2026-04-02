@@ -35,6 +35,7 @@ export const InvestorProjectView: React.FC = () => {
   const [eligibility, setEligibility] = useState<any>(null);
   const [educationCompleted, setEducationCompleted] = useState<boolean | null>(null);
   const [showEducationModal, setShowEducationModal] = useState(false);
+  const [suitabilityProfile, setSuitabilityProfile] = useState<any>(null);
   const [reconfirmLoading, setReconfirmLoading] = useState(false);
   const [cancelInvestmentLoading, setCancelInvestmentLoading] = useState(false);
   // const [showTopUpModal, setShowTopUpModal] = useState(false); // Disabled for PayMongo
@@ -134,6 +135,19 @@ export const InvestorProjectView: React.FC = () => {
       }
     };
     checkEducation();
+  }, []);
+
+  // Fetch investor suitability assessment
+  useEffect(() => {
+    const fetchSuitability = async () => {
+      try {
+        const data = await authFetch(`${API_BASE_URL}/investor/suitability-assessment`);
+        setSuitabilityProfile(data?.assessment || null);
+      } catch {
+        setSuitabilityProfile(null);
+      }
+    };
+    fetchSuitability();
   }, []);
   
   if (loading) {
@@ -338,10 +352,33 @@ export const InvestorProjectView: React.FC = () => {
     { label: "Released to Issuer", done: stepIdx >= 3, active: stepIdx === 3 },
   ];
 
+  // Suitability-based campaign eligibility check
+  const campaignType = (project?.project_data?.details?.projectType || project?.project_data?.projectType || 'lending').toLowerCase();
+  const isEquity = campaignType.includes('equity');
+  const campaignRiskLevel = (project?.project_data?.details?.riskLevel || 'medium').toLowerCase();
+  const campaignTenor = parseFloat(project?.project_data?.details?.duration || project?.project_data?.details?.loanDuration || '12');
+  
+  const suitabilityBlocked = (() => {
+    if (!suitabilityProfile) return true; // No assessment = blocked
+    const rp = suitabilityProfile.investor_risk_profile;
+    if (rp === 'aggressive') return false; // aggressive can invest in everything
+    if (rp === 'moderate') {
+      // moderate: all debt OK, only low/medium equity
+      if (isEquity && campaignRiskLevel === 'high') return true;
+      return false;
+    }
+    // conservative: only low/medium debt ≤ 1 year
+    if (isEquity) return true;
+    if (campaignRiskLevel === 'high') return true;
+    if (campaignTenor > 12) return true;
+    return false;
+  })();
+
   // Can invest check
   const canInvest = !!investmentAmount && parseFloat(investmentAmount) >= 100 &&
     educationCompleted !== false &&
     allDisclosureFormsUploaded &&
+    !suitabilityBlocked &&
     !(eligibility && eligibility.investorTier !== 'qualified' && parseFloat(investmentAmount) > Math.max(0, eligibility.remainingCapacity || 0));
 
   // ── Styles matching CampaignPage design language ──
@@ -416,6 +453,31 @@ export const InvestorProjectView: React.FC = () => {
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#CA8A04", margin: "0 0 6px" }}>Complete Education Module first</p>
             <button onClick={() => setShowEducationModal(true)} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, border: "none", background: "#EAB308", color: "#fff", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Start Module →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Suitability gate */}
+      {!suitabilityProfile && (
+        <div style={{ background: "#FFF7ED", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FDBA74", display: "flex", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>📋</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#C2410C", margin: "0 0 6px" }}>Complete Suitability Assessment first</p>
+            <button onClick={() => navigate('/investor/suitability-assessment')} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, border: "none", background: "#EA580C", color: "#fff", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Take Assessment →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Suitability restriction */}
+      {suitabilityProfile && suitabilityBlocked && (
+        <div style={{ background: "#FEF2F2", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FCA5A5", display: "flex", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>🚫</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#DC2626", margin: "0 0 6px" }}>Not eligible for this campaign</p>
+            <p style={{ fontSize: 11, color: "#EF4444", margin: "0 0 6px", lineHeight: 1.4 }}>
+              Your risk profile ({suitabilityProfile.investor_risk_profile}) does not permit investing in this {isEquity ? 'equity' : 'debt'} campaign.
+            </p>
+            <button onClick={() => navigate('/investor/suitability-assessment')} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, border: "1px solid #FCA5A5", background: "transparent", color: "#DC2626", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Retake Assessment →</button>
           </div>
         </div>
       )}

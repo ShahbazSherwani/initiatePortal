@@ -233,8 +233,20 @@ const USER_TABS = [
   { key: 'roles', label: 'Roles & Settings' },
   { key: 'projects', label: 'Projects' },
   { key: 'investments', label: 'Investments' },
+  { key: 'suitability', label: 'Suitability' },
   { key: 'activity', label: 'Activity Log' },
 ];
+
+// Admin score box component for suitability tab
+function ScoreBox({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="bg-gray-50 rounded-lg p-3">
+      <div className="text-[11px] text-gray-500 mb-1">{label}</div>
+      <div className="text-lg font-bold text-gray-900">{value}</div>
+      <div className="text-[10px] text-gray-400">{detail}</div>
+    </div>
+  );
+}
 
 // Helper function to open base64 documents in a new window
 const openDocument = (dataUrl: string, title: string = 'Document') => {
@@ -325,6 +337,7 @@ export const OwnerUserDetail: React.FC = () => {
   const [canEditUsers, setCanEditUsers] = useState(false);
   const [canSuspendUsers, setCanSuspendUsers] = useState(false);
   const [canDeleteUsers, setCanDeleteUsers] = useState(false);
+  const [suitabilityData, setSuitabilityData] = useState<any[]>([]);
 
   // Fetch user permissions to check what actions they can perform
   useEffect(() => {
@@ -404,6 +417,21 @@ export const OwnerUserDetail: React.FC = () => {
   useEffect(() => {
     fetchUserData();
   }, [userId]);
+
+  // Fetch suitability data when the suitability tab is opened
+  useEffect(() => {
+    if (activeTab === 'suitability' && userId) {
+      const fetchSuitability = async () => {
+        try {
+          const data = await authFetch(`${API_BASE_URL}/owner/users/${userId}/suitability`);
+          setSuitabilityData(data?.assessments || []);
+        } catch {
+          setSuitabilityData([]);
+        }
+      };
+      fetchSuitability();
+    }
+  }, [activeTab, userId]);
 
   if (loading) {
     return (
@@ -1485,8 +1513,72 @@ export const OwnerUserDetail: React.FC = () => {
               </div>
             )}
 
+            {/* Suitability Assessment Tab */}
+            {activeTab === 'suitability' && (
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Suitability Assessments</h4>
+                {suitabilityData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500">No suitability assessments found for this user.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {suitabilityData.map((assessment: any, idx: number) => {
+                      const profileColor = assessment.investor_risk_profile === 'aggressive' ? '#DC2626' : assessment.investor_risk_profile === 'moderate' ? '#D97706' : '#059669';
+                      const profileBg = assessment.investor_risk_profile === 'aggressive' ? '#FEF2F2' : assessment.investor_risk_profile === 'moderate' ? '#FFFBEB' : '#ECFDF5';
+                      return (
+                        <div key={assessment.id} className={`border rounded-xl p-6 ${assessment.is_active ? 'border-[#1B5E20] bg-green-50/20' : 'border-gray-200 opacity-70'}`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <span className="px-3 py-1 rounded-full text-xs font-bold" style={{ background: profileBg, color: profileColor }}>
+                                {(assessment.investor_risk_profile || 'unknown').toUpperCase()}
+                              </span>
+                              <span className="text-2xl font-bold text-gray-900">{assessment.total_score}/100</span>
+                              {assessment.is_active && <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-bold">ACTIVE</span>}
+                              {!assessment.is_active && <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-500 text-[10px] font-bold">SUPERSEDED</span>}
+                            </div>
+                            <span className="text-xs text-gray-400">v{assessment.assessment_version} · {new Date(assessment.created_at).toLocaleDateString()}</span>
+                          </div>
+
+                          {/* Score breakdown */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            <ScoreBox label="Financial Capacity" value={`${(assessment.income_score || 0) + (assessment.net_worth_score || 0) + (assessment.liquidity_score || 0)}/30`} detail={`Inc:${assessment.income_score} NW:${assessment.net_worth_score} Liq:${assessment.liquidity_score}`} />
+                            <ScoreBox label="Investment Exp." value={`${(assessment.knowledge_score || 0) + (assessment.experience_score || 0)}/20`} detail={`Know:${assessment.knowledge_score} Exp:${assessment.experience_score}`} />
+                            <ScoreBox label="Objectives" value={`${(assessment.primary_goal_score || 0) + (assessment.horizon_score || 0)}/20`} detail={`Goal:${assessment.primary_goal_score} Hor:${assessment.horizon_score}`} />
+                            <ScoreBox label="Risk Tolerance" value={`${(assessment.reaction_score || 0) + (assessment.allocation_score || 0) + (assessment.risk_attitude_score || 0)}/30`} detail={`R:${assessment.reaction_score} A:${assessment.allocation_score} At:${assessment.risk_attitude_score}`} />
+                          </div>
+
+                          {/* Raw answers summary */}
+                          <details className="text-sm">
+                            <summary className="cursor-pointer text-gray-500 hover:text-gray-700 font-medium">View raw answers</summary>
+                            <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                              <div><span className="text-gray-400">Name:</span> {assessment.full_name}</div>
+                              <div><span className="text-gray-400">Email:</span> {assessment.email}</div>
+                              <div><span className="text-gray-400">Employment:</span> {assessment.employment_status}</div>
+                              <div><span className="text-gray-400">Income Band:</span> {assessment.gross_annual_income_band}</div>
+                              <div><span className="text-gray-400">Net Worth:</span> {assessment.net_worth_band}</div>
+                              <div><span className="text-gray-400">Liquidity:</span> {assessment.liquidity_band}</div>
+                              <div><span className="text-gray-400">Goal:</span> {assessment.main_investment_goal}</div>
+                              <div><span className="text-gray-400">Horizon:</span> {assessment.investment_horizon}</div>
+                              <div><span className="text-gray-400">Knowledge:</span> {assessment.investment_knowledge_level}</div>
+                              <div><span className="text-gray-400">Experience:</span> {(assessment.investment_experience || []).join(', ')}</div>
+                              <div><span className="text-gray-400">Loss Reaction:</span> {assessment.reaction_to_loss}</div>
+                              <div><span className="text-gray-400">High-risk Alloc:</span> {assessment.high_risk_allocation}</div>
+                              <div className="col-span-2"><span className="text-gray-400">Risk Statement:</span> {assessment.risk_comfort_statement}</div>
+                              <div><span className="text-gray-400">Declaration:</span> {assessment.declaration_accepted ? '✓' : '✕'}</div>
+                              <div><span className="text-gray-400">Risk Disclosure:</span> {assessment.risk_disclosure_accepted ? '✓' : '✕'}</div>
+                            </div>
+                          </details>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Other tabs show placeholder content */}
-            {!['overview', 'personal', 'identifications', 'addresses', 'bank', 'roles'].includes(activeTab) && (
+            {!['overview', 'personal', 'identifications', 'addresses', 'bank', 'roles', 'suitability'].includes(activeTab) && (
               <div className="text-center py-12">
                 <h4 className="text-lg font-medium text-gray-900 mb-2">{USER_TABS.find(t => t.key === activeTab)?.label}</h4>
                 <p className="text-gray-500">This tab contains detailed {activeTab} information.</p>

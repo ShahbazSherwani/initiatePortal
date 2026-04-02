@@ -280,8 +280,8 @@ export const InvestorRegBankDetails = (): JSX.Element => {
       await refreshAccounts();
       await refreshProfile(); // This will update the user role in AuthContext
       
-      // Navigate to investor dashboard
-      navigate("/investor/discover");
+      // Navigate to suitability assessment (required before accessing investor features)
+      navigate("/investor/suitability-assessment");
     } catch (error) {
       console.error('❌ Error completing investor registration:', error);
       alert('An error occurred while completing your registration. Please try again.');
