@@ -267,7 +267,8 @@ export const DashboardStats: React.FC = () => {
 
       {/* Risk Profile Card */}
       {suitability ? (() => {
-        const cfg = profileConfig[suitability.investor_risk_profile];
+        const profileKey = (suitability.investor_risk_profile || '').toLowerCase() as keyof typeof profileConfig;
+        const cfg = profileConfig[profileKey] || profileConfig.conservative;
         const assessmentDate = new Date(suitability.created_at);
         const expiryDate = new Date(assessmentDate);
         expiryDate.setMonth(expiryDate.getMonth() + 12);
