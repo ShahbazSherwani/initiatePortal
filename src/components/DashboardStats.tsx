@@ -14,7 +14,9 @@ import {
   WalletIcon,
   CheckCircleIcon,
   XCircleIcon,
-  AlertCircleIcon
+  AlertCircleIcon,
+  ShieldCheckIcon,
+  RefreshCwIcon
 } from 'lucide-react';
 
 interface DashboardStatsData {
@@ -36,9 +38,20 @@ interface TopUpRequest {
   admin_notes: string | null;
 }
 
+interface SuitabilityData {
+  total_score: number;
+  investor_risk_profile: 'conservative' | 'moderate' | 'aggressive';
+  created_at: string;
+  financial_capacity_score: number;
+  investment_experience_score: number;
+  investment_objectives_score: number;
+  risk_tolerance_score: number;
+}
+
 export const DashboardStats: React.FC = () => {
   const [stats, setStats] = useState<DashboardStatsData | null>(null);
   const [topUpRequests, setTopUpRequests] = useState<TopUpRequest[]>([]);
+  const [suitability, setSuitability] = useState<SuitabilityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -47,14 +60,18 @@ export const DashboardStats: React.FC = () => {
     const fetchData = async () => {
       try {
         console.log("🔍 Fetching dashboard stats...");
-        const [statsData, topUpData] = await Promise.all([
+        const [statsData, topUpData, suitabilityData] = await Promise.all([
           authFetch(`${API_BASE_URL}/user/dashboard-stats`),
-          authFetch(`${API_BASE_URL}/topup/my-requests`).catch(() => [])
+          authFetch(`${API_BASE_URL}/topup/my-requests`).catch(() => []),
+          authFetch(`${API_BASE_URL}/investor/suitability-assessment`).catch(() => null)
         ]);
         console.log("📊 Dashboard stats received:", statsData);
         console.log("💰 Top-up requests received:", topUpData);
         setStats(statsData);
         setTopUpRequests(topUpData || []);
+        if (suitabilityData && !suitabilityData.error) {
+          setSuitability(suitabilityData);
+        }
       } catch (err) {
         console.error("❌ Error fetching dashboard stats:", err);
         setError("Failed to load stats");
@@ -135,6 +152,36 @@ export const DashboardStats: React.FC = () => {
   const recentTopUps = topUpRequests.slice(0, 3);
   const pendingTopUps = topUpRequests.filter(t => t.status === 'pending');
 
+  const profileConfig = {
+    conservative: {
+      color: 'from-blue-500 to-blue-700',
+      bgLight: 'bg-blue-50 border-blue-200',
+      textColor: 'text-blue-700',
+      badgeBg: 'bg-blue-100 text-blue-800',
+      label: 'Conservative',
+      description: 'Low-risk debt instruments with shorter terms',
+      allowed: 'Low & Medium Risk Debt (≤1 year)'
+    },
+    moderate: {
+      color: 'from-amber-500 to-orange-600',
+      bgLight: 'bg-amber-50 border-amber-200',
+      textColor: 'text-amber-700',
+      badgeBg: 'bg-amber-100 text-amber-800',
+      label: 'Moderate',
+      description: 'Balanced mix of debt and select equity investments',
+      allowed: 'All Debt + Low & Medium Risk Equity'
+    },
+    aggressive: {
+      color: 'from-red-500 to-red-700',
+      bgLight: 'bg-red-50 border-red-200',
+      textColor: 'text-red-700',
+      badgeBg: 'bg-red-100 text-red-800',
+      label: 'Aggressive',
+      description: 'Full access to all investment types and risk levels',
+      allowed: 'All Investment Types & Risk Levels'
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'approved':
@@ -214,6 +261,103 @@ export const DashboardStats: React.FC = () => {
                 Showing latest 3 of {topUpRequests.length} requests
               </p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Risk Profile Card */}
+      {suitability ? (() => {
+        const cfg = profileConfig[suitability.investor_risk_profile];
+        const assessmentDate = new Date(suitability.created_at);
+        const expiryDate = new Date(assessmentDate);
+        expiryDate.setMonth(expiryDate.getMonth() + 12);
+        const isExpiringSoon = expiryDate.getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000;
+        return (
+          <Card className={`border shadow-lg ${cfg.bgLight}`}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 bg-gradient-to-br ${cfg.color} rounded-xl flex items-center justify-center shadow-md`}>
+                    <ShieldCheckIcon className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="text-sm font-medium text-gray-600">Your Risk Profile</h3>
+                      <span className={`px-3 py-0.5 rounded-full text-xs font-bold ${cfg.badgeBg}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <p className="text-3xl font-bold text-gray-900">{suitability.total_score}<span className="text-base font-normal text-gray-500">/100</span></p>
+                    <p className="text-xs text-gray-500 mt-1">{cfg.description}</p>
+                  </div>
+                </div>
+                <div className="hidden md:flex flex-col items-end gap-2">
+                  <div className="flex gap-3 text-xs text-gray-500">
+                    <span>Financial: <strong className={cfg.textColor}>{suitability.financial_capacity_score}/30</strong></span>
+                    <span>Experience: <strong className={cfg.textColor}>{suitability.investment_experience_score}/20</strong></span>
+                    <span>Objectives: <strong className={cfg.textColor}>{suitability.investment_objectives_score}/20</strong></span>
+                    <span>Risk: <strong className={cfg.textColor}>{suitability.risk_tolerance_score}/30</strong></span>
+                  </div>
+                  <p className="text-xs text-gray-400">Eligible: {cfg.allowed}</p>
+                  <div className="flex items-center gap-2">
+                    {isExpiringSoon && (
+                      <span className="text-xs text-orange-600 font-medium">Expiring soon</span>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate('/investor/suitability-assessment')}
+                      className="text-xs h-7 px-3 gap-1"
+                    >
+                      <RefreshCwIcon className="w-3 h-3" />
+                      Retake
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              {/* Mobile score breakdown */}
+              <div className="md:hidden mt-3 grid grid-cols-2 gap-2 text-xs text-gray-500">
+                <span>Financial: <strong className={cfg.textColor}>{suitability.financial_capacity_score}/30</strong></span>
+                <span>Experience: <strong className={cfg.textColor}>{suitability.investment_experience_score}/20</strong></span>
+                <span>Objectives: <strong className={cfg.textColor}>{suitability.investment_objectives_score}/20</strong></span>
+                <span>Risk: <strong className={cfg.textColor}>{suitability.risk_tolerance_score}/30</strong></span>
+              </div>
+              <div className="md:hidden mt-2 flex items-center justify-between">
+                <p className="text-xs text-gray-400">Eligible: {cfg.allowed}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/investor/suitability-assessment')}
+                  className="text-xs h-7 px-3 gap-1"
+                >
+                  <RefreshCwIcon className="w-3 h-3" />
+                  Retake
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })() : (
+        <Card className="border shadow-lg bg-gray-50 border-gray-200">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gray-300 rounded-xl flex items-center justify-center">
+                  <ShieldCheckIcon className="w-7 h-7 text-gray-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-600">Risk Profile</h3>
+                  <p className="text-lg font-semibold text-gray-700">Not Yet Assessed</p>
+                  <p className="text-xs text-gray-500">Complete your suitability assessment to unlock investments</p>
+                </div>
+              </div>
+              <Button
+                onClick={() => navigate('/investor/suitability-assessment')}
+                className="bg-[#0C4B20] hover:bg-[#8FB200] text-white font-semibold px-5 py-2 rounded-xl"
+              >
+                Take Assessment
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
