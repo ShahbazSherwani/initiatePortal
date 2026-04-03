@@ -14505,18 +14505,18 @@ const ensureSuitabilityTables = async () => {
         address TEXT,
         contact_number VARCHAR(50),
         email VARCHAR(255),
-        employment_status VARCHAR(30),
+        employment_status VARCHAR(100),
         occupation_or_business_type VARCHAR(255),
-        gross_annual_income_band VARCHAR(30),
-        net_worth_band VARCHAR(30),
-        liquidity_band VARCHAR(30),
-        main_investment_goal VARCHAR(30),
-        investment_horizon VARCHAR(30),
-        investment_knowledge_level VARCHAR(30),
+        gross_annual_income_band VARCHAR(100),
+        net_worth_band VARCHAR(100),
+        liquidity_band VARCHAR(100),
+        main_investment_goal VARCHAR(100),
+        investment_horizon VARCHAR(100),
+        investment_knowledge_level VARCHAR(100),
         investment_experience TEXT[],
-        reaction_to_loss VARCHAR(30),
-        high_risk_allocation VARCHAR(30),
-        risk_comfort_statement VARCHAR(30),
+        reaction_to_loss VARCHAR(100),
+        high_risk_allocation VARCHAR(100),
+        risk_comfort_statement VARCHAR(100),
         income_score INTEGER DEFAULT 0,
         net_worth_score INTEGER DEFAULT 0,
         liquidity_score INTEGER DEFAULT 0,
@@ -14541,6 +14541,18 @@ const ensureSuitabilityTables = async () => {
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS suitability_completed BOOLEAN DEFAULT FALSE`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS suitability_score INTEGER`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS suitability_profile VARCHAR(20)`);
+
+    // Widen columns that may have been created too narrow (VARCHAR(30) is too short for some enum values)
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN risk_comfort_statement TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN reaction_to_loss TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN high_risk_allocation TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN main_investment_goal TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN investment_horizon TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN employment_status TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN gross_annual_income_band TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN net_worth_band TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN liquidity_band TYPE VARCHAR(100)`);
+    await db.query(`ALTER TABLE investor_suitability_assessments ALTER COLUMN investment_knowledge_level TYPE VARCHAR(100)`);
   } catch (e) {
     console.log('Suitability tables setup note:', e.message);
   }
