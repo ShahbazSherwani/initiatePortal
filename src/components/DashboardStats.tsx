@@ -154,28 +154,28 @@ export const DashboardStats: React.FC = () => {
 
   const profileConfig = {
     conservative: {
-      color: 'from-blue-500 to-blue-700',
-      bgLight: 'bg-blue-50 border-blue-200',
-      textColor: 'text-blue-700',
-      badgeBg: 'bg-blue-100 text-blue-800',
+      color: 'from-[#0C4B20] to-[#1a6b30]',
+      bgLight: 'bg-[#f0f7f2] border-[#0C4B20]/20',
+      textColor: 'text-[#0C4B20]',
+      badgeBg: 'bg-[#0C4B20]/10 text-[#0C4B20]',
       label: 'Conservative',
       description: 'Low-risk debt instruments with shorter terms',
       allowed: 'Low & Medium Risk Debt (≤1 year)'
     },
     moderate: {
-      color: 'from-amber-500 to-orange-600',
-      bgLight: 'bg-amber-50 border-amber-200',
-      textColor: 'text-amber-700',
-      badgeBg: 'bg-amber-100 text-amber-800',
+      color: 'from-[#0C4B20] to-[#8FB200]',
+      bgLight: 'bg-[#f5f9ec] border-[#8FB200]/30',
+      textColor: 'text-[#5a7a00]',
+      badgeBg: 'bg-[#8FB200]/15 text-[#5a7a00]',
       label: 'Moderate',
       description: 'Balanced mix of debt and select equity investments',
       allowed: 'All Debt + Low & Medium Risk Equity'
     },
     aggressive: {
-      color: 'from-red-500 to-red-700',
-      bgLight: 'bg-red-50 border-red-200',
-      textColor: 'text-red-700',
-      badgeBg: 'bg-red-100 text-red-800',
+      color: 'from-[#8FB200] to-[#b8d940]',
+      bgLight: 'bg-[#fafce8] border-[#8FB200]/30',
+      textColor: 'text-[#6a8500]',
+      badgeBg: 'bg-[#8FB200]/20 text-[#4a5d00]',
       label: 'Aggressive',
       description: 'Full access to all investment types and risk levels',
       allowed: 'All Investment Types & Risk Levels'
@@ -339,12 +339,12 @@ export const DashboardStats: React.FC = () => {
           </Card>
         );
       })() : (
-        <Card className="border shadow-lg bg-gray-50 border-gray-200">
+        <Card className="border shadow-lg bg-[#f0f7f2] border-[#0C4B20]/20">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-gray-300 rounded-xl flex items-center justify-center">
-                  <ShieldCheckIcon className="w-7 h-7 text-gray-500" />
+                <div className="w-14 h-14 bg-[#0C4B20]/20 rounded-xl flex items-center justify-center">
+                  <ShieldCheckIcon className="w-7 h-7 text-[#0C4B20]" />
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-600">Risk Profile</h3>
