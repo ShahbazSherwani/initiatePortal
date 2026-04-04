@@ -70,7 +70,11 @@ export const DashboardStats: React.FC = () => {
         setStats(statsData);
         setTopUpRequests(topUpData || []);
         if (suitabilityData && !suitabilityData.error) {
-          setSuitability(suitabilityData);
+          // API returns { success, assessment: {...} } — extract the assessment object
+          const assessment = suitabilityData.assessment || suitabilityData;
+          if (assessment && assessment.investor_risk_profile) {
+            setSuitability(assessment);
+          }
         }
       } catch (err) {
         console.error("❌ Error fetching dashboard stats:", err);
