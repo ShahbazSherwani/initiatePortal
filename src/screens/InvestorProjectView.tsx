@@ -105,6 +105,19 @@ export const InvestorProjectView: React.FC = () => {
   useEffect(() => {
     return () => { if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current); };
   }, []);
+
+  // Inject tooltip keyframes once
+  useEffect(() => {
+    if (document.getElementById('tooltip-keyframes')) return;
+    const style = document.createElement('style');
+    style.id = 'tooltip-keyframes';
+    style.textContent = `
+      @keyframes tooltipSlideIn { from { opacity:0; transform:translateX(-50%) translateY(calc(-100% + 8px)); } to { opacity:1; transform:translateX(-50%) translateY(-100%); } }
+      @keyframes tooltipFadeOut { from { opacity:1; } to { opacity:0; } }
+      @keyframes tooltipPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(234,179,8,0.4); } 50% { box-shadow: 0 0 0 6px rgba(234,179,8,0); } }
+    `;
+    document.head.appendChild(style);
+  }, []);
   
   // Helper function to format duration
   const formatDuration = (duration: string) => {
@@ -458,19 +471,6 @@ export const InvestorProjectView: React.FC = () => {
       )}
     </div>
   );
-
-  // Inject tooltip keyframes once
-  useEffect(() => {
-    if (document.getElementById('tooltip-keyframes')) return;
-    const style = document.createElement('style');
-    style.id = 'tooltip-keyframes';
-    style.textContent = `
-      @keyframes tooltipSlideIn { from { opacity:0; transform:translateX(-50%) translateY(calc(-100% + 8px)); } to { opacity:1; transform:translateX(-50%) translateY(-100%); } }
-      @keyframes tooltipFadeOut { from { opacity:1; } to { opacity:0; } }
-      @keyframes tooltipPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(234,179,8,0.4); } 50% { box-shadow: 0 0 0 6px rgba(234,179,8,0); } }
-    `;
-    document.head.appendChild(style);
-  }, []);
 
   // ── Build sidebar content ──
   const investmentSidebar = isOwnProject ? (
