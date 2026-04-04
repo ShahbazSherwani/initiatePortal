@@ -54,6 +54,57 @@ export const InvestorProjectView: React.FC = () => {
   const investmentLimitFormRef = useRef<HTMLInputElement>(null);
   const riskAcknowledgementFormRef = useRef<HTMLInputElement>(null);
   const allDisclosureFormsUploaded = !!declarationForm && !!investmentLimitForm && !!riskAcknowledgementForm;
+
+  // Animated tooltip state for guiding users through required fields
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showTooltipsSequentially = () => {
+    // Build list of incomplete steps
+    const missing: { key: string; message: string }[] = [];
+    if (educationCompleted === false) {
+      missing.push({ key: 'education', message: 'Complete the Education Module to proceed' });
+    }
+    if (!suitabilityProfile) {
+      missing.push({ key: 'suitability', message: 'Complete your Suitability Assessment first' });
+    }
+    if (suitabilityProfile && suitabilityBlocked) {
+      missing.push({ key: 'suitability-blocked', message: 'Your risk profile restricts this campaign' });
+    }
+    if (!declarationForm) {
+      missing.push({ key: 'disclosure-0', message: 'Upload Declaration of External Investments' });
+    }
+    if (!investmentLimitForm) {
+      missing.push({ key: 'disclosure-1', message: 'Upload Investment Limit Agreement' });
+    }
+    if (!riskAcknowledgementForm) {
+      missing.push({ key: 'disclosure-2', message: 'Upload Risk Acknowledgement Statement' });
+    }
+    if (!investmentAmount || parseFloat(investmentAmount) < 100) {
+      missing.push({ key: 'amount', message: 'Enter an investment amount (min ₱100)' });
+    }
+    if (missing.length === 0) return;
+
+    // Show tooltips one after another
+    let i = 0;
+    const showNext = () => {
+      if (i >= missing.length) {
+        setActiveTooltip(null);
+        return;
+      }
+      setActiveTooltip(missing[i].key);
+      i++;
+      tooltipTimerRef.current = setTimeout(showNext, 2200);
+    };
+    // Clear any existing sequence
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
+    showNext();
+  };
+
+  // Clear tooltip timer on unmount
+  useEffect(() => {
+    return () => { if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current); };
+  }, []);
   
   // Helper function to format duration
   const formatDuration = (duration: string) => {
@@ -386,6 +437,41 @@ export const InvestorProjectView: React.FC = () => {
   const greenBtn: React.CSSProperties = { width: "100%", padding: 14, border: "none", borderRadius: 12, background: "linear-gradient(135deg,#1B3A2D,#2D5A3F)", color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", boxShadow: "0 2px 8px rgba(27,58,45,0.25)" };
   const outlineBtn: React.CSSProperties = { ...greenBtn, background: "transparent", color: "#1B3A2D", border: "1px solid #E8E4DD", boxShadow: "none" };
 
+  // Animated tooltip component
+  const Tooltip = ({ id, message, children }: { id: string; message: string; children: React.ReactNode }) => (
+    <div style={{ position: 'relative' }}>
+      {children}
+      {activeTooltip === id && (
+        <div style={{
+          position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%) translateY(-100%)',
+          background: '#1B3A2D', color: '#fff', padding: '8px 14px', borderRadius: 8, fontSize: 12,
+          fontWeight: 500, whiteSpace: 'nowrap', zIndex: 50, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          animation: 'tooltipSlideIn 0.35s ease-out, tooltipFadeOut 0.3s ease-in 1.8s forwards',
+          fontFamily: "'DM Sans',sans-serif", maxWidth: 280,
+        }}>
+          <span style={{ whiteSpace: 'normal', lineHeight: 1.4, display: 'block' }}>{message}</span>
+          <div style={{
+            position: 'absolute', bottom: -5, left: '50%', transform: 'translateX(-50%)',
+            width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #1B3A2D',
+          }} />
+        </div>
+      )}
+    </div>
+  );
+
+  // Inject tooltip keyframes once
+  useEffect(() => {
+    if (document.getElementById('tooltip-keyframes')) return;
+    const style = document.createElement('style');
+    style.id = 'tooltip-keyframes';
+    style.textContent = `
+      @keyframes tooltipSlideIn { from { opacity:0; transform:translateX(-50%) translateY(calc(-100% + 8px)); } to { opacity:1; transform:translateX(-50%) translateY(-100%); } }
+      @keyframes tooltipFadeOut { from { opacity:1; } to { opacity:0; } }
+      @keyframes tooltipPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(234,179,8,0.4); } 50% { box-shadow: 0 0 0 6px rgba(234,179,8,0); } }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
   // ── Build sidebar content ──
   const investmentSidebar = isOwnProject ? (
     <div style={sideCard}>
@@ -447,8 +533,9 @@ export const InvestorProjectView: React.FC = () => {
       <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 18, fontWeight: 600, color: "#1B3A2D", margin: "0 0 20px" }}>Invest in this Campaign</h3>
 
       {/* Education gate */}
+      <Tooltip id="education" message="Complete the Education Module to proceed">
       {educationCompleted === false && (
-        <div style={{ background: "#FEFCE8", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FDE047", display: "flex", gap: 10 }}>
+        <div style={{ background: "#FEFCE8", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FDE047", display: "flex", gap: 10, animation: activeTooltip === 'education' ? 'tooltipPulse 1s ease-in-out' : undefined }}>
           <span style={{ fontSize: 18 }}>🎓</span>
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#CA8A04", margin: "0 0 6px" }}>Complete Education Module first</p>
@@ -456,10 +543,12 @@ export const InvestorProjectView: React.FC = () => {
           </div>
         </div>
       )}
+      </Tooltip>
 
       {/* Suitability gate */}
+      <Tooltip id="suitability" message="Complete your Suitability Assessment first">
       {!suitabilityProfile && (
-        <div style={{ background: "#FFF7ED", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FDBA74", display: "flex", gap: 10 }}>
+        <div style={{ background: "#FFF7ED", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FDBA74", display: "flex", gap: 10, animation: activeTooltip === 'suitability' ? 'tooltipPulse 1s ease-in-out' : undefined }}>
           <span style={{ fontSize: 18 }}>📋</span>
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#C2410C", margin: "0 0 6px" }}>Complete Suitability Assessment first</p>
@@ -467,10 +556,12 @@ export const InvestorProjectView: React.FC = () => {
           </div>
         </div>
       )}
+      </Tooltip>
 
       {/* Suitability restriction */}
+      <Tooltip id="suitability-blocked" message="Your risk profile restricts this campaign">
       {suitabilityProfile && suitabilityBlocked && (
-        <div style={{ background: "#FEF2F2", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FCA5A5", display: "flex", gap: 10 }}>
+        <div style={{ background: "#FEF2F2", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FCA5A5", display: "flex", gap: 10, animation: activeTooltip === 'suitability-blocked' ? 'tooltipPulse 1s ease-in-out' : undefined }}>
           <span style={{ fontSize: 18 }}>🚫</span>
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#DC2626", margin: "0 0 6px" }}>Not eligible for this campaign</p>
@@ -481,6 +572,7 @@ export const InvestorProjectView: React.FC = () => {
           </div>
         </div>
       )}
+      </Tooltip>
 
       {/* Material change reconfirmation */}
       {project?.project_data?.pendingReconfirmation === true &&
@@ -543,7 +635,8 @@ export const InvestorProjectView: React.FC = () => {
           { label: "2. Investment Limit Agreement", file: "Retail_Investor_Investment_Limit_Agreement.pdf", state: investmentLimitForm, setter: setInvestmentLimitForm, ref: investmentLimitFormRef },
           { label: "3. Risk Acknowledgement Statement", file: "Retail_Investors_Risk_Acknowledgement_Statement.pdf", state: riskAcknowledgementForm, setter: setRiskAcknowledgementForm, ref: riskAcknowledgementFormRef },
         ] as const).map(({ label, file, state, setter, ref }, i) => (
-          <div key={i} style={{ marginBottom: i < 2 ? 12 : 0 }}>
+          <Tooltip key={i} id={`disclosure-${i}`} message={`Upload ${label.replace(/^\d\.\s*/, '')}`}>
+          <div style={{ marginBottom: i < 2 ? 12 : 0, borderRadius: 8, transition: 'box-shadow 0.3s', boxShadow: activeTooltip === `disclosure-${i}` ? '0 0 0 2px #EAB308' : 'none' }}>
             <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 6px" }}>{label} <span style={{ color: "#DC2626" }}>*</span></p>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <button type="button" onClick={() => handleDownloadDisclosureForm(file)} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 8, border: "1px solid #1B3A2D", background: "transparent", color: "#1B3A2D", cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>
@@ -562,6 +655,7 @@ export const InvestorProjectView: React.FC = () => {
             </div>
             <input ref={ref} type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleDisclosureFormUpload(e, setter)} style={{ display: "none" }} />
           </div>
+          </Tooltip>
         ))}
         {!allDisclosureFormsUploaded && (
           <p style={{ fontSize: 11, color: "#CA8A04", fontWeight: 500, margin: "12px 0 0" }}>⚠ All 3 forms must be uploaded to proceed.</p>
@@ -569,12 +663,16 @@ export const InvestorProjectView: React.FC = () => {
       </div>
 
       {/* Amount input */}
+      <Tooltip id="amount" message="Enter an investment amount (min ₱100)">
+      <div>
       <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>How much would you like to invest?</label>
-      <div style={{ display: "flex", alignItems: "center", border: "2px solid #E8E4DD", borderRadius: 12, padding: "0 16px", marginBottom: 6, background: "#FAFAF7" }}>
+      <div style={{ display: "flex", alignItems: "center", border: activeTooltip === 'amount' ? "2px solid #EAB308" : "2px solid #E8E4DD", borderRadius: 12, padding: "0 16px", marginBottom: 6, background: "#FAFAF7", transition: 'border-color 0.3s' }}>
         <span style={{ fontSize: 16, fontWeight: 600, color: "#888", marginRight: 8 }}>₱</span>
         <input type="number" placeholder="Enter amount" value={investmentAmount} onChange={e => setInvestmentAmount(e.target.value)} min="100" style={{ flex: 1, padding: "14px 0", border: "none", outline: "none", fontSize: 16, fontFamily: "'DM Sans',sans-serif", background: "transparent", width: "100%" }} />
       </div>
       <p style={{ fontSize: 11, color: "#888", margin: "0 0 14px" }}>Minimum: ₱100</p>
+      </div>
+      </Tooltip>
 
       {/* Capacity warning */}
       {eligibility && eligibility.investorTier !== "qualified" && investmentAmount &&
@@ -584,7 +682,7 @@ export const InvestorProjectView: React.FC = () => {
         </p>
       )}
 
-      <button onClick={() => setShowConfirm(true)} disabled={!canInvest} style={{ ...greenBtn, opacity: canInvest ? 1 : 0.5, cursor: canInvest ? "pointer" : "not-allowed" }}>
+      <button onClick={() => { if (canInvest) { setShowConfirm(true); } else { showTooltipsSequentially(); } }} style={{ ...greenBtn, opacity: canInvest ? 1 : 0.5, cursor: "pointer" }}>
         Continue
       </button>
       <p style={{ fontSize: 11, color: "#aaa", textAlign: "center", margin: "14px 0 0", lineHeight: 1.5 }}>By continuing, you acknowledge that you have read the campaign details and associated documents.</p>
