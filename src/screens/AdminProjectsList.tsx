@@ -99,6 +99,8 @@ export const AdminProjectsList: React.FC = () => {
     } else if (filter === 'pending') {
       matchesFilter = (
         (project.project_data.status === 'draft') || 
+        (project.project_data.status === 'pending') ||
+        (project.project_data.approvalStatus === 'pending' && project.project_data.status !== 'closed' && project.project_data.status !== 'deleted') ||
         (project.project_data.status === 'published' && 
          (project.project_data.approvalStatus === 'pending' || !project.project_data.approvalStatus))
       );

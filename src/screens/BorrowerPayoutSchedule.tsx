@@ -95,52 +95,66 @@ export const BorrowerPayoutSchedule: React.FC = () => {
 
   const isMatchValidated = matchResult === "match";
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleContinue = () => {
     if (!isMatchValidated) {
       alert("Please confirm the payout amounts match before continuing.");
       return;
     }
+    // Build payout data now (React state update is async, so capture it here)
+    const payoutData = {
+      totalPayoutReq,
+      scheduleDate,
+      scheduleAmount,
+      payoutPercent,
+      netIncome,
+      penaltyAgree,
+      legalAgree,
+    };
     setForm(f => ({
       ...f,
-      payoutSchedule: {
-        totalPayoutReq,
-        scheduleDate,
-        scheduleAmount,
-        payoutPercent,
-        netIncome,
-        penaltyAgree,
-        legalAgree,
-      },
+      payoutSchedule: payoutData,
     }));
-    handleFinalSubmit();
+    // Pass payout data directly to avoid stale state
+    handleFinalSubmit(payoutData);
   };
 
-  const handleFinalSubmit = () => {
-    console.log("Form details before addProject:", form.projectDetails);
-    addProject({
-      id: uuidv4(),
-      type: (form.selectedType === "equity" || form.selectedType === "lending")
-        ? form.selectedType
-        : "lending",
-      details: form.projectDetails,
-      issuerForm: form.issuerForm || null,
-      milestones: form.milestones,
-      roi: form.roi,
-      sales: form.sales,
-      payoutSchedule: form.payoutSchedule,
-      status: "pending",
-    });
-    setForm({
-      selectedType: null,
-      projectDetails: {},
-      issuerForm: null,
-      milestones: [],
-      roi: {},
-      sales: {},
-      payoutSchedule: {},
-      projectId: "",
-    });
-    navigate("/borwMyProj");
+  const handleFinalSubmit = async (payoutData: any) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      console.log("Form details before addProject:", form.projectDetails);
+      await addProject({
+        id: uuidv4(),
+        type: (form.selectedType === "equity" || form.selectedType === "lending")
+          ? form.selectedType
+          : "lending",
+        details: form.projectDetails,
+        issuerForm: form.issuerForm || null,
+        milestones: form.milestones,
+        roi: form.roi,
+        sales: form.sales,
+        payoutSchedule: payoutData,
+        status: "pending",
+      });
+      setForm({
+        selectedType: null,
+        projectDetails: {},
+        issuerForm: null,
+        milestones: [],
+        roi: {},
+        sales: {},
+        payoutSchedule: {},
+        projectId: "",
+      });
+      navigate("/borwMyProj");
+    } catch (err: any) {
+      console.error("Failed to create project:", err);
+      alert("Failed to create project: " + (err.message || "Unknown error. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -369,9 +383,9 @@ export const BorrowerPayoutSchedule: React.FC = () => {
               <Button
                 className="bg-[#0C4B20] hover:bg-[#8FB200] text-white w-full py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 onClick={handleContinue}
-                disabled={!penaltyAgree || !legalAgree || !isMatchValidated}
+                disabled={!penaltyAgree || !legalAgree || !isMatchValidated || submitting}
               >
-                Add Payout Schedule
+                {submitting ? 'Creating Project...' : 'Add Payout Schedule'}
               </Button>
               {(!isMatchValidated && (penaltyAgree && legalAgree)) && (
                 <p className="mt-2 text-center text-xs text-red-500">Please click Match/Mismatch and confirm the amounts match to continue.</p>

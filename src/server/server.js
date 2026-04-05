@@ -4424,6 +4424,11 @@ projectsRouter.post("/", verifyToken, async (req, res) => {
       projectData.approvalStatus = 'pending';
     }
     
+    // Set default status if not provided (ensures project appears in dashboards)
+    if (!projectData.status) {
+      projectData.status = 'draft';
+    }
+    
     // Add database ID to project_data to ensure consistency
     const result = await db.query(
       `INSERT INTO projects (firebase_uid, project_data)
@@ -8167,9 +8172,11 @@ app.post('/api/projects/create-test', verifyToken, async (req, res) => {
       status: "draft", // Start as draft
       approvalStatus: "pending",
       details: projectData.details || {},
+      issuerForm: projectData.issuerForm || null,
       milestones: projectData.milestones || [],
       roi: projectData.roi || {},
-      payout: projectData.payout || {},
+      sales: projectData.sales || {},
+      payoutSchedule: projectData.payoutSchedule || projectData.payout || {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
