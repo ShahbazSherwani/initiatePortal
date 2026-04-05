@@ -1,439 +1,346 @@
 // src/screens/InvestorDiscovery.tsx
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { authFetch } from '../lib/api'; // Adjust the import based on your project structure
-import { DashboardLayout } from "../layouts/DashboardLayout";
+// ── CampaignFeed-based investor discovery page ────────────────────────────────
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authFetch } from '../lib/api';
+import { DashboardLayout } from '../layouts/DashboardLayout';
 import { API_BASE_URL } from '../config/environment';
-import { Filter, X } from 'lucide-react';
+import { mapProjectToFeed, toSuitabilityInfo, type FeedCampaign } from '../lib/campaignMappers';
+import { checkCampaignEligibility, PROFILE_LABELS, type RiskProfile } from '../lib/suitability';
+import { CampaignCard } from '../components/campaign/CampaignCard';
+import { FilterPanel } from '../components/campaign/FilterPanel';
+
+// ── Risk meta for the header legend ───────────────────────────────────────────
+const RISK_META: Record<string, { color: string; bg: string; border: string; label: string; icon: string }> = {
+  Low:    { color: '#15803D', bg: '#F0FDF4', border: '#86EFAC', label: 'Low Risk',    icon: '🛡️' },
+  Medium: { color: '#CA8A04', bg: '#FEFCE8', border: '#FDE047', label: 'Medium Risk', icon: '⚡' },
+  High:   { color: '#DC2626', bg: '#FEF2F2', border: '#FCA5A5', label: 'High Risk',   icon: '🔥' },
+};
+
+// ── Profile card meta (matches CampaignFeed.jsx PROFILE_META) ─────────────────
+const PROFILE_CARD_META: Record<string, { color: string; bg: string; border: string; desc: string }> = {
+  conservative: { color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0', desc: 'Low-risk notes, secured deals, short-term CF' },
+  moderate:     { color: '#0369A1', bg: '#F0F9FF', border: '#BAE6FD', desc: 'Mix of secured + unsecured CF deals' },
+  aggressive:   { color: '#9333EA', bg: '#FAF5FF', border: '#D8B4FE', desc: 'High-risk startups, early-stage ventures' },
+};
+
+// ── SVG icons (inline, no deps) ───────────────────────────────────────────────
+const ShieldIc = () => (
+  <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+  </svg>
+);
+const SparkleIc = () => (
+  <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+  </svg>
+);
+const SearchIc = () => (
+  <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+  </svg>
+);
+const FilterIc = () => (
+  <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+  </svg>
+);
+const XIc = () => (
+  <svg width={16} height={16} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+  </svg>
+);
+
+// ── CSS (from CampaignFeed.jsx) ───────────────────────────────────────────────
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap');
+.cf-page{font-family:'DM Sans',sans-serif;background:#F8F6F2;min-height:100vh;color:#1a1a1a}
+.cf-wrap{max-width:1280px;margin:0 auto;padding:0 40px}
+.cf-hero{background:linear-gradient(135deg,#1B3A2D 0%,#2D5A3F 40%,#1B3A2D 100%);padding:40px 0 36px}
+.cf-hero-inner{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.cf-hero-title{font-family:'Fraunces',serif;font-size:30px;font-weight:700;color:#fff;letter-spacing:-0.02em}
+.cf-hero-sub{font-size:15px;color:rgba(255,255,255,0.6);margin-top:6px}
+.cf-profile-card{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:14px 18px;backdrop-filter:blur(8px);color:#fff;max-width:280px;flex-shrink:0}
+.cf-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px;padding-top:28px}
+.cf-tab-group{display:flex;gap:4px;background:#EDEAE4;border-radius:14px;padding:4px;flex-shrink:0}
+.cf-controls{display:flex;gap:10px;align-items:center}
+.cf-search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #E8E4DD;border-radius:12px;padding:8px 14px;min-width:220px}
+.cf-search input{border:none;outline:none;font-size:14px;font-family:'DM Sans',sans-serif;background:transparent;width:100%;color:#1a1a1a}
+.cf-banner{background:#fff;border:1px solid #E8E4DD;border-radius:14px;padding:16px 20px;margin-bottom:8px;margin-top:4px}
+.cf-banner-inner{display:flex;align-items:center;gap:10px}
+.cf-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;margin-top:4px}
+.cf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.cf-filter-panel{background:#fff;border:1px solid #E8E4DD;border-radius:16px;padding:28px;margin-bottom:16px}
+.cf-filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px}
+.cf-filter-footer{display:flex;justify-content:space-between;align-items:center;margin-top:24px;padding-top:20px;border-top:1px solid #EDEAE4}
+.cf-card{background:#fff;border-radius:18px;border:1px solid #E8E4DD;overflow:hidden;display:flex;flex-direction:column;transition:transform 0.2s,box-shadow 0.2s}
+.cf-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(27,58,45,0.12)}
+.cf-card-locked .cf-card-img-wrap{filter:grayscale(0.5) brightness(0.85)}
+.cf-card-img-wrap{position:relative;aspect-ratio:16/10;overflow:hidden;background:#1B3A2D}
+.cf-card-body{padding:20px 22px 0;flex:1;display:flex;flex-direction:column}
+.cf-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px}
+.cf-stats-row{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid #F3F1EC;margin-top:auto}
+.cf-card-footer{padding:16px 22px 20px}
+.cf-summary{text-align:center;margin-top:32px;font-size:13px;color:#aaa}
+.cf-empty{text-align:center;padding:60px 20px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.cf-anim{animation:fadeUp 0.4s ease both}
+@media(max-width:1024px){.cf-wrap{padding:0 24px}.cf-hero{padding:32px 0 28px}.cf-hero-title{font-size:26px}.cf-grid{grid-template-columns:repeat(2,1fr);gap:20px}.cf-filter-grid{grid-template-columns:1fr 1fr;gap:24px}.cf-toolbar{flex-wrap:wrap}.cf-search{min-width:180px}}
+@media(max-width:640px){.cf-wrap{padding:0 16px}.cf-hero{padding:24px 0 20px}.cf-hero-inner{flex-direction:column;align-items:flex-start}.cf-hero-title{font-size:22px}.cf-hero-sub{font-size:13px}.cf-profile-card{max-width:100%;width:100%}.cf-toolbar{flex-direction:column;align-items:stretch;gap:12px;padding-top:20px}.cf-tab-group{align-self:stretch}.cf-tab-group button{flex:1;justify-content:center}.cf-controls{flex-direction:column;align-items:stretch}.cf-search{min-width:unset;width:100%}.cf-filter-btn{width:100%;justify-content:center}.cf-grid{grid-template-columns:1fr;gap:16px}.cf-filter-grid{grid-template-columns:1fr;gap:16px}.cf-filter-panel{padding:20px 16px}.cf-filter-footer{flex-direction:column;gap:12px}.cf-filter-footer button{width:100%;text-align:center}.cf-banner{padding:14px 16px}.cf-banner-inner{flex-direction:column;align-items:flex-start;gap:8px}.cf-legend{gap:6px}.cf-card-body{padding:16px 16px 0}.cf-card-footer{padding:14px 16px 16px}.cf-stats-row{gap:6px}}
+`;
+
+// ── Default industries (fallback if none are found dynamically) ────────────────
+const DEFAULT_INDUSTRIES = ['Agriculture', 'Hospitality', 'Food & Beverages', 'Retail', 'Medical & Pharmaceutical', 'Construction', 'Others'];
+
+// ── Helper: check eligibility using real suitability engine ────────────────────
+function campaignEligible(profile: string, campaign: FeedCampaign): { eligible: boolean; reason?: string } {
+  const riskProfile = profile.toLowerCase() as RiskProfile;
+  const info = toSuitabilityInfo(campaign);
+  return checkCampaignEligibility(riskProfile, info);
+}
 
 export const InvestorDiscovery: React.FC = () => {
-  const [availableProjects, setAvailableProjects] = useState<any[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<any[]>([]);
+  // ── State ────────────────────────────────────────────────────────────────
+  const [campaigns, setCampaigns] = useState<FeedCampaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [investorProfile, setInvestorProfile] = useState<string>('');
+  const [tab, setTab] = useState<'for-you' | 'all'>('for-you');
+  const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<{ risk: string[]; projectType: string[]; industry: string[] }>({ risk: [], projectType: [], industry: [] });
   const navigate = useNavigate();
 
-  // ✅ Helper to compute funded/target/percent with fallbacks
-  const getFundingNumbers = (project: any) => {
-    const pd = project?.project_data || {};
-    const d = pd?.details || {};
-
-    const funded = parseFloat(
-      pd?.funding?.totalFunded ??
-      d?.fundedAmount ??
-      pd?.totalFunded ??
-      "0"
-    );
-
-    const target = parseFloat(
-      d?.loanAmount ??
-      d?.investmentAmount ??
-      d?.fundingAmount ??
-      pd?.targetAmount ??
-      "0"
-    );
-
-    const pct = target > 0 ? Math.min(Math.max((funded / target) * 100, 0), 100) : 0;
-    return {
-      funded: Number.isFinite(funded) ? funded : 0,
-      target: Number.isFinite(target) ? target : 0,
-      pct
-    };
-  };
-
-  // Filter state
-  const [filters, setFilters] = useState({
-    radius: 28,
-    projectTypes: {
-      newest: false,
-      topPopular: false,
-      endingSoon: false,
-      individuals: false,
-      msme: false
-    },
-    industries: {
-      agriculture: false,
-      hospitality: false,
-      foodBeverages: false,
-      retail: false,
-      medicalPharmaceutical: false,
-      construction: false,
-      others: false
-    }
-  });
-  
+  // ── Fetch campaigns + suitability in parallel ───────────────────────────
   useEffect(() => {
-    const fetchProjects = async () => {
+    const load = async () => {
       try {
-        console.log("Fetching projects for investor discovery...");
-        console.log("Making request to:", `${API_BASE_URL}/projects?status=published`);
-        const result = await authFetch(`${API_BASE_URL}/projects?status=published`);
-        console.log("Projects result:", result);
-        console.log("Number of projects returned:", result?.length || 0);
-        
-        // API returns array directly, not wrapped in projects property
-        setAvailableProjects(result || []);
-        setFilteredProjects(result || []);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching projects:", error);
+        const [projectsRes, suitRes] = await Promise.all([
+          authFetch(`${API_BASE_URL}/projects?status=published`),
+          authFetch(`${API_BASE_URL}/investor/suitability-assessment`).catch(() => null),
+        ]);
+        const projects: any[] = Array.isArray(projectsRes) ? projectsRes : [];
+        setCampaigns(projects.map(mapProjectToFeed));
+
+        const profile = suitRes?.assessment?.investor_risk_profile || suitRes?.investor_risk_profile || '';
+        setInvestorProfile(profile.toLowerCase());
+      } catch (err: any) {
+        console.error('Error loading discovery data:', err);
+        setError('Failed to load campaigns. Please try again.');
+      } finally {
         setLoading(false);
       }
     };
-    
-    fetchProjects();
+    load();
   }, []);
 
-  // Filter projects based on current filters
-  useEffect(() => {
-    let filtered = [...availableProjects];
-    
-    // Apply project type filters for account types (Individual vs MSME)
-    if (filters.projectTypes.individuals || filters.projectTypes.msme) {
-      filtered = filtered.filter(project => {
-        const isIndividualProject = project.creator_is_individual === true;
-        const isMSMEProject = project.creator_is_individual === false;
-        
-        return (filters.projectTypes.individuals && isIndividualProject) ||
-               (filters.projectTypes.msme && isMSMEProject);
-      });
+  // ── Derived data ────────────────────────────────────────────────────────
+  const handleView = useCallback((id: number | string) => navigate(`/investor/project/${id}`), [navigate]);
+  const hasActiveFilters = useMemo(() => Object.values(filters).some(a => a.length > 0), [filters]);
+
+  const industries = useMemo(() => {
+    const set = new Set(campaigns.map(c => c.industry));
+    const sorted = Array.from(set).sort();
+    return sorted.length > 0 ? sorted : DEFAULT_INDUSTRIES;
+  }, [campaigns]);
+
+  const displayed = useMemo(() => {
+    let list = campaigns;
+    // "For You" tab: only eligible campaigns
+    if (tab === 'for-you' && investorProfile) {
+      list = list.filter(c => campaignEligible(investorProfile, c).eligible);
     }
-    
-    // Apply industry filters
-    const selectedIndustries = Object.entries(filters.industries)
-      .filter(([_, selected]) => selected)
-      .map(([industry, _]) => industry);
-    
-    if (selectedIndustries.length > 0) {
-      filtered = filtered.filter(project => {
-        const category = project?.project_data?.details?.category?.toLowerCase() || '';
-        return selectedIndustries.some(industry => {
-          switch(industry) {
-            case 'agriculture': return category.includes('agriculture') || category.includes('farming');
-            case 'hospitality': return category.includes('hospitality') || category.includes('hotel') || category.includes('tourism');
-            case 'foodBeverages': return category.includes('food') || category.includes('beverage') || category.includes('restaurant');
-            case 'retail': return category.includes('retail') || category.includes('shop') || category.includes('store');
-            case 'medicalPharmaceutical': return category.includes('medical') || category.includes('health') || category.includes('pharmaceutical');
-            case 'construction': return category.includes('construction') || category.includes('building');
-            default: return true;
-          }
-        });
-      });
+    // Search
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(c =>
+        c.title.toLowerCase().includes(q) ||
+        c.description.toLowerCase().includes(q) ||
+        c.company.name.toLowerCase().includes(q) ||
+        c.industry.toLowerCase().includes(q)
+      );
     }
-    
-    setFilteredProjects(filtered);
-  }, [availableProjects, filters]);
+    // Filters
+    if (filters.risk.length) list = list.filter(c => filters.risk.includes(c.riskLevel));
+    if (filters.projectType.length) list = list.filter(c => filters.projectType.includes(c.projectType));
+    if (filters.industry.length) list = list.filter(c => filters.industry.includes(c.industry));
+    return list;
+  }, [campaigns, tab, search, filters, investorProfile]);
 
-  const handleFilterChange = (type: 'projectTypes' | 'industries', key: string, value: boolean) => {
-    setFilters(prev => ({
-      ...prev,
-      [type]: {
-        ...prev[type],
-        [key]: value
-      }
-    }));
-  };
+  const forYouCount = useMemo(() => {
+    if (!investorProfile) return campaigns.length;
+    return campaigns.filter(c => campaignEligible(investorProfile, c).eligible).length;
+  }, [campaigns, investorProfile]);
 
-  const resetFilters = () => {
-    setFilters({
-      radius: 28,
-      projectTypes: {
-        newest: false,
-        topPopular: false,
-        endingSoon: false,
-        individuals: true,
-        msme: false
-      },
-      industries: {
-        agriculture: false,
-        hospitality: false,
-        foodBeverages: false,
-        retail: false,
-        medicalPharmaceutical: false,
-        construction: false,
-        others: false
-      }
-    });
-  };
+  const profileLabel = investorProfile
+    ? (PROFILE_LABELS[investorProfile as RiskProfile]?.label || investorProfile.charAt(0).toUpperCase() + investorProfile.slice(1))
+    : '';
+  const profileCard = PROFILE_CARD_META[investorProfile] || PROFILE_CARD_META.moderate;
 
+  // ── Tab button ──────────────────────────────────────────────────────────
+  const TabBtn: React.FC<{ id: 'for-you' | 'all'; label: string; count: number; icon: React.ReactNode }> = ({ id, label, count, icon }) => (
+    <button onClick={() => setTab(id)} style={{
+      display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', border: 'none', borderRadius: 11,
+      background: tab === id ? '#fff' : 'transparent', fontSize: 14,
+      fontWeight: tab === id ? 600 : 500, color: tab === id ? '#1B3A2D' : '#6B6B6B',
+      cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", whiteSpace: 'nowrap',
+      boxShadow: tab === id ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+    }}>
+      {icon} {label}
+      <span style={{ fontSize: 11, fontWeight: 700, background: tab === id ? '#1B3A2D' : '#E8E4DD', color: tab === id ? '#fff' : '#888', borderRadius: 100, padding: '2px 8px', minWidth: 20, textAlign: 'center' }}>{count}</span>
+    </button>
+  );
+
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <DashboardLayout activePage="investment-opportunities">
-      <div className="p-4 md:p-8 m-10 p-6 bg-white rounded-2xl shadow-md min-h-[80vh]">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Investment Opportunities</h1>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-500">
-              Showing {filteredProjects.length} published projects
+      <div className="cf-page">
+        <style>{CSS}</style>
+
+        {/* ═══ HERO ═══ */}
+        <div className="cf-hero">
+          <div className="cf-wrap">
+            <div className="cf-hero-inner">
+              <div>
+                <h1 className="cf-hero-title">Investment Opportunities</h1>
+                <p className="cf-hero-sub">Discover campaigns that match your investment goals</p>
+              </div>
+              {investorProfile && (
+                <div className="cf-profile-card">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <ShieldIc /><span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Your Risk Profile</span>
+                  </div>
+                  <span style={{ display: 'inline-block', fontSize: 13, fontWeight: 700, padding: '5px 16px', borderRadius: 100, background: profileCard.bg, color: profileCard.color, border: `1px solid ${profileCard.border}` }}>
+                    {profileLabel}
+                  </span>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', margin: '8px 0 0', lineHeight: 1.4 }}>{profileCard.desc}</p>
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              <Filter className="w-4 h-4" />
-              Filters
-            </button>
           </div>
         </div>
 
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className="mb-6 bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Filters</h3>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        {/* ═══ TOOLBAR ═══ */}
+        <div className="cf-wrap">
+          <div className="cf-toolbar">
+            <div className="cf-tab-group">
+              <TabBtn id="for-you" label="For You" count={forYouCount} icon={<SparkleIc />} />
+              <TabBtn id="all" label="All Campaigns" count={campaigns.length} icon={null} />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Location Filter */}
-              <div>
-                <h4 className="font-medium mb-3">Select Location:</h4>
-                <div className="mb-2">
-                  <label className="text-sm text-gray-600">Set Radius</label>
-                </div>
-                <div className="relative">
-                  <input
-                    type="range"
-                    min="0"
-                    max="50"
-                    value={filters.radius}
-                    onChange={(e) => setFilters(prev => ({ ...prev, radius: parseInt(e.target.value) }))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>0ml</span>
-                    <span>{filters.radius}ml</span>
-                    <span>50ml</span>
-                  </div>
-                </div>
+            <div className="cf-controls">
+              <div className="cf-search">
+                <span style={{ color: '#999' }}><SearchIc /></span>
+                <input type="text" placeholder="Search campaigns..." value={search} onChange={e => setSearch(e.target.value)} />
+                {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', display: 'flex' }}><XIc /></button>}
               </div>
-
-              {/* Project Type Filter */}
-              <div>
-                <h4 className="font-medium mb-3">Project Type:</h4>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.projectTypes.newest}
-                      onChange={(e) => handleFilterChange('projectTypes', 'newest', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Newest</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.projectTypes.topPopular}
-                      onChange={(e) => handleFilterChange('projectTypes', 'topPopular', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Top Popular</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.projectTypes.endingSoon}
-                      onChange={(e) => handleFilterChange('projectTypes', 'endingSoon', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Ending Soon</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.projectTypes.individuals}
-                      onChange={(e) => handleFilterChange('projectTypes', 'individuals', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Individuals</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.projectTypes.msme}
-                      onChange={(e) => handleFilterChange('projectTypes', 'msme', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">MSME(Company)</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Industry Filter */}
-              <div>
-                <h4 className="font-medium mb-3">Industry:</h4>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.industries.agriculture}
-                      onChange={(e) => handleFilterChange('industries', 'agriculture', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Agriculture</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.industries.hospitality}
-                      onChange={(e) => handleFilterChange('industries', 'hospitality', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Hospitality</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.industries.foodBeverages}
-                      onChange={(e) => handleFilterChange('industries', 'foodBeverages', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Food & Beverages</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.industries.retail}
-                      onChange={(e) => handleFilterChange('industries', 'retail', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Retail</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.industries.medicalPharmaceutical}
-                      onChange={(e) => handleFilterChange('industries', 'medicalPharmaceutical', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Medical & Pharmaceutical</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.industries.construction}
-                      onChange={(e) => handleFilterChange('industries', 'construction', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Construction</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.industries.others}
-                      onChange={(e) => handleFilterChange('industries', 'others', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">Others</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-6 pt-4 border-t">
-              <button
-                onClick={resetFilters}
-                className="text-sm text-gray-600 hover:text-gray-800"
-              >
-                Reset Filters
-              </button>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="bg-[#0C4B20] hover:bg-[#8FB200] text-white px-6 py-2 rounded-lg font-medium"
-              >
-                Apply
+              <button className="cf-filter-btn" onClick={() => setShowFilters(!showFilters)} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px',
+                border: `1px solid ${hasActiveFilters ? '#1B3A2D' : '#E8E4DD'}`, borderRadius: 12,
+                background: '#fff', fontSize: 14, fontWeight: hasActiveFilters ? 600 : 500,
+                color: hasActiveFilters ? '#1B3A2D' : '#555', cursor: 'pointer',
+                fontFamily: "'DM Sans',sans-serif", position: 'relative', whiteSpace: 'nowrap',
+              }}>
+                <FilterIc /><span>Filters</span>
+                {hasActiveFilters && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#DC2626', position: 'absolute', top: 8, right: 8 }} />}
               </button>
             </div>
           </div>
-        )}
-          
-        {/* Debug info */}
-        {/* <div className="mb-4 p-4 bg-blue-50 rounded-lg text-sm text-blue-700">
-          <strong>Debug Info:</strong> Looking for projects with status="published". 
-          If you don't see projects here, make sure to "Publish" them from the "My Issuer/Borrower" page first.
-        </div> */}
-          
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="text-lg text-gray-500">Loading investment opportunities...</div>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="flex flex-col justify-center items-center h-64 text-center">
-            <div className="text-lg text-gray-500 mb-2">No investment opportunities available</div>
-            <div className="text-sm text-gray-400">Try adjusting your filters or check back later for new projects</div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project: any) => {
-              const projectData = project.project_data || {};
-              const details = projectData.details || {};
-              const { funded, target, pct } = getFundingNumbers(project); // ✅ compute here
 
-              return (
-                <div 
-                  key={project.id} 
-                  className="bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/investor/project/${project.id}`)}
-                >
-                  <img 
-                    src={details.image || "https://placehold.co/600x400/ffc628/ffffff?text=Project"}
-                    alt={details.product || "Project"} 
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg mb-2">{details.product || "Unnamed Project"}</h3>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{details.overview || "No description available"}</p>
-                    
-                    {/* Funding header */}
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-500">Funding</span>
-                      <span className="font-medium">{Math.round(pct)}%</span>
-                    </div>
+          {/* Filter panel */}
+          {showFilters && (
+            <FilterPanel
+              filters={filters}
+              onChange={setFilters}
+              onReset={() => setFilters({ risk: [], projectType: [], industry: [] })}
+              onClose={() => setShowFilters(false)}
+              industries={industries}
+            />
+          )}
 
-                    {/* Progress bar */}
-                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden">
-                      <div 
-                        className="bg-[#0C4B20] h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-
-                    {/* Funded vs Target */}
-                    <div className="flex justify-between mt-1 text-xs text-gray-500">
-                      <span>PHP {Math.round(funded).toLocaleString()}</span>
-                      <span>of PHP {Math.round(target).toLocaleString()}</span>
-                    </div>
-                    
-                    <div className="flex justify-between mt-4">
-                      <div>
-                        <p className="text-xs text-gray-500">Required</p>
-                        <p className="font-medium">
-                          {parseFloat(details.loanAmount || 
-                                      details.investmentAmount || "0").toLocaleString()} PHP
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Est. Return</p>
-                        <p className="font-medium">{projectData.estimatedReturn || details.investorPercentage || "N/A"}%</p>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4">
-                      <button className="w-full bg-[#0C4B20] text-white py-2 px-4 rounded-lg font-medium hover:bg-[#8FB200] transition-colors">
-                        View Details
-                      </button>
-                    </div>
-                  </div>
+          {/* For-You banner */}
+          {tab === 'for-you' && investorProfile && (
+            <div className="cf-banner">
+              <div className="cf-banner-inner">
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: profileCard.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: profileCard.color, border: `1px solid ${profileCard.border}`, flexShrink: 0 }}><SparkleIc /></div>
+                <div>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#1B3A2D' }}>Showing campaigns that match your <strong style={{ color: profileCard.color }}>{profileLabel}</strong> risk profile</span>
+                  <span style={{ display: 'block', fontSize: 12, color: '#888', marginTop: 2 }}>{profileCard.desc}</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            </div>
+          )}
+
+          {/* All-tab risk legend */}
+          {tab === 'all' && investorProfile && (
+            <div className="cf-legend">
+              <span style={{ fontSize: 13, color: '#888', fontWeight: 500, marginRight: 4 }}>Risk levels:</span>
+              {(['Low', 'Medium', 'High'] as const).map(r => {
+                const m = RISK_META[r];
+                const ok = campaignEligible(investorProfile, { riskLevel: r, campaignType: 'lending', tenorMonths: 12 } as FeedCampaign).eligible;
+                return (
+                  <span key={r} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 100, background: m.bg, color: m.color, border: `1px solid ${m.border}`, opacity: ok ? 1 : 0.5 }}>
+                    {m.icon} {m.label} {ok ? '✓' : '✗'}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ═══ CARDS ═══ */}
+        <div className="cf-wrap" style={{ paddingTop: 24, paddingBottom: 60 }}>
+          {loading ? (
+            <div className="cf-empty">
+              <div style={{ fontSize: 48, marginBottom: 12 }}>⏳</div>
+              <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 20, fontWeight: 600, color: '#1B3A2D', marginBottom: 8 }}>Loading campaigns...</h3>
+              <p style={{ fontSize: 14, color: '#888' }}>Fetching the latest investment opportunities for you.</p>
+            </div>
+          ) : error ? (
+            <div className="cf-empty">
+              <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+              <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 20, fontWeight: 600, color: '#1B3A2D', marginBottom: 8 }}>Something went wrong</h3>
+              <p style={{ fontSize: 14, color: '#888' }}>{error}</p>
+            </div>
+          ) : displayed.length > 0 ? (
+            <>
+              <div className="cf-grid">
+                {displayed.map((c, i) => {
+                  const elig = investorProfile ? campaignEligible(investorProfile, c) : { eligible: true };
+                  return (
+                    <CampaignCard
+                      key={c.id}
+                      campaign={c}
+                      index={i}
+                      eligible={tab === 'for-you' ? true : elig.eligible}
+                      investorProfile={profileLabel}
+                      reason={elig.reason}
+                      onViewDetails={handleView}
+                    />
+                  );
+                })}
+              </div>
+              <div className="cf-summary">
+                Showing {displayed.length} of {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}
+                {tab === 'for-you' && investorProfile && <span> · Matching your <strong>{profileLabel}</strong> profile</span>}
+              </div>
+            </>
+          ) : (
+            <div className="cf-empty">
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+              <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 20, fontWeight: 600, color: '#1B3A2D', marginBottom: 8 }}>No campaigns found</h3>
+              <p style={{ fontSize: 14, color: '#888', lineHeight: 1.5 }}>
+                {tab === 'for-you'
+                  ? 'No campaigns match your risk profile right now. Check back later or view all campaigns.'
+                  : 'Try adjusting your search or filters.'}
+              </p>
+              {tab === 'for-you' && (
+                <button onClick={() => setTab('all')} style={{ padding: '10px 28px', border: 'none', borderRadius: 10, background: '#1B3A2D', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", marginTop: 16 }}>
+                  View All Campaigns
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );
