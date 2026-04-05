@@ -12,6 +12,7 @@ import { Button } from "../../src/components/ui/button";
 import { Card, CardContent } from "../../src/components/ui/card";
 import { Sidebar } from "../components/Sidebar/Sidebar";
 import { DashboardStats } from "../components/DashboardStats";
+import { HelpTopicsBar } from '../components/HelpTopicsBar';
 import { useAuth } from '../contexts/AuthContext';
 
 import "../../src/styles/animations.css";
@@ -414,6 +415,8 @@ export const BorrowerHome: React.FC = () => {
                   </section>
                 )}
 
+                {/* Help & Knowledge Base quick-access */}
+                <HelpTopicsBar />
                 
               </div>
             )}

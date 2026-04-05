@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import articlesData from "./articles.json";
 
 // ─── Category icon mapping ───
@@ -78,6 +79,7 @@ export default function KnowledgeBase() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -95,6 +97,12 @@ export default function KnowledgeBase() {
       setLoading(false);
     }
   }, []);
+
+  // Read ?category= param from URL (set by HelpTopicsBar on dashboards)
+  useEffect(() => {
+    const cat = searchParams.get('category');
+    if (cat) setActiveCategory(cat);
+  }, [searchParams]);
 
   const categories = useMemo(() => {
     const cats = [...new Set(articles.map((a) => a.category))];

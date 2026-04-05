@@ -9,6 +9,7 @@ import { mapProjectToFeed, toSuitabilityInfo, type FeedCampaign } from '../lib/c
 import { checkCampaignEligibility, PROFILE_LABELS, type RiskProfile } from '../lib/suitability';
 import { CampaignCard } from '../components/campaign/CampaignCard';
 import { FilterPanel } from '../components/campaign/FilterPanel';
+import { HelpTopicsBar } from '../components/HelpTopicsBar';
 
 // ── Risk meta for the header legend ───────────────────────────────────────────
 const RISK_META: Record<string, { color: string; bg: string; border: string; label: string; icon: string }> = {
@@ -340,6 +341,11 @@ export const InvestorDiscovery: React.FC = () => {
               )}
             </div>
           )}
+        </div>
+
+        {/* Help & Knowledge Base quick-access */}
+        <div className="cf-wrap" style={{ paddingBottom: 48 }}>
+          <HelpTopicsBar />
         </div>
       </div>
     </DashboardLayout>
