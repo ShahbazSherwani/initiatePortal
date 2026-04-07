@@ -23,11 +23,18 @@ function sortByName(records: PsgcRecord[]): PsgcRecord[] {
 
 export async function getPsgcProvinces(): Promise<PsgcRecord[]> {
   if (!provincesCache) {
-    provincesCache = fetchJson<PsgcRecord[]>(`${PSGC_API_BASE}/provinces/`).then(sortByName);
+    provincesCache = fetchJson<PsgcRecord[]>(`${PSGC_API_BASE}/provinces/`).then((provinces) => {
+      // NCR (Metro Manila) is a region, not a province, so it's not in the provinces list.
+      // Add it manually so users can select it.
+      const withNcr = [...provinces, { code: "130000000", name: "Metro Manila" }];
+      return sortByName(withNcr);
+    });
   }
 
   return provincesCache;
 }
+
+const NCR_CODE = "130000000";
 
 export async function getPsgcCitiesMunicipalities(provinceCode: string): Promise<PsgcRecord[]> {
   if (!provinceCode) {
@@ -35,9 +42,12 @@ export async function getPsgcCitiesMunicipalities(provinceCode: string): Promise
   }
 
   if (!citiesByProvinceCache.has(provinceCode)) {
-    const request = fetchJson<PsgcRecord[]>(
-      `${PSGC_API_BASE}/provinces/${provinceCode}/cities-municipalities/`
-    ).then(sortByName);
+    // NCR is a region, not a province, so use the regions endpoint for its cities.
+    const endpoint = provinceCode === NCR_CODE
+      ? `${PSGC_API_BASE}/regions/${provinceCode}/cities-municipalities/`
+      : `${PSGC_API_BASE}/provinces/${provinceCode}/cities-municipalities/`;
+
+    const request = fetchJson<PsgcRecord[]>(endpoint).then(sortByName);
 
     citiesByProvinceCache.set(provinceCode, request);
   }
