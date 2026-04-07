@@ -353,9 +353,9 @@ export const HORIZON_LABELS: Record<InvestmentHorizon, string> = {
 
 export const KNOWLEDGE_LABELS: Record<KnowledgeLevel, string> = {
   none: 'None',
-  basic: 'Basic',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
+  basic: 'Basic(limited experience, e.g., deposits or simple products)',
+  intermediate: 'Intermediate(some experience with stocks, bonds, or funds)',
+  advanced: 'Advanced(extensive experience with various investment types)',
 };
 
 export const EXPERIENCE_LABELS: Record<InvestmentExperience, string> = {
