@@ -478,7 +478,7 @@ export const InvestorRegIndividual = (): JSX.Element => {
                   </p>
                 ) : !countryIso ? null : (
                   <p className="text-sm text-gray-600">
-                    (required for funding &gt; Php100,000)
+                    (required for funding purposes if you are a Philippines resident)
                   </p>
                 )}
               </div>
@@ -493,7 +493,7 @@ export const InvestorRegIndividual = (): JSX.Element => {
                   onChange={(e) => setTin(e.target.value)}
                   placeholder="Enter here"
                 />
-                <p className="text-sm text-gray-600 mt-1">(required for funding &gt; Php100,000)</p>
+                <p className="text-sm text-gray-600 mt-1">(required for funding purposes if you are a Philippines resident)</p>
               </div>
             </div>
           </section>

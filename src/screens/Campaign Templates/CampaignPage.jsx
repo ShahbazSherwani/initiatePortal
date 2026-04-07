@@ -541,9 +541,6 @@ export default function CampaignPage({
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#F9DC5C" }} />{campaign.status}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(249,220,92,0.1)", border: "1px solid rgba(249,220,92,0.25)", borderRadius: 10, padding: "10px 16px", fontSize: 13, color: "#F9DC5C" }}>
-          {Icon.shield()}<span>This campaign is published on the platform but remains subject to verification.</span>
-        </div>
       </header>
 
       {/* GALLERY */}

@@ -515,7 +515,6 @@ export default function CampaignPage({
   onInvest,
   sidebarContent,
   embedded = false,
-  approvalStatus,
 }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [amount, setAmount] = useState("");
@@ -548,24 +547,6 @@ export default function CampaignPage({
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#F9DC5C" }} />{campaign.status}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(249,220,92,0.1)", border: "1px solid rgba(249,220,92,0.25)", borderRadius: 10, padding: "10px 16px", fontSize: 13, color: "#F9DC5C" }}>
-          {Icon.shield()}<span>This campaign is published on the platform but remains subject to verification.</span>
-        </div>
-        {approvalStatus && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 10, borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600,
-            ...(approvalStatus === 'approved'
-              ? { background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.3)", color: "#86EFAC" }
-              : approvalStatus === 'rejected'
-              ? { background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.3)", color: "#FCA5A5" }
-              : { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.3)", color: "#FDE68A" })
-          }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: approvalStatus === 'approved' ? '#4ADE80' : approvalStatus === 'rejected' ? '#F87171' : '#FBBF24' }} />
-            <span>
-              {approvalStatus === 'approved' ? 'SEC Approval: Approved ✓' : approvalStatus === 'rejected' ? 'SEC Approval: Rejected ✕' : 'SEC Approval: Under Review'}
-            </span>
-          </div>
-        )}
       </header>
 
       {/* GALLERY */}

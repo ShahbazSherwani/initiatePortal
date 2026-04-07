@@ -623,7 +623,7 @@ export const BorrowerReg = (): JSX.Element => {
                   </p>
                 ) : (
                   <p className="text-sm text-gray-600">
-                    (required for funding of &gt;Php100,000)
+                    (required for funding purposes if you are a Philippines resident)
                   </p>
                 )}
               </div>
