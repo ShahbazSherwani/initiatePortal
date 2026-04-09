@@ -750,6 +750,7 @@ export const InvestorProjectView: React.FC = () => {
             financials={financialsData}
             documents={documentsData}
             sidebarContent={investmentSidebar}
+            projectId={projectId}
           />
         </main>
       </div>

@@ -19,6 +19,7 @@ export const BorrowerOccupation: React.FC = () => {
 
   // State variables
   const [selectedGroup, setSelectedGroup] = useState<string>("agriculture");
+  const [otherIndustry, setOtherIndustry] = useState<string>("");
   const [borrowerCode, setBorrowerCode] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showThankYou, setShowThankYou] = useState(false);
@@ -44,6 +45,11 @@ export const BorrowerOccupation: React.FC = () => {
     "others": "Others"
   };
 
+  // Resolve the display label — use custom text for "others"
+  const resolvedIndustry = selectedGroup === 'others' && otherIndustry.trim()
+    ? otherIndustry.trim()
+    : groupTypeMapping[selectedGroup];
+
   // Handle form submission - now completes registration directly
   const handleSubmit = async () => {
     if (!user) {
@@ -53,6 +59,11 @@ export const BorrowerOccupation: React.FC = () => {
 
     if (!borrowerCode) {
       toast.error("Borrower code not available. Please try refreshing the page.");
+      return;
+    }
+
+    if (selectedGroup === 'others' && !otherIndustry.trim()) {
+      toast.error("Please specify your type of business");
       return;
     }
 
@@ -66,7 +77,7 @@ export const BorrowerOccupation: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          industryType: groupTypeMapping[selectedGroup],
+          industryType: resolvedIndustry,
           borrowerCode: borrowerCode,
           industryKey: selectedGroup
         }),
@@ -77,7 +88,7 @@ export const BorrowerOccupation: React.FC = () => {
       console.log('📝 Creating borrower account with registration data:', registration);
       await createAccount('borrower', {
         fullName: profile?.name || 'User',
-        occupation: registration.details?.occupation || groupTypeMapping[selectedGroup],
+        occupation: registration.details?.occupation || resolvedIndustry,
         businessType: registration.accountType || 'individual',
         location: registration.details?.cityName || registration.details?.location,
         phoneNumber: registration.details?.phoneNumber,
@@ -194,14 +205,14 @@ export const BorrowerOccupation: React.FC = () => {
         passportFile: passportFileBase64,
         
         // Employment information
-        occupation: registration.details?.occupation || groupTypeMapping[selectedGroup] || null,
+        occupation: registration.details?.occupation || resolvedIndustry || null,
         employerName: registration.details?.employerName || registration.details?.companyName || null,
         employerAddress: registration.details?.employerAddress || null,
         employmentStatus: registration.details?.employmentStatus || null,
         monthlyIncome: registration.details?.monthlyIncome || registration.details?.income || null,
         grossAnnualIncome: registration.details?.grossAnnualIncome || registration.details?.annualIncome || null,
         sourceOfIncome: registration.details?.sourceOfIncome || registration.details?.incomeSource || null,
-        natureOfBusiness: registration.details?.natureOfBusiness || groupTypeMapping[selectedGroup] || null,
+        natureOfBusiness: registration.details?.natureOfBusiness || resolvedIndustry || null,
         
         // Individual account fields
         placeOfBirth: isIndividual ? registration.details?.placeOfBirth || null : null,
@@ -210,7 +221,7 @@ export const BorrowerOccupation: React.FC = () => {
         nationality: isIndividual ? registration.details?.nationality || null : null,
         motherMaidenName: isIndividual ? registration.details?.motherMaidenName || null : null,
         contactEmail: profile?.email || registration.details?.contactPersonEmail || registration.details?.contactEmail || null,
-        groupType: registration.details?.groupType || groupTypeMapping[selectedGroup] || null,
+        groupType: registration.details?.groupType || resolvedIndustry || null,
         secondaryIdType: registration.details?.secondaryIdType || null,
         secondaryIdNumber: registration.details?.secondaryIdNumber || null,
 
@@ -401,6 +412,15 @@ export const BorrowerOccupation: React.FC = () => {
                       <span className="text-gray-900">{group.label}</span>
                     </label>
                   ))}
+                  {selectedGroup === 'others' && (
+                    <input
+                      type="text"
+                      value={otherIndustry}
+                      onChange={(e) => setOtherIndustry(e.target.value)}
+                      placeholder="Please specify your type of business"
+                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20] focus:border-transparent"
+                    />
+                  )}
                 </div>
               </div>
 

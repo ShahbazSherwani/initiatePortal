@@ -12,6 +12,7 @@ export interface KYCFormData {
   
   // Group type (for filtering and categorization)
   groupType?: string;
+  groupTypeOther?: string;
   
   // Individual fields
   placeOfBirth?: string;
@@ -157,9 +158,19 @@ export const KYCForm: React.FC<KYCFormProps> = ({ formData, onChange }) => {
             ))}
           </SelectContent>
         </Select>
+        {formData.groupType === 'Others' && (
+          <div className="mt-3">
+            <Input
+              value={formData.groupTypeOther || ''}
+              onChange={(e) => updateField('groupTypeOther', e.target.value)}
+              placeholder="Please specify your type of business"
+              className="w-full"
+            />
+          </div>
+        )}
         {formData.groupType && (
           <p className="text-sm text-green-700 mt-3">
-            ✅ Selected: {formData.groupType}
+            ✅ Selected: {formData.groupType === 'Others' && formData.groupTypeOther ? formData.groupTypeOther : formData.groupType}
           </p>
         )}
         {!formData.groupType && (

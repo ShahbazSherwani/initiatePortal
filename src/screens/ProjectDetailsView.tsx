@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/badge';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
+import { useProjectUpdates } from '../hooks/useProjectUpdates';
 
 const ProjectDetailsView: React.FC = () => {
   const sectionTitleClass = 'text-xl font-semibold text-gray-900';
@@ -24,6 +25,62 @@ const ProjectDetailsView: React.FC = () => {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [latestProject, setLatestProject] = useState<any | null>(null);
   const [liveEscrowStatus, setLiveEscrowStatus] = useState<string>('');
+
+  // Project Updates
+  const { updates, loading: updatesLoading, postUpdate, editUpdate, refetch: refetchUpdates } = useProjectUpdates(projectId || '');
+  const [updateTitle, setUpdateTitle] = useState('');
+  const [updateContent, setUpdateContent] = useState('');
+  const [updateFiles, setUpdateFiles] = useState<Array<{ name: string; url: string; type: string }>>([]);
+  const [posting, setPosting] = useState(false);
+  const [editingUpdateId, setEditingUpdateId] = useState<string | null>(null);
+  const [editUpdateTitle, setEditUpdateTitle] = useState('');
+  const [editUpdateContent, setEditUpdateContent] = useState('');
+
+  const handlePostUpdate = async () => {
+    if (!updateTitle.trim() || !updateContent.trim()) {
+      toast.error('Please enter a title and content');
+      return;
+    }
+    setPosting(true);
+    try {
+      await postUpdate(updateTitle.trim(), updateContent.trim(), updateFiles);
+      toast.success('Update posted! It will be visible after admin approval.');
+      setUpdateTitle('');
+      setUpdateContent('');
+      setUpdateFiles([]);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to post update');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const handleEditUpdate = async (updateId: string) => {
+    if (!editUpdateTitle.trim() || !editUpdateContent.trim()) {
+      toast.error('Title and content are required');
+      return;
+    }
+    try {
+      await editUpdate(updateId, editUpdateTitle.trim(), editUpdateContent.trim());
+      toast.success('Update edited. It will need admin re-approval.');
+      setEditingUpdateId(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to edit update');
+    }
+  };
+
+  const handleUpdateFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUpdateFiles(prev => [...prev, { name: file.name, url: reader.result as string, type: file.type }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
 
   const handleSubmitReport = async () => {
     if (!project) return;
@@ -265,8 +322,8 @@ const ProjectDetailsView: React.FC = () => {
           </div>
 
           {/* Tabs */}
-          <div className="grid grid-cols-3 mb-6 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
-            {['Details', 'Milestones', 'Reports'].map(tab => (
+          <div className="grid grid-cols-4 mb-6 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+            {['Details', 'Milestones', 'Reports', 'Updates'].map(tab => (
               <button
                 key={tab}
                 className={`py-3 px-6 text-center font-medium ${
@@ -606,6 +663,152 @@ const ProjectDetailsView: React.FC = () => {
                   {reportSubmitting ? 'Submitting…' : 'Submit Report'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Project Updates Tab */}
+          {activeTab === 'Updates' && (
+            <div className="space-y-6">
+              {/* Post new update */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
+                <h2 className={sectionTitleClass}>Post an Update</h2>
+                <p className={labelClass}>Share progress, milestones, or news with your investors. Updates require admin approval before becoming visible.</p>
+                <div>
+                  <label className={`${labelClass} block mb-1`}>Title</label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
+                    placeholder="e.g. Q1 Progress Report"
+                    value={updateTitle}
+                    onChange={e => setUpdateTitle(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={`${labelClass} block mb-1`}>Content</label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20] resize-none"
+                    rows={4}
+                    placeholder="Write your update here…"
+                    value={updateContent}
+                    onChange={e => setUpdateContent(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={`${labelClass} block mb-1`}>Attachments (optional)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleUpdateFileChange}
+                    className="text-sm"
+                  />
+                  {updateFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {updateFiles.map((f, i) => (
+                        <div key={i} className="relative border rounded overflow-hidden" style={{ width: 80, height: 60 }}>
+                          <img src={f.url} alt={f.name} className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => setUpdateFiles(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
+                          >×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={handlePostUpdate}
+                  disabled={posting || !updateTitle.trim() || !updateContent.trim()}
+                  className="w-full py-2.5 px-4 bg-[#0C4B20] text-white text-sm font-medium rounded-lg hover:bg-[#0a3d1a] disabled:opacity-50"
+                >
+                  {posting ? 'Posting…' : 'Post Update'}
+                </button>
+              </div>
+
+              {/* Existing updates */}
+              {updatesLoading ? (
+                <div className="text-center py-8 text-gray-400">Loading updates…</div>
+              ) : updates.length === 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-800">
+                  No updates posted yet. Post your first update above to keep investors informed.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {updates.map((u: any) => (
+                    <div key={u.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            u.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            u.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {u.status === 'approved' ? 'Approved' : u.status === 'rejected' ? 'Rejected' : 'Pending Review'}
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+
+                      {editingUpdateId === u.id ? (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={editUpdateTitle}
+                            onChange={e => setEditUpdateTitle(e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#0C4B20]"
+                          />
+                          <textarea
+                            value={editUpdateContent}
+                            onChange={e => setEditUpdateContent(e.target.value)}
+                            rows={4}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C4B20] resize-none"
+                          />
+                          <p className="text-xs text-amber-600">Editing will reset the update to pending review.</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditUpdate(u.id)}
+                              className="py-1.5 px-4 bg-[#0C4B20] text-white text-sm rounded-lg hover:bg-[#0a3d1a]"
+                            >Save</button>
+                            <button
+                              onClick={() => setEditingUpdateId(null)}
+                              className="py-1.5 px-4 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+                            >Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <h4 className="font-semibold text-gray-900 mb-1">{u.title}</h4>
+                          <p className="text-sm text-gray-700 mb-2 whitespace-pre-wrap">{u.content}</p>
+                          {u.attachments?.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              {u.attachments.map((att: any, i: number) => (
+                                <div key={i} className="border rounded overflow-hidden" style={{ width: 100, height: 80 }}>
+                                  {att.type?.startsWith('image/') ? (
+                                    <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="flex items-center justify-center h-full text-xs text-gray-500 p-1 text-center">{att.name}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {u.status === 'rejected' && u.admin_notes && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mb-2">
+                              <strong>Admin feedback:</strong> {u.admin_notes}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => { setEditingUpdateId(u.id); setEditUpdateTitle(u.title); setEditUpdateContent(u.content); }}
+                            className="text-sm text-[#0C4B20] font-medium hover:underline"
+                          >Edit</button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

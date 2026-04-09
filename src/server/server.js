@@ -6242,6 +6242,11 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
       console.log('Original:', kycData.secondaryIdType);
       console.log('Normalized:', normalizedSecondaryIdType);
 
+      // Resolve "Others" group type: use custom text if provided
+      const resolvedGroupType = (kycData.groupType === 'Others' && kycData.groupTypeOther)
+        ? kycData.groupTypeOther
+        : (kycData.groupType || null);
+
       // Insert into appropriate profile table
       if (accountType === 'borrower') {
         console.log('💾 Inserting borrower profile data...');
@@ -6519,7 +6524,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.gisNumberOfStockholders || null,
           kycData.gisNumberOfEmployees || null,
           // Group Type (83)
-          kycData.groupType || null,
+          resolvedGroupType,
           // Account Type (final param)
           kycData.isIndividualAccount
         ]);
@@ -6764,7 +6769,7 @@ app.post('/api/profile/complete-kyc', verifyToken, async (req, res) => {
           kycData.gisNumberOfStockholders || null,
           kycData.gisNumberOfEmployees || null,
           // Group Type (83)
-          kycData.groupType || null,
+          resolvedGroupType,
           // Investment-specific (84-85)
           kycData.investmentPreference || null,
           kycData.portfolioValue || null,
@@ -8676,6 +8681,261 @@ app.get('/api/admin/projects/:id/credit-review/status', verifyToken, async (req,
 });
 
 // ===== END PROJECT CREDIT RISK REVIEW ENDPOINTS =====
+
+// ===== PROJECT UPDATES ENDPOINTS =====
+
+// GET /api/projects/:id/updates — fetch updates for a project
+// Investors see only approved updates; the project owner sees all their own; admin sees all
+app.get('/api/projects/:id/updates', verifyToken, async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+    // Check if requester is the project owner or admin
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [req.uid]);
+    const isAdmin = userResult.rows[0]?.role === 'admin';
+
+    const projectResult = await db.query('SELECT firebase_uid FROM projects WHERE id = $1', [projectId]);
+    const isOwner = projectResult.rows[0]?.firebase_uid === req.uid;
+
+    let query, params;
+    if (isAdmin) {
+      // Admin sees all updates
+      query = `SELECT * FROM project_updates WHERE project_id = $1 ORDER BY created_at DESC`;
+      params = [projectId];
+    } else if (isOwner) {
+      // Owner sees all their own updates (any status)
+      query = `SELECT * FROM project_updates WHERE project_id = $1 ORDER BY created_at DESC`;
+      params = [projectId];
+    } else {
+      // Everyone else sees only approved
+      query = `SELECT * FROM project_updates WHERE project_id = $1 AND status = 'approved' ORDER BY created_at DESC`;
+      params = [projectId];
+    }
+
+    const { rows } = await db.query(query, params);
+    res.json({ success: true, updates: rows, isOwner, isAdmin });
+  } catch (err) {
+    console.error('Error fetching project updates:', err);
+    res.status(500).json({ error: 'Failed to fetch updates' });
+  }
+});
+
+// POST /api/projects/:id/updates — borrower posts a new update (goes to pending)
+app.post('/api/projects/:id/updates', verifyToken, async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+    // Verify the user owns this project
+    const projectResult = await db.query('SELECT firebase_uid FROM projects WHERE id = $1', [projectId]);
+    if (projectResult.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
+    if (projectResult.rows[0].firebase_uid !== req.uid) {
+      return res.status(403).json({ error: 'You can only post updates for your own projects' });
+    }
+
+    const { title, content, attachments } = req.body;
+    if (!title?.trim() || !content?.trim()) {
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+
+    // Validate attachments size (each base64 image should be under 2MB)
+    const safeAttachments = Array.isArray(attachments) ? attachments.slice(0, 10) : [];
+
+    // Get author info
+    const userResult = await db.query('SELECT full_name FROM users WHERE firebase_uid = $1', [req.uid]);
+    const authorName = userResult.rows[0]?.full_name || 'Unknown';
+
+    // Ensure table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS project_updates (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        author_uid VARCHAR(255) NOT NULL,
+        author_name VARCHAR(255),
+        author_role VARCHAR(100),
+        title VARCHAR(500) NOT NULL,
+        content TEXT NOT NULL,
+        attachments JSONB DEFAULT '[]'::jsonb,
+        status VARCHAR(20) DEFAULT 'pending',
+        admin_notes TEXT,
+        reviewed_by VARCHAR(255),
+        reviewed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const result = await db.query(`
+      INSERT INTO project_updates (project_id, author_uid, author_name, author_role, title, content, attachments, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+      RETURNING *
+    `, [projectId, req.uid, authorName, 'Project Creator', title.trim(), content.trim(), JSON.stringify(safeAttachments)]);
+
+    console.log(`📝 New project update posted for project ${projectId} by ${authorName} — pending approval`);
+    res.json({ success: true, update: result.rows[0] });
+  } catch (err) {
+    console.error('Error creating project update:', err);
+    res.status(500).json({ error: 'Failed to create update' });
+  }
+});
+
+// PUT /api/projects/:id/updates/:updateId — borrower edits their own update (resets to pending)
+app.put('/api/projects/:id/updates/:updateId', verifyToken, async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    const updateId = parseInt(req.params.updateId);
+    if (isNaN(projectId) || isNaN(updateId)) return res.status(400).json({ error: 'Invalid IDs' });
+
+    // Check ownership
+    const existing = await db.query(
+      'SELECT * FROM project_updates WHERE id = $1 AND project_id = $2',
+      [updateId, projectId]
+    );
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Update not found' });
+
+    const update = existing.rows[0];
+
+    // Check if user is owner or admin
+    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [req.uid]);
+    const isAdmin = userResult.rows[0]?.role === 'admin';
+    const isAuthor = update.author_uid === req.uid;
+
+    if (!isAuthor && !isAdmin) {
+      return res.status(403).json({ error: 'You can only edit your own updates' });
+    }
+
+    const { title, content, attachments } = req.body;
+    if (!title?.trim() || !content?.trim()) {
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+
+    const safeAttachments = Array.isArray(attachments) ? attachments.slice(0, 10) : [];
+
+    // If borrower edits, reset to pending; if admin edits, keep current status
+    const newStatus = isAdmin ? update.status : 'pending';
+
+    const result = await db.query(`
+      UPDATE project_updates
+      SET title = $1, content = $2, attachments = $3, status = $4, updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `, [title.trim(), content.trim(), JSON.stringify(safeAttachments), newStatus, updateId]);
+
+    console.log(`✏️ Project update ${updateId} edited by ${isAdmin ? 'admin' : 'author'} — status: ${newStatus}`);
+    res.json({ success: true, update: result.rows[0] });
+  } catch (err) {
+    console.error('Error editing project update:', err);
+    res.status(500).json({ error: 'Failed to edit update' });
+  }
+});
+
+// PUT /api/admin/projects/:id/updates/:updateId/review — admin approves/rejects/edits
+app.put('/api/admin/projects/:id/updates/:updateId/review', verifyToken, async (req, res) => {
+  try {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+
+    const projectId = parseInt(req.params.id);
+    const updateId = parseInt(req.params.updateId);
+    if (isNaN(projectId) || isNaN(updateId)) return res.status(400).json({ error: 'Invalid IDs' });
+
+    const { action, adminNotes, title, content } = req.body;
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be approve or reject' });
+    }
+
+    // Optionally allow admin to edit the content while approving
+    let updateFields = `status = $1, admin_notes = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW()`;
+    let params = [action === 'approve' ? 'approved' : 'rejected', adminNotes || null, req.uid];
+    let paramIdx = 4;
+
+    if (title?.trim()) {
+      updateFields += `, title = $${paramIdx}`;
+      params.push(title.trim());
+      paramIdx++;
+    }
+    if (content?.trim()) {
+      updateFields += `, content = $${paramIdx}`;
+      params.push(content.trim());
+      paramIdx++;
+    }
+
+    params.push(updateId);
+    params.push(projectId);
+
+    const result = await db.query(`
+      UPDATE project_updates SET ${updateFields}
+      WHERE id = $${paramIdx} AND project_id = $${paramIdx + 1}
+      RETURNING *
+    `, params);
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Update not found' });
+
+    console.log(`🛡️ Admin ${action}d update ${updateId} for project ${projectId}`);
+    res.json({ success: true, update: result.rows[0] });
+  } catch (err) {
+    console.error('Error reviewing project update:', err);
+    res.status(500).json({ error: 'Failed to review update' });
+  }
+});
+
+// DELETE /api/admin/projects/:id/updates/:updateId — admin deletes an update
+app.delete('/api/admin/projects/:id/updates/:updateId', verifyToken, async (req, res) => {
+  try {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+
+    const projectId = parseInt(req.params.id);
+    const updateId = parseInt(req.params.updateId);
+    if (isNaN(projectId) || isNaN(updateId)) return res.status(400).json({ error: 'Invalid IDs' });
+
+    const result = await db.query(
+      'DELETE FROM project_updates WHERE id = $1 AND project_id = $2 RETURNING id',
+      [updateId, projectId]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Update not found' });
+
+    console.log(`🗑️ Admin deleted update ${updateId} for project ${projectId}`);
+    res.json({ success: true, deletedId: updateId });
+  } catch (err) {
+    console.error('Error deleting project update:', err);
+    res.status(500).json({ error: 'Failed to delete update' });
+  }
+});
+
+// GET /api/admin/pending-updates — admin gets all pending updates across projects
+app.get('/api/admin/pending-updates', verifyToken, async (req, res) => {
+  try {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+
+    const { rows } = await db.query(`
+      SELECT pu.*, p.project_data->>'details' as project_details
+      FROM project_updates pu
+      JOIN projects p ON p.id = pu.project_id
+      ORDER BY pu.created_at DESC
+    `);
+
+    // Parse project name from details
+    const updates = rows.map(row => {
+      let projectName = 'Unknown Project';
+      try {
+        const details = typeof row.project_details === 'string' ? JSON.parse(row.project_details) : row.project_details;
+        projectName = details?.product || details?.title || projectName;
+      } catch {}
+      return { ...row, project_name: projectName, project_details: undefined };
+    });
+
+    res.json({ success: true, updates });
+  } catch (err) {
+    console.error('Error fetching pending updates:', err);
+    res.status(500).json({ error: 'Failed to fetch pending updates' });
+  }
+});
+
+// ===== END PROJECT UPDATES ENDPOINTS =====
 
 // Update or add this endpoint for calendar/investor view
 

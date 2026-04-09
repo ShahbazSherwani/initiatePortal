@@ -42,6 +42,7 @@ import { AdminProjectView } from "../screens/AdminProjectView";
 import { AdminTopUpRequests } from "../screens/AdminTopUpRequests";
 import { ForgotPassword } from "../screens/ForgotPassword";
 import { AdminInvestmentRequests } from "../screens/AdminInvestmentRequests";
+import { AdminPendingUpdates } from "../screens/AdminPendingUpdates";
 import { BorrowerRegNonIndividual } from "../screens/BorrowerRegNonIndividual";
 import { BorrowerBankDetailsNonIndividual } from "../screens/BorrowerBankDetailsNonIndividual";
 import { InvestorRegSelection } from "../screens/InvestorRegSelection";
@@ -846,6 +847,16 @@ export const AppRoutes: React.FC = () => {
                   <PrivateRoute>
                     <OwnerLayout activePage="admin-investment">
                       <AdminInvestmentRequests />
+                    </OwnerLayout>
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/admin/pending-updates" 
+                element={
+                  <PrivateRoute>
+                    <OwnerLayout activePage="admin-pending-updates">
+                      <AdminPendingUpdates />
                     </OwnerLayout>
                   </PrivateRoute>
                 } 

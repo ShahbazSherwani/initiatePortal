@@ -145,6 +145,12 @@ export const Sidebar: React.FC<SidebarProps> = () => {
           label: "Investment Requests",
           to: '/admin/investment-requests',
           key: 'admin-investments'
+        },
+        {
+          icon: <MessageCircle className="w-5 h-5" />,
+          label: "Pending Updates",
+          to: '/admin/pending-updates',
+          key: 'admin-pending-updates'
         }
       );
     }

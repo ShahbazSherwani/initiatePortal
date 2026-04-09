@@ -1279,7 +1279,7 @@ export const Settings = (): JSX.Element => {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="Sole Proprietor">Sole Proprietor</SelectItem>
-                                  <SelectItem value="MSME">MSME</SelectItem>
+                                  <SelectItem value="Corporation">Corporation</SelectItem>
                                   <SelectItem value="NGO">NGO</SelectItem>
                                   <SelectItem value="Foundation">Foundation</SelectItem>
                                   <SelectItem value="Educational Institution">Educational Institution</SelectItem>

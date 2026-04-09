@@ -73,6 +73,26 @@ const SAMPLE_DATA = {
     { name: "Business Permit & Licenses", type: "PDF", size: "780 KB", category: "Legal", url: "#" },
     { name: "Project Portfolio", type: "PDF", size: "5.2 MB", category: "General", url: "#" },
   ],
+  updates: [
+    {
+      id: 1,
+      author: "Giovanni Santos",
+      authorRole: "CEO, Solar Installer PH",
+      postedAt: "2026-04-02T09:30:00Z",
+      title: "Q1 2026 Progress: 320kW deployed across 4 sites",
+      content: "We're thrilled to share that our team has successfully completed installations at four new commercial sites in Makati and BGC this quarter, totaling 320kW of solar capacity. Funds raised through this campaign will be allocated toward expanding our installation crew and acquiring inventory for the upcoming Cebu rollout in Q3.",
+      attachments: [{ url: null, caption: "Rooftop installation in BGC" }],
+    },
+    {
+      id: 2,
+      author: "Maria Cruz",
+      authorRole: "CFO, Solar Installer PH",
+      postedAt: "2026-03-15T14:00:00Z",
+      title: "Welcome to our investors!",
+      content: "Thank you for backing Solar Installer PH. This update channel will keep you informed about milestones, financials, and project progress. Expect monthly updates from our team.",
+      attachments: [],
+    },
+  ],
 };
 
 // ═══════════════════════════════════════════
@@ -133,6 +153,15 @@ const Icon = {
   chart: () => I("M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z", 18),
   trendUp: () => I("M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941", 16, 1.8),
   trendDown: () => I("M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 5.834 5.418l2.74 1.22m0 0-5.94 2.281m5.94-2.28-2.28-5.941", 16, 1.8),
+  megaphone: () => I("M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46"),
+  bold: () => I("M6.75 3.744h-.75v8.25h7.125a4.125 4.125 0 0 0 0-8.25H6.75Zm0 0v.008v15.755h7.875a4.125 4.125 0 0 0 0-8.25H6.75v8.25Z", 16, 2),
+  italic: () => I("m5.248 20.246 5.494-16.492m0 0h-3.75m3.75 0h3.75m0 16.492h-3.75m3.75 0h3.75", 16, 2),
+  listBullet: () => I("M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z", 16),
+  imagePlus: () => I("m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z", 18),
+  send: () => I("M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5", 16, 1.8),
+  pencil: () => I("m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125", 14, 1.8),
+  trash: () => I("m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0", 14, 1.8),
+  paperclip: () => I("m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13", 16),
 };
 
 // ═══════════════════════════════════════════
@@ -195,8 +224,6 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap');
 *{box-sizing:border-box}
 .cp-page{font-family:'DM Sans',sans-serif;background:#F8F6F2;min-height:100vh;color:#1a1a1a}
-.cp-page.cp-embedded{min-height:auto;background:transparent}
-.cp-page.cp-no-sidebar .cp-main{grid-template-columns:1fr}
 .cp-header{background:linear-gradient(135deg,#1B3A2D 0%,#2D5A3F 50%,#1B3A2D 100%);padding:32px 40px 24px}
 .cp-header-inner{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .cp-header-left{display:flex;align-items:center;gap:16px}
@@ -236,6 +263,12 @@ const CSS = `
 }
 .cp-lb{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.88);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:24px}
 @media(max-width:640px){.cp-lb{padding:12px}}
+
+/* Editor placeholder + hover */
+.cp-editor-content:empty:before{content:attr(data-placeholder);color:#bbb;pointer-events:none}
+.cp-editor-content:focus{outline:none}
+.cp-editor-content p{margin:0 0 8px}
+.cp-editor-content ul,.cp-editor-content ol{margin:0 0 8px;padding-left:20px}
 `;
 
 // ═══════════════════════════════════════════
@@ -501,6 +534,312 @@ function DocumentsTab({ documents }) {
 }
 
 // ═══════════════════════════════════════════
+// UPDATES TAB
+// ═══════════════════════════════════════════
+
+const formatRelativeDate = (iso) => {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? "s" : ""} ago`;
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+};
+
+/** Rich text editor — contentEditable with formatting toolbar */
+function RichTextEditor({ value, onChange, placeholder }) {
+  const exec = (cmd) => {
+    document.execCommand(cmd, false, null);
+  };
+  const handleInput = (e) => onChange(e.currentTarget.innerHTML);
+
+  return (
+    <div style={$.editor}>
+      <div style={$.editorToolbar}>
+        <button type="button" onClick={() => exec("bold")} style={$.editorBtn} title="Bold"><strong>B</strong></button>
+        <button type="button" onClick={() => exec("italic")} style={$.editorBtn} title="Italic"><em>I</em></button>
+        <button type="button" onClick={() => exec("underline")} style={$.editorBtn} title="Underline"><span style={{ textDecoration: "underline" }}>U</span></button>
+        <div style={{ width: 1, background: "#E8E4DD", margin: "0 4px" }} />
+        <button type="button" onClick={() => exec("insertUnorderedList")} style={$.editorBtn} title="Bullet list">{Icon.listBullet()}</button>
+        <button type="button" onClick={() => exec("insertOrderedList")} style={$.editorBtn} title="Numbered list">1.</button>
+      </div>
+      <div
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        data-placeholder={placeholder}
+        style={$.editorContent}
+        className="cp-editor-content"
+      />
+    </div>
+  );
+}
+
+function UpdatesTab({ updates: propUpdates, isCreator, onPostUpdate, projectId }) {
+  // Use hook if projectId is provided; otherwise fall back to props
+  const hook = useProjectUpdates(projectId);
+  const updates = projectId ? hook.updates : (propUpdates || []);
+  const isOwner = projectId ? hook.isOwner : isCreator;
+
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [files, setFiles] = useState([]);
+  const [editorKey, setEditorKey] = useState(0);
+  const [posting, setPosting] = useState(false);
+
+  // Edit state
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editEditorKey, setEditEditorKey] = useState(100);
+
+  const handleFileChange = (e) => {
+    const selected = Array.from(e.target.files || []);
+    const valid = selected.filter(f => {
+      if (f.size > 2 * 1024 * 1024) {
+        alert(`${f.name} exceeds 2 MB`);
+        return false;
+      }
+      return true;
+    });
+    // Convert to base64
+    valid.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFiles(prev => [...prev, { name: file.name, url: reader.result, caption: file.name }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeFile = (idx) => setFiles(prev => prev.filter((_, i) => i !== idx));
+
+  const handlePost = async () => {
+    if (!title.trim() || !content.trim()) {
+      alert("Please add a title and message");
+      return;
+    }
+    setPosting(true);
+    try {
+      if (projectId && hook.postUpdate) {
+        const result = await hook.postUpdate({ title, content, attachments: files });
+        if (result.success) {
+          setTitle("");
+          setContent("");
+          setFiles([]);
+          setEditorKey(k => k + 1);
+        } else {
+          alert(result.error || "Failed to post update");
+        }
+      } else if (onPostUpdate) {
+        onPostUpdate({ title, content, files });
+        setTitle("");
+        setContent("");
+        setFiles([]);
+        setEditorKey(k => k + 1);
+      }
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const startEdit = (update) => {
+    setEditingId(update.id);
+    setEditTitle(update.title);
+    setEditContent(update.content);
+    setEditEditorKey(k => k + 1);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditContent("");
+  };
+
+  const handleSaveEdit = async (updateId) => {
+    if (!editTitle.trim() || !editContent.trim()) {
+      alert("Title and message are required");
+      return;
+    }
+    setPosting(true);
+    try {
+      if (projectId && hook.editUpdate) {
+        const existing = updates.find(u => u.id === updateId);
+        const result = await hook.editUpdate(updateId, {
+          title: editTitle,
+          content: editContent,
+          attachments: existing?.attachments || [],
+        });
+        if (result.success) {
+          cancelEdit();
+        } else {
+          alert(result.error || "Failed to save edit");
+        }
+      }
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const statusBadge = (status) => {
+    if (status === 'approved') return <Badge bg="#F0FDF4" color="#15803D" border="#86EFAC">Approved</Badge>;
+    if (status === 'rejected') return <Badge bg="#FEF2F2" color="#DC2626" border="#FCA5A5">Rejected</Badge>;
+    return <Badge bg="#FFFBEB" color="#D97706" border="#FDE68A">Pending Review</Badge>;
+  };
+
+  // For display: investors see only approved (API handles this), but owner/admin see status badges
+  const visibleUpdates = updates;
+  const approvedCount = updates.filter(u => u.status === 'approved').length;
+
+  return (
+    <div>
+      {/* Post form — visible only to campaign creator */}
+      {isOwner && (
+        <Card style={{ background: "#F7FBF5", borderColor: "#D4E7CC" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#1B3A2D", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>{Icon.megaphone()}</div>
+            <div>
+              <Title style={{ margin: 0 }}>Post an Update</Title>
+              <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>Share progress, milestones, or news with your investors</p>
+            </div>
+          </div>
+
+          <label style={$.fieldLabel}>Title</label>
+          <input
+            type="text"
+            placeholder="e.g. Q1 milestone reached!"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            style={$.titleInput}
+          />
+
+          <label style={{ ...$.fieldLabel, marginTop: 16 }}>Update Message</label>
+          <RichTextEditor key={editorKey} value={content} onChange={setContent} placeholder="Write your update here..." />
+
+          <label style={{ ...$.fieldLabel, marginTop: 16 }}>Attachments</label>
+          <div style={$.attachBox}>
+            <label style={$.attachBtn}>
+              {Icon.imagePlus()}
+              <span>Add images</span>
+              <input type="file" accept="image/*" multiple onChange={handleFileChange} style={{ display: "none" }} />
+            </label>
+            <span style={{ fontSize: 11, color: "#999", marginLeft: 12 }}>Max file size: 2 MB</span>
+          </div>
+
+          {files.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+              {files.map((file, i) => (
+                <div key={i} style={$.filePreview}>
+                  {Icon.paperclip()}
+                  <span style={{ fontSize: 12, color: "#555", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>
+                  <button onClick={() => removeFile(i)} style={$.removeFileBtn}>{Icon.trash()}</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button onClick={handlePost} disabled={posting} style={{ ...$.postBtn, marginTop: 20, opacity: posting ? 0.6 : 1 }}>
+            {posting ? "Posting…" : <>{Icon.send()} Post Update</>}
+          </button>
+          <p style={{ fontSize: 11, color: "#888", marginTop: 8 }}>Your update will be submitted for admin review before being visible to investors.</p>
+        </Card>
+      )}
+
+      {/* Updates feed — visible to everyone */}
+      <Card>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <Title style={{ margin: 0 }}>Campaign Updates</Title>
+          <Badge bg="#F0FDF4" color="#15803D" border="#86EFAC">{isOwner ? `${updates.length} total` : `${approvedCount} ${approvedCount === 1 ? "post" : "posts"}`}</Badge>
+        </div>
+
+        {visibleUpdates.length === 0 ? (
+          <div style={{ padding: "40px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>📭</div>
+            <p style={{ fontSize: 14, color: "#888" }}>No updates yet. {isOwner ? "Be the first to post!" : "Check back later for news from the campaign creator."}</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {visibleUpdates.map((update, i) => (
+              <article key={update.id || i} style={$.updatePost}>
+                <header style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+                  <Avatar name={update.author_name || update.author || "User"} size={42} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a" }}>{update.author_name || update.author}</span>
+                      <span style={{ fontSize: 11, color: "#aaa" }}>•</span>
+                      <span style={{ fontSize: 12, color: "#888" }}>{formatRelativeDate(update.created_at || update.postedAt)}</span>
+                      {isOwner && update.status && statusBadge(update.status)}
+                    </div>
+                    <span style={{ display: "block", fontSize: 12, color: "#888", marginTop: 1 }}>{update.author_role || update.authorRole}</span>
+                  </div>
+                  {isOwner && update.id && editingId !== update.id && (
+                    <button onClick={() => startEdit(update)} style={{ background: "none", border: "1px solid #E8E4DD", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                      {Icon.pencil()} Edit
+                    </button>
+                  )}
+                </header>
+
+                {/* Edit mode */}
+                {editingId === update.id ? (
+                  <div>
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      style={{ ...$.titleInput, marginBottom: 12 }}
+                    />
+                    <RichTextEditor key={editEditorKey} value={editContent} onChange={setEditContent} placeholder="Edit your update..." />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button onClick={() => handleSaveEdit(update.id)} disabled={posting} style={{ ...$.postBtn, fontSize: 13, padding: "8px 16px", opacity: posting ? 0.6 : 1 }}>
+                        {posting ? "Saving…" : "Save Changes"}
+                      </button>
+                      <button onClick={cancelEdit} style={{ background: "none", border: "1px solid #E8E4DD", borderRadius: 10, padding: "8px 16px", fontSize: 13, cursor: "pointer", color: "#555" }}>
+                        Cancel
+                      </button>
+                    </div>
+                    {update.status === 'approved' && (
+                      <p style={{ fontSize: 11, color: "#D97706", marginTop: 8 }}>Editing will re-submit this update for admin review.</p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {update.title && <h4 style={$.updateTitle}>{update.title}</h4>}
+                    <div style={$.updateContent} dangerouslySetInnerHTML={{ __html: update.content }} />
+
+                    {(update.attachments?.length > 0) && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8, marginTop: 14 }}>
+                        {update.attachments.map((att, idx) => (
+                          <div key={idx} style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/10", background: "#1B3A2D", border: "1px solid #EDEAE4" }}>
+                            {(att.url) ? (
+                              <img src={att.url} alt={att.caption || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            ) : (
+                              <CampaignImage index={i + idx + 2} caption={att.caption} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {update.status === 'rejected' && update.admin_notes && isOwner && (
+                      <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FCA5A5", fontSize: 12, color: "#DC2626" }}>
+                        <strong>Admin feedback:</strong> {update.admin_notes}
+                      </div>
+                    )}
+                  </>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // MAIN EXPORT
 // ═══════════════════════════════════════════
 
@@ -513,16 +852,17 @@ export default function CampaignPage({
   directors  = SAMPLE_DATA.directors,
   financials = SAMPLE_DATA.financials,
   documents  = SAMPLE_DATA.documents,
+  updates    = SAMPLE_DATA.updates,
+  isCreator  = false,
+  projectId,
   onInvest,
+  onPostUpdate,
   sidebarContent,
   embedded = false,
-  projectId,
 }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [amount, setAmount] = useState("");
   const [lbIdx, setLbIdx] = useState(-1);
-
-  const { updates: projectUpdates, loading: updatesLoading } = useProjectUpdates(projectId || '');
 
   const handleInvest = useCallback(() => {
     if (onInvest) onInvest(parseFloat(amount) || 0);
@@ -530,10 +870,8 @@ export default function CampaignPage({
 
   const risk = RISK[campaign.riskLevel] || RISK.Medium;
 
-  const hasSidebar = sidebarContent !== false && sidebarContent !== null;
-
   return (
-    <div className={"cp-page" + (embedded ? " cp-embedded" : "") + (!hasSidebar ? " cp-no-sidebar" : "")}>
+    <div className="cp-page">
       <style>{CSS}</style>
       <Lightbox images={gallery} idx={lbIdx} onClose={() => setLbIdx(-1)} onPrev={() => setLbIdx(i => Math.max(0, i - 1))} onNext={() => setLbIdx(i => Math.min(gallery.length - 1, i + 1))} />
 
@@ -550,6 +888,9 @@ export default function CampaignPage({
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 100, padding: "8px 18px", fontSize: 13, fontWeight: 600, color: "#F9DC5C", whiteSpace: "nowrap" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#F9DC5C" }} />{campaign.status}
           </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(249,220,92,0.1)", border: "1px solid rgba(249,220,92,0.25)", borderRadius: 10, padding: "10px 16px", fontSize: 13, color: "#F9DC5C" }}>
+          {Icon.shield()}<span>This campaign is published on the platform but remains subject to verification.</span>
         </div>
       </header>
 
@@ -584,101 +925,67 @@ export default function CampaignPage({
       <div className="cp-main">
         <div>
           {/* Tab nav */}
-          <nav style={{ display: "flex", gap: 4, background: "#EDEAE4", borderRadius: 14, padding: 4, marginBottom: 24 }}>
-            {["overview", "company", "documents", ...(projectId ? ["updates"] : [])].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} style={{ ...$.pill, flex: 1, padding: "10px 16px", borderRadius: 11, fontSize: 14, ...(activeTab === tab ? $.pillActive : {}) }}>
+          <nav style={{ display: "flex", gap: 4, background: "#EDEAE4", borderRadius: 14, padding: 4, marginBottom: 24, flexWrap: "wrap" }}>
+            {["overview", "company", "documents", "updates"].map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{ ...$.pill, flex: 1, padding: "10px 16px", borderRadius: 11, fontSize: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, ...(activeTab === tab ? $.pillActive : {}) }}>
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === "updates" && updates.length > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 700, background: activeTab === tab ? "#1B3A2D" : "#D4D0C8", color: activeTab === tab ? "#fff" : "#888", borderRadius: 100, padding: "1px 7px", minWidth: 18, textAlign: "center" }}>{updates.length}</span>
+                )}
               </button>
             ))}
           </nav>
           {activeTab === "overview"  && <OverviewTab campaign={campaign} escrowSteps={escrowSteps} />}
           {activeTab === "company"   && <CompanyTab company={company} keyPeople={keyPeople} directors={directors} financials={financials} />}
           {activeTab === "documents" && <DocumentsTab documents={documents} />}
-          {activeTab === "updates" && projectId && (
-            <div>
-              {updatesLoading ? (
-                <p style={{ color: "#888", textAlign: "center", padding: 32 }}>Loading updates…</p>
-              ) : projectUpdates.length === 0 ? (
-                <p style={{ color: "#888", textAlign: "center", padding: 32 }}>No updates posted yet.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {projectUpdates.filter(u => u.status === 'approved').map(u => (
-                    <div key={u.id} style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, padding: 20 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                        <h4 style={{ fontFamily: "'Fraunces',serif", fontSize: 16, fontWeight: 600, color: "#1B3A2D", margin: 0 }}>{u.title}</h4>
-                        <span style={{ fontSize: 12, color: "#999" }}>{new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                      </div>
-                      <p style={{ fontSize: 14, color: "#555", margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{u.content}</p>
-                      {u.attachments?.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-                          {u.attachments.map((att, i) => (
-                            att.type?.startsWith('image/') ? (
-                              <img key={i} src={att.url} alt={att.name} style={{ width: 120, height: 90, objectFit: "cover", borderRadius: 8, border: "1px solid #e5e5e5" }} />
-                            ) : (
-                              <div key={i} style={{ padding: "8px 12px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, color: "#666" }}>{att.name}</div>
-                            )
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {activeTab === "updates"   && <UpdatesTab updates={updates} isCreator={isCreator} onPostUpdate={onPostUpdate} projectId={projectId} />}
         </div>
 
         {/* SIDEBAR */}
-        {hasSidebar && (
-          <aside className="cp-sidebar">
-            {sidebarContent ? sidebarContent : (
-              <>
-                <div style={$.sideCard}>
-                  <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 18, fontWeight: 600, color: "#1B3A2D", margin: "0 0 20px" }}>Invest in this Campaign</h3>
-                  {/* Risk mini-badge */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: risk.bg, border: `1px solid ${risk.border}`, marginBottom: 20 }}>
-                    {Icon.alert()}
-                    <div style={{ flex: 1 }}>
-                      <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: risk.color }}>{campaign.riskLevel} Risk</span>
-                      <span style={{ display: "block", fontSize: 11, color: "#999", marginTop: 1 }}>Review risk details in Overview</span>
-                    </div>
-                  </div>
-                  {/* Meta */}
-                  <div style={{ display: "flex", flexDirection: "column", marginBottom: 24, borderRadius: 12, border: "1px solid #EDEAE4", overflow: "hidden" }}>
-                    {[["Min. Investment", `₱${campaign.minInvestment}`], ["Retail Limit", campaign.retailLimit], ["Used", campaign.used]].map(([l, v], i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F1EC" }}>
-                        <span style={{ fontSize: 13, color: "#888" }}>{l}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600 }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>How much would you like to invest?</label>
-                  <div style={{ display: "flex", alignItems: "center", border: "2px solid #E8E4DD", borderRadius: 12, padding: "0 16px", marginBottom: 16, background: "#FAFAF7" }}>
-                    <span style={{ fontSize: 16, fontWeight: 600, color: "#888", marginRight: 8 }}>₱</span>
-                    <input type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} style={{ flex: 1, padding: "14px 0", border: "none", outline: "none", fontSize: 16, fontFamily: "'DM Sans',sans-serif", background: "transparent", width: "100%" }} />
-                  </div>
-                  <button onClick={handleInvest} style={{ width: "100%", padding: 14, border: "none", borderRadius: 12, background: "linear-gradient(135deg,#1B3A2D,#2D5A3F)", color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", boxShadow: "0 2px 8px rgba(27,58,45,0.25)" }}>Continue</button>
-                  <p style={{ fontSize: 11, color: "#aaa", textAlign: "center", margin: "14px 0 0", lineHeight: 1.5 }}>By continuing, you acknowledge that you have read the campaign details, company profile, and associated documents.</p>
+        <aside className="cp-sidebar">
+          <div style={$.sideCard}>
+            <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 18, fontWeight: 600, color: "#1B3A2D", margin: "0 0 20px" }}>Invest in this Campaign</h3>
+            {/* Risk mini-badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: risk.bg, border: `1px solid ${risk.border}`, marginBottom: 20 }}>
+              {Icon.alert()}
+              <div style={{ flex: 1 }}>
+                <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: risk.color }}>{campaign.riskLevel} Risk</span>
+                <span style={{ display: "block", fontSize: 11, color: "#999", marginTop: 1 }}>Review risk details in Overview</span>
+              </div>
+            </div>
+            {/* Meta */}
+            <div style={{ display: "flex", flexDirection: "column", marginBottom: 24, borderRadius: 12, border: "1px solid #EDEAE4", overflow: "hidden" }}>
+              {[["Min. Investment", `₱${campaign.minInvestment}`], ["Retail Limit", campaign.retailLimit], ["Used", campaign.used]].map(([l, v], i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F1EC" }}>
+                  <span style={{ fontSize: 13, color: "#888" }}>{l}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{v}</span>
                 </div>
+              ))}
+            </div>
+            <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>How much would you like to invest?</label>
+            <div style={{ display: "flex", alignItems: "center", border: "2px solid #E8E4DD", borderRadius: 12, padding: "0 16px", marginBottom: 16, background: "#FAFAF7" }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: "#888", marginRight: 8 }}>₱</span>
+              <input type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} style={{ flex: 1, padding: "14px 0", border: "none", outline: "none", fontSize: 16, fontFamily: "'DM Sans',sans-serif", background: "transparent", width: "100%" }} />
+            </div>
+            <button onClick={handleInvest} style={{ width: "100%", padding: 14, border: "none", borderRadius: 12, background: "linear-gradient(135deg,#1B3A2D,#2D5A3F)", color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", boxShadow: "0 2px 8px rgba(27,58,45,0.25)" }}>Continue</button>
+            <p style={{ fontSize: 11, color: "#aaa", textAlign: "center", margin: "14px 0 0", lineHeight: 1.5 }}>By continuing, you acknowledge that you have read the campaign details, company profile, and associated documents.</p>
+          </div>
 
-                {/* Sidebar company snapshot */}
-                <div style={$.sideCard}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #F3F1EC" }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: "#F0F5F1", display: "flex", alignItems: "center", justifyContent: "center", color: "#5F7161", border: "1px solid #D4DDD6", flexShrink: 0 }}>{Icon.building()}</div>
-                    <div><p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{company.name}</p><p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>{company.city}</p></div>
-                  </div>
-                  {[["Industry", company.industry.split("—")[0].trim()], ["Founded", company.yearFounded], ["Team Size", company.teamSize]].map(([l, v], i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F3F1EC" }}>
-                      <span style={{ fontSize: 12, color: "#999" }}>{l}</span>
-                      <span style={{ fontSize: 12, fontWeight: 600 }}>{v}</span>
-                    </div>
-                  ))}
-                  <button onClick={() => setActiveTab("company")} style={{ width: "100%", padding: 10, border: "1px solid #1B3A2D", borderRadius: 10, background: "transparent", color: "#1B3A2D", fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 16, fontFamily: "'DM Sans',sans-serif" }}>View Full Profile →</button>
-                </div>
-              </>
-            )}
-          </aside>
-        )}
+          {/* Sidebar company snapshot */}
+          <div style={$.sideCard}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #F3F1EC" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: "#F0F5F1", display: "flex", alignItems: "center", justifyContent: "center", color: "#5F7161", border: "1px solid #D4DDD6", flexShrink: 0 }}>{Icon.building()}</div>
+              <div><p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{company.name}</p><p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>{company.city}</p></div>
+            </div>
+            {[["Industry", company.industry.split("—")[0].trim()], ["Founded", company.yearFounded], ["Team Size", company.teamSize]].map(([l, v], i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F3F1EC" }}>
+                <span style={{ fontSize: 12, color: "#999" }}>{l}</span>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{v}</span>
+              </div>
+            ))}
+            <button onClick={() => setActiveTab("company")} style={{ width: "100%", padding: 10, border: "1px solid #1B3A2D", borderRadius: 10, background: "transparent", color: "#1B3A2D", fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 16, fontFamily: "'DM Sans',sans-serif" }}>View Full Profile →</button>
+          </div>
+        </aside>
       </div>
     </div>
   );
@@ -714,4 +1021,26 @@ const $ = {
   detailValue: { display: "block", fontSize: 14, color: "#1a1a1a", fontWeight: 500 },
   teamCard: { background: "#FAFAF7", borderRadius: 14, padding: "20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, border: "1px solid #EDEAE4", textAlign: "center" },
   finCard: { background: "#FAFAF7", borderRadius: 14, padding: 18, border: "1px solid #EDEAE4", display: "flex", flexDirection: "column", gap: 4 },
+
+  // Updates tab — editor
+  fieldLabel: { display: "block", fontSize: 13, fontWeight: 600, color: "#1a1a1a", marginBottom: 8 },
+  titleInput: { width: "100%", padding: "12px 16px", border: "1px solid #E8E4DD", borderRadius: 12, fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none", background: "#fff", color: "#1a1a1a" },
+  editor: { border: "1px solid #E8E4DD", borderRadius: 12, background: "#fff", overflow: "hidden" },
+  editorToolbar: { display: "flex", alignItems: "center", gap: 2, padding: "8px 10px", borderBottom: "1px solid #EDEAE4", background: "#FAFAF7" },
+  editorBtn: { width: 30, height: 30, border: "none", background: "transparent", borderRadius: 6, cursor: "pointer", color: "#555", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" },
+  editorContent: { minHeight: 140, padding: "14px 16px", outline: "none", fontSize: 14, lineHeight: 1.6, color: "#1a1a1a", fontFamily: "'DM Sans',sans-serif" },
+
+  // Attachments
+  attachBox: { display: "flex", alignItems: "center", padding: "12px 14px", border: "1px dashed #D4D0C8", borderRadius: 12, background: "#FAFAF7" },
+  attachBtn: { display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", border: "1px solid #1B3A2D", borderRadius: 10, background: "#fff", color: "#1B3A2D", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" },
+  filePreview: { display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#fff", border: "1px solid #E8E4DD", borderRadius: 10, color: "#888" },
+  removeFileBtn: { background: "none", border: "none", cursor: "pointer", color: "#DC2626", display: "flex", padding: 0 },
+
+  // Post button
+  postBtn: { display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", border: "none", borderRadius: 12, background: "linear-gradient(135deg,#1B3A2D,#2D5A3F)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", boxShadow: "0 2px 8px rgba(27,58,45,0.25)" },
+
+  // Update post
+  updatePost: { background: "#FAFAF7", borderRadius: 14, padding: 20, border: "1px solid #EDEAE4" },
+  updateTitle: { fontFamily: "'Fraunces',serif", fontSize: 16, fontWeight: 700, color: "#1B3A2D", margin: "0 0 8px" },
+  updateContent: { fontSize: 14, color: "#444", lineHeight: 1.6 },
 };

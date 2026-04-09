@@ -10,6 +10,7 @@ import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
 import { IssuerFormDigital, defaultIssuerFormData } from '../components/IssuerFormDigital';
 import { CreditRiskReviewTab } from '../components/CreditRiskReviewTab';
+import { AdminProjectUpdatesTab } from '../components/AdminProjectUpdatesTab';
 // @ts-ignore - JSX component without type declarations
 import CampaignPage from './Updated Campaign Page/CampaignPage';
 
@@ -201,6 +202,7 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
               <TabsList className="mb-6 bg-gray-100 rounded-lg p-1">
                 <TabsTrigger value="review" className="px-4 py-2 text-sm font-medium">Project Review</TabsTrigger>
                 <TabsTrigger value="credit-risk" className="px-4 py-2 text-sm font-medium">Credit Risk Review</TabsTrigger>
+                <TabsTrigger value="updates" className="px-4 py-2 text-sm font-medium">Project Updates</TabsTrigger>
               </TabsList>
 
               {/* ── Tab 1: Project Review (existing content, unchanged) ── */}
@@ -435,6 +437,11 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
               {/* ── Tab 2: Credit Risk Review (new) ── */}
               <TabsContent value="credit-risk">
                 {projectId && <CreditRiskReviewTab projectId={projectId} />}
+              </TabsContent>
+
+              {/* ── Tab 3: Project Updates ── */}
+              <TabsContent value="updates">
+                {projectId && <AdminProjectUpdatesTab projectId={projectId} />}
               </TabsContent>
             </Tabs>
       </div>

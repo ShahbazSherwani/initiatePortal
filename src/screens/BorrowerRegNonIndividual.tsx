@@ -288,7 +288,7 @@ export const BorrowerRegNonIndividual = (): JSX.Element => {
   // Entity type options
   const entityTypes = [
     "Sole Proprietor",
-    "MSME",
+    "Corporation",
     "NGO",
     "Foundation",
     "Educational Institution",
