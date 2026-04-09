@@ -8712,8 +8712,8 @@ app.get('/api/projects/:id/updates', verifyToken, async (req, res) => {
     `);
 
     // Check if requester is the project owner or admin
-    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [req.uid]);
-    const isAdmin = userResult.rows[0]?.role === 'admin';
+    const userResult = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [req.uid]);
+    const isAdmin = userResult.rows[0]?.is_admin === true;
 
     const projectResult = await db.query('SELECT firebase_uid FROM projects WHERE id = $1', [projectId]);
     const isOwner = projectResult.rows[0]?.firebase_uid === req.uid;
@@ -8817,8 +8817,8 @@ app.put('/api/projects/:id/updates/:updateId', verifyToken, async (req, res) => 
     const update = existing.rows[0];
 
     // Check if user is owner or admin
-    const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [req.uid]);
-    const isAdmin = userResult.rows[0]?.role === 'admin';
+    const userResult = await db.query('SELECT is_admin FROM users WHERE firebase_uid = $1', [req.uid]);
+    const isAdmin = userResult.rows[0]?.is_admin === true;
     const isAuthor = update.author_uid === req.uid;
 
     if (!isAuthor && !isAdmin) {
@@ -8860,14 +8860,16 @@ app.put('/api/admin/projects/:id/updates/:updateId/review', verifyToken, async (
     const updateId = parseInt(req.params.updateId);
     if (isNaN(projectId) || isNaN(updateId)) return res.status(400).json({ error: 'Invalid IDs' });
 
-    const { action, adminNotes, title, content } = req.body;
-    if (!['approve', 'reject'].includes(action)) {
-      return res.status(400).json({ error: 'Action must be approve or reject' });
+    const { status: reviewStatus, action: reviewAction, admin_notes, adminNotes, title, content } = req.body;
+    const resolvedAction = reviewStatus || reviewAction;
+    if (!['approved', 'rejected', 'approve', 'reject'].includes(resolvedAction)) {
+      return res.status(400).json({ error: 'Status must be approved or rejected' });
     }
+    const finalStatus = resolvedAction === 'approve' ? 'approved' : resolvedAction === 'reject' ? 'rejected' : resolvedAction;
 
     // Optionally allow admin to edit the content while approving
     let updateFields = `status = $1, admin_notes = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW()`;
-    let params = [action === 'approve' ? 'approved' : 'rejected', adminNotes || null, req.uid];
+    let params = [finalStatus, admin_notes || adminNotes || null, req.uid];
     let paramIdx = 4;
 
     if (title?.trim()) {
@@ -8892,7 +8894,7 @@ app.put('/api/admin/projects/:id/updates/:updateId/review', verifyToken, async (
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Update not found' });
 
-    console.log(`🛡️ Admin ${action}d update ${updateId} for project ${projectId}`);
+    console.log(`🛡️ Admin ${finalStatus} update ${updateId} for project ${projectId}`);
     res.json({ success: true, update: result.rows[0] });
   } catch (err) {
     console.error('Error reviewing project update:', err);
