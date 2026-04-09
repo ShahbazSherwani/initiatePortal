@@ -43,11 +43,15 @@ const ProjectDetailsView: React.FC = () => {
     }
     setPosting(true);
     try {
-      await postUpdate(updateTitle.trim(), updateContent.trim(), updateFiles);
-      toast.success('Update posted! It will be visible after admin approval.');
-      setUpdateTitle('');
-      setUpdateContent('');
-      setUpdateFiles([]);
+      const result = await postUpdate({ title: updateTitle.trim(), content: updateContent.trim(), attachments: updateFiles });
+      if (result?.success) {
+        toast.success('Update posted! It will be visible after admin approval.');
+        setUpdateTitle('');
+        setUpdateContent('');
+        setUpdateFiles([]);
+      } else {
+        toast.error(result?.error || 'Failed to post update');
+      }
     } catch (err: any) {
       toast.error(err?.message || 'Failed to post update');
     } finally {
@@ -61,7 +65,7 @@ const ProjectDetailsView: React.FC = () => {
       return;
     }
     try {
-      await editUpdate(updateId, editUpdateTitle.trim(), editUpdateContent.trim());
+      await editUpdate(Number(updateId), { title: editUpdateTitle.trim(), content: editUpdateContent.trim(), attachments: [] });
       toast.success('Update edited. It will need admin re-approval.');
       setEditingUpdateId(null);
     } catch (err: any) {

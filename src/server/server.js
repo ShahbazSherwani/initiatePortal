@@ -856,11 +856,7 @@ const app = express();
 // Trust proxy for Render/reverse proxy deployments (fixes express-rate-limit X-Forwarded-For warnings)
 app.set('trust proxy', 1);
 
-// Body size limit
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-// CORS configuration for production
+// CORS configuration for production — must be BEFORE body parsers
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [
@@ -876,6 +872,10 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Body size limit — after CORS so errors still have CORS headers
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ==================== SECURITY MIDDLEWARE ====================
 
@@ -8691,6 +8691,26 @@ app.get('/api/projects/:id/updates', verifyToken, async (req, res) => {
     const projectId = parseInt(req.params.id);
     if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
 
+    // Ensure table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS project_updates (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        author_uid VARCHAR(255) NOT NULL,
+        author_name VARCHAR(255),
+        author_role VARCHAR(100),
+        title VARCHAR(500) NOT NULL,
+        content TEXT NOT NULL,
+        attachments JSONB DEFAULT '[]'::jsonb,
+        status VARCHAR(20) DEFAULT 'pending',
+        admin_notes TEXT,
+        reviewed_by VARCHAR(255),
+        reviewed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Check if requester is the project owner or admin
     const userResult = await db.query('SELECT role FROM users WHERE firebase_uid = $1', [req.uid]);
     const isAdmin = userResult.rows[0]?.role === 'admin';
@@ -8911,10 +8931,31 @@ app.get('/api/admin/pending-updates', verifyToken, async (req, res) => {
     const admin = await requireAdmin(req, res);
     if (!admin) return;
 
+    // Ensure table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS project_updates (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        author_uid VARCHAR(255) NOT NULL,
+        author_name VARCHAR(255),
+        author_role VARCHAR(100),
+        title VARCHAR(500) NOT NULL,
+        content TEXT NOT NULL,
+        attachments JSONB DEFAULT '[]'::jsonb,
+        status VARCHAR(20) DEFAULT 'pending',
+        admin_notes TEXT,
+        reviewed_by VARCHAR(255),
+        reviewed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     const { rows } = await db.query(`
       SELECT pu.*, p.project_data->>'details' as project_details
       FROM project_updates pu
       JOIN projects p ON p.id = pu.project_id
+      WHERE pu.status = 'pending'
       ORDER BY pu.created_at DESC
     `);
 
