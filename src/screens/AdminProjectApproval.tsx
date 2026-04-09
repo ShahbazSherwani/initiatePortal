@@ -29,13 +29,15 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
   
   // IMPORTANT: Define handleApproveReject with useCallback BEFORE using it in any other hooks
   const handleApproveReject = useCallback(async (actionType: 'approve' | 'reject') => {
-    // Approval guard: check if credit risk review is finalized before approving
+    // Approval guard: warn if credit risk review is not finalized before approving
     if (actionType === 'approve') {
       try {
         const crStatus = await authFetch(`${API_BASE_URL}/admin/projects/${projectId}/credit-review/status`);
         if (crStatus?.success && !crStatus.isFinalized) {
-          toast.error('Credit Risk Review must be finalized before approving this project. Please complete the Credit Risk Review tab first.');
-          return;
+          const proceed = window.confirm(
+            'Credit Risk Review has not been finalized for this project.\n\nYou can still approve, but it is recommended to complete the Credit Risk Review first.\n\nProceed with approval anyway?'
+          );
+          if (!proceed) return;
         }
       } catch {
         // If check fails (e.g. table doesn't exist yet), allow approval to proceed
