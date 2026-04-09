@@ -4,10 +4,12 @@ import { useProjects } from '../contexts/ProjectsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
 import { IssuerFormDigital, defaultIssuerFormData } from '../components/IssuerFormDigital';
+import { CreditRiskReviewTab } from '../components/CreditRiskReviewTab';
 // @ts-ignore - JSX component without type declarations
 import CampaignPage from './Updated Campaign Page/CampaignPage';
 
@@ -27,6 +29,20 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
   
   // IMPORTANT: Define handleApproveReject with useCallback BEFORE using it in any other hooks
   const handleApproveReject = useCallback(async (actionType: 'approve' | 'reject') => {
+    // Approval guard: check if credit risk review is finalized before approving
+    if (actionType === 'approve') {
+      try {
+        const crStatus = await authFetch(`${API_BASE_URL}/admin/projects/${projectId}/credit-review/status`);
+        if (crStatus?.success && !crStatus.isFinalized) {
+          toast.error('Credit Risk Review must be finalized before approving this project. Please complete the Credit Risk Review tab first.');
+          return;
+        }
+      } catch {
+        // If check fails (e.g. table doesn't exist yet), allow approval to proceed
+        console.warn('Credit review status check failed — proceeding with approval');
+      }
+    }
+
     setLoading(true);
     try {
       const result = await authFetch(`${API_BASE_URL}/admin/projects/${projectId}/review`, {
@@ -178,6 +194,15 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
     <div className="p-6 max-w-4xl mx-auto">
       <div className="bg-white rounded-xl shadow-md p-6">
             <h1 className="text-2xl font-bold mb-6">Review Project</h1>
+
+            <Tabs defaultValue="review" className="w-full">
+              <TabsList className="mb-6 bg-gray-100 rounded-lg p-1">
+                <TabsTrigger value="review" className="px-4 py-2 text-sm font-medium">Project Review</TabsTrigger>
+                <TabsTrigger value="credit-risk" className="px-4 py-2 text-sm font-medium">Credit Risk Review</TabsTrigger>
+              </TabsList>
+
+              {/* ── Tab 1: Project Review (existing content, unchanged) ── */}
+              <TabsContent value="review">
             
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-2">Project Details</h2>
@@ -403,6 +428,13 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
                 Cancel
               </Button>
             </div>
+              </TabsContent>
+
+              {/* ── Tab 2: Credit Risk Review (new) ── */}
+              <TabsContent value="credit-risk">
+                {projectId && <CreditRiskReviewTab projectId={projectId} />}
+              </TabsContent>
+            </Tabs>
       </div>
     </div>
   );

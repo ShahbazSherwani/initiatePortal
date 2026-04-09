@@ -8352,6 +8352,308 @@ app.post('/api/admin/projects/:id/escrow-status', verifyToken, async (req, res) 
 
 // Escrow status GET is now handled by projectsRouter.get("/:id/escrow-status") above
 
+// ===== PROJECT CREDIT RISK REVIEW ENDPOINTS =====
+
+// Helper: admin guard (reusable)
+async function requireAdmin(req, res) {
+  const adminCheck = await db.query(
+    `SELECT is_admin, firebase_uid, email FROM users WHERE firebase_uid = $1`,
+    [req.uid]
+  );
+  if (!adminCheck.rows[0]?.is_admin) {
+    res.status(403).json({ error: 'Unauthorized: Admin access required' });
+    return null;
+  }
+  return adminCheck.rows[0];
+}
+
+// GET /api/admin/projects/:id/credit-review
+// Returns existing credit review + project context for the Credit Risk Review tab.
+app.get('/api/admin/projects/:id/credit-review', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+
+    // Fetch project
+    const projectResult = await db.query(
+      `SELECT p.id, p.firebase_uid, p.project_data, p.created_at, u.full_name
+       FROM projects p LEFT JOIN users u ON p.firebase_uid = u.firebase_uid
+       WHERE p.id = $1`,
+      [id]
+    );
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const project = projectResult.rows[0];
+    const pd = project.project_data || {};
+
+    // Fetch existing credit review (latest)
+    const reviewResult = await db.query(
+      `SELECT * FROM project_credit_reviews WHERE project_id = $1 ORDER BY id DESC LIMIT 1`,
+      [id]
+    );
+
+    // Build issuer snapshot from current project data
+    // (No separate issuer scoring engine exists yet; we read whatever is in project_data)
+    const issuerSnapshot = {
+      issuer_id: project.firebase_uid,
+      issuer_name: pd.issuerForm?.companyName || project.full_name || null,
+      issuer_score: pd.scoringData?.issuerCreditScore ?? null,
+      issuer_risk_bucket: pd.scoringData?.riskBucket ?? null,
+      issuer_rating: pd.scoringData?.issuerRating ?? null,
+      scoring_date: pd.scoringData?.calculatedAt ?? null,
+      scoring_source: pd.scoringData?.scoringSource ?? null,
+    };
+
+    // Project context
+    const projectContext = {
+      project_id: parseInt(id),
+      project_name: pd.details?.product || 'Unnamed Project',
+      project_type: pd.type || null,
+      status: pd.status || null,
+      approval_status: pd.approvalStatus || null,
+      facility_amount: parseFloat(pd.details?.loanAmount || pd.details?.investmentAmount || '0') || null,
+      tenor_raw: pd.details?.timeDuration || null,
+    };
+
+    res.json({
+      success: true,
+      issuerSnapshot,
+      projectContext,
+      creditReview: reviewResult.rows[0] || null,
+    });
+  } catch (err) {
+    console.error('Error fetching credit review:', err);
+    res.status(500).json({ error: 'Failed to fetch credit review data' });
+  }
+});
+
+// POST /api/admin/projects/:id/credit-review
+// Save (upsert) a draft or finalized credit review.
+app.post('/api/admin/projects/:id/credit-review', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+
+    const {
+      issuer_id,
+      issuer_score_snapshot,
+      issuer_risk_bucket_snapshot,
+      issuer_rating_snapshot,
+      campaign_type,
+      facility_amount,
+      tenor_value,
+      tenor_unit,
+      grace_period_value,
+      grace_period_unit,
+      tenor_score_option,
+      tenor_score,
+      track_record_category,
+      track_record_score,
+      project_credit_score,
+      project_risk_bucket,
+      final_campaign_risk_bucket,
+      is_override,
+      override_reason,
+      reviewer_notes,
+      review_status,
+      scoring_version,
+    } = req.body;
+
+    // Validation
+    if (!campaign_type || !['debt', 'equity'].includes(campaign_type)) {
+      return res.status(400).json({ error: 'campaign_type must be "debt" or "equity"' });
+    }
+    if (!final_campaign_risk_bucket || !['low', 'medium', 'high'].includes(final_campaign_risk_bucket)) {
+      return res.status(400).json({ error: 'final_campaign_risk_bucket must be "low", "medium", or "high"' });
+    }
+    if (review_status && !['draft', 'finalized'].includes(review_status)) {
+      return res.status(400).json({ error: 'review_status must be "draft" or "finalized"' });
+    }
+    if (is_override && (!override_reason || !override_reason.trim())) {
+      return res.status(400).json({ error: 'override_reason is required when override is active' });
+    }
+
+    const status = review_status || 'draft';
+    const isFinalize = status === 'finalized';
+
+    // For debt finalization, require tenor and track record
+    if (isFinalize && campaign_type === 'debt') {
+      if (!tenor_score_option) {
+        return res.status(400).json({ error: 'tenor_score_option is required for finalized debt reviews' });
+      }
+      if (!track_record_category) {
+        return res.status(400).json({ error: 'track_record_category is required for finalized debt reviews' });
+      }
+    }
+
+    // Server-side recalculation of final risk bucket to prevent tampering
+    let serverFinalBucket = final_campaign_risk_bucket;
+    if (!is_override) {
+      const issuerBucket = issuer_risk_bucket_snapshot && ['low', 'medium', 'high'].includes(issuer_risk_bucket_snapshot)
+        ? issuer_risk_bucket_snapshot : null;
+      const projBucket = project_risk_bucket && ['low', 'medium', 'high'].includes(project_risk_bucket)
+        ? project_risk_bucket : null;
+
+      if (campaign_type === 'equity') {
+        serverFinalBucket = issuerBucket || projBucket || 'high';
+      } else {
+        // debt: worst-case
+        const severity = { low: 0, medium: 1, high: 2 };
+        if (issuerBucket && projBucket) {
+          serverFinalBucket = severity[issuerBucket] >= severity[projBucket] ? issuerBucket : projBucket;
+        } else {
+          serverFinalBucket = issuerBucket || projBucket || 'high';
+        }
+      }
+    }
+
+    // Check if review already exists
+    const existing = await db.query(
+      `SELECT id, review_status FROM project_credit_reviews WHERE project_id = $1 ORDER BY id DESC LIMIT 1`,
+      [id]
+    );
+
+    let reviewId;
+    const now = new Date().toISOString();
+
+    if (existing.rows.length > 0) {
+      // Update existing
+      const existingReview = existing.rows[0];
+
+      // Don't allow editing a finalized review (create a new one instead if needed)
+      if (existingReview.review_status === 'finalized' && status === 'draft') {
+        return res.status(400).json({ error: 'Cannot revert a finalized review to draft. Contact system admin.' });
+      }
+
+      await db.query(
+        `UPDATE project_credit_reviews SET
+          issuer_id = $1, issuer_score_snapshot = $2, issuer_risk_bucket_snapshot = $3,
+          issuer_rating_snapshot = $4, campaign_type = $5, facility_amount = $6,
+          tenor_value = $7, tenor_unit = $8, grace_period_value = $9, grace_period_unit = $10,
+          tenor_score_option = $11, tenor_score = $12, track_record_category = $13,
+          track_record_score = $14, project_credit_score = $15, project_risk_bucket = $16,
+          final_campaign_risk_bucket = $17, is_override = $18, override_reason = $19,
+          reviewer_notes = $20, review_status = $21, scoring_version = $22,
+          reviewed_by = $23, reviewed_at = $24, updated_at = NOW()
+        WHERE id = $25`,
+        [
+          issuer_id, issuer_score_snapshot, issuer_risk_bucket_snapshot,
+          issuer_rating_snapshot, campaign_type, facility_amount || null,
+          tenor_value || null, tenor_unit || null, grace_period_value || null, grace_period_unit || null,
+          tenor_score_option || null, tenor_score || null, track_record_category || null,
+          track_record_score || null, project_credit_score || null, project_risk_bucket || null,
+          serverFinalBucket, is_override || false, override_reason || null,
+          reviewer_notes || null, status, scoring_version || '1.0.0',
+          isFinalize ? admin.firebase_uid : null, isFinalize ? now : null,
+          existingReview.id
+        ]
+      );
+      reviewId = existingReview.id;
+    } else {
+      // Insert new
+      const insertResult = await db.query(
+        `INSERT INTO project_credit_reviews (
+          project_id, issuer_id, issuer_score_snapshot, issuer_risk_bucket_snapshot,
+          issuer_rating_snapshot, campaign_type, facility_amount,
+          tenor_value, tenor_unit, grace_period_value, grace_period_unit,
+          tenor_score_option, tenor_score, track_record_category,
+          track_record_score, project_credit_score, project_risk_bucket,
+          final_campaign_risk_bucket, is_override, override_reason,
+          reviewer_notes, review_status, scoring_version,
+          reviewed_by, reviewed_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+        RETURNING id`,
+        [
+          id, issuer_id, issuer_score_snapshot, issuer_risk_bucket_snapshot,
+          issuer_rating_snapshot, campaign_type, facility_amount || null,
+          tenor_value || null, tenor_unit || null, grace_period_value || null, grace_period_unit || null,
+          tenor_score_option || null, tenor_score || null, track_record_category || null,
+          track_record_score || null, project_credit_score || null, project_risk_bucket || null,
+          serverFinalBucket, is_override || false, override_reason || null,
+          reviewer_notes || null, status, scoring_version || '1.0.0',
+          isFinalize ? admin.firebase_uid : null, isFinalize ? now : null,
+        ]
+      );
+      reviewId = insertResult.rows[0].id;
+    }
+
+    // Audit logging
+    if (auditLogger) {
+      await auditLogger.log({
+        userId: admin.firebase_uid,
+        userEmail: admin.email,
+        actionType: isFinalize ? 'CREDIT_REVIEW_FINALIZED' : 'CREDIT_REVIEW_SAVED',
+        actionCategory: 'ADMIN',
+        resourceType: 'project',
+        resourceId: id.toString(),
+        description: isFinalize
+          ? `Credit review finalized for project #${id}. Final risk: ${serverFinalBucket}${is_override ? ' (override)' : ''}`
+          : `Credit review draft saved for project #${id}`,
+        ipAddress: req.ip || req.headers['x-forwarded-for'],
+        userAgent: req.headers['user-agent'],
+        requestMethod: req.method,
+        requestUrl: req.originalUrl,
+        status: 'success',
+        metadata: {
+          reviewId,
+          campaignType: campaign_type,
+          issuerRiskBucket: issuer_risk_bucket_snapshot,
+          projectRiskBucket: project_risk_bucket,
+          finalRiskBucket: serverFinalBucket,
+          isOverride: is_override || false,
+          reviewStatus: status,
+        }
+      });
+    }
+
+    // Fetch and return the saved review
+    const savedReview = await db.query(
+      `SELECT * FROM project_credit_reviews WHERE id = $1`,
+      [reviewId]
+    );
+
+    res.json({
+      success: true,
+      message: isFinalize ? 'Credit review finalized' : 'Credit review draft saved',
+      creditReview: savedReview.rows[0],
+    });
+  } catch (err) {
+    console.error('Error saving credit review:', err);
+    res.status(500).json({ error: 'Failed to save credit review' });
+  }
+});
+
+// GET /api/admin/projects/:id/credit-review/status
+// Quick check if credit review is finalized (used by approval guard).
+app.get('/api/admin/projects/:id/credit-review/status', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+
+    const result = await db.query(
+      `SELECT review_status, final_campaign_risk_bucket FROM project_credit_reviews
+       WHERE project_id = $1 ORDER BY id DESC LIMIT 1`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      hasReview: result.rows.length > 0,
+      isFinalized: result.rows[0]?.review_status === 'finalized',
+      finalRiskBucket: result.rows[0]?.final_campaign_risk_bucket || null,
+    });
+  } catch (err) {
+    console.error('Error checking credit review status:', err);
+    res.status(500).json({ error: 'Failed to check credit review status' });
+  }
+});
+
+// ===== END PROJECT CREDIT RISK REVIEW ENDPOINTS =====
+
 // Update or add this endpoint for calendar/investor view
 
 app.get('/api/calendar/projects', verifyToken, async (req, res) => {
