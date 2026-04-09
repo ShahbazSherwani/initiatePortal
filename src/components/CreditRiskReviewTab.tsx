@@ -70,8 +70,10 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
   const [overrideBucket, setOverrideBucket] = useState<RiskBucket>('medium');
   const [overrideReason, setOverrideReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const isFinalized = data?.creditReview?.review_status === 'finalized';
+  const locked = isFinalized && !isEditing;
 
   // ── Hydrate form from existing review ───────────────────────────────────────
   useEffect(() => {
@@ -214,9 +216,19 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
     <div className="space-y-0">
       {/* Finalized banner */}
       {isFinalized && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4 mb-5 text-sm text-green-700 flex items-center gap-2">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-          This credit review has been finalized{data.creditReview?.reviewed_at ? ` on ${new Date(data.creditReview.reviewed_at).toLocaleDateString()}` : ''}.
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4 mb-5 text-sm text-green-700 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            This credit review has been finalized{data.creditReview?.reviewed_at ? ` on ${new Date(data.creditReview.reviewed_at).toLocaleDateString()}` : ''}.
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditing(!isEditing)}
+            className="ml-4 text-xs"
+          >
+            {isEditing ? 'Cancel Edit' : 'Edit Review'}
+          </Button>
         </div>
       )}
 
@@ -271,7 +283,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
             <select
               value={campaignType}
               onChange={e => setCampaignType(e.target.value as CampaignType)}
-              disabled={isFinalized}
+              disabled={locked}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
             >
               <option value="debt">Debt</option>
@@ -286,7 +298,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
               type="number"
               value={facilityAmount}
               onChange={e => setFacilityAmount(e.target.value)}
-              disabled={isFinalized}
+              disabled={locked}
               placeholder="e.g. 5000000"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
             />
@@ -299,7 +311,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
               type="number"
               value={tenorValue}
               onChange={e => setTenorValue(e.target.value)}
-              disabled={isFinalized}
+              disabled={locked}
               placeholder="e.g. 12"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
             />
@@ -309,7 +321,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
             <select
               value={tenorUnit}
               onChange={e => setTenorUnit(e.target.value)}
-              disabled={isFinalized}
+              disabled={locked}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
             >
               <option value="days">Days</option>
@@ -325,7 +337,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
               type="number"
               value={gracePeriodValue}
               onChange={e => setGracePeriodValue(e.target.value)}
-              disabled={isFinalized}
+              disabled={locked}
               placeholder="e.g. 3"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
             />
@@ -335,7 +347,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
             <select
               value={gracePeriodUnit}
               onChange={e => setGracePeriodUnit(e.target.value)}
-              disabled={isFinalized}
+              disabled={locked}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
             >
               <option value="days">Days</option>
@@ -356,7 +368,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
               <select
                 value={tenorScoreOption}
                 onChange={e => setTenorScoreOption(e.target.value as TenorOption)}
-                disabled={isFinalized}
+                disabled={locked}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
               >
                 <option value="">Select tenor bracket…</option>
@@ -374,7 +386,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
               <select
                 value={trackRecordCategory}
                 onChange={e => setTrackRecordCategory(e.target.value as TrackRecordOption)}
-                disabled={isFinalized}
+                disabled={locked}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
               >
                 <option value="">Select track record…</option>
@@ -423,7 +435,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
           <Textarea
             value={reviewerNotes}
             onChange={e => setReviewerNotes(e.target.value)}
-            disabled={isFinalized}
+            disabled={locked}
             placeholder="Additional observations about this project/facility…"
             className="h-24"
           />
@@ -454,7 +466,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
               type="checkbox"
               checked={isOverride}
               onChange={e => setIsOverride(e.target.checked)}
-              disabled={isFinalized}
+              disabled={locked}
               className="rounded border-gray-300"
             />
             <span className="text-sm font-medium text-gray-700">Override final risk bucket</span>
@@ -467,7 +479,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
                 <select
                   value={overrideBucket}
                   onChange={e => setOverrideBucket(e.target.value as RiskBucket)}
-                  disabled={isFinalized}
+                  disabled={locked}
                   className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
                 >
                   {RISK_BUCKETS.map(b => (
@@ -480,7 +492,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
                 <Textarea
                   value={overrideReason}
                   onChange={e => setOverrideReason(e.target.value)}
-                  disabled={isFinalized}
+                  disabled={locked}
                   placeholder="Justify why the override is necessary…"
                   className="h-20"
                 />
@@ -490,7 +502,7 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
         </div>
 
         {/* Action buttons */}
-        {!isFinalized && (
+        {!locked && (
           <div className="flex gap-3 mt-6 border-t pt-4">
             <Button
               onClick={handleSaveDraft}
@@ -501,11 +513,13 @@ export const CreditRiskReviewTab: React.FC<CreditRiskReviewTabProps> = ({ projec
               {saving ? 'Saving…' : 'Save Draft'}
             </Button>
             <Button
-              onClick={handleFinalize}
+              onClick={() => {
+                handleFinalize().then(() => setIsEditing(false));
+              }}
               disabled={saving}
               className="bg-[#0C4B20] hover:bg-[#0A3D1A] text-white px-6"
             >
-              {saving ? 'Finalizing…' : 'Finalize Review'}
+              {saving ? 'Finalizing…' : isEditing ? 'Re-finalize Review' : 'Finalize Review'}
             </Button>
           </div>
         )}

@@ -8609,6 +8609,29 @@ app.post('/api/admin/projects/:id/credit-review', verifyToken, async (req, res) 
       });
     }
 
+    // Sync finalized risk bucket back to project_data so it displays everywhere
+    if (isFinalize) {
+      try {
+        const projResult = await db.query(
+          `SELECT project_data FROM projects WHERE id = $1`, [id]
+        );
+        if (projResult.rows.length > 0) {
+          const projectData = projResult.rows[0].project_data || {};
+          if (!projectData.details) projectData.details = {};
+          projectData.details.riskLevel = serverFinalBucket;
+          projectData.creditReviewId = reviewId;
+          projectData.creditReviewCompleted = true;
+          await db.query(
+            `UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2`,
+            [projectData, id]
+          );
+        }
+      } catch (syncErr) {
+        console.error('Failed to sync risk bucket to project_data:', syncErr);
+        // Non-fatal — review is still saved
+      }
+    }
+
     // Fetch and return the saved review
     const savedReview = await db.query(
       `SELECT * FROM project_credit_reviews WHERE id = $1`,
