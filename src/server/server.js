@@ -11,6 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import admin from 'firebase-admin';
 import { Pool } from 'pg';
 import { readFileSync } from 'fs';
@@ -332,8 +333,8 @@ try {
       } catch (error) {
         console.error('Scheduled scan failed:', error);
       }
-      // Schedule next scan in 24 hours (no nested setInterval)
-      setTimeout(runAndScheduleNext, 24 * 60 * 60 * 1000);
+      // Schedule next scan in 7 days (weekly instead of daily to reduce memory spikes)
+      setTimeout(runAndScheduleNext, 7 * 24 * 60 * 60 * 1000);
     };
     setTimeout(runAndScheduleNext, timeUntilScan);
     
@@ -889,9 +890,12 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Compress responses to reduce memory + bandwidth
+app.use(compression({ threshold: 1024 }));
+
 // Body size limit — after CORS so errors still have CORS headers
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
 
 // ==================== SECURITY MIDDLEWARE ====================
 

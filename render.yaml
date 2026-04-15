@@ -2,8 +2,8 @@ services:
   - type: web
     name: initiate-portal-api
     env: node
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm install --omit=dev && npm install compression
+    startCommand: node --max-old-space-size=512 src/server/server.js
     rootDir: .
     envVars:
       - key: NODE_ENV
