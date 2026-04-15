@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjects } from '../contexts/ProjectsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { toast } from 'react-hot-toast';
 import { authFetch } from '../lib/api';
 import { API_BASE_URL } from '../config/environment';
+import { Dialog, Transition } from '@headlessui/react';
 import { IssuerFormDigital, defaultIssuerFormData } from '../components/IssuerFormDigital';
 import { CreditRiskReviewTab } from '../components/CreditRiskReviewTab';
 import { AdminProjectUpdatesTab } from '../components/AdminProjectUpdatesTab';
@@ -27,6 +29,9 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
   const [escrowNotes, setEscrowNotes] = useState('');
   const [escrowSaving, setEscrowSaving] = useState(false);
   const [showCampaignPreview, setShowCampaignPreview] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
   
   // IMPORTANT: Define handleApproveReject with useCallback BEFORE using it in any other hooks
   const handleApproveReject = useCallback(async (actionType: 'approve' | 'reject') => {
@@ -164,6 +169,35 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
     }
   };
   
+  const handleDeleteProject = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      toast.error('Please type DELETE to confirm');
+      return;
+    }
+    setDeleting(true);
+    try {
+      const result = await authFetch(`${API_BASE_URL}/admin/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Admin deleted project' })
+      });
+      if (result?.success) {
+        toast.success(`Project deleted successfully. Removed ${result.cascade?.updates || 0} updates, ${result.cascade?.creditReviews || 0} credit reviews, ${result.cascade?.refundRequests || 0} refund requests.`);
+        try { await loadProjects(); } catch {}
+        navigate('/admin/projects');
+      } else {
+        toast.error('Failed to delete project');
+      }
+    } catch (error: any) {
+      console.error('Error deleting project:', error);
+      toast.error(error?.message || 'Failed to delete project');
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+      setDeleteConfirmText('');
+    }
+  };
+
   // Auto-trigger approval/rejection if action is provided - ALWAYS include this hook
   useEffect(() => {
     if (action && !loading) {
@@ -431,7 +465,93 @@ export const AdminProjectApproval: React.FC<{ action?: 'approve' | 'reject' }> =
               >
                 Cancel
               </Button>
+
+              <Button
+                className="bg-red-800 hover:bg-red-900 text-white px-8 py-2 ml-auto"
+                onClick={() => setShowDeleteDialog(true)}
+                disabled={loading || deleting}
+              >
+                Delete Project
+              </Button>
             </div>
+
+            {/* Delete Project Confirmation Dialog */}
+            <Transition appear show={showDeleteDialog} as={Fragment}>
+              <Dialog as="div" className="relative z-50" onClose={() => setShowDeleteDialog(false)}>
+                <Transition.Child
+                  as={Fragment}
+                  enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100"
+                  leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0"
+                >
+                  <div className="fixed inset-0 bg-black/30" />
+                </Transition.Child>
+
+                <div className="fixed inset-0 overflow-y-auto">
+                  <div className="flex min-h-full items-center justify-center p-4 text-center">
+                    <Transition.Child
+                      as={Fragment}
+                      enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100"
+                      leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
+                    >
+                      <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                        <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                          Delete Project
+                        </Dialog.Title>
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-500">
+                            This action is <strong>irreversible</strong>. The project and all associated data will be permanently removed.
+                          </p>
+                        </div>
+
+                        <div className="mt-4 space-y-4">
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div className="flex items-start">
+                              <svg className="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                              </svg>
+                              <div>
+                                <h4 className="text-sm font-medium text-red-800">Warning</h4>
+                                <p className="text-sm text-red-700 mt-1">
+                                  Deleting <strong>"{displayProject?.project_data?.details?.product || 'this project'}"</strong> will permanently remove:
+                                </p>
+                                <ul className="text-sm text-red-700 mt-1 list-disc list-inside">
+                                  <li>All project data and settings</li>
+                                  <li>All investment/interest requests</li>
+                                  <li>All project updates</li>
+                                  <li>Credit risk reviews</li>
+                                  <li>Refund requests</li>
+                                  <li>Related notifications</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                          <Input
+                            placeholder="Type DELETE to confirm"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                          <Button variant="outline" onClick={() => { setShowDeleteDialog(false); setDeleteConfirmText(''); }}>
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleDeleteProject}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            disabled={deleteConfirmText !== 'DELETE' || deleting}
+                          >
+                            {deleting ? 'Deleting...' : 'Delete Project'}
+                          </Button>
+                        </div>
+                      </Dialog.Panel>
+                    </Transition.Child>
+                  </div>
+                </div>
+              </Dialog>
+            </Transition>
               </TabsContent>
 
               {/* ── Tab 2: Credit Risk Review (new) ── */}

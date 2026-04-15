@@ -8378,6 +8378,101 @@ app.post('/api/admin/projects/:id/escrow-status', verifyToken, async (req, res) 
   }
 });
 
+// Admin: Permanently delete a project and all related data
+app.delete('/api/admin/projects/:id', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body || {};
+
+  try {
+    // Verify admin status
+    const adminCheck = await db.query(
+      `SELECT is_admin FROM users WHERE firebase_uid = $1`,
+      [req.uid]
+    );
+
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Unauthorized: Admin access required' });
+    }
+
+    // Verify project exists
+    const projectResult = await db.query(
+      `SELECT id, firebase_uid, project_data FROM projects WHERE id = $1`,
+      [id]
+    );
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const project = projectResult.rows[0];
+    const projectName = project.project_data?.details?.product || 'Unknown Project';
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1. Delete project updates
+      const deletedUpdates = await client.query(
+        'DELETE FROM project_updates WHERE project_id = $1',
+        [id]
+      );
+
+      // 2. Delete project credit reviews
+      const deletedReviews = await client.query(
+        'DELETE FROM project_credit_reviews WHERE project_id = $1',
+        [id]
+      );
+
+      // 3. Delete refund requests
+      const deletedRefunds = await client.query(
+        'DELETE FROM refund_requests WHERE project_id = $1',
+        [id]
+      );
+
+      // 4. Delete notifications referencing this project
+      const deletedNotifications = await client.query(
+        `DELETE FROM notifications WHERE reference_id = $1`,
+        [id.toString()]
+      );
+
+      // 5. Delete the project itself
+      await client.query(
+        'DELETE FROM projects WHERE id = $1',
+        [id]
+      );
+
+      await client.query('COMMIT');
+
+      console.log(`🗑️ Admin ${req.uid} permanently deleted project ${id} ("${projectName}") - Reason: ${reason || 'No reason provided'}`);
+      console.log(`   Cascade: ${deletedUpdates.rowCount} updates, ${deletedReviews.rowCount} credit reviews, ${deletedRefunds.rowCount} refund requests, ${deletedNotifications.rowCount} notifications`);
+
+      res.json({
+        success: true,
+        message: 'Project permanently deleted',
+        deletedProject: {
+          id: parseInt(id),
+          name: projectName,
+          owner: project.firebase_uid
+        },
+        cascade: {
+          updates: deletedUpdates.rowCount,
+          creditReviews: deletedReviews.rowCount,
+          refundRequests: deletedRefunds.rowCount,
+          notifications: deletedNotifications.rowCount
+        }
+      });
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('❌ Error deleting project:', err);
+    res.status(500).json({ error: 'Failed to delete project' });
+  }
+});
+
 // Escrow status GET is now handled by projectsRouter.get("/:id/escrow-status") above
 
 // ===== PROJECT CREDIT RISK REVIEW ENDPOINTS =====
