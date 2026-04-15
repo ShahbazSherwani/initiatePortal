@@ -40,6 +40,22 @@ const infoLog = (...args) => {
   console.log(...args); // Important info always logged
 };
 
+// Cap JSONB arrays to prevent unbounded growth in project_data
+const MAX_REQUESTS_PER_PROJECT = 500;
+function capArray(arr) {
+  if (arr.length > MAX_REQUESTS_PER_PROJECT) {
+    // Remove oldest completed/rejected entries first, then oldest overall
+    const completed = arr.filter(r => r.status === 'approved' || r.status === 'rejected');
+    if (completed.length > 0) {
+      const oldest = completed[0];
+      const idx = arr.indexOf(oldest);
+      if (idx !== -1) arr.splice(idx, 1);
+    } else {
+      arr.shift(); // Remove oldest entry
+    }
+  }
+}
+
 // Simple in-memory cache for frequently accessed data
 class SimpleCache {
   constructor() {
@@ -243,12 +259,12 @@ try {
       rejectUnauthorized: false,  // Supabase requires SSL
     },
     // Optimized settings for Supabase - balanced for performance and reliability
-    max: 30,                    // Increased connections for better concurrency
-    min: 5,                     // Keep 5 warm connections ready
-    idleTimeoutMillis: 30000,   // 30 seconds idle timeout
+    max: 15,                    // Reduced from 30 to lower memory footprint
+    min: 2,                     // Reduced from 5 to lower baseline memory
+    idleTimeoutMillis: 20000,   // 20 seconds idle timeout (reduced from 30)
     connectionTimeoutMillis: 15000,  // 15 seconds connection timeout
     statement_timeout: 120000,  // 120 seconds statement timeout (allow slower queries)
-    allowExitOnIdle: false,     // Keep pool alive for better performance
+    allowExitOnIdle: true,      // Allow pool to shrink when idle
   });
 
   // Add error handling for database connection
@@ -4704,6 +4720,7 @@ app.get('/api/debug/test-investment/:projectId', async (req, res) => {
       date: new Date().toISOString(),
       status: "pending"
     });
+    capArray(projectData.investorRequests);
     
     await db.query(
       `UPDATE projects 
@@ -4933,6 +4950,7 @@ projectsRouter.post("/:id/invest", verifyToken, async (req, res) => {
       investmentLimit: maxInvestmentAmount,
       limitPercentage: maxInvestmentPercentage
     });
+    capArray(projectData.investorRequests);
     
     await db.query(
       `UPDATE projects 
@@ -5697,6 +5715,7 @@ projectsRouter.post("/:id/interest", verifyToken, async (req, res) => {
       date: new Date().toISOString(),
       status: "pending"
     });
+    capArray(projectData.interestRequests);
     
     await db.query(
       `UPDATE projects 
@@ -11798,6 +11817,7 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asy
             paymentMethod: 'paymongo',
             checkoutId: checkoutId
           });
+          capArray(projectData.investorRequests);
           
           await db.query(
             'UPDATE projects SET project_data = $1, updated_at = NOW() WHERE id = $2',
@@ -11875,6 +11895,7 @@ app.post('/api/payments/confirm', verifyToken, async (req, res) => {
     };
     
     projectData.investorRequests.push(investmentRequest);
+    capArray(projectData.investorRequests);
     
     // Update project
     await db.query(
@@ -15387,6 +15408,11 @@ const gracefulShutdown = async (signal) => {
     console.log('🔌 HTTP server closed');
     
     try {
+      // Clean up IDS timers and data
+      if (ids && typeof ids.destroy === 'function') {
+        ids.destroy();
+        console.log('🔌 IDS cleaned up');
+      }
       if (db) {
         await db.end();
         console.log('🔌 Database pool closed');

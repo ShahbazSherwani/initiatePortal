@@ -598,32 +598,76 @@ export default function CampaignPage({
             <div>
               {updatesLoading ? (
                 <p style={{ color: "#888", textAlign: "center", padding: 32 }}>Loading updates…</p>
-              ) : projectUpdates.length === 0 ? (
-                <p style={{ color: "#888", textAlign: "center", padding: 32 }}>No updates posted yet.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {projectUpdates.filter(u => u.status === 'approved').map(u => (
-                    <div key={u.id} style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, padding: 20 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                        <h4 style={{ fontFamily: "'Fraunces',serif", fontSize: 16, fontWeight: 600, color: "#1B3A2D", margin: 0 }}>{u.title}</h4>
-                        <span style={{ fontSize: 12, color: "#999" }}>{new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                      </div>
-                      <p style={{ fontSize: 14, color: "#555", margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{u.content}</p>
-                      {u.attachments?.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-                          {u.attachments.map((att, i) => (
-                            att.type?.startsWith('image/') ? (
-                              <img key={i} src={att.url} alt={att.name} style={{ width: 120, height: 90, objectFit: "cover", borderRadius: 8, border: "1px solid #e5e5e5" }} />
-                            ) : (
-                              <div key={i} style={{ padding: "8px 12px", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, color: "#666" }}>{att.name}</div>
-                            )
-                          ))}
-                        </div>
-                      )}
+              ) : (() => {
+                const approved = projectUpdates.filter(u => u.status === 'approved');
+                const getInitials = (name) => (name || "U").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                const timeAgo = (iso) => {
+                  const d = new Date(iso);
+                  const now = new Date();
+                  const days = Math.floor((now - d) / 86400000);
+                  if (days === 0) return "Today";
+                  if (days === 1) return "Yesterday";
+                  if (days < 7) return `${days} days ago`;
+                  if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? "s" : ""} ago`;
+                  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+                };
+
+                if (approved.length === 0) return (
+                  <div style={{ background: "#fff", borderRadius: 16, padding: 28, border: "1px solid #E8E4DD" }}>
+                    <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                      <div style={{ fontSize: 36, marginBottom: 8 }}>📭</div>
+                      <p style={{ fontSize: 14, color: "#888" }}>No updates yet. Check back later for news from the campaign creator.</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                );
+
+                return (
+                  <div style={{ background: "#fff", borderRadius: 16, padding: 28, border: "1px solid #E8E4DD" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                      <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 18, fontWeight: 600, color: "#1B3A2D", margin: 0 }}>Campaign Updates</h3>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F0FDF4", color: "#15803D", border: "1px solid #86EFAC", borderRadius: 100, padding: "4px 12px", fontSize: 12, fontWeight: 600 }}>
+                        {approved.length} {approved.length === 1 ? "post" : "posts"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {approved.map(u => (
+                        <article key={u.id} style={{ background: "#FAFAF7", borderRadius: 14, padding: 20, border: "1px solid #EDEAE4" }}>
+                          <header style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+                            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg,#1B3A2D,#3D7A5A)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                              {getInitials(u.author_name || "User")}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a" }}>{u.author_name || "Project Creator"}</span>
+                                <span style={{ fontSize: 11, color: "#aaa" }}>•</span>
+                                <span style={{ fontSize: 12, color: "#888" }}>{timeAgo(u.created_at)}</span>
+                              </div>
+                              <span style={{ display: "block", fontSize: 12, color: "#888", marginTop: 1 }}>{u.author_role || "Project Creator"}</span>
+                            </div>
+                          </header>
+
+                          {u.title && <h4 style={{ fontFamily: "'Fraunces',serif", fontSize: 16, fontWeight: 700, color: "#1B3A2D", margin: "0 0 8px" }}>{u.title}</h4>}
+                          <p style={{ fontSize: 14, color: "#444", margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{u.content}</p>
+
+                          {u.attachments?.length > 0 && (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8, marginTop: 14 }}>
+                              {u.attachments.map((att, i) => (
+                                <div key={i} style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/10", background: "#1B3A2D", border: "1px solid #EDEAE4" }}>
+                                  {att.type?.startsWith('image/') ? (
+                                    <img src={att.url} alt={att.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                                  ) : (
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 12, color: "#ccc", padding: 8, textAlign: "center" }}>{att.name}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

@@ -54,8 +54,9 @@ export class IntrusionDetectionSystem {
     // In-memory tracking for pattern detection
     this.failedLogins = new Map(); // IP -> [timestamps]
     this.requestCounts = new Map(); // IP -> count
-    this.suspiciousIPs = new Set();
-    this.blockedIPs = new Set();
+    this.suspiciousIPs = new Map(); // IP -> timestamp added
+    this.blockedIPs = new Map();    // IP -> timestamp added
+    this.MAX_TRACKED_IPS = 1000;    // Cap to prevent unbounded growth
     
     // Thresholds
     this.thresholds = {
@@ -113,8 +114,8 @@ export class IntrusionDetectionSystem {
       /nmap/i
     ];
     
-    // Clean up old entries every 30 minutes
-    setInterval(() => this.cleanup(), 30 * 60 * 1000);
+    // Clean up old entries every 5 minutes (reduced from 30 to limit memory growth)
+    this._cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }
   
   /**
@@ -125,7 +126,7 @@ export class IntrusionDetectionSystem {
     const ip = this.getClientIP(req);
     const userAgent = req.get('user-agent') || '';
     
-    // Check if IP is blocked
+    // Check if IP is blocked (Maps now, check .has() still works)
     if (this.blockedIPs.has(ip)) {
       threats.push({
         type: SecurityEventType.IP_BLACKLISTED,
@@ -217,7 +218,7 @@ export class IntrusionDetectionSystem {
         blocked: true
       };
     } else if (recentAttempts.length >= this.thresholds.failedLoginLimit) {
-      this.suspiciousIPs.add(ip);
+      this._trackIP(this.suspiciousIPs, ip);
       return {
         type: SecurityEventType.FAILED_LOGIN,
         severity: ThreatLevel.HIGH,
@@ -351,7 +352,7 @@ export class IntrusionDetectionSystem {
     this.requestCounts.set(key, count);
     
     if (count > this.thresholds.requestsPerMinute) {
-      this.suspiciousIPs.add(ip);
+      this._trackIP(this.suspiciousIPs, ip);
       return {
         type: SecurityEventType.RATE_LIMIT_EXCEEDED,
         severity: ThreatLevel.MEDIUM,
@@ -434,8 +435,8 @@ export class IntrusionDetectionSystem {
    * Block IP address
    */
   blockIP(ip) {
-    this.blockedIPs.add(ip);
-    this.suspiciousIPs.add(ip);
+    this._trackIP(this.blockedIPs, ip);
+    this._trackIP(this.suspiciousIPs, ip);
     console.warn(`🔒 IP blocked: ${ip}`);
   }
   
@@ -445,6 +446,7 @@ export class IntrusionDetectionSystem {
   unblockIP(ip) {
     this.blockedIPs.delete(ip);
     this.suspiciousIPs.delete(ip);
+    this.failedLogins.delete(ip);
     console.log(`🔓 IP unblocked: ${ip}`);
   }
   
@@ -546,7 +548,49 @@ export class IntrusionDetectionSystem {
       }
     }
     
-    console.log('🧹 IDS: Cleaned up old tracking data');
+    // Clean suspicious IPs older than 1 hour
+    const suspiciousCutoff = now - 60 * 60 * 1000;
+    for (const [ip, timestamp] of this.suspiciousIPs.entries()) {
+      if (timestamp < suspiciousCutoff) {
+        this.suspiciousIPs.delete(ip);
+      }
+    }
+    
+    // Clean blocked IPs older than 24 hours
+    const blockedCutoff = now - 24 * 60 * 60 * 1000;
+    for (const [ip, timestamp] of this.blockedIPs.entries()) {
+      if (timestamp < blockedCutoff) {
+        this.blockedIPs.delete(ip);
+      }
+    }
+    
+    console.log(`🧹 IDS: Cleaned up old tracking data (failed: ${this.failedLogins.size}, requests: ${this.requestCounts.size}, suspicious: ${this.suspiciousIPs.size}, blocked: ${this.blockedIPs.size})`);
+  }
+  
+  /**
+   * Track an IP in a Map with timestamp, enforcing max size
+   */
+  _trackIP(map, ip) {
+    if (map.size >= this.MAX_TRACKED_IPS) {
+      // Evict oldest entry
+      const oldestKey = map.keys().next().value;
+      map.delete(oldestKey);
+    }
+    map.set(ip, Date.now());
+  }
+  
+  /**
+   * Clean up interval on shutdown
+   */
+  destroy() {
+    if (this._cleanupInterval) {
+      clearInterval(this._cleanupInterval);
+      this._cleanupInterval = null;
+    }
+    this.failedLogins.clear();
+    this.requestCounts.clear();
+    this.suspiciousIPs.clear();
+    this.blockedIPs.clear();
   }
   
   /**
@@ -554,8 +598,8 @@ export class IntrusionDetectionSystem {
    */
   getStats() {
     return {
-      blockedIPs: Array.from(this.blockedIPs),
-      suspiciousIPs: Array.from(this.suspiciousIPs),
+      blockedIPs: Array.from(this.blockedIPs.keys()),
+      suspiciousIPs: Array.from(this.suspiciousIPs.keys()),
       failedLoginAttempts: this.failedLogins.size,
       activeTracking: this.requestCounts.size
     };
