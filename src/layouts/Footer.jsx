@@ -72,16 +72,9 @@ const companyLinks = [
 const legalLinks = [
   { label: "Terms & Conditions", href: "/terms-and-conditions" },
   { label: "Risk Disclosure and Disclaimer Policy", href: "/risk-disclosure-and-disclaimer-policy" },
-  { label: "Campaign And Project Creator Agreement", href: "/campaign-and-project-creator-agreement" },
-  { label: "Donor and Backer Acknowledgement and Pledge Terms", href: "/donor-and-backer-acknowledgement-and-pledge-terms" },
   { label: "Refund and Cancellation Policy", href: "/refund-and-cancellation-policy" },
-  { label: "Disclosure And Transparency Policy", href: "/disclosure-and-transparency-policy" },
-  { label: "Audit And Reporting Framework", href: "/audit-and-reporting-framework" },
   { label: "Anti-Money Laundering and Counter-Terrorism Financing Policy", href: "/aml-ctf-policy" },
   { label: "Information Security Policy", href: "/information-security-policy" },
-  { label: "Governing Law And Jurisdiction Clause", href: "/governing-law-and-jurisdiction-clause" },
-  { label: "Terms for Rewards and Fulfilment", href: "/terms-for-rewards-and-fulfilment" },
-  { label: "Privacy and Data Protection Compliance Manual", href: "/privacy-and-data-protection-compliance-manual" },
   { label: "Cookie Policy", href: "/cookie-policy" },
   { label: "Privacy Policy", href: "/privacy-policy" },
 ];
@@ -158,6 +151,13 @@ export default function Footer() {
                   <span className="iph-footer__contact-icon"><LocationFilledIcon /></span>
                   <span>19th Floor Capital House, 9th Ave. corner Lane S, BGC, Taguig City</span>
                 </a>
+                <div className="iph-footer__npc-seal">
+                  <img
+                    src="/Seal.png"
+                    alt="NPC DPO/DPS Registered Seal"
+                    className="iph-footer__npc-seal-img"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -297,6 +297,15 @@ const responsiveCSS = `
     flex-shrink: 0;
     margin-top: 1px;
     display: flex;
+  }
+
+  .iph-footer__npc-seal {
+    margin-top: 16px;
+  }
+  .iph-footer__npc-seal-img {
+    height: 120px;
+    width: auto;
+    object-fit: contain;
   }
 
   .iph-footer__risk-warning {

@@ -6075,6 +6075,199 @@
           "category": "Platform Operations and General Usage"
         }
       ]
+    },
+    {
+      "slug": "what-happens-if-the-target-offering-is-not-met",
+      "title": "What Happens If the Target Offering Is Not Met?",
+      "category": "Fees, Escrow and Payments",
+      "categorySlug": "fees-escrow-and-payments",
+      "updatedAt": "2026-04-16",
+      "readTime": 3,
+      "body": [
+        {
+          "type": "heading",
+          "content": "What happens if a campaign does not reach its funding target?"
+        },
+        {
+          "type": "paragraph",
+          "content": "If a campaign does not reach its minimum funding target by the deadline, it is considered unsuccessful and all pledged funds are returned to investors."
+        },
+        {
+          "type": "heading",
+          "content": "How are funds handled during the campaign?"
+        },
+        {
+          "type": "paragraph",
+          "content": "While the campaign is active, all investor funds are held in a secure escrow account. These funds are not released to the issuer unless the campaign successfully meets its target."
+        },
+        {
+          "type": "heading",
+          "content": "How are refunds processed?"
+        },
+        {
+          "type": "paragraph",
+          "content": "Once a campaign is marked unsuccessful, refunds are initiated and returned to investors. This is typically processed within three business days, depending on the payment method used."
+        },
+        {
+          "type": "heading",
+          "content": "Where will the refunded money go?"
+        },
+        {
+          "type": "paragraph",
+          "content": "Refunds are returned through the original payment method or credited back to the investor's wallet, depending on how the investment was made."
+        },
+        {
+          "type": "heading",
+          "content": "Are there any deductions from the refund?"
+        },
+        {
+          "type": "paragraph",
+          "content": "Refunds may be subject to non-refundable bank or payment processing fees, depending on the transaction channel used."
+        },
+        {
+          "type": "heading",
+          "content": "Will I be notified about the refund?"
+        },
+        {
+          "type": "paragraph",
+          "content": "Yes, investors will receive updates through their dashboard and registered email regarding the status of the campaign and the refund."
+        },
+        {
+          "type": "callout",
+          "variant": "tip",
+          "content": "Register at https://initiate-portal.vercel.app/register and invest on a platform where your funds are protected through escrow until campaign targets are met."
+        }
+      ],
+      "relatedArticles": [
+        {
+          "slug": "how-do-i-complete-or-cancel-my-investment-commitment",
+          "title": "How Do I Complete or Cancel My Investment Commitment?",
+          "category": "Fees, Escrow and Payments"
+        },
+        {
+          "slug": "how-are-funds-fees-and-refunds-handled-on-initiate-ph",
+          "title": "How Are Funds, Fees, and Refunds Handled on Initiate PH?",
+          "category": "Fees, Escrow and Payments"
+        }
+      ]
+    },
+    {
+      "slug": "how-do-i-complete-or-cancel-my-investment-commitment",
+      "title": "How Do I Complete or Cancel My Investment Commitment?",
+      "category": "Fees, Escrow and Payments",
+      "categorySlug": "fees-escrow-and-payments",
+      "updatedAt": "2026-04-16",
+      "readTime": 4,
+      "body": [
+        {
+          "type": "heading",
+          "content": "How do I complete an investment commitment?"
+        },
+        {
+          "type": "paragraph",
+          "content": "To complete an investment, follow these steps:"
+        },
+        {
+          "type": "unordered_list",
+          "items": [
+            "Register and verify your Initiate PH account",
+            "Complete the required investor assessment and identity verification",
+            "Fund your wallet or payment account",
+            "Select a campaign you want to invest in",
+            "Enter your investment amount within your allowed limits",
+            "Confirm your pledge"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": "Once confirmed, your investment is recorded and you will receive a confirmation via your dashboard and email."
+        },
+        {
+          "type": "heading",
+          "content": "When is my investment considered final?"
+        },
+        {
+          "type": "paragraph",
+          "content": "Your investment is considered final once you confirm your pledge and the campaign passes the allowed cancellation period."
+        },
+        {
+          "type": "heading",
+          "content": "Can I cancel my investment commitment?"
+        },
+        {
+          "type": "paragraph",
+          "content": "Yes, you may cancel your investment commitment for any reason up to 48 hours before the campaign's closing deadline."
+        },
+        {
+          "type": "heading",
+          "content": "How do I cancel my investment?"
+        },
+        {
+          "type": "paragraph",
+          "content": "To cancel your investment:"
+        },
+        {
+          "type": "unordered_list",
+          "items": [
+            "Log in to your account",
+            "Go to your active investments or campaign page",
+            "Select the option to cancel your pledge",
+            "Confirm your request"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": "If done within the allowed timeframe, your commitment will be withdrawn."
+        },
+        {
+          "type": "heading",
+          "content": "What happens if I cancel my investment?"
+        },
+        {
+          "type": "paragraph",
+          "content": "If you cancel within the allowed period, your funds will be returned according to the platform's payment and escrow process. Processing times may vary depending on the payment method used."
+        },
+        {
+          "type": "heading",
+          "content": "What if I try to cancel after the deadline?"
+        },
+        {
+          "type": "paragraph",
+          "content": "After the 48-hour pre-closing window, investment commitments can no longer be cancelled and are considered binding."
+        },
+        {
+          "type": "heading",
+          "content": "What is the difference between cancelling an investment and a failed campaign?"
+        },
+        {
+          "type": "unordered_list",
+          "items": [
+            "Cancelling an investment is done by the investor before the deadline",
+            "A failed campaign happens when the campaign does not reach its funding target"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": "In both cases, funds are returned, but the timing and conditions are different."
+        },
+        {
+          "type": "callout",
+          "variant": "tip",
+          "content": "Register at https://initiate-portal.vercel.app/register and manage your investments with full transparency and control."
+        }
+      ],
+      "relatedArticles": [
+        {
+          "slug": "what-happens-if-the-target-offering-is-not-met",
+          "title": "What Happens If the Target Offering Is Not Met?",
+          "category": "Fees, Escrow and Payments"
+        },
+        {
+          "slug": "how-are-funds-fees-and-refunds-handled-on-initiate-ph",
+          "title": "How Are Funds, Fees, and Refunds Handled on Initiate PH?",
+          "category": "Fees, Escrow and Payments"
+        }
+      ]
     }
   ]
 }
