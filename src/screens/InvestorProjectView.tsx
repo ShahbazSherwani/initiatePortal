@@ -20,6 +20,28 @@ interface InsufficientFundsError {
   shortfall: number;
 }
 
+// Animated tooltip component (defined outside to prevent re-mount on parent re-render)
+const Tooltip = ({ id, message, children, activeTooltip }: { id: string; message: string; children: React.ReactNode; activeTooltip: string | null }) => (
+  <div style={{ position: 'relative' }}>
+    {children}
+    {activeTooltip === id && (
+      <div style={{
+        position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%) translateY(-100%)',
+        background: '#1B3A2D', color: '#fff', padding: '8px 14px', borderRadius: 8, fontSize: 12,
+        fontWeight: 500, whiteSpace: 'nowrap', zIndex: 50, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        animation: 'tooltipSlideIn 0.35s ease-out, tooltipFadeOut 0.3s ease-in 1.8s forwards',
+        fontFamily: "'DM Sans',sans-serif", maxWidth: 280,
+      }}>
+        <span style={{ whiteSpace: 'normal', lineHeight: 1.4, display: 'block' }}>{message}</span>
+        <div style={{
+          position: 'absolute', bottom: -5, left: '50%', transform: 'translateX(-50%)',
+          width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #1B3A2D',
+        }} />
+      </div>
+    )}
+  </div>
+);
+
 export const InvestorProjectView: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { profile } = React.useContext(AuthContext)!;
@@ -451,26 +473,7 @@ export const InvestorProjectView: React.FC = () => {
   const outlineBtn: React.CSSProperties = { ...greenBtn, background: "transparent", color: "#1B3A2D", border: "1px solid #E8E4DD", boxShadow: "none" };
 
   // Animated tooltip component
-  const Tooltip = ({ id, message, children }: { id: string; message: string; children: React.ReactNode }) => (
-    <div style={{ position: 'relative' }}>
-      {children}
-      {activeTooltip === id && (
-        <div style={{
-          position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%) translateY(-100%)',
-          background: '#1B3A2D', color: '#fff', padding: '8px 14px', borderRadius: 8, fontSize: 12,
-          fontWeight: 500, whiteSpace: 'nowrap', zIndex: 50, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          animation: 'tooltipSlideIn 0.35s ease-out, tooltipFadeOut 0.3s ease-in 1.8s forwards',
-          fontFamily: "'DM Sans',sans-serif", maxWidth: 280,
-        }}>
-          <span style={{ whiteSpace: 'normal', lineHeight: 1.4, display: 'block' }}>{message}</span>
-          <div style={{
-            position: 'absolute', bottom: -5, left: '50%', transform: 'translateX(-50%)',
-            width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #1B3A2D',
-          }} />
-        </div>
-      )}
-    </div>
-  );
+  // (Tooltip is now defined outside the component to prevent input focus loss)
 
   // ── Build sidebar content ──
   const investmentSidebar = isOwnProject ? (
@@ -533,7 +536,7 @@ export const InvestorProjectView: React.FC = () => {
       <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 18, fontWeight: 600, color: "#1B3A2D", margin: "0 0 20px" }}>Invest in this Campaign</h3>
 
       {/* Education gate */}
-      <Tooltip id="education" message="Complete the Education Module to proceed">
+      <Tooltip id="education" message="Complete the Education Module to proceed" activeTooltip={activeTooltip}>
       {educationCompleted === false && (
         <div style={{ background: "#FEFCE8", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FDE047", display: "flex", gap: 10, animation: activeTooltip === 'education' ? 'tooltipPulse 1s ease-in-out' : undefined }}>
           <span style={{ fontSize: 18 }}>🎓</span>
@@ -546,7 +549,7 @@ export const InvestorProjectView: React.FC = () => {
       </Tooltip>
 
       {/* Suitability gate */}
-      <Tooltip id="suitability" message="Complete your Suitability Assessment first">
+      <Tooltip id="suitability" message="Complete your Suitability Assessment first" activeTooltip={activeTooltip}>
       {!suitabilityProfile && (
         <div style={{ background: "#FFF7ED", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FDBA74", display: "flex", gap: 10, animation: activeTooltip === 'suitability' ? 'tooltipPulse 1s ease-in-out' : undefined }}>
           <span style={{ fontSize: 18 }}>📋</span>
@@ -559,7 +562,7 @@ export const InvestorProjectView: React.FC = () => {
       </Tooltip>
 
       {/* Suitability restriction */}
-      <Tooltip id="suitability-blocked" message="Your risk profile restricts this campaign">
+      <Tooltip id="suitability-blocked" message="Your risk profile restricts this campaign" activeTooltip={activeTooltip}>
       {suitabilityProfile && suitabilityBlocked && (
         <div style={{ background: "#FEF2F2", borderRadius: 12, padding: 14, marginBottom: 16, border: "1px solid #FCA5A5", display: "flex", gap: 10, animation: activeTooltip === 'suitability-blocked' ? 'tooltipPulse 1s ease-in-out' : undefined }}>
           <span style={{ fontSize: 18 }}>🚫</span>
@@ -635,7 +638,7 @@ export const InvestorProjectView: React.FC = () => {
           { label: "2. Investment Limit Agreement", file: "Retail_Investor_Investment_Limit_Agreement.pdf", state: investmentLimitForm, setter: setInvestmentLimitForm, ref: investmentLimitFormRef },
           { label: "3. Risk Acknowledgement Statement", file: "Retail_Investors_Risk_Acknowledgement_Statement.pdf", state: riskAcknowledgementForm, setter: setRiskAcknowledgementForm, ref: riskAcknowledgementFormRef },
         ] as const).map(({ label, file, state, setter, ref }, i) => (
-          <Tooltip key={i} id={`disclosure-${i}`} message={`Upload ${label.replace(/^\d\.\s*/, '')}`}>
+          <Tooltip key={i} id={`disclosure-${i}`} message={`Upload ${label.replace(/^\d\.\s*/, '')}`} activeTooltip={activeTooltip}>
           <div style={{ marginBottom: i < 2 ? 12 : 0, borderRadius: 8, transition: 'box-shadow 0.3s', boxShadow: activeTooltip === `disclosure-${i}` ? '0 0 0 2px #EAB308' : 'none' }}>
             <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 6px" }}>{label} <span style={{ color: "#DC2626" }}>*</span></p>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -663,7 +666,7 @@ export const InvestorProjectView: React.FC = () => {
       </div>
 
       {/* Amount input */}
-      <Tooltip id="amount" message="Enter an investment amount (min ₱100)">
+      <Tooltip id="amount" message="Enter an investment amount (min ₱100)" activeTooltip={activeTooltip}>
       <div>
       <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>How much would you like to invest?</label>
       <div style={{ display: "flex", alignItems: "center", border: activeTooltip === 'amount' ? "2px solid #EAB308" : "2px solid #E8E4DD", borderRadius: 12, padding: "0 16px", marginBottom: 6, background: "#FAFAF7", transition: 'border-color 0.3s' }}>
